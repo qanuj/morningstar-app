@@ -1,4 +1,3 @@
-// lib/screens/jersey_detail_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/product.dart';
@@ -398,10 +397,10 @@ class _JerseyDetailScreenState extends State<JerseyDetailScreen> {
                       padding: EdgeInsets.only(top: 8),
                       child: Text(
                         'Jersey ordering is currently disabled by your club admin.',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.red,
-                          textAlign: TextAlign.center,
                         ),
                       ),
                     ),

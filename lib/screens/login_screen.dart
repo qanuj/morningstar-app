@@ -127,7 +127,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: _isLoading
                             ? CircularProgressIndicator(color: Colors.white)
                             : Text(
-                                'Send OTP',
+                                'Verify OTP',
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,

@@ -16,7 +16,16 @@ class UserProvider with ChangeNotifier {
 
     try {
       final userData = await AuthService.getCurrentUser();
-      _user = User.fromJson(userData);
+      
+      // Handle different response formats
+      if (userData.containsKey('data') && userData['data'] != null) {
+        _user = User.fromJson(userData['data']);
+      } else if (userData.containsKey('user') && userData['user'] != null) {
+        _user = User.fromJson(userData['user']);
+      } else {
+        // Assume the response itself is the user data
+        _user = User.fromJson(userData);
+      }
     } catch (e) {
       print('Error loading user: $e');
     }
@@ -27,7 +36,7 @@ class UserProvider with ChangeNotifier {
 
   Future<void> updateProfile(Map<String, dynamic> data) async {
     try {
-      final response = await ApiService.put('/auth/profile', data);
+      final response = await ApiService.put('/profile', data);
       _user = User.fromJson(response);
       notifyListeners();
     } catch (e) {

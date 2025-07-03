@@ -1,3 +1,4 @@
+// lib/providers/club_provider.dart
 import 'package:flutter/material.dart';
 import '../models/club.dart';
 import '../services/api_service.dart';
@@ -17,16 +18,46 @@ class ClubProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await ApiService.get('/clubs');
-      _clubs = (response as List).map((club) => ClubMembership.fromJson(club)).toList();
+      final response = await ApiService.get('/my/clubs');
+      List<dynamic> clubsData = [];
+      
+      // Handle different response formats
+      if (response.containsKey('data')) {
+        final data = response['data'];
+        if (data is List) {
+          clubsData = data;
+        } else if (data is Map) {
+          clubsData = [data]; // Single club wrapped in data
+        }
+      } else if (response is List) {
+        clubsData = response;
+      } else {
+        // Assume response is a single club or contains club data directly
+        clubsData = [response];
+      }
+      
+      _clubs = clubsData.map((club) {
+        try {
+          return ClubMembership.fromJson(club);
+        } catch (e) {
+          print('Error parsing club: $e');
+          print('Club data: $club');
+          rethrow;
+        }
+      }).toList();
       
       // Set current club if exists
       final currentClubId = await AuthService.getCurrentClubId();
-      if (currentClubId != null) {
-        _currentClub = _clubs.firstWhere(
-          (club) => club.club.id == currentClubId,
-          orElse: () => _clubs.isNotEmpty ? _clubs.first : throw Exception('No clubs found'),
-        );
+      if (currentClubId != null && _clubs.isNotEmpty) {
+        try {
+          _currentClub = _clubs.firstWhere(
+            (club) => club.club.id == currentClubId,
+          );
+        } catch (e) {
+          // Club not found, set to first available
+          _currentClub = _clubs.first;
+          await AuthService.setCurrentClubId(_currentClub!.club.id);
+        }
       } else if (_clubs.isNotEmpty) {
         _currentClub = _clubs.first;
         await AuthService.setCurrentClubId(_currentClub!.club.id);
