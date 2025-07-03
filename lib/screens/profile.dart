@@ -10,277 +10,353 @@ import 'edit_profile.dart';
 class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Consumer2<UserProvider, ClubProvider>(
-      builder: (context, userProvider, clubProvider, child) {
-        final user = userProvider.user;
-        final currentClub = clubProvider.currentClub;
+    return Scaffold(
+      backgroundColor: AppTheme.backgroundColor,
+      appBar: AppBar(
+        title: Text('Profile'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: AppTheme.primaryTextColor,
+      ),
+      body: Consumer2<UserProvider, ClubProvider>(
+        builder: (context, userProvider, clubProvider, child) {
+          final user = userProvider.user;
+          final currentClub = clubProvider.currentClub;
 
-        if (user == null) {
-          return Center(child: CircularProgressIndicator());
-        }
+          if (user == null) {
+            return Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                color: AppTheme.cricketGreen,
+              ),
+            );
+          }
 
-        return SingleChildScrollView(
-          padding: EdgeInsets.all(16),
-          child: Column(
-            children: [
-              // Profile Header
-              Card(
-                child: Padding(
-                  padding: EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      CircleAvatar(
-                        radius: 50,
-                        backgroundColor: AppTheme.cricketGreen,
-                        backgroundImage: user.profilePicture != null
-                            ? NetworkImage(user.profilePicture!)
-                            : null,
-                        child: user.profilePicture == null
-                            ? Text(
-                                user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
-                                style: TextStyle(
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : null,
-                      ),
-                      SizedBox(height: 16),
-                      Text(
-                        user.name,
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
+          return SingleChildScrollView(
+            padding: EdgeInsets.all(16),
+            child: Column(
+              children: [
+                // Profile Header
+                Container(
+                  decoration: AppTheme.elevatedCardDecoration,
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Column(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 20,
+                                offset: Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: CircleAvatar(
+                            radius: 50,
+                            backgroundColor: AppTheme.cricketGreen,
+                            backgroundImage: user.profilePicture != null
+                                ? NetworkImage(user.profilePicture!)
+                                : null,
+                            child: user.profilePicture == null
+                                ? Text(
+                                    user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
+                                    style: TextStyle(
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : null,
+                          ),
                         ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        user.phoneNumber,
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      if (user.email != null) ...[
-                        SizedBox(height: 4),
+                        SizedBox(height: 20),
                         Text(
-                          user.email!,
+                          user.name,
                           style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
+                            fontSize: 24,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.primaryTextColor,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppTheme.cricketGreen.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            user.phoneNumber,
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: AppTheme.cricketGreen,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        if (user.email != null) ...[
+                          SizedBox(height: 8),
+                          Text(
+                            user.email!,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppTheme.secondaryTextColor,
+                            ),
+                          ),
+                        ],
+                        SizedBox(height: 20),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => EditProfileScreen(),
+                                ),
+                              );
+                            },
+                            icon: Icon(Icons.edit, size: 18),
+                            label: Text('Edit Profile'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.cricketGreen,
+                              foregroundColor: Colors.white,
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
+                            ),
                           ),
                         ),
                       ],
-                      SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => EditProfileScreen(),
-                                  ),
-                                );
-                              },
-                              icon: Icon(Icons.edit, color: Colors.white),
-                              label: Text(
-                                'Edit Profile',
-                                style: TextStyle(color: Colors.white),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.cricketGreen,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
 
-              SizedBox(height: 16),
+                SizedBox(height: 20),
 
-              // Account Stats
-              Card(
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Account Overview',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildStatCard(
-                              'Total Balance',
-                              '₹${user.balance.toStringAsFixed(0)}',
-                              Icons.account_balance_wallet,
-                              Colors.green,
-                            ),
-                          ),
-                          SizedBox(width: 12),
-                          Expanded(
-                            child: _buildStatCard(
-                              'Total Spent',
-                              '₹${user.totalExpenses.toStringAsFixed(0)}',
-                              Icons.receipt,
-                              Colors.orange,
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (currentClub != null) ...[
-                        SizedBox(height: 12),
+                // Account Stats
+                Container(
+                  decoration: AppTheme.softCardDecoration,
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Row(
                           children: [
-                            Expanded(
-                              child: _buildStatCard(
-                                'Club Points',
-                                '${currentClub.points}',
-                                Icons.star,
-                                AppTheme.cricketGreen,
+                            Container(
+                              padding: EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppTheme.cricketGreen.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.analytics,
+                                color: AppTheme.cricketGreen,
+                                size: 20,
                               ),
                             ),
                             SizedBox(width: 12),
-                            Expanded(
-                              child: _buildStatCard(
-                                'Club Role',
-                                currentClub.role,
-                                Icons.person,
-                                Colors.blue,
+                            Text(
+                              'Account Overview',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.primaryTextColor,
                               ),
                             ),
                           ],
                         ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-
-              SizedBox(height: 16),
-
-              // Profile Status
-              Card(
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Profile Status',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                        SizedBox(height: 20),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildStatCard(
+                                'Total Balance',
+                                '₹${user.balance.toStringAsFixed(0)}',
+                                Icons.account_balance_wallet,
+                                Colors.green,
+                              ),
+                            ),
+                            SizedBox(width: 16),
+                            Expanded(
+                              child: _buildStatCard(
+                                'Total Spent',
+                                '₹${user.totalExpenses.toStringAsFixed(0)}',
+                                Icons.receipt,
+                                Colors.orange,
+                              ),
+                            ),
+                          ],
                         ),
+                        if (currentClub != null) ...[
+                          SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildStatCard(
+                                  'Club Points',
+                                  '${currentClub.points}',
+                                  Icons.star,
+                                  AppTheme.cricketGreen,
+                                ),
+                              ),
+                              SizedBox(width: 16),
+                              Expanded(
+                                child: _buildStatCard(
+                                  'Club Role',
+                                  currentClub.role,
+                                  Icons.person,
+                                  Colors.blue,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+
+                SizedBox(height: 20),
+
+                // Profile Status
+                Container(
+                  decoration: AppTheme.softCardDecoration,
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppTheme.cricketGreen.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.verified_user,
+                                color: AppTheme.cricketGreen,
+                                size: 20,
+                              ),
+                            ),
+                            SizedBox(width: 12),
+                            Text(
+                              'Profile Status',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.primaryTextColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 20),
+                        _buildStatusRow(
+                          'Phone Verified',
+                          user.phoneNumber.isNotEmpty,
+                          Icons.phone,
+                        ),
+                        _buildStatusRow(
+                          'Profile Complete',
+                          user.isProfileComplete,
+                          Icons.person,
+                        ),
+                        _buildStatusRow(
+                          'Account Verified',
+                          user.isVerified,
+                          Icons.verified_user,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                SizedBox(height: 20),
+
+                // Settings
+                Container(
+                  decoration: AppTheme.softCardDecoration,
+                  child: Column(
+                    children: [
+                      _buildSettingsItem(
+                        icon: Icons.notifications_outlined,
+                        title: 'Notifications',
+                        onTap: () {
+                          // TODO: Navigate to notifications settings
+                        },
                       ),
-                      SizedBox(height: 16),
-                      _buildStatusRow(
-                        'Phone Verified',
-                        user.phoneNumber.isNotEmpty,
-                        Icons.phone,
+                      Divider(height: 1, color: AppTheme.dividerColor.withOpacity(0.3)),
+                      _buildSettingsItem(
+                        icon: Icons.help_outline,
+                        title: 'Help & Support',
+                        onTap: () {
+                          // TODO: Navigate to help
+                        },
                       ),
-                      _buildStatusRow(
-                        'Profile Complete',
-                        user.isProfileComplete,
-                        Icons.person,
+                      Divider(height: 1, color: AppTheme.dividerColor.withOpacity(0.3)),
+                      _buildSettingsItem(
+                        icon: Icons.info_outline,
+                        title: 'About',
+                        onTap: () {
+                          _showAboutDialog(context);
+                        },
                       ),
-                      _buildStatusRow(
-                        'Account Verified',
-                        user.isVerified,
-                        Icons.verified_user,
+                      Divider(height: 1, color: AppTheme.dividerColor.withOpacity(0.3)),
+                      _buildSettingsItem(
+                        icon: Icons.logout,
+                        title: 'Logout',
+                        titleColor: Colors.red,
+                        onTap: () => _showLogoutDialog(context),
                       ),
                     ],
                   ),
                 ),
-              ),
 
-              SizedBox(height: 16),
-
-              // Settings
-              Card(
-                child: Column(
-                  children: [
-                    ListTile(
-                      leading: Icon(Icons.notifications, color: AppTheme.cricketGreen),
-                      title: Text('Notifications'),
-                      trailing: Icon(Icons.chevron_right),
-                      onTap: () {
-                        // TODO: Navigate to notifications settings
-                      },
-                    ),
-                    Divider(height: 1),
-                    ListTile(
-                      leading: Icon(Icons.help, color: AppTheme.cricketGreen),
-                      title: Text('Help & Support'),
-                      trailing: Icon(Icons.chevron_right),
-                      onTap: () {
-                        // TODO: Navigate to help
-                      },
-                    ),
-                    Divider(height: 1),
-                    ListTile(
-                      leading: Icon(Icons.info, color: AppTheme.cricketGreen),
-                      title: Text('About'),
-                      trailing: Icon(Icons.chevron_right),
-                      onTap: () {
-                        _showAboutDialog(context);
-                      },
-                    ),
-                    Divider(height: 1),
-                    ListTile(
-                      leading: Icon(Icons.logout, color: Colors.red),
-                      title: Text(
-                        'Logout',
-                        style: TextStyle(color: Colors.red),
-                      ),
-                      onTap: () => _showLogoutDialog(context),
-                    ),
-                  ],
-                ),
-              ),
-
-              SizedBox(height: 32),
-            ],
-          ),
-        );
-      },
+                SizedBox(height: 32),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
   Widget _buildStatCard(String label, String value, IconData icon, Color color) {
     return Container(
-      padding: EdgeInsets.all(12),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: color.withOpacity(0.2),
+          width: 0.5,
+        ),
       ),
       child: Column(
         children: [
-          Icon(icon, color: color, size: 24),
-          SizedBox(height: 8),
+          Icon(icon, color: color, size: 28),
+          SizedBox(height: 12),
           Text(
             value,
             style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.primaryTextColor,
             ),
           ),
+          SizedBox(height: 4),
           Text(
             label,
             style: TextStyle(
               fontSize: 12,
-              color: Colors.grey[600],
+              color: AppTheme.secondaryTextColor,
             ),
             textAlign: TextAlign.center,
           ),
@@ -290,28 +366,105 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _buildStatusRow(String label, bool isComplete, IconData icon) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: 12),
+    return Container(
+      margin: EdgeInsets.only(bottom: 16),
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isComplete 
+          ? Colors.green.withOpacity(0.1) 
+          : AppTheme.backgroundColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isComplete 
+            ? Colors.green.withOpacity(0.3)
+            : AppTheme.dividerColor.withOpacity(0.3),
+          width: 0.5,
+        ),
+      ),
       child: Row(
         children: [
-          Icon(
-            icon,
-            color: isComplete ? Colors.green : Colors.grey,
-            size: 20,
+          Container(
+            padding: EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isComplete 
+                ? Colors.green.withOpacity(0.2)
+                : AppTheme.dividerColor.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              color: isComplete ? Colors.green : AppTheme.secondaryTextColor,
+              size: 20,
+            ),
           ),
           SizedBox(width: 12),
           Expanded(
             child: Text(
               label,
-              style: TextStyle(fontSize: 14),
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppTheme.primaryTextColor,
+              ),
             ),
           ),
           Icon(
             isComplete ? Icons.check_circle : Icons.radio_button_unchecked,
-            color: isComplete ? Colors.green : Colors.grey,
+            color: isComplete ? Colors.green : AppTheme.secondaryTextColor,
             size: 20,
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSettingsItem({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    Color? titleColor,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: titleColor != null 
+                    ? titleColor.withOpacity(0.1)
+                    : AppTheme.cricketGreen.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  color: titleColor ?? AppTheme.cricketGreen,
+                  size: 20,
+                ),
+              ),
+              SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: titleColor ?? AppTheme.primaryTextColor,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                color: AppTheme.secondaryTextColor,
+                size: 20,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -320,6 +473,9 @@ class ProfileScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
         title: Text('Logout'),
         content: Text('Are you sure you want to logout?'),
         actions: [
@@ -337,8 +493,14 @@ class ProfileScreen extends StatelessWidget {
                 (route) => false,
               );
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: Text('Logout', style: TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text('Logout'),
           ),
         ],
       ),
@@ -349,10 +511,24 @@ class ProfileScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
         title: Row(
           children: [
-            Icon(Icons.sports_cricket, color: AppTheme.cricketGreen),
-            SizedBox(width: 8),
+            Container(
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppTheme.cricketGreen.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.sports_cricket,
+                color: AppTheme.cricketGreen,
+                size: 20,
+              ),
+            ),
+            SizedBox(width: 12),
             Text('About Duggy'),
           ],
         ),
@@ -362,20 +538,41 @@ class ProfileScreen extends StatelessWidget {
           children: [
             Text(
               'Duggy - Your Cricket Club Companion',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+              ),
             ),
-            SizedBox(height: 8),
+            SizedBox(height: 12),
             Text('Version 1.0.0'),
-            SizedBox(height: 8),
+            SizedBox(height: 12),
             Text(
               'Manage your cricket club activities, matches, store orders, and more with Duggy.',
+              style: TextStyle(height: 1.4),
             ),
             SizedBox(height: 16),
-            Text(
-              'Visit duggy.app for more information.',
-              style: TextStyle(
-                color: AppTheme.cricketGreen,
-                fontWeight: FontWeight.w500,
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.cricketGreen.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.language,
+                    color: AppTheme.cricketGreen,
+                    size: 16,
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    'Visit duggy.app for more information',
+                    style: TextStyle(
+                      color: AppTheme.cricketGreen,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

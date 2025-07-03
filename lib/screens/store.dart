@@ -30,6 +30,12 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
     _loadStoreData();
   }
 
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadStoreData() async {
     setState(() => _isLoading = true);
 
@@ -97,8 +103,8 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                 canOrderMore: product.canOrderMore,
                 userOrderCount: product.userOrderCount,
                 availability: product.availability,
-                type: 'OTHER', // Default type
-                handType: 'BOTH', // Default hand type
+                type: 'OTHER',
+                handType: 'BOTH',
                 availableSizes: null,
                 brand: null,
                 model: null,
@@ -126,39 +132,123 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Store'),
-        backgroundColor: AppTheme.cricketGreen,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.shopping_bag),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => MyOrdersScreen()),
-              );
-            },
+      backgroundColor: AppTheme.backgroundColor,
+      body: Column(
+        children: [
+          // Store Header
+          Container(
+            margin: EdgeInsets.all(16),
+            padding: EdgeInsets.all(20),
+            decoration: AppTheme.softCardDecoration,
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.cricketGreen.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.store,
+                    color: AppTheme.cricketGreen,
+                    size: 24,
+                  ),
+                ),
+                SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Club Store',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.primaryTextColor,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        _meta != null 
+                          ? '${_meta!.jerseyCount} jerseys • ${_meta!.kitCount} kits'
+                          : 'Loading products...',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.secondaryTextColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: Container(
+                    padding: EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.cricketGreen.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.shopping_bag,
+                      color: AppTheme.cricketGreen,
+                      size: 20,
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => MyOrdersScreen()),
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.white,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          tabs: [
-            Tab(
-              text: _meta != null ? 'Jerseys (${_meta!.jerseyCount})' : 'Jerseys',
+
+          // Custom Tab Bar
+          Container(
+            margin: EdgeInsets.symmetric(horizontal: 16),
+            padding: EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: AppTheme.surfaceColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppTheme.dividerColor.withOpacity(0.3),
+                width: 0.5,
+              ),
             ),
-            Tab(
-              text: _meta != null ? 'Kits (${_meta!.kitCount})' : 'Kits',
+            child: TabBar(
+              controller: _tabController,
+              indicatorSize: TabBarIndicatorSize.tab,
+              indicator: BoxDecoration(
+                color: AppTheme.cricketGreen,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              labelColor: Colors.white,
+              unselectedLabelColor: AppTheme.secondaryTextColor,
+              labelStyle: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+              unselectedLabelStyle: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+              tabs: [
+                Tab(
+                  text: _meta != null ? 'Jerseys (${_meta!.jerseyCount})' : 'Jerseys',
+                ),
+                Tab(
+                  text: _meta != null ? 'Kits (${_meta!.kitCount})' : 'Kits',
+                ),
+                Tab(text: 'My Orders'),
+              ],
             ),
-            Tab(text: 'My Orders'),
-          ],
-        ),
-      ),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator())
-          : TabBarView(
+          ),
+
+          SizedBox(height: 16),
+
+          // Tab Content
+          Expanded(
+            child: TabBarView(
               controller: _tabController,
               children: [
                 _buildJerseysTab(),
@@ -166,20 +256,55 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                 MyOrdersScreen(),
               ],
             ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildJerseysTab() {
+    if (_isLoading) {
+      return Center(
+        child: CircularProgressIndicator(
+          strokeWidth: 3,
+          color: AppTheme.cricketGreen,
+        ),
+      );
+    }
+
     if (_jerseys.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.checkroom, size: 80, color: Colors.grey),
-            SizedBox(height: 16),
+            Container(
+              padding: EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                color: AppTheme.cricketGreen.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.checkroom_outlined,
+                size: 64,
+                color: AppTheme.cricketGreen,
+              ),
+            ),
+            SizedBox(height: 24),
             Text(
               'No jerseys available',
-              style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.primaryTextColor,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Check back later for new jerseys',
+              style: TextStyle(
+                fontSize: 16,
+                color: AppTheme.secondaryTextColor,
+              ),
             ),
           ],
         ),
@@ -188,6 +313,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
 
     return RefreshIndicator(
       onRefresh: _loadStoreData,
+      color: AppTheme.cricketGreen,
       child: GridView.builder(
         padding: EdgeInsets.all(16),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -206,16 +332,48 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
   }
 
   Widget _buildKitsTab() {
+    if (_isLoading) {
+      return Center(
+        child: CircularProgressIndicator(
+          strokeWidth: 3,
+          color: AppTheme.cricketGreen,
+        ),
+      );
+    }
+
     if (_kits.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.sports_cricket, size: 80, color: Colors.grey),
-            SizedBox(height: 16),
+            Container(
+              padding: EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                color: AppTheme.cricketGreen.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.sports_cricket_outlined,
+                size: 64,
+                color: AppTheme.cricketGreen,
+              ),
+            ),
+            SizedBox(height: 24),
             Text(
               'No kits available',
-              style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.primaryTextColor,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Check back later for new kits',
+              style: TextStyle(
+                fontSize: 16,
+                color: AppTheme.secondaryTextColor,
+              ),
             ),
           ],
         ),
@@ -224,6 +382,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
 
     return RefreshIndicator(
       onRefresh: _loadStoreData,
+      color: AppTheme.cricketGreen,
       child: GridView.builder(
         padding: EdgeInsets.all(16),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -242,262 +401,333 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
   }
 
   Widget _buildJerseyCard(Jersey jersey) {
-    return Card(
-      child: InkWell(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => JerseyDetailScreen(jersey: jersey),
-            ),
-          );
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 3,
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-                  color: Colors.grey[100],
-                ),
-                child: jersey.images.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: jersey.images.first.url,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Center(
-                          child: CircularProgressIndicator(),
-                        ),
-                        errorWidget: (context, url, error) => Icon(
-                          Icons.checkroom,
-                          size: 50,
-                          color: Colors.grey,
-                        ),
-                      )
-                    : Icon(
-                        Icons.checkroom,
-                        size: 50,
-                        color: Colors.grey,
-                      ),
+    return Container(
+      decoration: AppTheme.softCardDecoration,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => JerseyDetailScreen(jersey: jersey),
               ),
-            ),
-            Expanded(
-              flex: 2,
-              child: Padding(
-                padding: EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      jersey.name,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    SizedBox(height: 4),
-                    if (jersey.description != null && jersey.description!.isNotEmpty)
-                      Text(
-                        jersey.description!,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    
-                    // Order status indicator
-                    if (jersey.hasOrdered)
-                      Container(
-                        margin: EdgeInsets.only(top: 4),
-                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.blue,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          'Ordered (${jersey.userOrderCount})',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 8,
-                          ),
-                        ),
-                      ),
-                    
-                    Spacer(),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          '₹${jersey.basePrice.toStringAsFixed(0)}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.cricketGreen,
-                            fontSize: 16,
-                          ),
-                        ),
-                        if (!jersey.availability.canOrder)
-                          Container(
-                            padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.red,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              'Unavailable',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 8,
+            );
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Image Section
+              Expanded(
+                flex: 3,
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                    color: AppTheme.backgroundColor,
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                    child: jersey.images.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: jersey.images.first.url,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(
+                              color: AppTheme.backgroundColor,
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppTheme.cricketGreen,
+                                ),
                               ),
                             ),
+                            errorWidget: (context, url, error) => Container(
+                              color: AppTheme.backgroundColor,
+                              child: Icon(
+                                Icons.checkroom,
+                                size: 50,
+                                color: AppTheme.cricketGreen,
+                              ),
+                            ),
+                          )
+                        : Container(
+                            color: AppTheme.backgroundColor,
+                            child: Icon(
+                              Icons.checkroom,
+                              size: 50,
+                              color: AppTheme.cricketGreen,
+                            ),
                           ),
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ],
+              
+              // Content Section
+              Expanded(
+                flex: 2,
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        jersey.name,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                          color: AppTheme.primaryTextColor,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      SizedBox(height: 4),
+                      if (jersey.description != null && jersey.description!.isNotEmpty)
+                        Text(
+                          jersey.description!,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.secondaryTextColor,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      
+                      // Order status indicator
+                      if (jersey.hasOrdered) ...[
+                        SizedBox(height: 8),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Colors.blue.withOpacity(0.3),
+                              width: 0.5,
+                            ),
+                          ),
+                          child: Text(
+                            'Ordered (${jersey.userOrderCount})',
+                            style: TextStyle(
+                              color: Colors.blue,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                      
+                      Spacer(),
+                      
+                      // Price and availability
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '₹${jersey.basePrice.toStringAsFixed(0)}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.cricketGreen,
+                              fontSize: 18,
+                            ),
+                          ),
+                          if (!jersey.availability.canOrder)
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'Unavailable',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildKitCard(Kit kit) {
-    return Card(
-      child: InkWell(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => KitDetailScreen(kit: kit),
-            ),
-          );
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 3,
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-                  color: Colors.grey[100],
-                ),
-                child: kit.images.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: kit.images.first.url,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Center(
-                          child: CircularProgressIndicator(),
-                        ),
-                        errorWidget: (context, url, error) => Icon(
-                          Icons.sports_cricket,
-                          size: 50,
-                          color: Colors.grey,
-                        ),
-                      )
-                    : Icon(
-                        Icons.sports_cricket,
-                        size: 50,
-                        color: Colors.grey,
-                      ),
+    return Container(
+      decoration: AppTheme.softCardDecoration,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => KitDetailScreen(kit: kit),
               ),
-            ),
-            Expanded(
-              flex: 2,
-              child: Padding(
-                padding: EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      kit.name,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      _getKitTypeText(kit.type),
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AppTheme.cricketGreen,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    if (kit.brand != null) ...[
-                      SizedBox(height: 2),
+            );
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Image Section
+              Expanded(
+                flex: 3,
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                    color: AppTheme.backgroundColor,
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                    child: kit.images.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: kit.images.first.url,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(
+                              color: AppTheme.backgroundColor,
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppTheme.cricketGreen,
+                                ),
+                              ),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              color: AppTheme.backgroundColor,
+                              child: Icon(
+                                Icons.sports_cricket,
+                                size: 50,
+                                color: AppTheme.cricketGreen,
+                              ),
+                            ),
+                          )
+                        : Container(
+                            color: AppTheme.backgroundColor,
+                            child: Icon(
+                              Icons.sports_cricket,
+                              size: 50,
+                              color: AppTheme.cricketGreen,
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+              
+              // Content Section
+              Expanded(
+                flex: 2,
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        kit.brand!,
+                        kit.name,
                         style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                          color: AppTheme.primaryTextColor,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ],
-                    
-                    // Order status indicator
-                    if (kit.hasOrdered)
+                      SizedBox(height: 4),
                       Container(
-                        margin: EdgeInsets.only(top: 4),
-                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.blue,
+                          color: AppTheme.cricketGreen.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          'Ordered (${kit.userOrderCount})',
+                          _getKitTypeText(kit.type),
                           style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 8,
+                            fontSize: 10,
+                            color: AppTheme.cricketGreen,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
-                    
-                    Spacer(),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
+                      if (kit.brand != null) ...[
+                        SizedBox(height: 4),
                         Text(
-                          '₹${kit.basePrice.toStringAsFixed(0)}',
+                          kit.brand!,
                           style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.cricketGreen,
-                            fontSize: 16,
+                            fontSize: 11,
+                            color: AppTheme.secondaryTextColor,
                           ),
                         ),
-                        if (!kit.availability.canOrder)
-                          Container(
-                            padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.red,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              kit.stockQuantity == 0 ? 'Out of Stock' : 'Unavailable',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 8,
-                              ),
+                      ],
+                      
+                      // Order status indicator
+                      if (kit.hasOrdered) ...[
+                        SizedBox(height: 8),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Colors.blue.withOpacity(0.3),
+                              width: 0.5,
                             ),
                           ),
+                          child: Text(
+                            'Ordered (${kit.userOrderCount})',
+                            style: TextStyle(
+                              color: Colors.blue,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
                       ],
-                    ),
-                  ],
+                      
+                      Spacer(),
+                      
+                      // Price and availability
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '₹${kit.basePrice.toStringAsFixed(0)}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.cricketGreen,
+                              fontSize: 18,
+                            ),
+                          ),
+                          if (!kit.availability.canOrder)
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                kit.stockQuantity == 0 ? 'Out of Stock' : 'Unavailable',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

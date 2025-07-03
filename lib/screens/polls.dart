@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/poll.dart';
 import '../services/api_service.dart';
-import '../services/auth_service.dart';
 import '../utils/theme.dart';
 
 class PollsScreen extends StatefulWidget {
@@ -77,6 +76,9 @@ class _PollsScreenState extends State<PollsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
         title: Text('Update Vote'),
         content: Text('You have already voted on this poll. Do you want to change your vote?'),
         actions: [
@@ -84,11 +86,18 @@ class _PollsScreenState extends State<PollsScreen> {
             onPressed: () => Navigator.pop(context),
             child: Text('Cancel'),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
               _updateVote(poll.id, optionId);
             },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.cricketGreen,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
             child: Text('Update Vote'),
           ),
         ],
@@ -99,31 +108,49 @@ class _PollsScreenState extends State<PollsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Polls'),
-        backgroundColor: AppTheme.cricketGreen,
-        foregroundColor: Colors.white,
-      ),
+      backgroundColor: AppTheme.backgroundColor,
       body: RefreshIndicator(
         onRefresh: _loadPolls,
+        color: AppTheme.cricketGreen,
         child: _isLoading
-            ? Center(child: CircularProgressIndicator())
+            ? Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 3,
+                  color: AppTheme.cricketGreen,
+                ),
+              )
             : _polls.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.poll,
-                          size: 80,
-                          color: Colors.grey,
+                        Container(
+                          padding: EdgeInsets.all(32),
+                          decoration: BoxDecoration(
+                            color: AppTheme.cricketGreen.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.poll_outlined,
+                            size: 64,
+                            color: AppTheme.cricketGreen,
+                          ),
                         ),
-                        SizedBox(height: 16),
+                        SizedBox(height: 24),
                         Text(
                           'No polls available',
                           style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.grey[600],
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.primaryTextColor,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Check back later for new polls',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: AppTheme.secondaryTextColor,
                           ),
                         ),
                       ],
@@ -145,243 +172,330 @@ class _PollsScreenState extends State<PollsScreen> {
     final isExpired = poll.expiresAt != null && poll.expiresAt!.isBefore(DateTime.now());
     final totalVotes = poll.options.fold(0, (sum, option) => sum + option.voteCount);
 
-    return Card(
+    return Container(
       margin: EdgeInsets.only(bottom: 16),
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Poll Header
-            Row(
+      decoration: AppTheme.softCardDecoration,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            // Optional: Add poll detail view
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.poll, color: AppTheme.cricketGreen),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    poll.question,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                if (isExpired)
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      'EXPIRED',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
+                // Poll Header
+                Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.cricketGreen.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.poll,
+                        color: AppTheme.cricketGreen,
+                        size: 20,
                       ),
                     ),
-                  ),
-              ],
-            ),
-
-            // Club and Creator Info
-            SizedBox(height: 8),
-            Row(
-              children: [
-                if (poll.club.logo != null)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      poll.club.logo!,
-                      width: 24,
-                      height: 24,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          width: 24,
-                          height: 24,
-                          decoration: BoxDecoration(
-                            color: AppTheme.cricketGreen,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            Icons.sports_cricket,
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        poll.question,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.primaryTextColor,
+                        ),
+                      ),
+                    ),
+                    if (isExpired)
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'EXPIRED',
+                          style: TextStyle(
                             color: Colors.white,
-                            size: 12,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
                           ),
-                        );
-                      },
-                    ),
+                        ),
+                      ),
+                  ],
+                ),
+
+                // Club and Creator Info
+                SizedBox(height: 12),
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.backgroundColor,
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    '${poll.club.name} • by ${poll.createdBy.name}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
+                  child: Row(
+                    children: [
+                      if (poll.club.logo != null)
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 4,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              poll.club.logo!,
+                              width: 24,
+                              height: 24,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  width: 24,
+                                  height: 24,
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.cricketGreen,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    Icons.sports_cricket,
+                                    color: Colors.white,
+                                    size: 12,
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${poll.club.name} • by ${poll.createdBy.name}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.secondaryTextColor,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
 
-            SizedBox(height: 16),
+                SizedBox(height: 16),
 
-            // Poll Options
-            ...poll.options.map((option) {
-              final percentage = totalVotes > 0 ? (option.voteCount / totalVotes * 100) : 0.0;
-              final isUserVote = poll.userVote?.pollOptionId == option.id;
+                // Poll Options
+                ...poll.options.map((option) {
+                  final percentage = totalVotes > 0 ? (option.voteCount / totalVotes * 100) : 0.0;
+                  final isUserVote = poll.userVote?.pollOptionId == option.id;
 
-              return Container(
-                margin: EdgeInsets.only(bottom: 8),
-                child: InkWell(
-                  onTap: !isExpired ? () => _handleVote(poll, option.id) : null,
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    padding: EdgeInsets.all(12),
+                  return Container(
+                    margin: EdgeInsets.only(bottom: 12),
                     decoration: BoxDecoration(
                       color: isUserVote 
                           ? AppTheme.cricketGreen.withOpacity(0.1)
-                          : Colors.grey[50],
+                          : AppTheme.backgroundColor,
                       border: Border.all(
                         color: isUserVote 
-                            ? AppTheme.cricketGreen 
-                            : Colors.grey[300]!,
-                        width: isUserVote ? 2 : 1,
+                            ? AppTheme.cricketGreen.withOpacity(0.5)
+                            : AppTheme.dividerColor.withOpacity(0.3),
+                        width: isUserVote ? 2 : 0.5,
                       ),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                option.text,
-                                style: TextStyle(
-                                  fontWeight: isUserVote 
-                                      ? FontWeight.bold 
-                                      : FontWeight.normal,
-                                ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: !isExpired ? () => _handleVote(poll, option.id) : null,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      option.text,
+                                      style: TextStyle(
+                                        fontWeight: isUserVote 
+                                            ? FontWeight.w600 
+                                            : FontWeight.w500,
+                                        color: AppTheme.primaryTextColor,
+                                      ),
+                                    ),
+                                  ),
+                                  if (poll.hasVoted || totalVotes > 0) ...[
+                                    SizedBox(width: 12),
+                                    Container(
+                                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.cricketGreen.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        '${option.voteCount}',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          color: AppTheme.cricketGreen,
+                                        ),
+                                      ),
+                                    ),
+                                    if (isUserVote) ...[
+                                      SizedBox(width: 8),
+                                      Icon(
+                                        Icons.check_circle,
+                                        color: AppTheme.cricketGreen,
+                                        size: 20,
+                                      ),
+                                    ],
+                                  ],
+                                ],
                               ),
-                            ),
-                            if (poll.hasVoted || totalVotes > 0) ...[
-                              SizedBox(width: 8),
-                              Text(
-                                '${option.voteCount}',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.cricketGreen,
+                              if (poll.hasVoted || totalVotes > 0) ...[
+                                SizedBox(height: 12),
+                                Container(
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.dividerColor.withOpacity(0.3),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: FractionallySizedBox(
+                                    alignment: Alignment.centerLeft,
+                                    widthFactor: percentage / 100,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: isUserVote 
+                                            ? AppTheme.cricketGreen
+                                            : AppTheme.cricketGreen.withOpacity(0.7),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ),
-                              if (isUserVote) ...[
-                                SizedBox(width: 4),
-                                Icon(
-                                  Icons.check_circle,
-                                  color: AppTheme.cricketGreen,
-                                  size: 16,
+                                SizedBox(height: 8),
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    '${percentage.toStringAsFixed(1)}%',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: AppTheme.secondaryTextColor,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ],
-                          ],
+                          ),
                         ),
-                        if (poll.hasVoted || totalVotes > 0) ...[
-                          SizedBox(height: 8),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                              value: percentage / 100,
-                              backgroundColor: Colors.grey[200],
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                isUserVote 
-                                    ? AppTheme.cricketGreen
-                                    : AppTheme.cricketGreen.withOpacity(0.5),
-                              ),
-                              minHeight: 6,
-                            ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+
+                SizedBox(height: 16),
+
+                // Poll Footer
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.backgroundColor,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.access_time, size: 16, color: AppTheme.secondaryTextColor),
+                      SizedBox(width: 4),
+                      Text(
+                        'Created ${DateFormat('MMM dd, yyyy').format(poll.createdAt)}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.secondaryTextColor,
+                        ),
+                      ),
+                      if (poll.expiresAt != null) ...[
+                        SizedBox(width: 16),
+                        Icon(Icons.event, size: 16, color: isExpired ? Colors.red : AppTheme.secondaryTextColor),
+                        SizedBox(width: 4),
+                        Text(
+                          'Expires ${DateFormat('MMM dd, yyyy').format(poll.expiresAt!)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isExpired ? Colors.red : AppTheme.secondaryTextColor,
                           ),
-                          SizedBox(height: 4),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              '${percentage.toStringAsFixed(1)}%',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
-                            ),
+                        ),
+                      ],
+                      Spacer(),
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppTheme.cricketGreen.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '$totalVotes ${totalVotes == 1 ? 'vote' : 'votes'}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.cricketGreen,
+                            fontWeight: FontWeight.w600,
                           ),
-                        ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                if (!isExpired) ...[
+                  SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.cricketGreen.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppTheme.cricketGreen.withOpacity(0.3),
+                        width: 0.5,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          size: 16,
+                          color: AppTheme.cricketGreen,
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          poll.hasVoted 
+                              ? 'Tap on an option to change your vote'
+                              : 'Tap on an option to vote',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.cricketGreen,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                ),
-              );
-            }).toList(),
-
-            SizedBox(height: 16),
-
-            // Poll Footer
-            Row(
-              children: [
-                Icon(Icons.access_time, size: 14, color: Colors.grey),
-                SizedBox(width: 4),
-                Text(
-                  'Created ${DateFormat('MMM dd, yyyy').format(poll.createdAt)}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                if (poll.expiresAt != null) ...[
-                  SizedBox(width: 16),
-                  Icon(Icons.event, size: 14, color: Colors.grey),
-                  SizedBox(width: 4),
-                  Text(
-                    'Expires ${DateFormat('MMM dd, yyyy').format(poll.expiresAt!)}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isExpired ? Colors.red : Colors.grey[600],
-                    ),
-                  ),
                 ],
-                Spacer(),
-                Text(
-                  '$totalVotes ${totalVotes == 1 ? 'vote' : 'votes'}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
               ],
             ),
-
-            if (!isExpired) ...[
-              SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppTheme.cricketGreen.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  poll.hasVoted 
-                      ? 'Tap on an option to change your vote'
-                      : 'Tap on an option to vote',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.cricketGreen,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );
