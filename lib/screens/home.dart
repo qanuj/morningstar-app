@@ -1,5 +1,7 @@
 // lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'dart:io' show Platform;
 import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
 import '../providers/club_provider.dart';
@@ -31,19 +33,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _headerAnimationController = AnimationController(
-      duration: Duration(milliseconds: 300),
+      duration: Duration(milliseconds: 200),
       vsync: this,
     );
     _headerAnimation = Tween<double>(
       begin: 1.0,
-      end: 0.7,
+      end: 0.8,
     ).animate(CurvedAnimation(
       parent: _headerAnimationController,
-      curve: Curves.easeInOut,
+      curve: Curves.easeOutCubic,
     ));
 
     _scrollController.addListener(() {
-      if (_scrollController.offset > 50) {
+      if (_scrollController.offset > 30) {
         _headerAnimationController.forward();
       } else {
         _headerAnimationController.reverse();
@@ -64,6 +66,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _currentTitle = title;
     });
     Navigator.of(context).pop(); // Close drawer
+    
+    // Soft haptic feedback
+    HapticFeedback.lightImpact();
   }
 
   @override
@@ -82,102 +87,111 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               pinned: true,
               elevation: 0,
               backgroundColor: AppTheme.cricketGreen,
+              surfaceTintColor: Colors.transparent,
               flexibleSpace: FlexibleSpaceBar(
-                titlePadding: EdgeInsets.only(left: 72, bottom: 16),
-                title: AnimatedBuilder(
-                  animation: _headerAnimation,
-                  builder: (context, child) {
-                    return Consumer<ClubProvider>(
-                      builder: (context, clubProvider, child) {
-                        return Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (clubProvider.currentClub?.club.logo != null)
-                              Container(
-                                width: 32 * _headerAnimation.value,
-                                height: 32 * _headerAnimation.value,
-                                margin: EdgeInsets.only(right: 8),
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black26,
-                                      blurRadius: 4,
-                                      offset: Offset(0, 2),
+                centerTitle: false,
+                titlePadding: EdgeInsets.zero,
+                title: Container(
+                  padding: EdgeInsets.only(
+                    left: 72,
+                    right: 16,
+                    bottom: Platform.isIOS ? 12 : 16,
+                  ),
+                  child: AnimatedBuilder(
+                    animation: _headerAnimation,
+                    builder: (context, child) {
+                      return Consumer<ClubProvider>(
+                        builder: (context, clubProvider, child) {
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              if (clubProvider.currentClub?.club.logo != null)
+                                Container(
+                                  width: 28 * _headerAnimation.value,
+                                  height: 28 * _headerAnimation.value,
+                                  margin: EdgeInsets.only(right: 12),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.1),
+                                        blurRadius: 8,
+                                        offset: Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: ClipOval(
+                                    child: Image.network(
+                                      clubProvider.currentClub!.club.logo!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return Container(
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Icon(
+                                            Icons.sports_cricket,
+                                            color: AppTheme.cricketGreen,
+                                            size: 16 * _headerAnimation.value,
+                                          ),
+                                        );
+                                      },
                                     ),
-                                  ],
-                                ),
-                                child: ClipOval(
-                                  child: Image.network(
-                                    clubProvider.currentClub!.club.logo!,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Container(
-                                        color: Colors.white,
-                                        child: Icon(
-                                          Icons.sports_cricket,
-                                          color: AppTheme.cricketGreen,
-                                          size: 20 * _headerAnimation.value,
-                                        ),
-                                      );
-                                    },
                                   ),
                                 ),
-                              ),
-                            Flexible(
-                              child: Text(
-                                clubProvider.currentClub?.club.name ?? 'Duggy',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18 * _headerAnimation.value,
-                                  fontWeight: FontWeight.w600,
+                              Flexible(
+                                child: Text(
+                                  clubProvider.currentClub?.club.name ?? 'Duggy',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18 * _headerAnimation.value,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.2,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                overflow: TextOverflow.ellipsis,
                               ),
-                            ),
-                          ],
-                        );
-                      },
-                    );
-                  },
+                            ],
+                          );
+                        },
+                      );
+                    },
+                  ),
                 ),
               ),
               actions: [
-                IconButton(
-                  icon: Container(
-                    padding: EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.notifications_outlined,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
+                _buildHeaderAction(
+                  icon: Icons.notifications_outlined,
                   onPressed: () {
+                    HapticFeedback.lightImpact();
                     Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => NotificationsScreen()),
+                      PageRouteBuilder(
+                        pageBuilder: (context, animation, secondaryAnimation) =>
+                            NotificationsScreen(),
+                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                          return SlideTransition(
+                            position: animation.drive(
+                              Tween(begin: Offset(1.0, 0.0), end: Offset.zero).chain(
+                                CurveTween(curve: Curves.easeOutCubic),
+                              ),
+                            ),
+                            child: child,
+                          );
+                        },
+                      ),
                     );
                   },
                 ),
-                SizedBox(width: 8),
+                SizedBox(width: 12),
               ],
-              leading: IconButton(
-                icon: Container(
-                  padding: EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.menu,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+              leading: _buildHeaderAction(
+                icon: Icons.menu,
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  _scaffoldKey.currentState?.openDrawer();
+                },
               ),
             ),
           ];
@@ -186,16 +200,48 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(24),
-              topRight: Radius.circular(24),
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
             ),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(24),
-              topRight: Radius.circular(24),
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
             ),
             child: _currentScreen,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeaderAction({
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
+    return Container(
+      margin: EdgeInsets.only(left: 4),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.1),
+                width: 0.5,
+              ),
+            ),
+            child: Icon(
+              icon,
+              color: Colors.white,
+              size: 20,
+            ),
           ),
         ),
       ),
@@ -205,6 +251,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget _buildSideDrawer() {
     return Drawer(
       backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topRight: Radius.circular(20),
+          bottomRight: Radius.circular(20),
+        ),
+      ),
       child: Consumer2<UserProvider, ClubProvider>(
         builder: (context, userProvider, clubProvider, child) {
           final user = userProvider.user;
@@ -215,25 +267,34 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               // Profile Header
               Container(
                 width: double.infinity,
-                padding: EdgeInsets.only(top: 50, bottom: 20, left: 20, right: 20),
+                padding: EdgeInsets.only(
+                  top: MediaQuery.of(context).padding.top + 20,
+                  bottom: 24,
+                  left: 20,
+                  right: 20,
+                ),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [AppTheme.cricketGreen, AppTheme.darkGreen],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(20),
+                    bottomRight: Radius.circular(20),
+                  ),
                 ),
                 child: Column(
                   children: [
                     Container(
-                      width: 80,
-                      height: 80,
+                      width: 70,
+                      height: 70,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: Colors.white,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black26,
+                            color: Colors.black.withOpacity(0.1),
                             blurRadius: 10,
                             offset: Offset(0, 4),
                           ),
@@ -250,7 +311,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     child: Icon(
                                       Icons.person,
                                       color: AppTheme.cricketGreen,
-                                      size: 40,
+                                      size: 32,
                                     ),
                                   );
                                 },
@@ -260,12 +321,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 child: Icon(
                                   Icons.person,
                                   color: AppTheme.cricketGreen,
-                                  size: 40,
+                                  size: 32,
                                 ),
                               ),
                       ),
                     ),
-                    SizedBox(height: 16),
+                    SizedBox(height: 12),
                     Text(
                       user?.name ?? 'User',
                       style: TextStyle(
@@ -289,6 +350,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.1),
+                            width: 0.5,
+                          ),
                         ),
                         child: Text(
                           currentClub.role,
@@ -307,7 +372,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               // Menu Items
               Expanded(
                 child: ListView(
-                  padding: EdgeInsets.symmetric(vertical: 8),
+                  padding: EdgeInsets.symmetric(vertical: 16),
                   children: [
                     // Main Features
                     _buildSectionHeader('Main'),
@@ -330,7 +395,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       onTap: () => _navigateToScreen(PollsScreen(), 'Polls'),
                     ),
                     
-                    SizedBox(height: 16),
+                    SizedBox(height: 20),
                     
                     // Club & Account
                     _buildSectionHeader('Club & Account'),
@@ -353,7 +418,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       onTap: () => _navigateToScreen(ProfileScreen(), 'Profile'),
                     ),
                     
-                    SizedBox(height: 16),
+                    SizedBox(height: 20),
                     
                     // Settings
                     _buildSectionHeader('Settings'),
@@ -379,22 +444,44 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               
               // Logout Button
               Container(
-                padding: EdgeInsets.all(16),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _showLogoutDialog(),
-                    icon: Icon(Icons.logout, color: Colors.red),
-                    label: Text(
-                      'Logout',
-                      style: TextStyle(color: Colors.red),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red.withOpacity(0.1),
-                      elevation: 0,
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
+                padding: EdgeInsets.all(20),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      _showLogoutDialog();
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.red.withOpacity(0.1),
+                          width: 0.5,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.logout_outlined,
+                            color: Colors.red,
+                            size: 20,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Logout',
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -409,11 +496,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Text(
         title,
         style: TextStyle(
-          fontSize: 12,
+          fontSize: 13,
           fontWeight: FontWeight.w600,
           color: AppTheme.secondaryTextColor,
           letterSpacing: 0.5,
@@ -429,52 +516,77 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     bool isSelected = false,
   }) {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: isSelected 
-          ? AppTheme.cricketGreen.withOpacity(0.1)
-          : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: ListTile(
-        leading: Container(
-          padding: EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: isSelected 
-              ? AppTheme.cricketGreen.withOpacity(0.2)
-              : AppTheme.cricketGreen.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            icon,
-            color: isSelected 
-              ? AppTheme.cricketGreen
-              : AppTheme.cricketGreen.withOpacity(0.7),
-            size: 20,
-          ),
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-            color: isSelected 
-              ? AppTheme.cricketGreen
-              : AppTheme.primaryTextColor,
-          ),
-        ),
-        onTap: onTap,
-        shape: RoundedRectangleBorder(
+      margin: EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            onTap();
+          },
           borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: isSelected 
+                ? AppTheme.cricketGreen.withOpacity(0.08)
+                : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              border: isSelected
+                ? Border.all(
+                    color: AppTheme.cricketGreen.withOpacity(0.1),
+                    width: 0.5,
+                  )
+                : null,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isSelected 
+                      ? AppTheme.cricketGreen.withOpacity(0.1)
+                      : AppTheme.cricketGreen.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: isSelected 
+                      ? AppTheme.cricketGreen
+                      : AppTheme.cricketGreen.withOpacity(0.7),
+                    size: 20,
+                  ),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      color: isSelected 
+                        ? AppTheme.cricketGreen
+                        : AppTheme.primaryTextColor,
+                    ),
+                  ),
+                ),
+                if (isSelected)
+                  Container(
+                    padding: EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.cricketGreen.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Icon(
+                      Icons.chevron_right,
+                      color: AppTheme.cricketGreen,
+                      size: 16,
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
-        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        trailing: isSelected 
-          ? Icon(
-              Icons.chevron_right,
-              color: AppTheme.cricketGreen,
-              size: 20,
-            )
-          : null,
       ),
     );
   }
@@ -483,6 +595,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
@@ -501,7 +615,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
             ),
             SizedBox(width: 12),
-            Text('About Duggy'),
+            Text(
+              'About Duggy',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 18,
+              ),
+            ),
           ],
         ),
         content: Column(
@@ -516,18 +636,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
             ),
             SizedBox(height: 12),
-            Text('Version 1.0.0'),
+            Text(
+              'Version 1.0.0',
+              style: TextStyle(
+                color: AppTheme.secondaryTextColor,
+                fontSize: 14,
+              ),
+            ),
             SizedBox(height: 12),
             Text(
               'Manage your cricket club activities, matches, store orders, and more with Duggy.',
-              style: TextStyle(height: 1.4),
+              style: TextStyle(
+                height: 1.5,
+                color: AppTheme.primaryTextColor,
+              ),
             ),
             SizedBox(height: 16),
             Container(
               padding: EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppTheme.cricketGreen.withOpacity(0.1),
+                color: AppTheme.cricketGreen.withOpacity(0.08),
                 borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppTheme.cricketGreen.withOpacity(0.1),
+                  width: 0.5,
+                ),
               ),
               child: Row(
                 children: [
@@ -537,11 +670,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     size: 16,
                   ),
                   SizedBox(width: 8),
-                  Text(
-                    'Visit duggy.app for more information',
-                    style: TextStyle(
-                      color: AppTheme.cricketGreen,
-                      fontWeight: FontWeight.w500,
+                  Expanded(
+                    child: Text(
+                      'Visit duggy.app for more information',
+                      style: TextStyle(
+                        color: AppTheme.cricketGreen,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ],
@@ -552,7 +687,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text('Close'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.cricketGreen,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text(
+              'Close',
+              style: TextStyle(fontWeight: FontWeight.w500),
+            ),
           ),
         ],
       ),
@@ -563,15 +707,38 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
-        title: Text('Logout'),
-        content: Text('Are you sure you want to logout?'),
+        title: Text(
+          'Logout',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
+          ),
+        ),
+        content: Text(
+          'Are you sure you want to logout?',
+          style: TextStyle(
+            color: AppTheme.primaryTextColor,
+            height: 1.4,
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text('Cancel'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.secondaryTextColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text(
+              'Cancel',
+              style: TextStyle(fontWeight: FontWeight.w500),
+            ),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -586,11 +753,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
+              elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: Text('Logout'),
+            child: Text(
+              'Logout',
+              style: TextStyle(fontWeight: FontWeight.w500),
+            ),
           ),
         ],
       ),
