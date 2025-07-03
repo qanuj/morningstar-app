@@ -14,6 +14,7 @@ import 'polls.dart';
 import 'profile.dart';
 import 'login.dart';
 import 'notifications.dart';
+import 'my_orders.dart';
 import '../utils/theme.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -36,13 +37,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       duration: Duration(milliseconds: 200),
       vsync: this,
     );
-    _headerAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.8,
-    ).animate(CurvedAnimation(
-      parent: _headerAnimationController,
-      curve: Curves.easeOutCubic,
-    ));
+    _headerAnimation = Tween<double>(begin: 1.0, end: 0.8).animate(
+      CurvedAnimation(
+        parent: _headerAnimationController,
+        curve: Curves.easeOutCubic,
+      ),
+    );
 
     _scrollController.addListener(() {
       if (_scrollController.offset > 30) {
@@ -66,7 +66,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _currentTitle = title;
     });
     Navigator.of(context).pop(); // Close drawer
-    
+
     // Soft haptic feedback
     HapticFeedback.lightImpact();
   }
@@ -125,25 +125,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     child: Image.network(
                                       clubProvider.currentClub!.club.logo!,
                                       fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) {
-                                        return Container(
-                                          decoration: BoxDecoration(
-                                            color: Colors.white,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: Icon(
-                                            Icons.sports_cricket,
-                                            color: AppTheme.cricketGreen,
-                                            size: 16 * _headerAnimation.value,
-                                          ),
-                                        );
-                                      },
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
+                                            return Container(
+                                              decoration: BoxDecoration(
+                                                color: Colors.white,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: Icon(
+                                                Icons.sports_cricket,
+                                                color: AppTheme.cricketGreen,
+                                                size:
+                                                    16 * _headerAnimation.value,
+                                              ),
+                                            );
+                                          },
                                     ),
                                   ),
                                 ),
                               Flexible(
                                 child: Text(
-                                  clubProvider.currentClub?.club.name ?? 'Duggy',
+                                  clubProvider.currentClub?.club.name ??
+                                      'Duggy',
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 18 * _headerAnimation.value,
@@ -170,16 +173,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       PageRouteBuilder(
                         pageBuilder: (context, animation, secondaryAnimation) =>
                             NotificationsScreen(),
-                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                          return SlideTransition(
-                            position: animation.drive(
-                              Tween(begin: Offset(1.0, 0.0), end: Offset.zero).chain(
-                                CurveTween(curve: Curves.easeOutCubic),
-                              ),
-                            ),
-                            child: child,
-                          );
-                        },
+                        transitionsBuilder:
+                            (context, animation, secondaryAnimation, child) {
+                              return SlideTransition(
+                                position: animation.drive(
+                                  Tween(
+                                    begin: Offset(1.0, 0.0),
+                                    end: Offset.zero,
+                                  ).chain(
+                                    CurveTween(curve: Curves.easeOutCubic),
+                                  ),
+                                ),
+                                child: child,
+                              );
+                            },
                       ),
                     );
                   },
@@ -237,11 +244,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 width: 0.5,
               ),
             ),
-            child: Icon(
-              icon,
-              color: Colors.white,
-              size: 20,
-            ),
+            child: Icon(icon, color: Colors.white, size: 20),
           ),
         ),
       ),
@@ -261,7 +264,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         builder: (context, userProvider, clubProvider, child) {
           final user = userProvider.user;
           final currentClub = clubProvider.currentClub;
-          
+
           return Column(
             children: [
               // Profile Header
@@ -307,7 +310,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 fit: BoxFit.cover,
                                 errorBuilder: (context, error, stackTrace) {
                                   return Container(
-                                    color: AppTheme.cricketGreen.withOpacity(0.1),
+                                    color: AppTheme.cricketGreen.withOpacity(
+                                      0.1,
+                                    ),
                                     child: Icon(
                                       Icons.person,
                                       color: AppTheme.cricketGreen,
@@ -346,7 +351,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     if (currentClub != null) ...[
                       SizedBox(height: 8),
                       Container(
-                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(16),
@@ -368,7 +376,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ],
                 ),
               ),
-              
+
               // Menu Items
               Expanded(
                 child: ListView(
@@ -380,7 +388,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       icon: Icons.sports_cricket_outlined,
                       title: 'Matches',
                       isSelected: _currentTitle == 'Matches',
-                      onTap: () => _navigateToScreen(MatchesScreen(), 'Matches'),
+                      onTap: () =>
+                          _navigateToScreen(MatchesScreen(), 'Matches'),
                     ),
                     _buildDrawerItem(
                       icon: Icons.store_outlined,
@@ -389,14 +398,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       onTap: () => _navigateToScreen(StoreScreen(), 'Store'),
                     ),
                     _buildDrawerItem(
+                      icon: Icons.shopping_bag_outlined,
+                      title: 'My Orders',
+                      isSelected: _currentTitle == 'My Orders',
+                      onTap: () =>
+                          _navigateToScreen(MyOrdersScreen(), 'My Orders'),
+                    ),
+                    _buildDrawerItem(
                       icon: Icons.poll_outlined,
                       title: 'Polls',
                       isSelected: _currentTitle == 'Polls',
                       onTap: () => _navigateToScreen(PollsScreen(), 'Polls'),
                     ),
-                    
+
                     SizedBox(height: 20),
-                    
+
                     // Club & Account
                     _buildSectionHeader('Club & Account'),
                     _buildDrawerItem(
@@ -409,17 +425,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       icon: Icons.account_balance_wallet_outlined,
                       title: 'Transactions',
                       isSelected: _currentTitle == 'Transactions',
-                      onTap: () => _navigateToScreen(TransactionsScreen(), 'Transactions'),
+                      onTap: () => _navigateToScreen(
+                        TransactionsScreen(),
+                        'Transactions',
+                      ),
                     ),
                     _buildDrawerItem(
                       icon: Icons.person_outline,
                       title: 'Profile',
                       isSelected: _currentTitle == 'Profile',
-                      onTap: () => _navigateToScreen(ProfileScreen(), 'Profile'),
+                      onTap: () =>
+                          _navigateToScreen(ProfileScreen(), 'Profile'),
                     ),
-                    
+
                     SizedBox(height: 20),
-                    
+
                     // Settings
                     _buildSectionHeader('Settings'),
                     _buildDrawerItem(
@@ -441,7 +461,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ],
                 ),
               ),
-              
+
               // Logout Button
               Container(
                 padding: EdgeInsets.all(20),
@@ -528,32 +548,32 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           child: Container(
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: isSelected 
-                ? AppTheme.cricketGreen.withOpacity(0.08)
-                : Colors.transparent,
+              color: isSelected
+                  ? AppTheme.cricketGreen.withOpacity(0.08)
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(12),
               border: isSelected
-                ? Border.all(
-                    color: AppTheme.cricketGreen.withOpacity(0.1),
-                    width: 0.5,
-                  )
-                : null,
+                  ? Border.all(
+                      color: AppTheme.cricketGreen.withOpacity(0.1),
+                      width: 0.5,
+                    )
+                  : null,
             ),
             child: Row(
               children: [
                 Container(
                   padding: EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: isSelected 
-                      ? AppTheme.cricketGreen.withOpacity(0.1)
-                      : AppTheme.cricketGreen.withOpacity(0.08),
+                    color: isSelected
+                        ? AppTheme.cricketGreen.withOpacity(0.1)
+                        : AppTheme.cricketGreen.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
                     icon,
-                    color: isSelected 
-                      ? AppTheme.cricketGreen
-                      : AppTheme.cricketGreen.withOpacity(0.7),
+                    color: isSelected
+                        ? AppTheme.cricketGreen
+                        : AppTheme.cricketGreen.withOpacity(0.7),
                     size: 20,
                   ),
                 ),
@@ -563,10 +583,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     title,
                     style: TextStyle(
                       fontSize: 16,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      color: isSelected 
-                        ? AppTheme.cricketGreen
-                        : AppTheme.primaryTextColor,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.w500,
+                      color: isSelected
+                          ? AppTheme.cricketGreen
+                          : AppTheme.primaryTextColor,
                     ),
                   ),
                 ),
@@ -597,9 +619,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
             Container(
@@ -617,10 +637,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             SizedBox(width: 12),
             Text(
               'About Duggy',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 18,
-              ),
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
             ),
           ],
         ),
@@ -630,10 +647,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           children: [
             Text(
               'Duggy - Your Cricket Club Companion',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-              ),
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
             ),
             SizedBox(height: 12),
             Text(
@@ -646,10 +660,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             SizedBox(height: 12),
             Text(
               'Manage your cricket club activities, matches, store orders, and more with Duggy.',
-              style: TextStyle(
-                height: 1.5,
-                color: AppTheme.primaryTextColor,
-              ),
+              style: TextStyle(height: 1.5, color: AppTheme.primaryTextColor),
             ),
             SizedBox(height: 16),
             Container(
@@ -664,11 +675,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.language,
-                    color: AppTheme.cricketGreen,
-                    size: 16,
-                  ),
+                  Icon(Icons.language, color: AppTheme.cricketGreen, size: 16),
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -693,10 +700,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: Text(
-              'Close',
-              style: TextStyle(fontWeight: FontWeight.w500),
-            ),
+            child: Text('Close', style: TextStyle(fontWeight: FontWeight.w500)),
           ),
         ],
       ),
@@ -709,22 +713,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'Logout',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 18,
-          ),
+          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
         ),
         content: Text(
           'Are you sure you want to logout?',
-          style: TextStyle(
-            color: AppTheme.primaryTextColor,
-            height: 1.4,
-          ),
+          style: TextStyle(color: AppTheme.primaryTextColor, height: 1.4),
         ),
         actions: [
           TextButton(

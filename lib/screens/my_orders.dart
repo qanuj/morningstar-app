@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/product.dart';
 import '../services/api_service.dart';
-import '../services/auth_service.dart';
 import '../utils/theme.dart';
 
 class MyOrdersScreen extends StatefulWidget {
@@ -42,32 +41,46 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.backgroundColor,
       body: _isLoading
-          ? Center(child: CircularProgressIndicator())
+          ? Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                color: AppTheme.cricketGreen,
+              ),
+            )
           : _orders.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.shopping_bag_outlined,
-                        size: 80,
-                        color: Colors.grey,
+                      Container(
+                        padding: EdgeInsets.all(32),
+                        decoration: BoxDecoration(
+                          color: AppTheme.cricketGreen.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.shopping_bag_outlined,
+                          size: 64,
+                          color: AppTheme.cricketGreen,
+                        ),
                       ),
-                      SizedBox(height: 16),
+                      SizedBox(height: 24),
                       Text(
                         'No orders yet',
                         style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.grey[600],
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.primaryTextColor,
                         ),
                       ),
                       SizedBox(height: 8),
                       Text(
                         'Your store orders will appear here',
                         style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[500],
+                          fontSize: 16,
+                          color: AppTheme.secondaryTextColor,
                         ),
                       ),
                     ],
@@ -75,6 +88,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                 )
               : RefreshIndicator(
                   onRefresh: _loadOrders,
+                  color: AppTheme.cricketGreen,
                   child: ListView.builder(
                     padding: EdgeInsets.all(16),
                     itemCount: _orders.length,
@@ -88,8 +102,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   }
 
   Widget _buildOrderCard(Order order) {
-    return Card(
+    return Container(
       margin: EdgeInsets.only(bottom: 16),
+      decoration: AppTheme.softCardDecoration,
       child: Padding(
         padding: EdgeInsets.all(16),
         child: Column(
@@ -106,7 +121,8 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                         'Order #${order.orderNumber}',
                         style: TextStyle(
                           fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.primaryTextColor,
                         ),
                       ),
                       SizedBox(height: 4),
@@ -114,7 +130,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                         DateFormat('MMM dd, yyyy • hh:mm a').format(order.createdAt),
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey[600],
+                          color: AppTheme.secondaryTextColor,
                         ),
                       ),
                     ],
@@ -131,7 +147,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -148,14 +164,22 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                     height: 30,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.grey[300]!),
+                      border: Border.all(color: AppTheme.dividerColor),
                     ),
                     child: ClipOval(
                       child: CachedNetworkImage(
                         imageUrl: order.club.logo!,
                         fit: BoxFit.cover,
-                        placeholder: (context, url) => Icon(Icons.sports_cricket, size: 16),
-                        errorWidget: (context, url, error) => Icon(Icons.sports_cricket, size: 16),
+                        placeholder: (context, url) => Icon(
+                          Icons.sports_cricket, 
+                          size: 16, 
+                          color: AppTheme.cricketGreen,
+                        ),
+                        errorWidget: (context, url, error) => Icon(
+                          Icons.sports_cricket, 
+                          size: 16, 
+                          color: AppTheme.cricketGreen,
+                        ),
                       ),
                     ),
                   ),
@@ -165,7 +189,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: Colors.grey[700],
+                    color: AppTheme.secondaryTextColor,
                   ),
                 ),
               ],
@@ -176,8 +200,12 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
             Container(
               padding: EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.grey[50],
+                color: AppTheme.backgroundColor,
                 borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppTheme.dividerColor.withOpacity(0.3),
+                  width: 0.5,
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -198,6 +226,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                           style: TextStyle(
                             fontWeight: FontWeight.w500,
                             fontSize: 16,
+                            color: AppTheme.primaryTextColor,
                           ),
                         ),
                       ),
@@ -233,7 +262,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                       'Notes: ${order.notes!}',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey[600],
+                        color: AppTheme.secondaryTextColor,
                         fontStyle: FontStyle.italic,
                       ),
                     ),
@@ -304,14 +333,14 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                       'Total Amount',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey[600],
+                        color: AppTheme.secondaryTextColor,
                       ),
                     ),
                     Text(
                       '₹${order.totalAmount.toStringAsFixed(0)}',
                       style: TextStyle(
                         fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w600,
                         color: AppTheme.cricketGreen,
                       ),
                     ),
@@ -325,7 +354,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                         'Est. Delivery',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey[600],
+                          color: AppTheme.secondaryTextColor,
                         ),
                       ),
                       Text(
@@ -333,6 +362,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
+                          color: AppTheme.primaryTextColor,
                         ),
                       ),
                     ],
@@ -355,15 +385,21 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                       margin: EdgeInsets.only(right: 8),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey[300]!),
+                        border: Border.all(color: AppTheme.dividerColor),
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: CachedNetworkImage(
                           imageUrl: order.jersey!.images[index].url,
                           fit: BoxFit.cover,
-                          placeholder: (context, url) => Icon(Icons.checkroom),
-                          errorWidget: (context, url, error) => Icon(Icons.checkroom),
+                          placeholder: (context, url) => Icon(
+                            Icons.checkroom,
+                            color: AppTheme.cricketGreen,
+                          ),
+                          errorWidget: (context, url, error) => Icon(
+                            Icons.checkroom,
+                            color: AppTheme.cricketGreen,
+                          ),
                         ),
                       ),
                     );
@@ -384,15 +420,21 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                       margin: EdgeInsets.only(right: 8),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey[300]!),
+                        border: Border.all(color: AppTheme.dividerColor),
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: CachedNetworkImage(
                           imageUrl: order.kit!.images[index].url,
                           fit: BoxFit.cover,
-                          placeholder: (context, url) => Icon(Icons.sports_cricket),
-                          errorWidget: (context, url, error) => Icon(Icons.sports_cricket),
+                          placeholder: (context, url) => Icon(
+                            Icons.sports_cricket,
+                            color: AppTheme.cricketGreen,
+                          ),
+                          errorWidget: (context, url, error) => Icon(
+                            Icons.sports_cricket,
+                            color: AppTheme.cricketGreen,
+                          ),
                         ),
                       ),
                     );
@@ -418,7 +460,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
               '$label:',
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.grey[600],
+                color: AppTheme.secondaryTextColor,
               ),
             ),
           ),
@@ -428,6 +470,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
+                color: AppTheme.primaryTextColor,
               ),
             ),
           ),

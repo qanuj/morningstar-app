@@ -6,7 +6,6 @@ import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../utils/theme.dart';
 
-import './my_orders.dart';
 import './jersey_detail.dart';
 import './kit_detail.dart';
 
@@ -179,26 +178,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                       ),
                     ],
                   ),
-                ),
-                IconButton(
-                  icon: Container(
-                    padding: EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppTheme.cricketGreen.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.shopping_bag,
-                      color: AppTheme.cricketGreen,
-                      size: 20,
-                    ),
-                  ),
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => MyOrdersScreen()),
-                    );
-                  },
-                ),
+                )
               ],
             ),
           ),
@@ -253,7 +233,6 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
               children: [
                 _buildJerseysTab(),
                 _buildKitsTab(),
-                MyOrdersScreen(),
               ],
             ),
           ),
