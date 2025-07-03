@@ -24,13 +24,10 @@ class _PollsScreenState extends State<PollsScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final clubId = await AuthService.getCurrentClubId();
-      if (clubId != null) {
-        final response = await ApiService.get('/clubs/$clubId/polls');
-        setState(() {
-          _polls = (response as List).map((poll) => Poll.fromJson(poll)).toList();
-        });
-      }
+      final response = await ApiService.get('/polls');
+      setState(() {
+        _polls = (response['data'] as List).map((poll) => Poll.fromJson(poll)).toList();
+      });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to load polls: $e')),
@@ -54,41 +51,93 @@ class _PollsScreenState extends State<PollsScreen> {
     }
   }
 
+  Future<void> _updateVote(String pollId, String optionId) async {
+    try {
+      await ApiService.put('/polls/$pollId/vote', {'optionId': optionId});
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Vote updated successfully')),
+      );
+      await _loadPolls(); // Reload to get updated data
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update vote: $e')),
+      );
+    }
+  }
+
+  void _handleVote(Poll poll, String optionId) {
+    if (poll.hasVoted) {
+      _showUpdateVoteDialog(poll, optionId);
+    } else {
+      _votePoll(poll.id, optionId);
+    }
+  }
+
+  void _showUpdateVoteDialog(Poll poll, String optionId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Update Vote'),
+        content: Text('You have already voted on this poll. Do you want to change your vote?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _updateVote(poll.id, optionId);
+            },
+            child: Text('Update Vote'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: _loadPolls,
-      child: _isLoading
-          ? Center(child: CircularProgressIndicator())
-          : _polls.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.poll,
-                        size: 80,
-                        color: Colors.grey,
-                      ),
-                      SizedBox(height: 16),
-                      Text(
-                        'No polls available',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.grey[600],
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Polls'),
+        backgroundColor: AppTheme.cricketGreen,
+        foregroundColor: Colors.white,
+      ),
+      body: RefreshIndicator(
+        onRefresh: _loadPolls,
+        child: _isLoading
+            ? Center(child: CircularProgressIndicator())
+            : _polls.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.poll,
+                          size: 80,
+                          color: Colors.grey,
                         ),
-                      ),
-                    ],
+                        SizedBox(height: 16),
+                        Text(
+                          'No polls available',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: EdgeInsets.all(16),
+                    itemCount: _polls.length,
+                    itemBuilder: (context, index) {
+                      final poll = _polls[index];
+                      return _buildPollCard(poll);
+                    },
                   ),
-                )
-              : ListView.builder(
-                  padding: EdgeInsets.all(16),
-                  itemCount: _polls.length,
-                  itemBuilder: (context, index) {
-                    final poll = _polls[index];
-                    return _buildPollCard(poll);
-                  },
-                ),
+      ),
     );
   }
 
@@ -135,19 +184,60 @@ class _PollsScreenState extends State<PollsScreen> {
                   ),
               ],
             ),
+
+            // Club and Creator Info
+            SizedBox(height: 8),
+            Row(
+              children: [
+                if (poll.club.logo != null)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      poll.club.logo!,
+                      width: 24,
+                      height: 24,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            color: AppTheme.cricketGreen,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            Icons.sports_cricket,
+                            color: Colors.white,
+                            size: 12,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${poll.club.name} • by ${poll.createdBy.name}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
             SizedBox(height: 16),
 
             // Poll Options
             ...poll.options.map((option) {
               final percentage = totalVotes > 0 ? (option.voteCount / totalVotes * 100) : 0.0;
-              final isUserVote = poll.userVote == option.id;
+              final isUserVote = poll.userVote?.pollOptionId == option.id;
 
               return Container(
                 margin: EdgeInsets.only(bottom: 8),
                 child: InkWell(
-                  onTap: (!poll.hasVoted && !isExpired) 
-                      ? () => _votePoll(poll.id, option.id)
-                      : null,
+                  onTap: !isExpired ? () => _handleVote(poll, option.id) : null,
                   borderRadius: BorderRadius.circular(8),
                   child: Container(
                     padding: EdgeInsets.all(12),
@@ -177,7 +267,7 @@ class _PollsScreenState extends State<PollsScreen> {
                                 ),
                               ),
                             ),
-                            if (poll.hasVoted) ...[
+                            if (poll.hasVoted || totalVotes > 0) ...[
                               SizedBox(width: 8),
                               Text(
                                 '${option.voteCount}',
@@ -197,7 +287,7 @@ class _PollsScreenState extends State<PollsScreen> {
                             ],
                           ],
                         ),
-                        if (poll.hasVoted) ...[
+                        if (poll.hasVoted || totalVotes > 0) ...[
                           SizedBox(height: 8),
                           ClipRRect(
                             borderRadius: BorderRadius.circular(4),
@@ -269,7 +359,7 @@ class _PollsScreenState extends State<PollsScreen> {
               ],
             ),
 
-            if (!poll.hasVoted && !isExpired) ...[
+            if (!isExpired) ...[
               SizedBox(height: 12),
               Container(
                 width: double.infinity,
@@ -279,7 +369,9 @@ class _PollsScreenState extends State<PollsScreen> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  'Tap on an option to vote',
+                  poll.hasVoted 
+                      ? 'Tap on an option to change your vote'
+                      : 'Tap on an option to vote',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 12,

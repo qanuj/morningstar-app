@@ -4,7 +4,7 @@ import 'services/auth_service.dart';
 import 'services/api_service.dart';
 import 'providers/user_provider.dart';
 import 'providers/club_provider.dart';
-import 'screens/splash_screen.dart';
+import 'screens/splash.dart';
 import 'utils/theme.dart';
 
 void main() {

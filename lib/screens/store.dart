@@ -5,9 +5,10 @@ import '../models/product.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../utils/theme.dart';
-import 'jersey_detail_screen.dart';
-import 'kit_detail_screen.dart';
-import 'my_orders_screen.dart';
+
+import './my_orders.dart';
+import './jersey_detail.dart';
+import './kit_detail.dart';
 
 class StoreScreen extends StatefulWidget {
   @override
@@ -16,9 +17,11 @@ class StoreScreen extends StatefulWidget {
 
 class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin {
   late TabController _tabController;
+  List<Product> _products = [];
   List<Jersey> _jerseys = [];
   List<Kit> _kits = [];
   bool _isLoading = false;
+  StoreMeta? _meta;
 
   @override
   void initState() {
@@ -33,15 +36,85 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
     try {
       final clubId = await AuthService.getCurrentClubId();
       if (clubId != null) {
-        // Load jerseys
-        final jerseysResponse = await ApiService.get('/clubs/$clubId/jerseys');
-        _jerseys = (jerseysResponse as List).map((j) => Jersey.fromJson(j)).toList();
-
-        // Load kits
-        final kitsResponse = await ApiService.get('/clubs/$clubId/kits');
-        _kits = (kitsResponse as List).map((k) => Kit.fromJson(k)).toList();
+        final response = await ApiService.get('/store');
+        final storeResponse = StoreResponse.fromJson(response);
+        
+        setState(() {
+          _products = storeResponse.products;
+          _meta = storeResponse.meta;
+          
+          // Convert products to jerseys and kits directly from API response
+          _jerseys = [];
+          _kits = [];
+          
+          for (final product in _products) {
+            if (product.productType == 'JERSEY') {
+              _jerseys.add(Jersey(
+                id: product.id,
+                clubId: product.clubId,
+                name: product.name,
+                description: product.description,
+                basePrice: product.basePrice,
+                images: product.images,
+                createdAt: product.createdAt,
+                updatedAt: product.updatedAt,
+                createdById: product.createdById,
+                updatedById: product.updatedById,
+                isOrderingEnabled: product.isOrderingEnabled,
+                maxOrdersPerUser: product.maxOrdersPerUser,
+                club: product.club,
+                count: product.count,
+                productType: product.productType,
+                userOrders: product.userOrders,
+                hasOrdered: product.hasOrdered,
+                canOrderMore: product.canOrderMore,
+                userOrderCount: product.userOrderCount,
+                availability: product.availability,
+                fullSleevePrice: product.fullSleevePrice ?? 0,
+                capPrice: product.capPrice ?? 0,
+                trouserPrice: product.trouserPrice ?? 0,
+                pricing: product.pricing,
+              ));
+            } else if (product.productType == 'KIT') {
+              _kits.add(Kit(
+                id: product.id,
+                clubId: product.clubId,
+                name: product.name,
+                description: product.description,
+                basePrice: product.basePrice,
+                images: product.images,
+                createdAt: product.createdAt,
+                updatedAt: product.updatedAt,
+                createdById: product.createdById,
+                updatedById: product.updatedById,
+                isOrderingEnabled: product.isOrderingEnabled,
+                maxOrdersPerUser: product.maxOrdersPerUser,
+                club: product.club,
+                count: product.count,
+                productType: product.productType,
+                userOrders: product.userOrders,
+                hasOrdered: product.hasOrdered,
+                canOrderMore: product.canOrderMore,
+                userOrderCount: product.userOrderCount,
+                availability: product.availability,
+                type: 'OTHER', // Default type
+                handType: 'BOTH', // Default hand type
+                availableSizes: null,
+                brand: null,
+                model: null,
+                color: null,
+                material: null,
+                weight: null,
+                size: null,
+                stockQuantity: 0,
+                minStockLevel: 0,
+              ));
+            }
+          }
+        });
       }
     } catch (e) {
+      print('Store loading error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to load store data: $e')),
       );
@@ -73,8 +146,12 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
           tabs: [
-            Tab(text: 'Jerseys'),
-            Tab(text: 'Kits'),
+            Tab(
+              text: _meta != null ? 'Jerseys (${_meta!.jerseyCount})' : 'Jerseys',
+            ),
+            Tab(
+              text: _meta != null ? 'Kits (${_meta!.kitCount})' : 'Kits',
+            ),
             Tab(text: 'My Orders'),
           ],
         ),
@@ -188,7 +265,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                 ),
                 child: jersey.images.isNotEmpty
                     ? CachedNetworkImage(
-                        imageUrl: jersey.images.first,
+                        imageUrl: jersey.images.first.url,
                         fit: BoxFit.cover,
                         placeholder: (context, url) => Center(
                           child: CircularProgressIndicator(),
@@ -223,7 +300,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                       overflow: TextOverflow.ellipsis,
                     ),
                     SizedBox(height: 4),
-                    if (jersey.description != null)
+                    if (jersey.description != null && jersey.description!.isNotEmpty)
                       Text(
                         jersey.description!,
                         style: TextStyle(
@@ -233,6 +310,25 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
+                    
+                    // Order status indicator
+                    if (jersey.hasOrdered)
+                      Container(
+                        margin: EdgeInsets.only(top: 4),
+                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.blue,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'Ordered (${jersey.userOrderCount})',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 8,
+                          ),
+                        ),
+                      ),
+                    
                     Spacer(),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -245,7 +341,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                             fontSize: 16,
                           ),
                         ),
-                        if (!jersey.isOrderingEnabled)
+                        if (!jersey.availability.canOrder)
                           Container(
                             padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
@@ -296,7 +392,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                 ),
                 child: kit.images.isNotEmpty
                     ? CachedNetworkImage(
-                        imageUrl: kit.images.first,
+                        imageUrl: kit.images.first.url,
                         fit: BoxFit.cover,
                         placeholder: (context, url) => Center(
                           child: CircularProgressIndicator(),
@@ -349,6 +445,25 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                         ),
                       ),
                     ],
+                    
+                    // Order status indicator
+                    if (kit.hasOrdered)
+                      Container(
+                        margin: EdgeInsets.only(top: 4),
+                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.blue,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'Ordered (${kit.userOrderCount})',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 8,
+                          ),
+                        ),
+                      ),
+                    
                     Spacer(),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -361,7 +476,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                             fontSize: 16,
                           ),
                         ),
-                        if (kit.stockQuantity == 0)
+                        if (!kit.availability.canOrder)
                           Container(
                             padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
@@ -369,7 +484,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              'Out of Stock',
+                              kit.stockQuantity == 0 ? 'Out of Stock' : 'Unavailable',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 8,

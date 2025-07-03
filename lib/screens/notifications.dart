@@ -12,6 +12,7 @@ class NotificationsScreen extends StatefulWidget {
 class _NotificationsScreenState extends State<NotificationsScreen> {
   List<NotificationModel> _notifications = [];
   bool _isLoading = false;
+  int _unreadCount = 0;
 
   @override
   void initState() {
@@ -25,9 +26,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     try {
       final response = await ApiService.get('/notifications');
       setState(() {
-        _notifications = (response as List)
+        _notifications = (response['notifications'] as List)
             .map((notification) => NotificationModel.fromJson(notification))
             .toList();
+        _unreadCount = response['unreadCount'] ?? 0;
       });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -52,7 +54,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             actionUrl: _notifications[index].actionUrl,
             isRead: true,
             createdAt: _notifications[index].createdAt,
+            updatedAt: _notifications[index].updatedAt,
+            club: _notifications[index].club,
           );
+          if (_unreadCount > 0) {
+            _unreadCount--;
+          }
         }
       });
     } catch (e) {
@@ -62,7 +69,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Future<void> _markAllAsRead() async {
     try {
-      await ApiService.put('/notifications/read-all', {});
+      final response = await ApiService.put('/notifications/read-all', {});
       setState(() {
         _notifications = _notifications.map((n) => NotificationModel(
           id: n.id,
@@ -72,10 +79,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           actionUrl: n.actionUrl,
           isRead: true,
           createdAt: n.createdAt,
+          updatedAt: n.updatedAt,
+          club: n.club,
         )).toList();
+        _unreadCount = 0;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('All notifications marked as read')),
+        SnackBar(content: Text('All notifications marked as read (${response['updatedCount']} updated)')),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -84,21 +94,66 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
+  Future<void> _deleteNotification(String notificationId) async {
+    try {
+      await ApiService.delete('/notifications/$notificationId');
+      setState(() {
+        final index = _notifications.indexWhere((n) => n.id == notificationId);
+        if (index != -1) {
+          if (!_notifications[index].isRead && _unreadCount > 0) {
+            _unreadCount--;
+          }
+          _notifications.removeAt(index);
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Notification deleted')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to delete notification: $e')),
+      );
+    }
+  }
+
+  void _showDeleteConfirmation(NotificationModel notification) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Delete Notification'),
+          content: Text('Are you sure you want to delete this notification?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _deleteNotification(notification.id);
+              },
+              child: Text('Delete', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final unreadCount = _notifications.where((n) => !n.isRead).length;
-
     return Scaffold(
       appBar: AppBar(
         title: Text('Notifications'),
         backgroundColor: AppTheme.cricketGreen,
         foregroundColor: Colors.white,
         actions: [
-          if (unreadCount > 0)
+          if (_unreadCount > 0)
             TextButton(
               onPressed: _markAllAsRead,
               child: Text(
-                'Mark All Read',
+                'Mark All Read ($_unreadCount)',
                 style: TextStyle(color: Colors.white),
               ),
             ),
@@ -158,11 +213,35 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             color: notification.isRead ? Colors.grey : AppTheme.cricketGreen,
           ),
         ),
-        title: Text(
-          notification.title,
-          style: TextStyle(
-            fontWeight: notification.isRead ? FontWeight.normal : FontWeight.bold,
-          ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                notification.title,
+                style: TextStyle(
+                  fontWeight: notification.isRead ? FontWeight.normal : FontWeight.bold,
+                ),
+              ),
+            ),
+            if (notification.club != null) ...[
+              SizedBox(width: 8),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppTheme.cricketGreen.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  notification.club!.name,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: AppTheme.cricketGreen,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -182,21 +261,60 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ),
           ],
         ),
-        trailing: !notification.isRead
-            ? Container(
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!notification.isRead)
+              Container(
                 width: 8,
                 height: 8,
                 decoration: BoxDecoration(
                   color: AppTheme.cricketGreen,
                   shape: BoxShape.circle,
                 ),
-              )
-            : null,
+              ),
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'delete') {
+                  _showDeleteConfirmation(notification);
+                } else if (value == 'mark_read' && !notification.isRead) {
+                  _markAsRead(notification.id);
+                }
+              },
+              itemBuilder: (context) => [
+                if (!notification.isRead)
+                  PopupMenuItem(
+                    value: 'mark_read',
+                    child: Row(
+                      children: [
+                        Icon(Icons.mark_email_read, size: 16),
+                        SizedBox(width: 8),
+                        Text('Mark as Read'),
+                      ],
+                    ),
+                  ),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete, size: 16, color: Colors.red),
+                      SizedBox(width: 8),
+                      Text('Delete', style: TextStyle(color: Colors.red)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
         onTap: () {
           if (!notification.isRead) {
             _markAsRead(notification.id);
           }
           // TODO: Handle action URL if present
+          if (notification.actionUrl != null && notification.actionUrl!.isNotEmpty) {
+            // Navigate to action URL
+          }
         },
         isThreeLine: true,
       ),

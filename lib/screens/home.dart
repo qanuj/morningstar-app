@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
 import '../providers/club_provider.dart';
-import 'clubs_screen.dart';
-import 'matches_screen.dart';
-import 'transactions_screen.dart';
-import 'store_screen.dart';
-import 'polls_screen.dart';
-import 'profile_screen.dart';
-import 'notifications_screen.dart';
+import 'clubs.dart';
+import 'matches.dart';
+import 'transactions.dart';
+import 'store.dart';
+import 'polls.dart';
+import 'profile.dart';
+import 'notifications.dart';
 import '../utils/theme.dart';
 
 class HomeScreen extends StatefulWidget {

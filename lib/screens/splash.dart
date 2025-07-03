@@ -4,8 +4,8 @@ import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import '../providers/user_provider.dart';
 import '../providers/club_provider.dart';
-import 'login_screen.dart';
-import 'home_screen.dart';
+import 'login.dart';
+import 'home.dart';
 
 class SplashScreen extends StatefulWidget {
   @override

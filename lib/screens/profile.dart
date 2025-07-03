@@ -4,8 +4,8 @@ import '../providers/user_provider.dart';
 import '../providers/club_provider.dart';
 import '../services/auth_service.dart';
 import '../utils/theme.dart';
-import 'login_screen.dart';
-import 'edit_profile_screen.dart';
+import 'login.dart';
+import 'edit_profile.dart';
 
 class ProfileScreen extends StatelessWidget {
   @override

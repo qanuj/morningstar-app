@@ -31,6 +31,7 @@ class ApiService {
   };
 
   static Future<Map<String, dynamic>> get(String endpoint) async {
+    print('🔵 Making GET request to: $baseUrl$endpoint');
     final response = await http.get(
       Uri.parse('$baseUrl$endpoint'),
       headers: headers,
@@ -66,6 +67,7 @@ class ApiService {
 
   static Map<String, dynamic> _handleResponse(http.Response response) {
     if (response.statusCode >= 200 && response.statusCode < 300) {
+      print('🔵 Response Body: ${response.body}');
       final decoded = json.decode(response.body);
       // Handle both Map and List responses
       if (decoded is List) {

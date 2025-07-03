@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/club_provider.dart';
 import '../models/club.dart';
 import '../utils/theme.dart';
-import 'club_detail_screen.dart';
+import 'club_detail.dart';
 
 class ClubsScreen extends StatefulWidget {
   @override

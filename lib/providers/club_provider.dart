@@ -1,4 +1,3 @@
-// lib/providers/club_provider.dart
 import 'package:flutter/material.dart';
 import '../models/club.dart';
 import '../services/api_service.dart';
@@ -18,22 +17,15 @@ class ClubProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await ApiService.get('/my/clubs');
+      final Map<String, dynamic> response = await ApiService.get('/my/clubs');
       List<dynamic> clubsData = [];
       
       // Handle different response formats
-      if (response.containsKey('data')) {
-        final data = response['data'];
-        if (data is List) {
-          clubsData = data;
-        } else if (data is Map) {
-          clubsData = [data]; // Single club wrapped in data
-        }
-      } else if (response is List) {
-        clubsData = response;
-      } else {
-        // Assume response is a single club or contains club data directly
-        clubsData = [response];
+      final data = response['data'];
+      if (data is List) {
+        clubsData = data;
+      } else if (data is Map) {
+        clubsData = [data]; // Single club wrapped in data
       }
       
       _clubs = clubsData.map((club) {
