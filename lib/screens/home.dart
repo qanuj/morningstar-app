@@ -206,16 +206,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         body: Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(20),
-              topRight: Radius.circular(20),
-            ),
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(20),
-              topRight: Radius.circular(20),
-            ),
             child: _currentScreen,
           ),
         ),
@@ -233,17 +225,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         color: Colors.transparent,
         child: InkWell(
           onTap: onPressed,
-          borderRadius: BorderRadius.circular(12),
           child: Container(
-            padding: EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.1),
-                width: 0.5,
-              ),
-            ),
+            padding: EdgeInsets.all(5),
             child: Icon(icon, color: Colors.white, size: 20),
           ),
         ),
@@ -256,8 +239,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.only(
-          topRight: Radius.circular(20),
-          bottomRight: Radius.circular(20),
+          topRight: Radius.circular(0),
+          bottomRight: Radius.circular(0),
         ),
       ),
       child: Consumer2<UserProvider, ClubProvider>(
@@ -283,8 +266,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(20),
-                    bottomRight: Radius.circular(20),
+                    bottomLeft: Radius.circular(0),
+                    bottomRight: Radius.circular(0),
                   ),
                 ),
                 child: Column(
