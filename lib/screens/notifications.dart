@@ -3,6 +3,8 @@ import 'package:intl/intl.dart';
 import '../models/notification.dart';
 import '../services/api_service.dart';
 import '../utils/theme.dart';
+import '../widgets/custom_app_bar.dart';
+import '../widgets/duggy_logo.dart';
 
 class NotificationsScreen extends StatefulWidget {
   @override
@@ -13,23 +15,44 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   List<NotificationModel> _notifications = [];
   bool _isLoading = false;
   int _unreadCount = 0;
+  int _currentPage = 1;
+  bool _hasNextPage = true;
+  bool _isLoadingMore = false;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _loadNotifications();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent) {
+      if (_hasNextPage && !_isLoadingMore) {
+        _loadMoreNotifications();
+      }
+    }
   }
 
   Future<void> _loadNotifications() async {
     setState(() => _isLoading = true);
 
     try {
-      final response = await ApiService.get('/notifications');
+      final response = await ApiService.get('/notifications?page=1');
       setState(() {
         _notifications = (response['notifications'] as List)
             .map((notification) => NotificationModel.fromJson(notification))
             .toList();
         _unreadCount = response['unreadCount'] ?? 0;
+        _currentPage = 1;
+        _hasNextPage = response['hasNextPage'] ?? false;
       });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -38,6 +61,30 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
 
     setState(() => _isLoading = false);
+  }
+
+  Future<void> _loadMoreNotifications() async {
+    if (_isLoadingMore || !_hasNextPage) return;
+
+    setState(() => _isLoadingMore = true);
+
+    try {
+      final nextPage = _currentPage + 1;
+      final response = await ApiService.get('/notifications?page=$nextPage');
+      final newNotifications = (response['notifications'] as List)
+          .map((notification) => NotificationModel.fromJson(notification))
+          .toList();
+      
+      setState(() {
+        _notifications.addAll(newNotifications);
+        _currentPage = nextPage;
+        _hasNextPage = response['hasNextPage'] ?? false;
+      });
+    } catch (e) {
+      // Silently fail for pagination
+    }
+
+    setState(() => _isLoadingMore = false);
   }
 
   Future<void> _markAsRead(String notificationId) async {

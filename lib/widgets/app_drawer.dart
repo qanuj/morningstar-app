@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
 import '../providers/club_provider.dart';
+import '../providers/theme_provider.dart';
 import '../screens/profile.dart';
 import '../screens/matches.dart';
 import '../screens/store.dart';
@@ -66,8 +67,8 @@ class AppDrawer extends StatelessWidget {
           bottomRight: Radius.circular(0),
         ),
       ),
-      child: Consumer2<UserProvider, ClubProvider>(
-        builder: (context, userProvider, clubProvider, child) {
+      child: Consumer3<UserProvider, ClubProvider, ThemeProvider>(
+        builder: (context, userProvider, clubProvider, themeProvider, child) {
           final user = userProvider.user;
           final currentClub = clubProvider.currentClub;
           return Column(
@@ -265,6 +266,7 @@ class AppDrawer extends StatelessWidget {
 
                     // Settings
                     _buildSectionHeader(context, 'Settings'),
+                    _buildThemeSwitcher(context, themeProvider),
                     _buildDrawerItem(
                       context,
                       icon: Icons.help_outline,
@@ -349,6 +351,62 @@ class AppDrawer extends StatelessWidget {
                       ? Theme.of(context).primaryColor
                       : Theme.of(context).textTheme.bodyMedium?.color,
                   fontWeight: isSelected ? FontWeight.w500 : FontWeight.w400,
+                ),
+              ),
+              dense: true,
+              visualDensity: VisualDensity.compact,
+              contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildThemeSwitcher(BuildContext context, ThemeProvider themeProvider) {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 12, vertical: 1),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            themeProvider.cycleThemeMode();
+          },
+          borderRadius: BorderRadius.circular(4),
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: ListTile(
+              leading: Icon(
+                themeProvider.themeModeIcon,
+                color: Theme.of(context).iconTheme.color,
+                size: 20,
+              ),
+              title: Text(
+                'Theme',
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+              trailing: Container(
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  themeProvider.themeModeText,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).primaryColor,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
               dense: true,
