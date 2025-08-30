@@ -5,10 +5,13 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../models/product.dart';
 import '../services/api_service.dart';
 import '../utils/theme.dart';
+import '../widgets/custom_app_bar.dart';
 
 class MyOrdersScreen extends StatefulWidget {
+  const MyOrdersScreen({Key? key}) : super(key: key);
+  
   @override
-  _MyOrdersScreenState createState() => _MyOrdersScreenState();
+  State<MyOrdersScreen> createState() => _MyOrdersScreenState();
 }
 
 class _MyOrdersScreenState extends State<MyOrdersScreen> {
@@ -30,9 +33,11 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
         _orders = (response['data'] as List).map((order) => Order.fromJson(order)).toList();
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load orders: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load orders: $e')),
+        );
+      }
     }
 
     setState(() => _isLoading = false);
@@ -42,15 +47,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: Text('My Orders'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        actions: [
+      appBar: DetailAppBar(
+        pageTitle: 'My Orders',
+        customActions: [
           IconButton(
             icon: Icon(Icons.home_outlined),
             onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),

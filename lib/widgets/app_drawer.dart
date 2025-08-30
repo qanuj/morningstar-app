@@ -25,12 +25,11 @@ class AppDrawer extends StatelessWidget {
   });
 
   void _navigateToScreen(BuildContext context, Widget screen, String screenName) {
-    Navigator.of(context).pop(); // Close drawer first
-    
     // Handle bottom tab pages
     if (NavigationHelper.isBottomTabPage(screenName)) {
       final tabIndex = NavigationHelper.getTabIndex(screenName);
       if (tabIndex != null) {
+        Navigator.of(context).pop(); // Close drawer first
         if (onTabSwitch != null) {
           // We're on home screen, just switch tabs
           onTabSwitch!(tabIndex);
@@ -51,6 +50,7 @@ class AppDrawer extends StatelessWidget {
       onNavigate!(screen, screenName);
     } else {
       // Default navigation for standalone pages
+      Navigator.of(context).pop(); // Close drawer first
       Navigator.of(context).push(
         MaterialPageRoute(builder: (context) => screen),
       );

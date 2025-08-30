@@ -28,8 +28,8 @@ class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int _selectedIndex = 0;
 
-  final List<Widget> _screens = [
-    _DashboardScreen(), // Home dashboard
+  List<Widget> get _screens => [
+    _DashboardScreen(onTabSwitch: _onBottomNavTap), // Home dashboard
     MatchesScreen(),
     StoreScreen(),
     TransactionsScreen(),
@@ -42,7 +42,10 @@ class _HomeScreenState extends State<HomeScreen> {
     // For drawer navigation to screens not in bottom tabs
     Navigator.of(context).pop(); // Close drawer
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => screen),
+      MaterialPageRoute(
+        builder: (context) => screen,
+        settings: RouteSettings(name: '/$title'),
+      ),
     );
     HapticFeedback.lightImpact();
   }
@@ -648,6 +651,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
 // Simple Dashboard Screen placeholder
 class _DashboardScreen extends StatelessWidget {
+  final Function(int)? onTabSwitch;
+  
+  const _DashboardScreen({this.onTabSwitch});
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -743,17 +750,26 @@ class _DashboardScreen extends StatelessWidget {
                   children: [
                     _buildQuickActionCard(
                       context,
+                      icon: Icons.sports_cricket,
+                      title: 'Matches',
+                      subtitle: 'View & RSVP',
+                      color: AppTheme.successGreen,
+                      onTap: () {
+                        // Switch to Matches tab (index 1)
+                        onTabSwitch?.call(1);
+                        HapticFeedback.lightImpact();
+                      },
+                    ),
+                    _buildQuickActionCard(
+                      context,
                       icon: Icons.store,
                       title: 'Store',
                       subtitle: 'Browse products',
                       color: AppTheme.lightBlue,
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => StoreScreen(),
-                          ),
-                        );
+                        // Switch to Store tab (index 2)
+                        onTabSwitch?.call(2);
+                        HapticFeedback.lightImpact();
                       },
                     ),
                     _buildQuickActionCard(
@@ -763,6 +779,7 @@ class _DashboardScreen extends StatelessWidget {
                       subtitle: 'Track orders',
                       color: AppTheme.warningOrange,
                       onTap: () {
+                        // Navigate to My Orders (not in bottom tabs)
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -778,12 +795,9 @@ class _DashboardScreen extends StatelessWidget {
                       subtitle: 'Vote & participate',
                       color: AppTheme.successGreen,
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => PollsScreen(),
-                          ),
-                        );
+                        // Switch to Polls tab (index 4)
+                        onTabSwitch?.call(4);
+                        HapticFeedback.lightImpact();
                       },
                     ),
                     _buildQuickActionCard(
@@ -793,12 +807,14 @@ class _DashboardScreen extends StatelessWidget {
                       subtitle: 'Manage account',
                       color: AppTheme.primaryBlue,
                       onTap: () {
+                        // Navigate to Profile (not in bottom tabs)
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) => ProfileScreen(),
                           ),
                         );
+                        HapticFeedback.lightImpact();
                       },
                     ),
                   ],
