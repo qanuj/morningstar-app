@@ -94,6 +94,11 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     // Generate temporary message ID
     final tempMessageId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
     
+    // Detect links and fetch metadata
+    List<LinkMetadata> linkMeta = [];
+    final urlPattern = RegExp(r'https?://[^\s]+');
+    final urls = urlPattern.allMatches(content).map((match) => match.group(0)!).toList();
+    
     // Create optimistic message (add immediately to list)
     final optimisticMessage = ClubMessage(
       id: tempMessageId,
@@ -127,16 +132,32 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     
     HapticFeedback.lightImpact();
     
+    // Fetch link metadata if URLs found
+    if (urls.isNotEmpty) {
+      for (String url in urls) {
+        final metadata = await _fetchLinkMetadata(url);
+        if (metadata != null) {
+          linkMeta.add(metadata);
+        }
+      }
+    }
+    
     try {
       print('🔵 Sending message to club ${widget.club.id} from user ${user.id}');
       print('🔵 Message content: $content');
       
+      final Map<String, dynamic> contentMap = {
+        'type': 'text',
+        'body': content,
+      };
+      
+      if (linkMeta.isNotEmpty) {
+        contentMap['meta'] = linkMeta.map((meta) => meta.toJson()).toList();
+      }
+      
       final requestData = {
         'senderId': user.id,
-        'content': {
-          'type': 'text',
-          'body': content,
-        },
+        'content': contentMap,
       };
       
       print('🔵 Request data: $requestData');
@@ -175,12 +196,13 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       print('🔵 Is success: $isSuccess, Message ID: $messageId');
       
       if (isSuccess) {
-        // Update the optimistic message to sent status with real ID
+        // Update the optimistic message to sent status with real ID and metadata
         setState(() {
           final messageIndex = _messages.indexWhere((m) => m.id == tempMessageId);
           if (messageIndex != -1) {
             _messages[messageIndex] = _messages[messageIndex].copyWith(
               status: MessageStatus.sent,
+              linkMeta: linkMeta,
             );
           }
         });
@@ -447,6 +469,8 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                                   _buildImageGallery(message.pictures),
                                 if (message.documents.isNotEmpty)
                                   _buildDocumentList(message.documents),
+                                if (message.linkMeta.isNotEmpty)
+                                  _buildLinkPreviews(message.linkMeta),
                               ],
                             ),
                           ),
@@ -519,7 +543,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         return Icon(
           Icons.error_outline,
           size: 14,
-          color: Colors.white,
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.white.withOpacity(0.7)
+              : Colors.black.withOpacity(0.7),
         );
       case MessageStatus.sent:
       default:
@@ -1105,6 +1131,55 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     }
   }
 
+  Future<LinkMetadata?> _fetchLinkMetadata(String url) async {
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        final html = response.body;
+        
+        // Extract metadata using RegExp
+        String? title = _extractMetaContent(html, r'<title[^>]*>([^<]+)</title>');
+        if (title == null) {
+          title = _extractMetaContent(html, r'<meta[^>]*property=["\047]og:title["\047][^>]*content=["\047]([^"\047>]*)["\047][^>]*>');
+        }
+        
+        String? description = _extractMetaContent(html, r'<meta[^>]*name=["\047]description["\047][^>]*content=["\047]([^"\047>]*)["\047][^>]*>');
+        if (description == null) {
+          description = _extractMetaContent(html, r'<meta[^>]*property=["\047]og:description["\047][^>]*content=["\047]([^"\047>]*)["\047][^>]*>');
+        }
+        
+        String? image = _extractMetaContent(html, r'<meta[^>]*property=["\047]og:image["\047][^>]*content=["\047]([^"\047>]*)["\047][^>]*>');
+        
+        String? siteName = _extractMetaContent(html, r'<meta[^>]*property=["\047]og:site_name["\047][^>]*content=["\047]([^"\047>]*)["\047][^>]*>');
+        
+        // Get favicon
+        String? favicon = _extractMetaContent(html, r'<link[^>]*rel=["\047](?:icon|shortcut icon)["\047][^>]*href=["\047]([^"\047>]*)["\047][^>]*>');
+        if (favicon != null && !favicon.startsWith('http')) {
+          final uri = Uri.parse(url);
+          favicon = '${uri.scheme}://${uri.host}${favicon.startsWith('/') ? '' : '/'}$favicon';
+        }
+        
+        return LinkMetadata(
+          url: url,
+          title: title,
+          description: description,
+          image: image,
+          siteName: siteName,
+          favicon: favicon,
+        );
+      }
+    } catch (e) {
+      print('Error fetching metadata for $url: $e');
+    }
+    return null;
+  }
+  
+  String? _extractMetaContent(String html, String pattern) {
+    final regex = RegExp(pattern, caseSensitive: false);
+    final match = regex.firstMatch(html);
+    return match?.group(1)?.trim();
+  }
+
   Future<String?> _uploadFile(PlatformFile file) async {
     try {
       final bytes = file.bytes ?? await File(file.path!).readAsBytes();
@@ -1302,9 +1377,17 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
                         height: 200,
-                        color: Colors.grey[300],
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.grey[800]
+                            : Colors.grey[300],
                         child: Center(
-                          child: Icon(Icons.broken_image, size: 48, color: Colors.grey[600]),
+                          child: Icon(
+                            Icons.broken_image,
+                            size: 48,
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white.withOpacity(0.5)
+                                : Colors.grey[600],
+                          ),
                         ),
                       );
                     },
@@ -1316,7 +1399,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                     image.caption!,
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.grey[600],
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white.withOpacity(0.6)
+                          : Colors.grey[600],
                       fontStyle: FontStyle.italic,
                     ),
                   ),
@@ -1353,8 +1438,15 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                             errorBuilder: (context, error, stackTrace) {
                               return Container(
                                 height: 120,
-                                color: Colors.grey[300],
-                                child: Icon(Icons.broken_image, color: Colors.grey[600]),
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.grey[800]
+                                    : Colors.grey[300],
+                                child: Icon(
+                                  Icons.broken_image,
+                                  color: Theme.of(context).brightness == Brightness.dark
+                                      ? Colors.white.withOpacity(0.5)
+                                      : Colors.grey[600],
+                                ),
                               );
                             },
                           ),
@@ -1410,9 +1502,15 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
           child: Container(
             padding: EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.grey[100],
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.grey[800]
+                  : Colors.grey[100],
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey[300]!),
+              border: Border.all(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey[600]!
+                    : Colors.grey[300]!,
+              ),
             ),
             child: Row(
               children: [
@@ -1436,18 +1534,172 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                         doc.type.toUpperCase(),
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey[600],
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white.withOpacity(0.6)
+                              : Colors.grey[600],
                         ),
                       ),
                     ],
                   ),
                 ),
-                Icon(Icons.download, color: Colors.grey[600]),
+                Icon(
+                  Icons.download,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white.withOpacity(0.6)
+                      : Colors.grey[600],
+                ),
               ],
             ),
           ),
         )).toList(),
       ],
+    );
+  }
+
+  Widget _buildLinkPreviews(List<LinkMetadata> linkMeta) {
+    return Column(
+      children: [
+        SizedBox(height: 8),
+        ...linkMeta.map((link) => Padding(
+          padding: EdgeInsets.only(bottom: 8),
+          child: InkWell(
+            onTap: () => _launchUrl(link.url),
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey[700]!
+                      : Colors.grey[300]!,
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Image preview if available
+                  if (link.image != null && link.image!.isNotEmpty)
+                    ClipRRect(
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                      child: Image.network(
+                        link.image!,
+                        width: double.infinity,
+                        height: 150,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return SizedBox.shrink(); // Hide if image fails to load
+                        },
+                      ),
+                    ),
+                  
+                  // Content
+                  Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Title
+                        if (link.title != null && link.title!.isNotEmpty)
+                          Text(
+                            link.title!,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.white.withOpacity(0.9)
+                                  : Colors.black.withOpacity(0.8),
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        
+                        // Description
+                        if (link.description != null && link.description!.isNotEmpty) ...[
+                          SizedBox(height: 4),
+                          Text(
+                            link.description!,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.white.withOpacity(0.7)
+                                  : Colors.black.withOpacity(0.6),
+                            ),
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                        
+                        // Site info
+                        SizedBox(height: 8),
+                        Row(
+                          children: [
+                            // Favicon if available
+                            if (link.favicon != null && link.favicon!.isNotEmpty) ...[
+                              Image.network(
+                                link.favicon!,
+                                width: 16,
+                                height: 16,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Icon(
+                                    Icons.language,
+                                    size: 16,
+                                    color: Theme.of(context).brightness == Brightness.dark
+                                        ? Colors.white.withOpacity(0.6)
+                                        : Colors.grey[600],
+                                  );
+                                },
+                              ),
+                              SizedBox(width: 8),
+                            ] else ...[
+                              Icon(
+                                Icons.language,
+                                size: 16,
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white.withOpacity(0.6)
+                                    : Colors.grey[600],
+                              ),
+                              SizedBox(width: 8),
+                            ],
+                            
+                            Expanded(
+                              child: Text(
+                                link.siteName ?? Uri.parse(link.url).host,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(context).brightness == Brightness.dark
+                                      ? Colors.white.withOpacity(0.6)
+                                      : Colors.grey[600],
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            
+                            Icon(
+                              Icons.open_in_new,
+                              size: 16,
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.white.withOpacity(0.6)
+                                  : Colors.grey[600],
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        )).toList(),
+      ],
+    );
+  }
+
+  void _launchUrl(String url) async {
+    // For now, just show a snackbar - you can implement url_launcher here
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Opening: $url')),
     );
   }
 
@@ -1780,6 +2032,44 @@ class MessageDocument {
   };
 }
 
+class LinkMetadata {
+  final String url;
+  final String? title;
+  final String? description;
+  final String? image;
+  final String? siteName;
+  final String? favicon;
+  
+  LinkMetadata({
+    required this.url,
+    this.title,
+    this.description,
+    this.image,
+    this.siteName,
+    this.favicon,
+  });
+  
+  factory LinkMetadata.fromJson(Map<String, dynamic> json) {
+    return LinkMetadata(
+      url: json['url'] ?? '',
+      title: json['title'],
+      description: json['description'],
+      image: json['image'],
+      siteName: json['siteName'],
+      favicon: json['favicon'],
+    );
+  }
+  
+  Map<String, dynamic> toJson() => {
+    'url': url,
+    if (title != null) 'title': title,
+    if (description != null) 'description': description,
+    if (image != null) 'image': image,
+    if (siteName != null) 'siteName': siteName,
+    if (favicon != null) 'favicon': favicon,
+  };
+}
+
 class ClubMessage {
   final String id;
   final String clubId;
@@ -1790,6 +2080,7 @@ class ClubMessage {
   final String content;
   final List<MessageImage> pictures;
   final List<MessageDocument> documents;
+  final List<LinkMetadata> linkMeta;
   final DateTime createdAt;
   final MessageStatus status;
   final String? errorMessage;
@@ -1804,6 +2095,7 @@ class ClubMessage {
     required this.content,
     this.pictures = const [],
     this.documents = const [],
+    this.linkMeta = const [],
     required this.createdAt,
     this.status = MessageStatus.sent,
     this.errorMessage,
@@ -1814,6 +2106,7 @@ class ClubMessage {
     String? errorMessage,
     List<MessageImage>? pictures,
     List<MessageDocument>? documents,
+    List<LinkMetadata>? linkMeta,
   }) {
     return ClubMessage(
       id: id,
@@ -1825,6 +2118,7 @@ class ClubMessage {
       content: content,
       pictures: pictures ?? this.pictures,
       documents: documents ?? this.documents,
+      linkMeta: linkMeta ?? this.linkMeta,
       createdAt: createdAt,
       status: status ?? this.status,
       errorMessage: errorMessage ?? this.errorMessage,
@@ -1836,6 +2130,7 @@ class ClubMessage {
     String messageContent = '';
     List<MessageImage> pictures = [];
     List<MessageDocument> documents = [];
+    List<LinkMetadata> linkMeta = [];
     
     final content = json['content'];
     if (content is String) {
@@ -1854,6 +2149,13 @@ class ClubMessage {
       if (content['documents'] is List) {
         documents = (content['documents'] as List)
             .map((doc) => MessageDocument.fromJson(doc as Map<String, dynamic>))
+            .toList();
+      }
+      
+      // Parse link metadata array
+      if (content['meta'] is List) {
+        linkMeta = (content['meta'] as List)
+            .map((meta) => LinkMetadata.fromJson(meta as Map<String, dynamic>))
             .toList();
       }
     }
@@ -1884,6 +2186,7 @@ class ClubMessage {
       content: messageContent,
       pictures: pictures,
       documents: documents,
+      linkMeta: linkMeta,
       createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
     );
   }

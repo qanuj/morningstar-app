@@ -142,6 +142,68 @@ class ConversationProvider with ChangeNotifier {
     }
   }
 
+  // Send a rich content message
+  Future<bool> sendRichMessage(
+    String conversationId, 
+    MessageType type, 
+    Map<String, dynamic> richContent,
+    {String? textContent}
+  ) async {
+    try {
+      _setError(null);
+
+      final response = await ApiService.post('/conversations/$conversationId/messages', {
+        'content': textContent ?? '',
+        'type': _messageTypeToString(type),
+        'richContent': richContent,
+      });
+      
+      if (response['success'] == true) {
+        final messageData = response['data'];
+        final newMessage = MessageModel.fromJson(messageData);
+        
+        // Add message to local list
+        _messages.add(newMessage);
+        
+        // Update conversation's last message
+        final conversationIndex = _conversations.indexWhere((c) => c.id == conversationId);
+        if (conversationIndex != -1) {
+          _conversations[conversationIndex] = _conversations[conversationIndex].copyWith(
+            lastMessage: newMessage,
+            updatedAt: newMessage.createdAt,
+          );
+        }
+        
+        notifyListeners();
+        return true;
+      } else {
+        _setError(response['message'] ?? 'Failed to send message');
+        return false;
+      }
+    } catch (e) {
+      print('Error sending rich message: $e');
+      _setError('Unable to send message. Please check your connection.');
+      return false;
+    }
+  }
+
+  String _messageTypeToString(MessageType type) {
+    switch (type) {
+      case MessageType.text: return 'text';
+      case MessageType.image: return 'image';
+      case MessageType.textWithImages: return 'text_with_images';
+      case MessageType.link: return 'link';
+      case MessageType.emoji: return 'emoji';
+      case MessageType.gif: return 'gif';
+      case MessageType.document: return 'document';
+      case MessageType.voice: return 'voice';
+      case MessageType.video: return 'video';
+      case MessageType.location: return 'location';
+      case MessageType.file: return 'file';
+      case MessageType.system: return 'system';
+    }
+  }
+
   // Mark conversation as read
   Future<void> markConversationAsRead(String conversationId) async {
     try {
