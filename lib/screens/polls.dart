@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../models/poll.dart';
 import '../services/api_service.dart';
 import '../widgets/duggy_logo.dart';
+import 'notifications.dart';
 
 class PollsScreen extends StatefulWidget {
   @override
@@ -10,18 +12,9 @@ class PollsScreen extends StatefulWidget {
 }
 
 class _PollsScreenState extends State<PollsScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   List<Poll> _polls = [];
   bool _isLoading = false;
-  String _selectedStatus = 'all';
-  String _selectedPeriod = 'all';
-  String _searchQuery = '';
-  TextEditingController _searchController = TextEditingController();
-
-  // Pagination
-  int _currentPage = 1;
-  int _totalPages = 1;
-  bool _hasNextPage = false;
-  bool _hasPrevPage = false;
 
   @override
   void initState() {
@@ -29,59 +22,32 @@ class _PollsScreenState extends State<PollsScreen> {
     _loadPolls();
   }
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadPolls({bool isRefresh = false}) async {
-    if (isRefresh) {
-      _currentPage = 1;
-    }
-
+  Future<void> _loadPolls() async {
     setState(() => _isLoading = true);
 
     try {
-      final queryParams = <String, String>{
-        'page': _currentPage.toString(),
-        'limit': '20',
-      };
-
-      if (_selectedStatus != 'all') {
-        queryParams['status'] = _selectedStatus;
+      final response = await ApiService.get('/polls');
+      
+      // Try different possible response formats
+      List<dynamic> pollsData;
+      if (response['polls'] != null) {
+        pollsData = response['polls'] as List;
+      } else if (response['data'] != null) {
+        pollsData = response['data'] as List;
+      } else {
+        throw Exception('No polls data found in response');
       }
-
-      if (_selectedPeriod != 'all') {
-        queryParams['period'] = _selectedPeriod;
-      }
-
-      if (_searchQuery.isNotEmpty) {
-        queryParams['search'] = _searchQuery;
-      }
-
-      final queryString = queryParams.entries
-          .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
-          .join('&');
-
-      final response = await ApiService.get('/polls?$queryString');
       
       setState(() {
-        _polls = (response['polls'] as List).map((poll) => Poll.fromJson(poll)).toList();
-
-        // Update pagination info if available
-        if (response['pagination'] != null) {
-          final pagination = response['pagination'];
-          _currentPage = pagination['currentPage'] ?? 1;
-          _totalPages = pagination['totalPages'] ?? 1;
-          _hasNextPage = pagination['hasNextPage'] ?? false;
-          _hasPrevPage = pagination['hasPrevPage'] ?? false;
-        }
+        _polls = pollsData.map((poll) => Poll.fromJson(poll)).toList();
       });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load polls: $e')),
+          SnackBar(
+            content: Text('Failed to load polls: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -166,359 +132,80 @@ class _PollsScreenState extends State<PollsScreen> {
     );
   }
 
-  Map<String, List<Poll>> _groupPollsByDate(List<Poll> polls) {
-    final Map<String, List<Poll>> groupedPolls = {};
-    
-    for (final poll in polls) {
-      final dateKey = DateFormat('yyyy-MM-dd').format(poll.createdAt);
-      if (!groupedPolls.containsKey(dateKey)) {
-        groupedPolls[dateKey] = [];
-      }
-      groupedPolls[dateKey]!.add(poll);
-    }
-    
-    return groupedPolls;
-  }
-  
-  String _formatDateHeader(String dateKey) {
-    final date = DateTime.parse(dateKey);
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final tomorrow = today.add(Duration(days: 1));
-    final yesterday = today.subtract(Duration(days: 1));
-    final pollDate = DateTime(date.year, date.month, date.day);
-    
-    if (pollDate == today) {
-      return 'Today';
-    } else if (pollDate == tomorrow) {
-      return 'Tomorrow';
-    } else if (pollDate == yesterday) {
-      return 'Yesterday';
-    } else {
-      return DateFormat('MMM dd, yyyy').format(date);
-    }
-  }
-  
-  Widget _buildDateHeader(String dateKey) {
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Theme.of(context).brightness == Brightness.dark
-            ? Colors.white.withOpacity(0.1)
-            : Theme.of(context).primaryColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        _formatDateHeader(dateKey),
-        style: TextStyle(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? Colors.white.withOpacity(0.8)
-              : Theme.of(context).primaryColor,
-          fontSize: 12,
-          fontWeight: FontWeight.w400,
-        ),
-      ),
-    );
-  }
-  
-  int _getChildCount() {
-    final groupedPolls = _groupPollsByDate(_polls);
-    int count = 0;
-    
-    // Date headers + polls count
-    for (final entry in groupedPolls.entries) {
-      count += 1; // Date header
-      count += entry.value.length; // Polls
-    }
-    
-    count += 1; // Pagination widget
-    return count;
-  }
-
-  Widget _buildPaginationWidget() {
-    if (_totalPages <= 1) return SizedBox.shrink();
-
-    return Container(
-      margin: EdgeInsets.all(16),
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Theme.of(context).dividerColor.withOpacity(0.3),
-          width: 0.5,
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          ElevatedButton(
-            onPressed: _hasPrevPage ? _loadPreviousPage : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).primaryColor,
-              foregroundColor: Colors.white,
-              elevation: 0,
-            ),
-            child: Text('Previous'),
-          ),
-          Text(
-            'Page $_currentPage of $_totalPages',
-            style: TextStyle(
-              fontWeight: FontWeight.w400,
-              color: Theme.of(context).textTheme.bodyLarge?.color,
-            ),
-          ),
-          ElevatedButton(
-            onPressed: _hasNextPage ? _loadNextPage : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).primaryColor,
-              foregroundColor: Colors.white,
-              elevation: 0,
-            ),
-            child: Text('Next'),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  void _loadNextPage() {
-    if (_hasNextPage) {
-      _currentPage++;
-      _loadPolls();
-    }
-  }
-  
-  void _loadPreviousPage() {
-    if (_hasPrevPage) {
-      _currentPage--;
-      _loadPolls();
-    }
-  }
-  
-  void _applyFilters() {
-    _currentPage = 1;
-    _loadPolls();
-  }
-
-  void _showFilterBottomSheet() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Theme.of(context).dialogBackgroundColor,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Container(
-          padding: EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).primaryColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.filter_list,
-                      color: Theme.of(context).primaryColor,
-                      size: 20,
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  Text(
-                    'Filter Polls',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w400,
-                      color: Theme.of(context).textTheme.headlineSmall?.color,
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 24),
-              // Status Filter
-              Text(
-                'Poll Status',
-                style: TextStyle(
-                  fontWeight: FontWeight.w400,
-                  fontSize: 12,
-                  color: Theme.of(context).textTheme.titleMedium?.color,
-                ),
-              ),
-              SizedBox(height: 12),
-              Row(
-                children: [
-                  _buildFilterChip('All', 'all', _selectedStatus),
-                  SizedBox(width: 8),
-                  _buildFilterChip('Active', 'active', _selectedStatus),
-                  SizedBox(width: 8),
-                  _buildFilterChip('Expired', 'expired', _selectedStatus),
-                ],
-              ),
-              SizedBox(height: 24),
-              // Period Filter
-              Text(
-                'Time Period',
-                style: TextStyle(
-                  fontWeight: FontWeight.w400,
-                  fontSize: 12,
-                  color: Theme.of(context).textTheme.titleMedium?.color,
-                ),
-              ),
-              SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _buildFilterChip('All', 'all', _selectedPeriod),
-                  _buildFilterChip('Week', 'week', _selectedPeriod),
-                  _buildFilterChip('Month', 'month', _selectedPeriod),
-                  _buildFilterChip('3 Months', '3months', _selectedPeriod),
-                ],
-              ),
-              SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _applyFilters();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).primaryColor,
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: Text(
-                    'Apply Filters',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildFilterChip(String label, String value, String currentValue) {
-    final isSelected = currentValue == value;
-    return FilterChip(
-      label: Text(
-        label,
-        style: TextStyle(
-          fontWeight: FontWeight.w400,
-          color: isSelected
-              ? Theme.of(context).primaryColor
-              : Theme.of(context).textTheme.bodyLarge?.color,
-        ),
-      ),
-      selected: isSelected,
-      onSelected: (selected) {
-        setState(() {
-          if (label == 'All' || label == 'Week' || label == 'Month' || label == '3 Months') {
-            _selectedPeriod = value;
-          } else {
-            _selectedStatus = value;
-          }
-        });
-      },
-      selectedColor: Theme.of(context).primaryColor.withOpacity(0.2),
-      backgroundColor: Theme.of(context).dialogBackgroundColor,
-      checkmarkColor: Theme.of(context).primaryColor,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(
-          color: isSelected
-              ? Theme.of(context).primaryColor.withOpacity(0.5)
-              : Theme.of(context).dividerColor.withOpacity(0.3),
-          width: 0.5,
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      drawer: Drawer(), // You can customize this later if needed
       appBar: AppBar(
         backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
         elevation: 0,
+        foregroundColor: Theme.of(context).appBarTheme.foregroundColor,
+        leading: GestureDetector(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            _scaffoldKey.currentState?.openDrawer();
+          },
+          child: Icon(
+            Icons.menu,
+            color: Theme.of(context).appBarTheme.foregroundColor,
+            size: 24,
+          ),
+        ),
         title: Row(
           children: [
-            Expanded(
-              child: SizedBox(
-                height: 40,
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: (value) {
-                    _searchQuery = value;
-                    _applyFilters();
-                  },
-                  decoration: InputDecoration(
-                    hintText: 'Search polls...',
-                    hintStyle: TextStyle(
-                      color: Theme.of(context).textTheme.bodySmall?.color,
-                      fontSize: 12,
-                    ),
-                    prefixIcon: Icon(
-                      Icons.search,
-                      color: Theme.of(context).iconTheme.color,
-                      size: 20,
-                    ),
-                    filled: true,
-                    fillColor: Theme.of(context).cardColor,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 8,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide.none,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide.none,
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(
-                        color: Theme.of(context).primaryColor,
-                        width: 1,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+            DuggyLogoVariant.small(
+              color: Theme.of(context).appBarTheme.foregroundColor,
             ),
-            const SizedBox(width: 8),
-            IconButton(
-              icon: Icon(
-                Icons.filter_list,
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white.withOpacity(0.8)
-                    : Theme.of(context).primaryColor,
-                size: 20,
+            Text(
+              'Polls',
+              style: TextStyle(
+                color: Theme.of(context).appBarTheme.foregroundColor,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.2,
               ),
-              onPressed: _showFilterBottomSheet,
             ),
           ],
         ),
+        actions: [
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              Navigator.of(context).push(
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) =>
+                      NotificationsScreen(),
+                  transitionsBuilder:
+                      (context, animation, secondaryAnimation, child) {
+                        return SlideTransition(
+                          position: animation.drive(
+                            Tween(
+                              begin: Offset(1.0, 0.0),
+                              end: Offset.zero,
+                            ).chain(CurveTween(curve: Curves.easeOutCubic)),
+                          ),
+                          child: child,
+                        );
+                      },
+                ),
+              );
+            },
+            child: Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: Icon(
+                Icons.notifications_outlined,
+                color: Theme.of(context).appBarTheme.foregroundColor,
+                size: 24,
+              ),
+            ),
+          ),
+        ],
       ),
       body: RefreshIndicator(
-        onRefresh: () => _loadPolls(isRefresh: true),
+        onRefresh: _loadPolls,
         color: Theme.of(context).primaryColor,
         child: _isLoading
             ? Center(
@@ -528,86 +215,65 @@ class _PollsScreenState extends State<PollsScreen> {
                 ),
               )
             : _polls.isEmpty
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: EdgeInsets.all(32),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor.withOpacity(0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.poll_outlined,
-                        size: 64,
-                        color: Theme.of(context).primaryColor,
-                      ),
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: EdgeInsets.all(32),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).primaryColor.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.poll_outlined,
+                            size: 64,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          'No polls available',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                            color: Theme.of(context).textTheme.titleLarge?.color,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Check back later for new polls',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 24),
-                    Text(
-                      'No polls found',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400,
-                        color: Theme.of(context).textTheme.titleLarge?.color,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Your poll history will appear here',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Theme.of(context).textTheme.bodySmall?.color,
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            : CustomScrollView(
-                slivers: [
-                  // Poll List with Date Groups
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final groupedPolls = _groupPollsByDate(_polls);
-                        final sortedDateKeys = groupedPolls.keys.toList()
-                          ..sort((a, b) => b.compareTo(a)); // Latest first
-                        
-                        int currentIndex = 0;
-                        
-                        for (final dateKey in sortedDateKeys) {
-                          final polls = groupedPolls[dateKey]!;
-                          
-                          // Date header
-                          if (index == currentIndex) {
-                            return _buildDateHeader(dateKey);
-                          }
-                          currentIndex++;
-                          
-                          // Poll cards for this date
-                          for (int i = 0; i < polls.length; i++) {
-                            if (index == currentIndex) {
-                              return _buildPollCard(polls[i]);
-                            }
-                            currentIndex++;
-                          }
-                        }
-                        
-                        // Pagination widget at the end
-                        if (index == currentIndex) {
-                          return _buildPaginationWidget();
-                        }
-                        
-                        return SizedBox.shrink(); // Should never reach here
-                      },
-                      childCount: _getChildCount(),
-                    ),
+                  )
+                : ListView.builder(
+                    padding: EdgeInsets.all(16),
+                    itemCount: _polls.length,
+                    itemBuilder: (context, index) {
+                      final poll = _polls[index];
+                      return _buildPollCard(poll);
+                    },
                   ),
-                ],
-              ),
       ),
     );
+  }
+
+  // Helper method to get the option the user voted for
+  dynamic _getUserVotedOption(Poll poll) {
+    if (!poll.hasVoted || poll.userVote == null) return null;
+    
+    try {
+      return poll.options.firstWhere(
+        (option) => option.id == poll.userVote!.pollOptionId,
+      );
+    } catch (e) {
+      return null;
+    }
   }
 
   void _showPollVotingSheet(Poll poll) {
@@ -661,7 +327,7 @@ class _PollsScreenState extends State<PollsScreen> {
                           ),
                         ),
                         Text(
-                          '${poll.club.name} • by ${poll.createdBy.name}',
+                          poll.club.name,
                           style: TextStyle(
                             fontSize: 12,
                             color: Theme.of(context).textTheme.bodySmall?.color,
@@ -875,7 +541,7 @@ class _PollsScreenState extends State<PollsScreen> {
     final totalVotes = poll.options.fold(0, (sum, option) => sum + option.voteCount);
 
     return Container(
-      margin: EdgeInsets.only(bottom: 8, left: 12, right: 12),
+      margin: EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(8),
@@ -968,7 +634,7 @@ class _PollsScreenState extends State<PollsScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${poll.club.name} • by ${poll.createdBy.name}',
+                        poll.club.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -979,35 +645,71 @@ class _PollsScreenState extends State<PollsScreen> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Row(
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
                         children: [
-                          Container(
-                            padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).brightness == Brightness.dark
-                                  ? Colors.white.withOpacity(0.15)
-                                  : Theme.of(context).primaryColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              isExpired ? 'EXPIRED' : (poll.hasVoted ? 'VOTED' : 'ACTIVE'),
-                              style: TextStyle(
-                                color: isExpired 
-                                    ? Colors.red
-                                    : poll.hasVoted 
-                                        ? Colors.green
-                                        : Theme.of(context).brightness == Brightness.dark
-                                            ? Colors.white.withOpacity(0.9)
-                                            : Theme.of(context).primaryColor,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w400,
+                          // Show either specific vote OR status badge (not both)
+                          if (poll.hasVoted && poll.userVote != null)
+                            // User's specific vote
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: Colors.green.withOpacity(0.3),
+                                  width: 0.5,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.how_to_vote,
+                                    size: 10,
+                                    color: Colors.green,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    _getUserVotedOption(poll)?.text ?? "Unknown",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.green,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          else
+                            // Status Badge (for non-voted or expired polls)
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white.withOpacity(0.15)
+                                    : Theme.of(context).primaryColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                isExpired ? 'EXPIRED' : 'ACTIVE',
+                                style: TextStyle(
+                                  color: isExpired 
+                                      ? Colors.red
+                                      : Theme.of(context).brightness == Brightness.dark
+                                          ? Colors.white.withOpacity(0.9)
+                                          : Theme.of(context).primaryColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w400,
+                                ),
                               ),
                             ),
-                          ),
-                          if (poll.expiresAt != null) ...[
-                            const SizedBox(width: 6),
+                          
+                          // Expiry Date Badge
+                          if (poll.expiresAt != null)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
                                 color: Theme.of(context).brightness == Brightness.dark
                                     ? Colors.white.withOpacity(0.1)
@@ -1034,7 +736,6 @@ class _PollsScreenState extends State<PollsScreen> {
                                 ],
                               ),
                             ),
-                          ],
                         ],
                       ),
                     ],

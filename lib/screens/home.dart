@@ -37,17 +37,9 @@ class _HomeScreenState extends State<HomeScreen> {
   void _navigateToScreen(Widget screen, String title) {
     // For drawer navigation to screens not in bottom tabs
     Navigator.of(context).pop(); // Close drawer
-    // Navigate immediately after closing drawer
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => screen,
-            settings: RouteSettings(name: '/$title'),
-          ),
-        );
-      }
-    });
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => screen),
+    );
     HapticFeedback.lightImpact();
   }
 
