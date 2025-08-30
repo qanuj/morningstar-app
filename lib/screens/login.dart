@@ -90,8 +90,8 @@ class _LoginScreenState extends State<LoginScreen> {
               Text(
                 'Welcome to Duggy',
                 style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
                   color: Colors.white,
                   letterSpacing: -0.5,
                 ),
@@ -104,7 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
               Text(
                 'Your Cricket Club Companion',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 12,
                   color: Colors.white.withOpacity(0.8),
                   fontWeight: FontWeight.w400,
                 ),
@@ -135,8 +135,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     Text(
                       'Sign In',
                       style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
                         color: AppTheme.primaryBlue,
                         letterSpacing: -0.3,
                       ),
@@ -151,8 +151,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       keyboardType: TextInputType.phone,
                       maxLength: 10,
                       style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
                       ),
                       decoration: InputDecoration(
                         labelText: 'Phone Number',
@@ -162,8 +162,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: Text(
                             '+91',
                             style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
                               color: AppTheme.primaryTextColor,
                             ),
                           ),
@@ -223,8 +223,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             : Text(
                                 'Send OTP',
                                 style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w400,
                                   letterSpacing: 0.2,
                                 ),
                               ),
@@ -240,7 +240,7 @@ class _LoginScreenState extends State<LoginScreen> {
               Text(
                 'We\'ll send you a verification code',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 12,
                   color: Colors.white.withOpacity(0.7),
                   fontWeight: FontWeight.w400,
                 ),

@@ -140,8 +140,8 @@ class _PollsScreenState extends State<PollsScreen> {
                         Text(
                           'No polls available',
                           style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
                             color: AppTheme.primaryTextColor,
                           ),
                         ),
@@ -149,7 +149,7 @@ class _PollsScreenState extends State<PollsScreen> {
                         Text(
                           'Check back later for new polls',
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: 12,
                             color: AppTheme.secondaryTextColor,
                           ),
                         ),
@@ -207,8 +207,8 @@ class _PollsScreenState extends State<PollsScreen> {
                       child: Text(
                         poll.question,
                         style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
                           color: AppTheme.primaryTextColor,
                         ),
                       ),
@@ -224,8 +224,8 @@ class _PollsScreenState extends State<PollsScreen> {
                           'EXPIRED',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
                       ),
@@ -347,7 +347,7 @@ class _PollsScreenState extends State<PollsScreen> {
                                       child: Text(
                                         '${option.voteCount}',
                                         style: TextStyle(
-                                          fontWeight: FontWeight.w600,
+                                          fontWeight: FontWeight.w400,
                                           color: AppTheme.cricketGreen,
                                         ),
                                       ),
@@ -392,7 +392,7 @@ class _PollsScreenState extends State<PollsScreen> {
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: AppTheme.secondaryTextColor,
-                                      fontWeight: FontWeight.w500,
+                                      fontWeight: FontWeight.w400,
                                     ),
                                   ),
                                 ),
@@ -449,7 +449,7 @@ class _PollsScreenState extends State<PollsScreen> {
                           style: TextStyle(
                             fontSize: 12,
                             color: AppTheme.cricketGreen,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
                       ),
@@ -486,7 +486,7 @@ class _PollsScreenState extends State<PollsScreen> {
                           style: TextStyle(
                             fontSize: 12,
                             color: AppTheme.cricketGreen,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
                       ],

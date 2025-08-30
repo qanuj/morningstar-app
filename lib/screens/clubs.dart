@@ -53,7 +53,7 @@ class _ClubsScreenState extends State<ClubsScreen> with TickerProviderStateMixin
                     'Loading clubs...',
                     style: TextStyle(
                       color: AppTheme.secondaryTextColor,
-                      fontSize: 16,
+                      fontSize: 12,
                     ),
                   ),
                 ],
@@ -82,8 +82,8 @@ class _ClubsScreenState extends State<ClubsScreen> with TickerProviderStateMixin
                   Text(
                     'No clubs found',
                     style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
                       color: AppTheme.primaryTextColor,
                     ),
                   ),
@@ -91,7 +91,7 @@ class _ClubsScreenState extends State<ClubsScreen> with TickerProviderStateMixin
                   Text(
                     'You are not a member of any cricket club yet',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 12,
                       color: AppTheme.secondaryTextColor,
                     ),
                     textAlign: TextAlign.center,
@@ -151,15 +151,15 @@ class _ClubsScreenState extends State<ClubsScreen> with TickerProviderStateMixin
                               Text(
                                 'My Cricket Clubs',
                                 style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w400,
                                   color: AppTheme.primaryTextColor,
                                 ),
                               ),
                               Text(
                                 '${clubProvider.clubs.length} ${clubProvider.clubs.length == 1 ? 'membership' : 'memberships'}',
                                 style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: 12,
                                   color: AppTheme.secondaryTextColor,
                                 ),
                               ),
@@ -276,8 +276,8 @@ class _ClubsScreenState extends State<ClubsScreen> with TickerProviderStateMixin
                                 child: Text(
                                   club.name,
                                   style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w400,
                                     color: AppTheme.primaryTextColor,
                                   ),
                                 ),
@@ -301,8 +301,8 @@ class _ClubsScreenState extends State<ClubsScreen> with TickerProviderStateMixin
                                     'ACTIVE',
                                     style: TextStyle(
                                       color: Colors.white,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w400,
                                     ),
                                   ),
                                 ),
@@ -322,7 +322,7 @@ class _ClubsScreenState extends State<ClubsScreen> with TickerProviderStateMixin
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: AppTheme.cricketGreen,
-                                    fontWeight: FontWeight.w500,
+                                    fontWeight: FontWeight.w400,
                                   ),
                                 ),
                               ),
@@ -334,7 +334,7 @@ class _ClubsScreenState extends State<ClubsScreen> with TickerProviderStateMixin
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: AppTheme.secondaryTextColor,
-                                  fontWeight: FontWeight.w500,
+                                  fontWeight: FontWeight.w400,
                                 ),
                               ),
                             ],
@@ -415,7 +415,7 @@ class _ClubsScreenState extends State<ClubsScreen> with TickerProviderStateMixin
             child: Text(
               club.description!,
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 12,
                 color: AppTheme.secondaryTextColor,
                 height: 1.5,
               ),
@@ -442,7 +442,7 @@ class _ClubsScreenState extends State<ClubsScreen> with TickerProviderStateMixin
                         .where((e) => e != null)
                         .join(', '),
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 12,
                       color: AppTheme.secondaryTextColor,
                     ),
                   ),
@@ -522,8 +522,8 @@ class _ClubsScreenState extends State<ClubsScreen> with TickerProviderStateMixin
                         'Pending Approval',
                         style: TextStyle(
                           color: Colors.orange[700],
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                          fontSize: 12,
                         ),
                       ),
                       SizedBox(height: 2),
@@ -628,8 +628,8 @@ class _ClubsScreenState extends State<ClubsScreen> with TickerProviderStateMixin
           Text(
             value,
             style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
+              fontSize: 12,
+              fontWeight: FontWeight.w400,
               color: AppTheme.primaryTextColor,
             ),
           ),

@@ -106,8 +106,8 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
                         club.name,
                         style: TextStyle(
                           color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                          fontWeight: FontWeight.w400,
+                          fontSize: 12,
                         ),
                       )
                     : SizedBox();
@@ -252,8 +252,8 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
                           child: Text(
                             club.name,
                             style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
                               color: Colors.white,
                               shadows: [
                                 Shadow(
@@ -299,7 +299,7 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
                                   .join(', '),
                               style: TextStyle(
                                 color: Colors.white70,
-                                fontSize: 16,
+                                fontSize: 12,
                               ),
                               textAlign: TextAlign.center,
                             ),
@@ -315,7 +315,7 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
                         club.description!,
                         style: TextStyle(
                           color: Colors.white70,
-                          fontSize: 14,
+                          fontSize: 12,
                           height: 1.4,
                         ),
                         textAlign: TextAlign.center,
@@ -428,15 +428,15 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
                     Text(
                       'My Membership',
                       style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
                         color: Colors.grey[800],
                       ),
                     ),
                     Text(
                       'Your role and status in this club',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 12,
                         color: Colors.grey[600],
                       ),
                     ),
@@ -470,7 +470,7 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
                   membership.approved ? 'Active Member' : 'Pending Approval',
                   style: TextStyle(
                     color: membership.approved ? Colors.green[700] : Colors.orange[700],
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
               ],
@@ -483,7 +483,7 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
               'Your membership is awaiting approval from the club admin. You\'ll be notified once approved.',
               style: TextStyle(
                 color: Colors.grey[600],
-                fontSize: 14,
+                fontSize: 12,
               ),
             ),
           ],
@@ -513,8 +513,8 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
           Text(
             'Quick Stats',
             style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+              fontSize: 12,
+              fontWeight: FontWeight.w400,
               color: Colors.grey[800],
             ),
           ),
@@ -595,8 +595,8 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
           Text(
             value,
             style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+              fontSize: 12,
+              fontWeight: FontWeight.w400,
               color: Colors.grey[800],
             ),
           ),
@@ -739,8 +739,8 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
               Text(
                 title,
                 style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
                   color: Colors.grey[800],
                 ),
               ),
@@ -781,15 +781,15 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
                 SizedBox(height: 4),
                 Text(
                   value,
                   style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
                     color: Colors.grey[800],
                   ),
                   maxLines: isExpandable ? null : 2,

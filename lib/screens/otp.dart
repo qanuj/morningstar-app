@@ -102,8 +102,8 @@ class _OTPScreenState extends State<OTPScreen> {
           Text(
             'Enter OTP',
             style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
+              fontSize: 12,
+              fontWeight: FontWeight.w400,
               color: Colors.white,
             ),
           ),
@@ -112,7 +112,7 @@ class _OTPScreenState extends State<OTPScreen> {
             'We sent a 6-digit code to\n+91 ${widget.phoneNumber}',
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 12,
               color: Colors.white70,
             ),
           ),
@@ -139,8 +139,8 @@ class _OTPScreenState extends State<OTPScreen> {
                   maxLength: 6,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
                     letterSpacing: 8,
                   ),
                   decoration: InputDecoration(
@@ -172,8 +172,8 @@ class _OTPScreenState extends State<OTPScreen> {
                         : Text(
                             'Verify OTP',
                             style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
                               color: Colors.white,
                             ),
                           ),

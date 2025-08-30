@@ -175,7 +175,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       Text(
                         'No notifications yet',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 12,
                           color: Colors.grey[600],
                         ),
                       ),
@@ -219,7 +219,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               child: Text(
                 notification.title,
                 style: TextStyle(
-                  fontWeight: notification.isRead ? FontWeight.normal : FontWeight.bold,
+                  fontWeight: FontWeight.w400,
                 ),
               ),
             ),
@@ -234,9 +234,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 child: Text(
                   notification.club!.name,
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 12,
                     color: AppTheme.cricketGreen,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
               ),
@@ -249,7 +249,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             SizedBox(height: 4),
             Text(
               notification.message,
-              style: TextStyle(fontSize: 14),
+              style: TextStyle(fontSize: 12),
             ),
             SizedBox(height: 4),
             Text(

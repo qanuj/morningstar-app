@@ -64,8 +64,8 @@ class ProfileScreen extends StatelessWidget {
                                 ? Text(
                                     user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
                                     style: TextStyle(
-                                      fontSize: 32,
-                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w400,
                                       color: Colors.white,
                                     ),
                                   )
@@ -76,8 +76,8 @@ class ProfileScreen extends StatelessWidget {
                         Text(
                           user.name,
                           style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
                             color: AppTheme.primaryTextColor,
                           ),
                         ),
@@ -91,9 +91,9 @@ class ProfileScreen extends StatelessWidget {
                           child: Text(
                             user.phoneNumber,
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 12,
                               color: AppTheme.cricketGreen,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w400,
                             ),
                           ),
                         ),
@@ -102,7 +102,7 @@ class ProfileScreen extends StatelessWidget {
                           Text(
                             user.email!,
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 12,
                               color: AppTheme.secondaryTextColor,
                             ),
                           ),
@@ -164,8 +164,8 @@ class ProfileScreen extends StatelessWidget {
                             Text(
                               'Account Overview',
                               style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
                                 color: AppTheme.primaryTextColor,
                               ),
                             ),
@@ -250,8 +250,8 @@ class ProfileScreen extends StatelessWidget {
                             Text(
                               'Profile Status',
                               style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
                                 color: AppTheme.primaryTextColor,
                               ),
                             ),
@@ -346,8 +346,8 @@ class ProfileScreen extends StatelessWidget {
           Text(
             value,
             style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
+              fontSize: 12,
+              fontWeight: FontWeight.w400,
               color: AppTheme.primaryTextColor,
             ),
           ),
@@ -402,8 +402,8 @@ class ProfileScreen extends StatelessWidget {
             child: Text(
               label,
               style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
                 color: AppTheme.primaryTextColor,
               ),
             ),
@@ -451,8 +451,8 @@ class ProfileScreen extends StatelessWidget {
                 child: Text(
                   title,
                   style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
                     color: titleColor ?? AppTheme.primaryTextColor,
                   ),
                 ),
@@ -539,8 +539,8 @@ class ProfileScreen extends StatelessWidget {
             Text(
               'Duggy - Your Cricket Club Companion',
               style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
+                fontWeight: FontWeight.w400,
+                fontSize: 12,
               ),
             ),
             SizedBox(height: 12),
@@ -569,7 +569,7 @@ class ProfileScreen extends StatelessWidget {
                     'Visit duggy.app for more information',
                     style: TextStyle(
                       color: AppTheme.cricketGreen,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w400,
                     ),
                   ),
                 ],

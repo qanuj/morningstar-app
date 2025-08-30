@@ -107,7 +107,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
               ? Colors.white.withOpacity(0.8)
               : Theme.of(context).primaryColor,
           fontSize: 12,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w400,
         ),
       ),
     );
@@ -156,7 +156,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
           Text(
             'Page $_currentPage of $_totalPages',
             style: TextStyle(
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w400,
               color: Theme.of(context).textTheme.bodyLarge?.color,
             ),
           ),
@@ -220,8 +220,8 @@ class _MatchesScreenState extends State<MatchesScreen> {
                   Text(
                     'Filter Matches',
                     style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
                       color: Theme.of(context).textTheme.headlineSmall?.color,
                     ),
                   ),
@@ -246,7 +246,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
                   ),
                   child: Text(
                     'Apply Filters',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
                   ),
                 ),
               ),
@@ -278,7 +278,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
                     hintText: 'Search matches...',
                     hintStyle: TextStyle(
                       color: Theme.of(context).textTheme.bodySmall?.color,
-                      fontSize: 14,
+                      fontSize: 12,
                     ),
                     prefixIcon: Icon(
                       Icons.search,
@@ -355,8 +355,8 @@ class _MatchesScreenState extends State<MatchesScreen> {
                     Text(
                       'No matches found',
                       style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
                         color: Theme.of(context).textTheme.titleLarge?.color,
                       ),
                     ),
@@ -490,7 +490,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
                                                   match.opponent!.substring(0, 1).toUpperCase(),
                                                   style: TextStyle(
                                                     fontSize: 16,
-                                                    fontWeight: FontWeight.w600,
+                                                    fontWeight: FontWeight.w400,
                                                     color: Theme.of(context).primaryColor,
                                                   ),
                                                 ),
@@ -508,7 +508,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
                                               match.opponent!.substring(0, 1).toUpperCase(),
                                               style: TextStyle(
                                                 fontSize: 16,
-                                                fontWeight: FontWeight.w600,
+                                                fontWeight: FontWeight.w400,
                                                 color: Theme.of(context).primaryColor,
                                               ),
                                             ),
@@ -558,8 +558,8 @@ class _MatchesScreenState extends State<MatchesScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontWeight: FontWeight.w500,
-                          fontSize: 13,
+                          fontWeight: FontWeight.w400,
+                          fontSize: 12,
                           color: Theme.of(context).textTheme.titleLarge?.color,
                           height: 1.2,
                         ),
@@ -572,7 +572,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontWeight: FontWeight.w400,
-                            fontSize: 11,
+                            fontSize: 12,
                             color: Theme.of(context).textTheme.bodySmall?.color,
                             height: 1.1,
                           ),
@@ -595,8 +595,8 @@ class _MatchesScreenState extends State<MatchesScreen> {
                                 color: Theme.of(context).brightness == Brightness.dark
                                     ? Colors.white.withOpacity(0.9)
                                     : Theme.of(context).primaryColor,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
                               ),
                             ),
                           ),
@@ -621,8 +621,8 @@ class _MatchesScreenState extends State<MatchesScreen> {
                                     'CANCELLED',
                                     style: TextStyle(
                                       color: Colors.red,
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w400,
                                     ),
                                   ),
                                 ],
@@ -658,7 +658,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
                       DateFormat('hh:mm a').format(match.matchDate),
                       style: TextStyle(
                         color: Theme.of(context).textTheme.bodySmall?.color,
-                        fontSize: 9,
+                        fontSize: 12,
                       ),
                     ),
                   ],
@@ -727,8 +727,8 @@ class _MatchesScreenState extends State<MatchesScreen> {
             Text(
               _getRSVPText(rsvp.status),
               style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
                 color: _getRSVPColor(rsvp.status),
               ),
             ),
@@ -821,8 +821,8 @@ class _MatchesScreenState extends State<MatchesScreen> {
                         Text(
                           'Update RSVP',
                           style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
                             color: Theme.of(context).textTheme.headlineSmall?.color,
                           ),
                         ),
@@ -859,7 +859,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
                   ),
                   child: const Text(
                     'Close',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400),
                   ),
                 ),
               ),

@@ -161,8 +161,8 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                       Text(
                         'Club Store',
                         style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
                           color: AppTheme.primaryTextColor,
                         ),
                       ),
@@ -172,7 +172,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                           ? '${_meta!.jerseyCount} jerseys • ${_meta!.kitCount} kits'
                           : 'Loading products...',
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 12,
                           color: AppTheme.secondaryTextColor,
                         ),
                       ),
@@ -205,12 +205,12 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
               labelColor: Colors.white,
               unselectedLabelColor: AppTheme.secondaryTextColor,
               labelStyle: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
               ),
               unselectedLabelStyle: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
               ),
               tabs: [
                 Tab(
@@ -272,8 +272,8 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
             Text(
               'No jerseys available',
               style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
                 color: AppTheme.primaryTextColor,
               ),
             ),
@@ -281,7 +281,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
             Text(
               'Check back later for new jerseys',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 12,
                 color: AppTheme.secondaryTextColor,
               ),
             ),
@@ -341,8 +341,8 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
             Text(
               'No kits available',
               style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
                 color: AppTheme.primaryTextColor,
               ),
             ),
@@ -350,7 +350,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
             Text(
               'Check back later for new kits',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 12,
                 color: AppTheme.secondaryTextColor,
               ),
             ),
@@ -452,8 +452,8 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                       Text(
                         jersey.name,
                         style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
+                          fontWeight: FontWeight.w400,
+                          fontSize: 12,
                           color: AppTheme.primaryTextColor,
                         ),
                         maxLines: 1,
@@ -488,8 +488,8 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                             'Ordered (${jersey.userOrderCount})',
                             style: TextStyle(
                               color: Colors.blue,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
                             ),
                           ),
                         ),
@@ -504,9 +504,9 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                           Text(
                             '₹${jersey.basePrice.toStringAsFixed(0)}',
                             style: TextStyle(
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w400,
                               color: AppTheme.cricketGreen,
-                              fontSize: 18,
+                              fontSize: 12,
                             ),
                           ),
                           if (!jersey.availability.canOrder)
@@ -520,8 +520,8 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                                 'Unavailable',
                                 style: TextStyle(
                                   color: Colors.red,
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w400,
                                 ),
                               ),
                             ),
@@ -611,8 +611,8 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                       Text(
                         kit.name,
                         style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
+                          fontWeight: FontWeight.w400,
+                          fontSize: 12,
                           color: AppTheme.primaryTextColor,
                         ),
                         maxLines: 1,
@@ -628,9 +628,9 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                         child: Text(
                           _getKitTypeText(kit.type),
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: 12,
                             color: AppTheme.cricketGreen,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
                       ),
@@ -639,7 +639,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                         Text(
                           kit.brand!,
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: 12,
                             color: AppTheme.secondaryTextColor,
                           ),
                         ),
@@ -662,8 +662,8 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                             'Ordered (${kit.userOrderCount})',
                             style: TextStyle(
                               color: Colors.blue,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
                             ),
                           ),
                         ),
@@ -678,9 +678,9 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                           Text(
                             '₹${kit.basePrice.toStringAsFixed(0)}',
                             style: TextStyle(
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w400,
                               color: AppTheme.cricketGreen,
-                              fontSize: 18,
+                              fontSize: 12,
                             ),
                           ),
                           if (!kit.availability.canOrder)
@@ -694,8 +694,8 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                                 kit.stockQuantity == 0 ? 'Out of Stock' : 'Unavailable',
                                 style: TextStyle(
                                   color: Colors.red,
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w400,
                                 ),
                               ),
                             ),

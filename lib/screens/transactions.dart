@@ -216,7 +216,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               ? Colors.white.withOpacity(0.8)
               : Theme.of(context).primaryColor,
           fontSize: 12,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w400,
         ),
       ),
     );
@@ -271,14 +271,14 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 child: TextField(
                   controller: _searchController,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 12,
                     color: Theme.of(context).textTheme.bodyMedium?.color,
                   ),
                   decoration: InputDecoration(
                     hintText: 'Search transactions...',
                     hintStyle: TextStyle(
                       color: Theme.of(context).textTheme.bodySmall?.color,
-                      fontSize: 14,
+                      fontSize: 12,
                     ),
                     prefixIcon: Icon(
                       Icons.search,
@@ -359,8 +359,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     Text(
                       'No transactions found',
                       style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
                         color: Theme.of(context).textTheme.titleLarge?.color,
                       ),
                     ),
@@ -368,7 +368,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     Text(
                       'Your transaction history will appear here',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 12,
                         color: Theme.of(context).textTheme.bodySmall?.color,
                       ),
                     ),
@@ -461,7 +461,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                             color: Colors.white.withOpacity(
                                               0.8,
                                             ),
-                                            fontSize: 16,
+                                            fontSize: 12,
                                           ),
                                         ),
                                       ],
@@ -471,8 +471,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                       '₹${club['balance'].toStringAsFixed(2)}',
                                       style: TextStyle(
                                         color: Colors.white,
-                                        fontSize: 32,
-                                        fontWeight: FontWeight.w600,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w400,
                                       ),
                                     ),
                                     SizedBox(height: 20),
@@ -494,8 +494,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                                 '₹${club['credits'].toStringAsFixed(2)}',
                                                 style: TextStyle(
                                                   color: Colors.white,
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w400,
                                                 ),
                                               ),
                                             ],
@@ -522,8 +522,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                                 '₹${club['debits'].toStringAsFixed(2)}',
                                                 style: TextStyle(
                                                   color: Colors.white,
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w400,
                                                 ),
                                               ),
                                             ],
@@ -712,8 +712,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         color: Theme.of(context).brightness == Brightness.dark
                             ? Colors.white.withOpacity(0.9)
                             : Theme.of(context).primaryColor,
-                        fontSize: 9,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
                   ),
@@ -739,7 +739,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   DateFormat('hh:mm a').format(transaction.createdAt),
                   style: TextStyle(
                     color: Theme.of(context).textTheme.bodySmall?.color,
-                    fontSize: 9,
+                    fontSize: 12,
                   ),
                 ),
               ],
@@ -775,7 +775,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           Text(
             'Page $_currentPage of $_totalPages',
             style: TextStyle(
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w400,
               color: Theme.of(context).textTheme.bodyLarge?.color,
             ),
           ),
@@ -826,8 +826,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 Text(
                   'Filter Transactions',
                   style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
                     color: Theme.of(context).textTheme.headlineSmall?.color,
                   ),
                 ),
@@ -839,8 +839,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             Text(
               'Transaction Type',
               style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
+                fontWeight: FontWeight.w400,
+                fontSize: 12,
                 color: Theme.of(context).textTheme.titleMedium?.color,
               ),
             ),
@@ -860,8 +860,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             Text(
               'Time Period',
               style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
+                fontWeight: FontWeight.w400,
+                fontSize: 12,
                 color: Theme.of(context).textTheme.titleMedium?.color,
               ),
             ),
@@ -898,7 +898,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 ),
                 child: Text(
                   'Apply Filters',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
                 ),
               ),
             ),
@@ -914,7 +914,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       label: Text(
         label,
         style: TextStyle(
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w400,
           color: isSelected
               ? AppTheme.cricketGreen
               : Theme.of(context).textTheme.bodyLarge?.color,

@@ -180,8 +180,8 @@ class _JerseyDetailScreenState extends State<JerseyDetailScreen> {
                             Text(
                               widget.jersey.name,
                               style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
                               ),
                             ),
                             SizedBox(height: 8),
@@ -189,7 +189,7 @@ class _JerseyDetailScreenState extends State<JerseyDetailScreen> {
                               Text(
                                 widget.jersey.description!,
                                 style: TextStyle(
-                                  fontSize: 16,
+                                  fontSize: 12,
                                   color: Colors.grey[600],
                                 ),
                               ),
@@ -237,7 +237,7 @@ class _JerseyDetailScreenState extends State<JerseyDetailScreen> {
                                 Text(
                                   'Already Ordered',
                                   style: TextStyle(
-                                    fontWeight: FontWeight.bold,
+                                    fontWeight: FontWeight.w400,
                                     color: Colors.blue[700],
                                   ),
                                 ),
@@ -270,8 +270,8 @@ class _JerseyDetailScreenState extends State<JerseyDetailScreen> {
                         Text(
                           'Pricing',
                           style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
                         SizedBox(height: 8),
@@ -289,15 +289,15 @@ class _JerseyDetailScreenState extends State<JerseyDetailScreen> {
                             Text(
                               'Total',
                               style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
                               ),
                             ),
                             Text(
                               '₹${_totalPrice.toStringAsFixed(0)}',
                               style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
                                 color: AppTheme.cricketGreen,
                               ),
                             ),
@@ -314,8 +314,8 @@ class _JerseyDetailScreenState extends State<JerseyDetailScreen> {
                     Text(
                       'Customize Your Jersey',
                       style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
                     SizedBox(height: 16),
@@ -344,7 +344,7 @@ class _JerseyDetailScreenState extends State<JerseyDetailScreen> {
                     // Size Selection
                     Text(
                       'Size',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
                     ),
                     SizedBox(height: 8),
                     Wrap(
@@ -368,7 +368,7 @@ class _JerseyDetailScreenState extends State<JerseyDetailScreen> {
                     // Sleeve Length
                     Text(
                       'Sleeve Length',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
                     ),
                     SizedBox(height: 8),
                     Row(
@@ -398,7 +398,7 @@ class _JerseyDetailScreenState extends State<JerseyDetailScreen> {
                     // Extras
                     Text(
                       'Extras',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
                     ),
                     SizedBox(height: 8),
                     
@@ -421,7 +421,7 @@ class _JerseyDetailScreenState extends State<JerseyDetailScreen> {
                         SizedBox(height: 8),
                         Text(
                           'Trouser Size',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
                         ),
                         SizedBox(height: 8),
                         Wrap(
@@ -471,8 +471,8 @@ class _JerseyDetailScreenState extends State<JerseyDetailScreen> {
                             : Text(
                                 'Place Order - ₹${_totalPrice.toStringAsFixed(0)}',
                                 style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w400,
                                   color: Colors.white,
                                 ),
                               ),
@@ -494,8 +494,8 @@ class _JerseyDetailScreenState extends State<JerseyDetailScreen> {
                           Text(
                             'Ordering Unavailable',
                             style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
                               color: Colors.red[700],
                             ),
                           ),

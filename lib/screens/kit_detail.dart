@@ -144,8 +144,8 @@ class _KitDetailScreenState extends State<KitDetailScreen> {
                             Text(
                               widget.kit.name,
                               style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
                               ),
                             ),
                             SizedBox(height: 8),
@@ -159,7 +159,7 @@ class _KitDetailScreenState extends State<KitDetailScreen> {
                                 _getKitTypeText(widget.kit.type),
                                 style: TextStyle(
                                   color: AppTheme.cricketGreen,
-                                  fontWeight: FontWeight.w500,
+                                  fontWeight: FontWeight.w400,
                                 ),
                               ),
                             ),
@@ -191,7 +191,7 @@ class _KitDetailScreenState extends State<KitDetailScreen> {
                     Text(
                       widget.kit.description!,
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 12,
                         color: Colors.grey[600],
                       ),
                     ),
@@ -217,7 +217,7 @@ class _KitDetailScreenState extends State<KitDetailScreen> {
                                 Text(
                                   'Already Ordered',
                                   style: TextStyle(
-                                    fontWeight: FontWeight.bold,
+                                    fontWeight: FontWeight.w400,
                                     color: Colors.blue[700],
                                   ),
                                 ),
@@ -250,8 +250,8 @@ class _KitDetailScreenState extends State<KitDetailScreen> {
                         Text(
                           'Product Details',
                           style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
                         SizedBox(height: 12),
@@ -281,8 +281,8 @@ class _KitDetailScreenState extends State<KitDetailScreen> {
                     Text(
                       'Place Your Order',
                       style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
                     SizedBox(height: 16),
@@ -291,7 +291,7 @@ class _KitDetailScreenState extends State<KitDetailScreen> {
                     if (widget.kit.availableSizes?.isNotEmpty == true) ...[
                       Text(
                         'Size',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
                       ),
                       SizedBox(height: 8),
                       Wrap(
@@ -317,7 +317,7 @@ class _KitDetailScreenState extends State<KitDetailScreen> {
                     if (_needsHandSelection()) ...[
                       Text(
                         'Hand Preference',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
                       ),
                       SizedBox(height: 8),
                       Column(
@@ -373,8 +373,8 @@ class _KitDetailScreenState extends State<KitDetailScreen> {
                             : Text(
                                 'Place Order - ₹${widget.kit.basePrice.toStringAsFixed(0)}',
                                 style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w400,
                                   color: Colors.white,
                                 ),
                               ),
@@ -398,8 +398,8 @@ class _KitDetailScreenState extends State<KitDetailScreen> {
                                 ? 'Out of Stock'
                                 : 'Ordering Unavailable',
                             style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
                               color: Colors.red[700],
                             ),
                           ),
@@ -439,7 +439,7 @@ class _KitDetailScreenState extends State<KitDetailScreen> {
             child: Text(
               '$label:',
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 12,
                 color: Colors.grey[600],
               ),
             ),
@@ -448,8 +448,8 @@ class _KitDetailScreenState extends State<KitDetailScreen> {
             child: Text(
               value,
               style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
               ),
             ),
           ),

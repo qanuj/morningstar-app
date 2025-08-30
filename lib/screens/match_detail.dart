@@ -184,7 +184,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 12,
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w400,
                               ),
                             ),
                           ),
@@ -218,9 +218,9 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                           Text(
                             match.club.name,
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 12,
                               color: Colors.grey[600],
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w400,
                             ),
                           ),
                           Spacer(),
@@ -236,7 +236,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 12,
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w400,
                                 ),
                               ),
                             ),
@@ -248,8 +248,8 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                           ? (match.opponent ?? 'Practice Match')
                           : 'Match Details TBD',
                         style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
                         ),
                       ),
                       SizedBox(height: 16),
@@ -260,7 +260,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                           Expanded(
                             child: Text(
                               match.location,
-                              style: TextStyle(fontSize: 16),
+                              style: TextStyle(fontSize: 12),
                             ),
                           ),
                         ],
@@ -273,7 +273,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                           Text(
                             DateFormat('EEEE, MMM dd, yyyy • hh:mm a')
                                 .format(match.matchDate),
-                            style: TextStyle(fontSize: 16),
+                            style: TextStyle(fontSize: 12),
                           ),
                         ],
                       ),
@@ -292,14 +292,14 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                               Text(
                                 'Notes',
                                 style: TextStyle(
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w400,
                                   color: Colors.grey[700],
                                 ),
                               ),
                               SizedBox(height: 4),
                               Text(
                                 match.notes!,
-                                style: TextStyle(fontSize: 14),
+                                style: TextStyle(fontSize: 12),
                               ),
                             ],
                           ),
@@ -324,7 +324,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                                   Text(
                                     'Details Hidden',
                                     style: TextStyle(
-                                      fontWeight: FontWeight.bold,
+                                      fontWeight: FontWeight.w400,
                                       color: Colors.orange[700],
                                     ),
                                   ),
@@ -334,7 +334,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                               Text(
                                 'Match details will be revealed closer to the event or after you RSVP.',
                                 style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: 12,
                                   color: Colors.orange[700],
                                 ),
                               ),
@@ -359,8 +359,8 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                       Text(
                         'Match Stats',
                         style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
                         ),
                       ),
                       SizedBox(height: 16),
@@ -418,8 +418,8 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                             Text(
                               'Final Squad',
                               style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
                                 color: AppTheme.cricketGreen,
                               ),
                             ),
@@ -447,7 +447,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                                           'Captain',
                                           style: TextStyle(
                                             fontSize: 12,
-                                            fontWeight: FontWeight.bold,
+                                            fontWeight: FontWeight.w400,
                                             color: Colors.blue,
                                           ),
                                         ),
@@ -455,8 +455,8 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                                         Text(
                                           match.captain!.user?.name ?? 'Unknown',
                                           style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w500,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w400,
                                           ),
                                           textAlign: TextAlign.center,
                                         ),
@@ -482,7 +482,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                                           'Wicket Keeper',
                                           style: TextStyle(
                                             fontSize: 12,
-                                            fontWeight: FontWeight.bold,
+                                            fontWeight: FontWeight.w400,
                                             color: Colors.green,
                                           ),
                                         ),
@@ -490,8 +490,8 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                                         Text(
                                           match.wicketKeeper!.user?.name ?? 'Unknown',
                                           style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w500,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w400,
                                           ),
                                           textAlign: TextAlign.center,
                                         ),
@@ -509,8 +509,8 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                         Text(
                           'Squad Members (${match.finalSquad!.length})',
                           style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
                         SizedBox(height: 8),
@@ -533,8 +533,8 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                         Text(
                           'Your RSVP',
                           style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
                         SizedBox(height: 12),
@@ -548,8 +548,8 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                             Text(
                               _getRSVPText(userRsvp.status),
                               style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
                                 color: _getRSVPColor(userRsvp.status),
                               ),
                             ),
@@ -593,7 +593,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                                   'You are confirmed for this match!',
                                   style: TextStyle(
                                     color: Colors.green[700],
-                                    fontWeight: FontWeight.w500,
+                                    fontWeight: FontWeight.w400,
                                   ),
                                 ),
                               ],
@@ -616,7 +616,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                                   'You are #${userRsvp.waitlistPosition} on the waitlist',
                                   style: TextStyle(
                                     color: Colors.orange[700],
-                                    fontWeight: FontWeight.w500,
+                                    fontWeight: FontWeight.w400,
                                   ),
                                 ),
                               ],
@@ -641,16 +641,16 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                         Text(
                           userRsvp != null ? 'Update Your RSVP' : 'RSVP for this Match',
                           style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
                         SizedBox(height: 16),
                         Text(
                           'Preferred Role',
                           style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
                         SizedBox(height: 8),
@@ -673,8 +673,8 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                         Text(
                           'Notes (Optional)',
                           style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
                         SizedBox(height: 8),
@@ -806,7 +806,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                 Text(
                   player.user?.name ?? 'Unknown User',
                   style: TextStyle(
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
                 if (player.selectedRole != null) ...[
@@ -833,9 +833,9 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
               child: Text(
                 'C',
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 12,
                   color: Colors.blue[700],
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w400,
                 ),
               ),
             ),
@@ -850,9 +850,9 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
               child: Text(
                 'WK',
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 12,
                   color: Colors.green[700],
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w400,
                 ),
               ),
             ),
@@ -870,8 +870,8 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
         Text(
           value,
           style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
+            fontSize: 12,
+            fontWeight: FontWeight.w400,
           ),
         ),
         Text(

@@ -72,8 +72,8 @@ class _SplashScreenState extends State<SplashScreen> {
                 Text(
                   'DUGGY',
                   style: TextStyle(
-                    fontSize: 48,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
                     color: Colors.white,
                     letterSpacing: 2,
                   ),
@@ -85,7 +85,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 Text(
                   'Your Cricket Club Companion',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 12,
                     color: Colors.white.withOpacity(0.9),
                     fontWeight: FontWeight.w400,
                     letterSpacing: 0.5,
@@ -111,9 +111,9 @@ class _SplashScreenState extends State<SplashScreen> {
                 Text(
                   'Loading...',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 12,
                     color: Colors.white.withOpacity(0.8),
-                    fontWeight: FontWeight.w300,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
               ],

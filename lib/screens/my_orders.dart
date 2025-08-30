@@ -70,8 +70,8 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                       Text(
                         'No orders yet',
                         style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
                           color: AppTheme.primaryTextColor,
                         ),
                       ),
@@ -79,7 +79,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                       Text(
                         'Your store orders will appear here',
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 12,
                           color: AppTheme.secondaryTextColor,
                         ),
                       ),
@@ -120,8 +120,8 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                       Text(
                         'Order #${order.orderNumber}',
                         style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
                           color: AppTheme.primaryTextColor,
                         ),
                       ),
@@ -147,7 +147,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w400,
                     ),
                   ),
                 ),
@@ -187,8 +187,8 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                 Text(
                   order.club.name,
                   style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
                     color: AppTheme.secondaryTextColor,
                   ),
                 ),
@@ -224,8 +224,8 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                             (order.jersey?.name ?? 'Jersey Order') :
                             (order.kit?.name ?? 'Kit Order'),
                           style: TextStyle(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 16,
+                            fontWeight: FontWeight.w400,
+                            fontSize: 12,
                             color: AppTheme.primaryTextColor,
                           ),
                         ),
@@ -292,7 +292,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                           'Latest Update',
                           style: TextStyle(
                             fontSize: 12,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w400,
                             color: Colors.blue[700],
                           ),
                         ),
@@ -303,7 +303,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                       Text(
                         order.latestStatusUpdate!.notes!,
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 12,
                           color: Colors.blue[600],
                         ),
                       ),
@@ -311,7 +311,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                       Text(
                         'by ${order.latestStatusUpdate!.changedBy!.name}',
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 12,
                           color: Colors.blue[500],
                         ),
                       ),
@@ -339,8 +339,8 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                     Text(
                       '₹${order.totalAmount.toStringAsFixed(0)}',
                       style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
                         color: AppTheme.cricketGreen,
                       ),
                     ),
@@ -360,8 +360,8 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                       Text(
                         DateFormat('MMM dd, yyyy').format(order.estimatedDelivery!),
                         style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
                           color: AppTheme.primaryTextColor,
                         ),
                       ),
@@ -469,7 +469,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
               value,
               style: TextStyle(
                 fontSize: 12,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w400,
                 color: AppTheme.primaryTextColor,
               ),
             ),

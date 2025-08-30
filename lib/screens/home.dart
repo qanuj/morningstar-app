@@ -83,8 +83,8 @@ class _HomeScreenState extends State<HomeScreen> {
               'Duggy',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
                 letterSpacing: 0.2,
               ),
             ),
@@ -154,11 +154,11 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedItemColor: AppTheme.cricketGreen,
         unselectedItemColor: Theme.of(context).bottomNavigationBarTheme.unselectedItemColor,
         selectedLabelStyle: TextStyle(
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w400,
           fontSize: 12,
         ),
         unselectedLabelStyle: TextStyle(
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w400,
           fontSize: 12,
         ),
         elevation: 10,
@@ -280,8 +280,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               user?.name ?? 'User',
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -290,7 +290,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               user?.phoneNumber ?? '',
                               style: TextStyle(
                                 color: Colors.white.withOpacity(0.8),
-                                fontSize: 14,
+                                fontSize: 12,
                               ),
                             ),
                             if (currentClub != null) ...[
@@ -313,7 +313,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 12,
-                                    fontWeight: FontWeight.w500,
+                                    fontWeight: FontWeight.w400,
                                   ),
                                 ),
                               ),
@@ -430,8 +430,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Text(
                         'Theme',
                         style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
                           color: AppTheme.primaryTextColor,
                         ),
                       ),
@@ -441,7 +441,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         color: AppTheme.secondaryTextColor,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
                     SizedBox(width: 4),
@@ -492,8 +492,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text(
                       'Choose Theme',
                       style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
                         color: AppTheme.primaryTextColor,
                       ),
                     ),
@@ -586,8 +586,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       Text(
                         title,
                         style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
                           color: isSelected
                               ? AppTheme.cricketGreen
                               : AppTheme.primaryTextColor,
@@ -625,7 +625,7 @@ class _HomeScreenState extends State<HomeScreen> {
         title,
         style: TextStyle(
           fontSize: 12,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w400,
           color: Theme.of(context).textTheme.bodySmall?.color,
           letterSpacing: 0.5,
         ),
@@ -677,10 +677,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Text(
                     title,
                     style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: isSelected
-                          ? FontWeight.w600
-                          : FontWeight.w500,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
                       color: isSelected
                           ? Theme.of(context).primaryColor
                           : Theme.of(context).textTheme.bodyMedium?.color,
@@ -721,7 +719,7 @@ class _HomeScreenState extends State<HomeScreen> {
             SizedBox(width: 12),
             Text(
               'About Duggy',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
+              style: TextStyle(fontWeight: FontWeight.w400, fontSize: 12),
             ),
           ],
         ),
@@ -731,14 +729,14 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Text(
               'Duggy - Your Cricket Club Companion',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+              style: TextStyle(fontWeight: FontWeight.w400, fontSize: 12),
             ),
             SizedBox(height: 12),
             Text(
               'Version 1.0.0',
               style: TextStyle(
                 color: AppTheme.secondaryTextColor,
-                fontSize: 14,
+                fontSize: 12,
               ),
             ),
             SizedBox(height: 12),
@@ -766,7 +764,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       'Visit duggy.app for more information',
                       style: TextStyle(
                         color: AppTheme.cricketGreen,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
                   ),
@@ -784,7 +782,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: Text('Close', style: TextStyle(fontWeight: FontWeight.w500)),
+            child: Text('Close', style: TextStyle(fontWeight: FontWeight.w400)),
           ),
         ],
       ),
@@ -828,7 +826,7 @@ class _DashboardScreen extends StatelessWidget {
                         'Welcome back,',
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.9),
-                          fontSize: 16,
+                          fontSize: 12,
                         ),
                       ),
                       SizedBox(height: 4),
@@ -836,8 +834,8 @@ class _DashboardScreen extends StatelessWidget {
                         user?.name ?? 'User',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
                         ),
                       ),
                       if (currentClub != null) ...[
@@ -854,7 +852,7 @@ class _DashboardScreen extends StatelessWidget {
                               currentClub.club.name,
                               style: TextStyle(
                                 color: Colors.white.withOpacity(0.9),
-                                fontSize: 14,
+                                fontSize: 12,
                               ),
                             ),
                           ],
@@ -870,8 +868,8 @@ class _DashboardScreen extends StatelessWidget {
                 Text(
                   'Quick Actions',
                   style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
                     color: AppTheme.primaryTextColor,
                   ),
                 ),
@@ -990,8 +988,8 @@ class _DashboardScreen extends StatelessWidget {
               Text(
                 title,
                 style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
                   color: Theme.of(context).textTheme.titleLarge?.color,
                 ),
                 textAlign: TextAlign.center,
