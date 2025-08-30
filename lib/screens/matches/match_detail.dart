@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../models/match_details.dart';
-import '../services/api_service.dart';
-import '../utils/theme.dart';
+import '../../models/match_details.dart';
+import '../../services/api_service.dart';
+import '../../utils/theme.dart';
 
 class MatchDetailScreen extends StatefulWidget {
   final String matchId;

@@ -1,30 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import '../providers/conversation_provider.dart';
-import '../providers/user_provider.dart';
-import '../providers/club_provider.dart';
-import '../models/conversation.dart';
-import '../models/club.dart';
-import '../utils/theme.dart';
-import '../widgets/custom_app_bar.dart';
-import 'chat_detail.dart';
+import '../../providers/conversation_provider.dart';
+import '../../providers/user_provider.dart';
+import '../../providers/club_provider.dart';
+import '../../models/conversation.dart';
+import '../../models/club.dart';
+import '../../utils/theme.dart';
+import '../../widgets/custom_app_bar.dart';
+import '../shared/chat_detail.dart';
 
 class ConversationsScreen extends StatefulWidget {
   @override
   _ConversationsScreenState createState() => _ConversationsScreenState();
 }
 
-class _ConversationsScreenState extends State<ConversationsScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _ConversationsScreenState extends State<ConversationsScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     
     // Fetch conversations when screen loads
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -34,7 +31,6 @@ class _ConversationsScreenState extends State<ConversationsScreen>
 
   @override
   void dispose() {
-    _tabController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -45,7 +41,6 @@ class _ConversationsScreenState extends State<ConversationsScreen>
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: _ConversationsAppBar(
         onSearchPressed: _showSearchDialog,
-        tabController: _tabController,
       ),
       body: Consumer<ConversationProvider>(
         builder: (context, conversationProvider, child) {
@@ -57,16 +52,11 @@ class _ConversationsScreenState extends State<ConversationsScreen>
             return _buildErrorState(conversationProvider.error!);
           }
 
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              _buildConversationsList(
-                conversationProvider.getConversationsByType(ConversationType.announcement)
-                  .where((c) => c.title.toLowerCase().contains(_searchQuery.toLowerCase()))
-                  .toList(),
-              ),
-              _buildClubsList(),
-            ],
+          // Show only news/announcements - no tabs
+          return _buildConversationsList(
+            conversationProvider.getConversationsByType(ConversationType.announcement)
+              .where((c) => c.title.toLowerCase().contains(_searchQuery.toLowerCase()))
+              .toList(),
           );
         },
       ),
@@ -758,12 +748,10 @@ class _ConversationsScreenState extends State<ConversationsScreen>
 
 class _ConversationsAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback onSearchPressed;
-  final TabController tabController;
 
   const _ConversationsAppBar({
     Key? key,
     required this.onSearchPressed,
-    required this.tabController,
   }) : super(key: key);
 
   @override
@@ -801,7 +789,7 @@ class _ConversationsAppBar extends StatelessWidget implements PreferredSizeWidge
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Chat',
+              'News & Announcements',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 24,
@@ -814,7 +802,7 @@ class _ConversationsAppBar extends StatelessWidget implements PreferredSizeWidge
                 final unreadCount = conversationProvider.totalUnreadCount;
                 if (unreadCount > 0) {
                   return Text(
-                    '$unreadCount unread ${unreadCount == 1 ? 'message' : 'messages'}',
+                    '$unreadCount unread ${unreadCount == 1 ? 'announcement' : 'announcements'}',
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.9),
                       fontSize: 14,
@@ -823,7 +811,7 @@ class _ConversationsAppBar extends StatelessWidget implements PreferredSizeWidge
                   );
                 } else {
                   return Text(
-                    'Stay connected with your club',
+                    'Latest updates from your club',
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.8),
                       fontSize: 14,
@@ -857,61 +845,10 @@ class _ConversationsAppBar extends StatelessWidget implements PreferredSizeWidge
             ),
           ),
         ],
-        bottom: PreferredSize(
-          preferredSize: Size.fromHeight(48),
-          child: Container(
-            child: TabBar(
-              controller: tabController,
-              indicatorColor: Colors.white,
-              indicatorWeight: 3,
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white.withOpacity(0.7),
-              labelStyle: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
-              unselectedLabelStyle: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 0.5,
-              ),
-              indicatorPadding: EdgeInsets.symmetric(horizontal: 16),
-              tabs: [
-                Tab(
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.campaign, size: 18),
-                        SizedBox(width: 6),
-                        Text('News'),
-                      ],
-                    ),
-                  ),
-                ),
-                Tab(
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.group, size: 18),
-                        SizedBox(width: 6),
-                        Text('Clubs'),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
 
   @override
-  Size get preferredSize => Size.fromHeight(kToolbarHeight + 48);
+  Size get preferredSize => Size.fromHeight(kToolbarHeight);
 }

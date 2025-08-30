@@ -4,14 +4,14 @@ import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
 import '../providers/club_provider.dart';
 import '../providers/theme_provider.dart';
-import '../screens/profile.dart';
-import '../screens/matches.dart';
-import '../screens/store.dart';
-import '../screens/my_orders.dart';
-import '../screens/transactions.dart';
-import '../screens/polls.dart';
-import '../screens/notifications.dart';
-import '../screens/clubs.dart';
+import '../screens/settings/profile.dart';
+import '../screens/matches/matches.dart';
+import '../screens/wallet/store.dart';
+import '../screens/wallet/my_orders.dart';
+import '../screens/wallet/transactions.dart';
+import '../screens/news/polls.dart';
+import '../screens/news/notifications.dart';
+import '../screens/clubs/clubs.dart';
 import '../utils/navigation_helper.dart';
 
 class AppDrawer extends StatelessWidget {

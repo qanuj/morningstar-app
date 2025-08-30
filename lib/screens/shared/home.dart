@@ -2,26 +2,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import '../providers/user_provider.dart';
-import '../providers/club_provider.dart';
-import '../providers/theme_provider.dart';
-import '../providers/conversation_provider.dart';
-import '../models/club.dart';
-import '../models/conversation.dart';
-import 'clubs.dart';
-import 'matches.dart';
+import '../../providers/user_provider.dart';
+import '../../providers/club_provider.dart';
+import '../../providers/theme_provider.dart';
+import '../../providers/conversation_provider.dart';
+import '../../models/club.dart';
+import '../../models/conversation.dart';
+import '../clubs/clubs.dart';
+import '../matches/matches.dart';
 import 'chat_detail.dart';
-import 'transactions.dart';
-import 'store.dart';
-import 'polls.dart';
-import 'profile.dart';
-import 'notifications.dart';
-import 'my_orders.dart';
-import 'conversations.dart';
-import '../utils/theme.dart';
-import '../utils/dialogs.dart';
-import '../widgets/duggy_logo.dart';
-import '../widgets/custom_app_bar.dart';
+import '../wallet/transactions.dart';
+import '../wallet/store.dart';
+import '../news/polls.dart';
+import '../settings/profile.dart';
+import '../news/notifications.dart';
+import '../wallet/my_orders.dart';
+import '../news/conversations.dart';
+import '../../utils/theme.dart';
+import '../../utils/dialogs.dart';
+import '../../widgets/duggy_logo.dart';
+import '../../widgets/custom_app_bar.dart';
 
 class HomeScreen extends StatefulWidget {
   @override

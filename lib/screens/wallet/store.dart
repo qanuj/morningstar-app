@@ -1,10 +1,10 @@
 // lib/screens/store_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../models/product.dart';
-import '../services/api_service.dart';
-import '../services/auth_service.dart';
-import '../utils/theme.dart';
+import '../../models/product.dart';
+import '../../services/api_service.dart';
+import '../../services/auth_service.dart';
+import '../../utils/theme.dart';
 
 import './jersey_detail.dart';
 import './kit_detail.dart';

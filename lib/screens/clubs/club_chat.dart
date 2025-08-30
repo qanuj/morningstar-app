@@ -5,10 +5,10 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import '../providers/user_provider.dart';
-import '../models/club.dart';
-import '../services/api_service.dart';
-import '../widgets/custom_app_bar.dart';
+import '../../providers/user_provider.dart';
+import '../../models/club.dart';
+import '../../services/api_service.dart';
+import '../../widgets/custom_app_bar.dart';
 
 class ClubChatScreen extends StatefulWidget {
   final Club club;

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/user_provider.dart';
-import '../providers/club_provider.dart';
-import '../services/auth_service.dart';
-import '../utils/theme.dart';
-import '../utils/dialogs.dart';
-import '../widgets/custom_app_bar.dart';
-import 'login.dart';
+import '../../providers/user_provider.dart';
+import '../../providers/club_provider.dart';
+import '../../services/auth_service.dart';
+import '../../utils/theme.dart';
+import '../../utils/dialogs.dart';
+import '../../widgets/custom_app_bar.dart';
+import '../auth/login.dart';
 import 'edit_profile.dart';
 
 class ProfileScreen extends StatelessWidget {

@@ -2,10 +2,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../models/product.dart';
-import '../services/api_service.dart';
-import '../utils/theme.dart';
-import '../widgets/custom_app_bar.dart';
+import '../../models/product.dart';
+import '../../services/api_service.dart';
+import '../../utils/theme.dart';
+import '../../widgets/custom_app_bar.dart';
 
 class MyOrdersScreen extends StatefulWidget {
   const MyOrdersScreen({Key? key}) : super(key: key);

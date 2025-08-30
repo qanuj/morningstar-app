@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../models/match.dart';
-import '../services/api_service.dart';
-import '../widgets/duggy_logo.dart';
+import '../../models/match.dart';
+import '../../services/api_service.dart';
+import '../../widgets/duggy_logo.dart';
 import 'match_detail.dart';
 
 class MatchesScreen extends StatefulWidget {

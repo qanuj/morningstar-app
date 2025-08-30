@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../widgets/duggy_logo.dart';
-import '../screens/notifications.dart';
-import '../screens/clubs.dart';
+import '../screens/news/notifications.dart';
+import '../screens/clubs/clubs.dart';
 
 /// Custom AppBar widget that provides consistent styling and functionality across the app.
 /// 

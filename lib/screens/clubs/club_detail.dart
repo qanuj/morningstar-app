@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/club.dart';
-import '../providers/club_provider.dart';
-import '../utils/theme.dart';
+import '../../models/club.dart';
+import '../../providers/club_provider.dart';
+import '../../utils/theme.dart';
 
 class ClubDetailScreen extends StatefulWidget {
   final ClubMembership membership;

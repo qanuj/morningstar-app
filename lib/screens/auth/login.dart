@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
-import '../widgets/keyboard_avoiding_wrapper.dart';
-import '../widgets/duggy_logo.dart';
+import '../../services/api_service.dart';
+import '../../widgets/keyboard_avoiding_wrapper.dart';
+import '../../widgets/duggy_logo.dart';
 import 'otp.dart';
-import '../utils/theme.dart';
+import '../../utils/theme.dart';
 
 class LoginScreen extends StatefulWidget {
   @override

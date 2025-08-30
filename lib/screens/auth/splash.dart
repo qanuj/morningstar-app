@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/auth_service.dart';
-import '../services/api_service.dart';
-import '../providers/user_provider.dart';
-import '../providers/club_provider.dart';
-import '../widgets/duggy_logo.dart';
-import '../utils/theme.dart';
+import '../../services/auth_service.dart';
+import '../../services/api_service.dart';
+import '../../providers/user_provider.dart';
+import '../../providers/club_provider.dart';
+import '../../widgets/duggy_logo.dart';
+import '../../utils/theme.dart';
 import 'login.dart';
-import 'home.dart';
+import '../shared/home.dart';
 
 class SplashScreen extends StatefulWidget {
   @override

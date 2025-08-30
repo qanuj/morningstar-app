@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'services/auth_service.dart';
-import 'services/api_service.dart';
 import 'providers/user_provider.dart';
 import 'providers/club_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/conversation_provider.dart';
-import 'screens/splash.dart';
+import 'screens/auth/splash.dart';
 import 'utils/theme.dart';
 
 void main() async {

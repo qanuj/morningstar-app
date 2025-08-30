@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../models/notification.dart';
-import '../services/api_service.dart';
-import '../widgets/custom_app_bar.dart';
-import '../widgets/duggy_logo.dart';
+import '../../models/notification.dart';
+import '../../services/api_service.dart';
+import '../../widgets/custom_app_bar.dart';
+import '../../widgets/duggy_logo.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({Key? key}) : super(key: key);

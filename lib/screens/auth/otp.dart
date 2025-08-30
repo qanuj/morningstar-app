@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/api_service.dart';
-import '../providers/user_provider.dart';
-import '../providers/club_provider.dart';
-import '../widgets/keyboard_avoiding_wrapper.dart';
-import 'home.dart';
+import '../../services/api_service.dart';
+import '../../providers/user_provider.dart';
+import '../../providers/club_provider.dart';
+import '../../widgets/keyboard_avoiding_wrapper.dart';
+import '../shared/home.dart';
 
 class OTPScreen extends StatefulWidget {
   final String phoneNumber;

@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
-import '../providers/conversation_provider.dart';
-import '../providers/user_provider.dart';
-import '../models/conversation.dart';
-import '../utils/theme.dart';
-import '../widgets/custom_app_bar.dart';
-import '../widgets/image_picker_widget.dart';
-import '../widgets/file_picker_widget.dart';
-import '../widgets/emoji_picker_widget.dart';
+import '../../providers/conversation_provider.dart';
+import '../../providers/user_provider.dart';
+import '../../models/conversation.dart';
+import '../../utils/theme.dart';
+import '../../widgets/custom_app_bar.dart';
+import '../../widgets/image_picker_widget.dart';
+import '../../widgets/file_picker_widget.dart';
+import '../../widgets/emoji_picker_widget.dart';
 
 // Import the document viewer widget from image_picker_widget.dart
 // Note: We're reusing widgets from the existing files
