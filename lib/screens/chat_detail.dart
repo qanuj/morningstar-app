@@ -903,7 +903,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       child: Column(
         children: [
           // Emoji picker
-          if (_showEmojiPicker) ..[
+          if (_showEmojiPicker) ...[
             Container(
               decoration: BoxDecoration(
                 border: Border(

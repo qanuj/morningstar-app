@@ -291,7 +291,6 @@ class MessageModel {
   double? get locationLng => richContent?['longitude'] as double?;
   String? get locationName => richContent?['name'] as String?;
 }
-}
 
 enum ConversationType {
   announcement, // Club announcements (read-only for members)
