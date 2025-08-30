@@ -12,7 +12,7 @@ class AppDialogs {
         title: Center(
           child: Container(
             padding: EdgeInsets.all(8),
-            child: DuggyLogoVariant.animated(
+            child: DuggyLogoVariant.medium(
               color: Theme.of(context).colorScheme.primary,
               showText: true,
             ),
