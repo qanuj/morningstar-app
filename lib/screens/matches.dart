@@ -2,42 +2,38 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/match.dart';
 import '../services/api_service.dart';
-import '../utils/theme.dart';
 import '../widgets/duggy_logo.dart';
 import 'match_detail.dart';
 
 class MatchesScreen extends StatefulWidget {
+  const MatchesScreen({Key? key}) : super(key: key);
+  
   @override
-  _MatchesScreenState createState() => _MatchesScreenState();
+  State<MatchesScreen> createState() => _MatchesScreenState();
 }
 
-class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateMixin {
-  late TabController _tabController;
+class _MatchesScreenState extends State<MatchesScreen> {
   List<MatchListItem> _matches = [];
   bool _isLoading = false;
-  String _selectedTab = 'upcoming';
   
   // Search and filtering
-  String _searchQuery = '';
-  String? _selectedClubId;
-  TextEditingController _searchController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
   
   // Pagination
   int _currentPage = 1;
-  int _totalPages = 1;
-  bool _hasNextPage = false;
-  bool _hasPrevPage = false;
+  final int _totalPages = 1;
+  final bool _hasNextPage = false;
+  final bool _hasPrevPage = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _loadMatches();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -50,25 +46,16 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
         _matches = (response['data'] as List).map((match) => MatchListItem.fromJson(match)).toList();
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load matches: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load matches: $e')),
+        );
+      }
     }
 
     setState(() => _isLoading = false);
   }
 
-  List<MatchListItem> get _upcomingMatches {
-    final now = DateTime.now();
-    return _matches.where((match) => match.matchDate.isAfter(now)).toList()
-      ..sort((a, b) => a.matchDate.compareTo(b.matchDate));
-  }
-
-  List<MatchListItem> get _pastMatches {
-    final now = DateTime.now();
-    return _matches.where((match) => match.matchDate.isBefore(now)).toList()
-      ..sort((a, b) => b.matchDate.compareTo(a.matchDate));
-  }
   
   Map<String, List<MatchListItem>> _groupMatchesByDate(List<MatchListItem> matches) {
     final Map<String, List<MatchListItem>> groupedMatches = {};
@@ -285,9 +272,6 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
                 child: TextField(
                   controller: _searchController,
                   onChanged: (value) {
-                    setState(() {
-                      _searchQuery = value;
-                    });
                     _loadMatches();
                   },
                   decoration: InputDecoration(
@@ -326,7 +310,7 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
                 ),
               ),
             ),
-            SizedBox(width: 8),
+            const SizedBox(width: 8),
             IconButton(
               icon: Icon(
                 Icons.filter_list,
@@ -367,7 +351,7 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
                         color: Theme.of(context).primaryColor,
                       ),
                     ),
-                    SizedBox(height: 24),
+                    const SizedBox(height: 24),
                     Text(
                       'No matches found',
                       style: TextStyle(
@@ -376,7 +360,7 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
                         color: Theme.of(context).textTheme.titleLarge?.color,
                       ),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
                       'Your match history will appear here',
                       style: TextStyle(
@@ -422,7 +406,7 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
                           return _buildPaginationWidget();
                         }
                         
-                        return Container(); // Should never reach here
+                        return SizedBox.shrink(); // Should never reach here
                       },
                       childCount: _getChildCount(),
                     ),
@@ -433,73 +417,8 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
     );
   }
 
-  Widget _buildMatchList(List<MatchListItem> matches, String type) {
-    if (_isLoading) {
-      return Center(
-        child: CircularProgressIndicator(
-          strokeWidth: 3,
-          color: AppTheme.cricketGreen,
-        ),
-      );
-    }
-
-    if (matches.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                color: AppTheme.cricketGreen.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.sports_cricket_outlined,
-                size: 64,
-                color: AppTheme.cricketGreen,
-              ),
-            ),
-            SizedBox(height: 24),
-            Text(
-              type == 'upcoming' ? 'No upcoming matches' : 'No past matches',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.primaryTextColor,
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              type == 'upcoming' 
-                  ? 'New matches will appear here'
-                  : 'Your match history will appear here',
-              style: TextStyle(
-                fontSize: 16,
-                color: AppTheme.secondaryTextColor,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadMatches,
-      color: AppTheme.cricketGreen,
-      child: ListView.builder(
-        padding: EdgeInsets.symmetric(horizontal: 16),
-        itemCount: matches.length,
-        itemBuilder: (context, index) {
-          final match = matches[index];
-          return _buildMatchCard(match);
-        },
-      ),
-    );
-  }
 
   Widget _buildMatchCard(MatchListItem match) {
-    final isUpcoming = match.matchDate.isAfter(DateTime.now());
     
     return Container(
       margin: EdgeInsets.only(bottom: 8, left: 12, right: 12),
@@ -543,15 +462,59 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
                       height: 40,
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(20),
-                        child: match.club.logo != null
-                            ? Image.network(
-                                match.club.logo!,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return DuggyLogoVariant.medium();
-                                },
-                              )
-                            : DuggyLogoVariant.medium(),
+                        child: (match.type.toLowerCase() == 'practice')
+                            ? // Practice sessions: Always show club logo
+                              (match.club.logo != null
+                                  ? Image.network(
+                                      match.club.logo!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return DuggyLogoVariant.medium();
+                                      },
+                                    )
+                                  : DuggyLogoVariant.medium())
+                            : // Other matches: Show opponent logo if available, else club logo
+                              (match.opponent != null && match.canSeeDetails
+                                  ? (match.club.logo != null
+                                      ? Image.network(
+                                          match.club.logo!,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error, stackTrace) {
+                                            return Container(
+                                              decoration: BoxDecoration(
+                                                color: Theme.of(context).primaryColor.withOpacity(0.1),
+                                                borderRadius: BorderRadius.circular(20),
+                                              ),
+                                              child: Center(
+                                                child: Text(
+                                                  match.opponent!.substring(0, 1).toUpperCase(),
+                                                  style: TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Theme.of(context).primaryColor,
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        )
+                                      : Container(
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(context).primaryColor.withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              match.opponent!.substring(0, 1).toUpperCase(),
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
+                                                color: Theme.of(context).primaryColor,
+                                              ),
+                                            ),
+                                          ),
+                                        ))
+                                  : DuggyLogoVariant.medium()),
                       ),
                     ),
                     // Match Type Badge
@@ -592,16 +555,30 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
                         match.canSeeDetails 
                             ? (match.opponent ?? 'Practice Match')
                             : 'Match Details TBD',
-                        maxLines: 2,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontWeight: FontWeight.w400,
-                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 13,
                           color: Theme.of(context).textTheme.titleLarge?.color,
                           height: 1.2,
                         ),
                       ),
-                      SizedBox(height: 4),
+                      if (match.location.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          match.location,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w400,
+                            fontSize: 11,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
+                            height: 1.1,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 4),
                       Row(
                         children: [
                           Container(
@@ -624,20 +601,31 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
                             ),
                           ),
                           if (match.isCancelled) ...[
-                            SizedBox(width: 6),
+                            const SizedBox(width: 6),
                             Container(
-                              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
                                 color: Colors.red.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(6),
                               ),
-                              child: Text(
-                                'CANCELLED',
-                                style: TextStyle(
-                                  color: Colors.red,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.cancel_outlined,
+                                    size: 10,
+                                    color: Colors.red,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    'CANCELLED',
+                                    style: TextStyle(
+                                      color: Colors.red,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -652,15 +640,20 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
                   crossAxisAlignment: CrossAxisAlignment.end,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      '${match.confirmedPlayers}/${match.spots}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400,
-                        color: Theme.of(context).textTheme.bodyLarge?.color,
+                    // RSVP Status or Player Count
+                    if (match.userRsvp != null) ...[
+                      _buildRSVPStatus(match),
+                    ] else ...[
+                      Text(
+                        '${match.confirmedPlayers}/${match.spots}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 2),
+                    ],
+                    const SizedBox(height: 2),
                     Text(
                       DateFormat('hh:mm a').format(match.matchDate),
                       style: TextStyle(
@@ -695,21 +688,79 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
     }
   }
 
+  Widget _buildRSVPStatus(MatchListItem match) {
+    if (match.userRsvp == null) {
+      return Text(
+        '${match.confirmedPlayers}/${match.spots}',
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
+          color: Theme.of(context).textTheme.bodyLarge?.color,
+        ),
+      );
+    }
+
+    final rsvp = match.userRsvp!;
+    final canChangeRSVP = match.canRsvp && !match.isCancelled;
+
+    return GestureDetector(
+      onTap: canChangeRSVP ? () => _showRSVPDialog(match) : null,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: _getRSVPColor(rsvp.status).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: _getRSVPColor(rsvp.status).withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _getRSVPIcon(rsvp.status),
+              size: 12,
+              color: _getRSVPColor(rsvp.status),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              _getRSVPText(rsvp.status),
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: _getRSVPColor(rsvp.status),
+              ),
+            ),
+            if (canChangeRSVP) ...[
+              const SizedBox(width: 4),
+              Icon(
+                Icons.edit,
+                size: 10,
+                color: _getRSVPColor(rsvp.status),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   IconData _getRSVPIcon(String status) {
-    switch (status) {
+    switch (status.toUpperCase()) {
       case 'YES':
         return Icons.check_circle;
       case 'NO':
         return Icons.cancel;
       case 'MAYBE':
-        return Icons.help;
+        return Icons.help_outline;
       default:
         return Icons.hourglass_empty;
     }
   }
 
   Color _getRSVPColor(String status) {
-    switch (status) {
+    switch (status.toUpperCase()) {
       case 'YES':
         return Colors.green;
       case 'NO':
@@ -722,7 +773,7 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
   }
 
   String _getRSVPText(String status) {
-    switch (status) {
+    switch (status.toUpperCase()) {
       case 'YES':
         return 'Going';
       case 'NO':
@@ -733,4 +784,149 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
         return 'Pending';
     }
   }
+
+  void _showRSVPDialog(MatchListItem match) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).dialogBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.sports_cricket,
+                      color: Theme.of(context).primaryColor,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Update RSVP',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).textTheme.headlineSmall?.color,
+                          ),
+                        ),
+                        Text(
+                          match.opponent ?? 'Practice Match',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              
+              // RSVP Options
+              ..._buildRSVPOptions(match),
+              
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: const Text(
+                    'Close',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  List<Widget> _buildRSVPOptions(MatchListItem match) {
+    final options = [
+      {'status': 'YES', 'text': 'Going', 'icon': Icons.check_circle},
+      {'status': 'MAYBE', 'text': 'Maybe', 'icon': Icons.help_outline},
+      {'status': 'NO', 'text': 'Not Going', 'icon': Icons.cancel},
+    ];
+
+    return options.map((option) {
+      final isSelected = match.userRsvp?.status.toUpperCase() == option['status'];
+      return Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        child: ListTile(
+          onTap: () {
+            // TODO: Implement RSVP update API call
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('RSVP updated to ${option['text']}'),
+                backgroundColor: _getRSVPColor(option['status'] as String),
+              ),
+            );
+          },
+          leading: Icon(
+            option['icon'] as IconData,
+            color: isSelected 
+                ? _getRSVPColor(option['status'] as String)
+                : Theme.of(context).textTheme.bodySmall?.color,
+          ),
+          title: Text(
+            option['text'] as String,
+            style: TextStyle(
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+              color: isSelected 
+                  ? _getRSVPColor(option['status'] as String)
+                  : Theme.of(context).textTheme.titleLarge?.color,
+            ),
+          ),
+          trailing: isSelected 
+              ? Icon(
+                  Icons.radio_button_checked,
+                  color: _getRSVPColor(option['status'] as String),
+                )
+              : Icon(
+                  Icons.radio_button_unchecked,
+                  color: Theme.of(context).textTheme.bodySmall?.color,
+                ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          tileColor: isSelected 
+              ? _getRSVPColor(option['status'] as String).withOpacity(0.1)
+              : null,
+        ),
+      );
+    }).toList();
+  }
+
+
+
 }

@@ -61,8 +61,8 @@ class AppTheme {
         toolbarHeight: 56, // Standard compact height
         titleTextStyle: TextStyle(
           color: Colors.white,
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         iconTheme: IconThemeData(color: Colors.white, size: 22),
       ),
@@ -94,8 +94,8 @@ class AppTheme {
           ),
           padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           textStyle: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
+            fontSize: 12,
+            fontWeight: FontWeight.w400,
           ),
         ),
       ),
@@ -110,8 +110,8 @@ class AppTheme {
           ),
           padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           textStyle: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
+            fontSize: 12,
+            fontWeight: FontWeight.w400,
           ),
         ),
       ),
@@ -125,8 +125,8 @@ class AppTheme {
           ),
           padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           textStyle: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
+            fontSize: 12,
+            fontWeight: FontWeight.w400,
           ),
         ),
       ),
@@ -174,11 +174,11 @@ class AppTheme {
         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         hintStyle: TextStyle(
           color: secondaryTextColor,
-          fontSize: 14,
+          fontSize: 12,
         ),
         labelStyle: TextStyle(
           color: secondaryTextColor,
-          fontSize: 14,
+          fontSize: 12,
         ),
       ),
       
@@ -191,11 +191,11 @@ class AppTheme {
         elevation: 0,
         selectedLabelStyle: TextStyle(
           fontSize: 12,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w400,
         ),
         unselectedLabelStyle: TextStyle(
           fontSize: 12,
-          fontWeight: FontWeight.normal,
+          fontWeight: FontWeight.w400,
         ),
       ),
       
@@ -232,13 +232,13 @@ class AppTheme {
         padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         labelStyle: TextStyle(
           color: primaryBlue,
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         secondaryLabelStyle: TextStyle(
           color: Colors.white,
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
@@ -271,12 +271,12 @@ class AppTheme {
         ),
         titleTextStyle: TextStyle(
           color: primaryTextColor,
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         contentTextStyle: TextStyle(
           color: secondaryTextColor,
-          fontSize: 16,
+          fontSize: 12,
         ),
       ),
       
@@ -295,78 +295,78 @@ class AppTheme {
       textTheme: TextTheme(
         displayLarge: TextStyle(
           color: primaryTextColor,
-          fontSize: 32,
-          fontWeight: FontWeight.bold,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         displayMedium: TextStyle(
           color: primaryTextColor,
-          fontSize: 28,
-          fontWeight: FontWeight.bold,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         displaySmall: TextStyle(
           color: primaryTextColor,
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         headlineLarge: TextStyle(
           color: primaryTextColor,
-          fontSize: 22,
-          fontWeight: FontWeight.w600,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         headlineMedium: TextStyle(
           color: primaryTextColor,
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         headlineSmall: TextStyle(
           color: primaryTextColor,
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         titleLarge: TextStyle(
           color: primaryTextColor,
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         titleMedium: TextStyle(
           color: primaryTextColor,
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         titleSmall: TextStyle(
           color: primaryTextColor,
           fontSize: 12,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w400,
         ),
         bodyLarge: TextStyle(
           color: primaryTextColor,
-          fontSize: 16,
-          fontWeight: FontWeight.normal,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         bodyMedium: TextStyle(
           color: primaryTextColor,
-          fontSize: 14,
-          fontWeight: FontWeight.normal,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         bodySmall: TextStyle(
           color: secondaryTextColor,
           fontSize: 12,
-          fontWeight: FontWeight.normal,
+          fontWeight: FontWeight.w400,
         ),
         labelLarge: TextStyle(
           color: primaryTextColor,
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         labelMedium: TextStyle(
           color: primaryTextColor,
           fontSize: 12,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w400,
         ),
         labelSmall: TextStyle(
           color: secondaryTextColor,
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
       ),
       
@@ -384,12 +384,12 @@ class AppTheme {
         indicatorColor: primaryBlue,
         indicatorSize: TabBarIndicatorSize.tab,
         labelStyle: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         unselectedLabelStyle: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.normal,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
       ),
       
@@ -548,8 +548,8 @@ class AppTheme {
         toolbarHeight: 56,
         titleTextStyle: TextStyle(
           color: Colors.white,
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         iconTheme: IconThemeData(color: Colors.white, size: 22),
       ),
@@ -581,8 +581,8 @@ class AppTheme {
           ),
           padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           textStyle: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
+            fontSize: 12,
+            fontWeight: FontWeight.w400,
           ),
         ),
       ),
@@ -597,8 +597,8 @@ class AppTheme {
           ),
           padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           textStyle: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
+            fontSize: 12,
+            fontWeight: FontWeight.w400,
           ),
         ),
       ),
@@ -612,8 +612,8 @@ class AppTheme {
           ),
           padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           textStyle: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
+            fontSize: 12,
+            fontWeight: FontWeight.w400,
           ),
         ),
       ),
@@ -661,11 +661,11 @@ class AppTheme {
         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         hintStyle: TextStyle(
           color: Colors.grey[400],
-          fontSize: 14,
+          fontSize: 12,
         ),
         labelStyle: TextStyle(
           color: Colors.grey[400],
-          fontSize: 14,
+          fontSize: 12,
         ),
       ),
       
@@ -678,11 +678,11 @@ class AppTheme {
         elevation: 0,
         selectedLabelStyle: TextStyle(
           fontSize: 12,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w400,
         ),
         unselectedLabelStyle: TextStyle(
           fontSize: 12,
-          fontWeight: FontWeight.normal,
+          fontWeight: FontWeight.w400,
         ),
       ),
       
@@ -714,78 +714,78 @@ class AppTheme {
       textTheme: TextTheme(
         displayLarge: TextStyle(
           color: Colors.white,
-          fontSize: 32,
-          fontWeight: FontWeight.bold,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         displayMedium: TextStyle(
           color: Colors.white,
-          fontSize: 28,
-          fontWeight: FontWeight.bold,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         displaySmall: TextStyle(
           color: Colors.white,
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         headlineLarge: TextStyle(
           color: Colors.white,
-          fontSize: 22,
-          fontWeight: FontWeight.w600,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         headlineMedium: TextStyle(
           color: Colors.white,
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         headlineSmall: TextStyle(
           color: Colors.white,
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         titleLarge: TextStyle(
           color: Colors.white,
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         titleMedium: TextStyle(
           color: Colors.white,
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         titleSmall: TextStyle(
           color: Colors.white,
           fontSize: 12,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w400,
         ),
         bodyLarge: TextStyle(
           color: Colors.white,
-          fontSize: 16,
-          fontWeight: FontWeight.normal,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         bodyMedium: TextStyle(
           color: Colors.white,
-          fontSize: 14,
-          fontWeight: FontWeight.normal,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         bodySmall: TextStyle(
           color: Colors.grey[400],
           fontSize: 12,
-          fontWeight: FontWeight.normal,
+          fontWeight: FontWeight.w400,
         ),
         labelLarge: TextStyle(
           color: Colors.white,
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         labelMedium: TextStyle(
           color: Colors.white,
           fontSize: 12,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w400,
         ),
         labelSmall: TextStyle(
           color: Colors.grey[400],
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
       ),
       
@@ -812,12 +812,12 @@ class AppTheme {
         ),
         titleTextStyle: TextStyle(
           color: Colors.white,
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         contentTextStyle: TextStyle(
           color: Colors.grey[400],
-          fontSize: 16,
+          fontSize: 12,
         ),
       ),
       
