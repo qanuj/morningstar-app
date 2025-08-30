@@ -7,7 +7,6 @@ import '../../providers/club_provider.dart';
 import '../../models/conversation.dart';
 import '../../models/club.dart';
 import '../../utils/theme.dart';
-import '../../widgets/custom_app_bar.dart';
 import '../shared/chat_detail.dart';
 
 class ConversationsScreen extends StatefulWidget {

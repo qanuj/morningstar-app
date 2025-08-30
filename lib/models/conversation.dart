@@ -1,3 +1,5 @@
+import 'message_status.dart';
+
 class ConversationModel {
   final String id;
   final String title;
@@ -314,13 +316,6 @@ enum MessageType {
   system, // System messages (user joined, etc.)
 }
 
-enum MessageStatus {
-  sending,
-  sent,
-  delivered,
-  read,
-  failed,
-}
 
 class MessageReaction {
   final String emoji;

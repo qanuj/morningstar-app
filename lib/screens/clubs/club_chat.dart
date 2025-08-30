@@ -7,8 +7,14 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../providers/user_provider.dart';
 import '../../models/club.dart';
+import '../../models/club_message.dart';
+import '../../models/message_status.dart';
+import '../../models/message_image.dart';
+import '../../models/message_document.dart';
+import '../../models/link_metadata.dart';
 import '../../services/api_service.dart';
-import '../../widgets/custom_app_bar.dart';
+// import 'package:emoji_picker_flutter/emoji_picker_flutter.dart'; // Package not available
+import 'package:url_launcher/url_launcher.dart';
 
 class ClubChatScreen extends StatefulWidget {
   final Club club;
@@ -29,6 +35,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   bool _isLoading = true;
   bool _isComposing = false;
   String? _error;
+  bool _showEmojiPicker = false;
+  bool _showGifPicker = false;
+  final FocusNode _textFieldFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -41,6 +50,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    _textFieldFocusNode.dispose();
     super.dispose();
   }
 
@@ -56,7 +66,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       if (response['success'] == true || response['messages'] != null) {
         final List<dynamic> messageData = response['messages'] ?? [];
         _messages = messageData
-            .map((json) => ClubMessage.fromJson(json))
+            .map((json) => ClubMessage.fromJson(json as Map<String, dynamic>))
             .toList();
         
         // Sort by creation time (oldest first for chat display)
@@ -94,10 +104,22 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     // Generate temporary message ID
     final tempMessageId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
     
+    // Check if message is emoji-only
+    final emojiOnlyPattern = RegExp(r'^(\s*[\p{Emoji}\p{Emoji_Modifier}\p{Emoji_Component}\p{Emoji_Modifier_Base}\p{Emoji_Presentation}\u200d]*\s*)+$', unicode: true);
+    final isEmojiOnly = emojiOnlyPattern.hasMatch(content) && content.trim().length <= 12; // Max 4 emojis
+    
     // Detect links and fetch metadata
     List<LinkMetadata> linkMeta = [];
     final urlPattern = RegExp(r'https?://[^\s]+');
     final urls = urlPattern.allMatches(content).map((match) => match.group(0)!).toList();
+    
+    // Determine message type
+    String messageType = 'text';
+    if (isEmojiOnly) {
+      messageType = 'emoji';
+    } else if (urls.isNotEmpty) {
+      messageType = 'link';
+    }
     
     // Create optimistic message (add immediately to list)
     final optimisticMessage = ClubMessage(
@@ -147,7 +169,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       print('🔵 Message content: $content');
       
       final Map<String, dynamic> contentMap = {
-        'type': 'text',
+        'type': messageType,
         'body': content,
       };
       
@@ -460,13 +482,20 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                if (message.content.isNotEmpty)
-                                  _buildFormattedMessage(
-                                    message.content,
-                                    isOwn,
+                                if (message.gifUrl != null)
+                                  _buildGifMessage(message.gifUrl!, isOwn)
+                                else if (message.content.isNotEmpty)
+                                  _buildMessageContent(message, isOwn),
+                                if (message.pictures.isNotEmpty) ...[
+                                  // Debug: Print when we're about to show images
+                                  Builder(
+                                    builder: (context) {
+                                      print('Message ${message.id} has ${message.pictures.length} pictures');
+                                      return SizedBox.shrink();
+                                    },
                                   ),
-                                if (message.pictures.isNotEmpty)
                                   _buildImageGallery(message.pictures),
+                                ],
                                 if (message.documents.isNotEmpty)
                                   _buildDocumentList(message.documents),
                                 if (message.linkMeta.isNotEmpty)
@@ -474,7 +503,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                               ],
                             ),
                           ),
-                          if (isOwn && message.status != MessageStatus.sent) ...[
+                          if (isOwn) ...[
                             SizedBox(width: 8),
                             _buildMessageStatusIcon(message.status),
                           ],
@@ -543,11 +572,30 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         return Icon(
           Icons.error_outline,
           size: 14,
-          color: Theme.of(context).brightness == Brightness.dark
-              ? Colors.white.withOpacity(0.7)
-              : Colors.black.withOpacity(0.7),
+          color: Colors.red,
         );
       case MessageStatus.sent:
+        return Icon(
+          Icons.check,
+          size: 14,
+          color: Colors.white.withOpacity(0.7),
+        );
+      case MessageStatus.delivered:
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.check, size: 12, color: Colors.white.withOpacity(0.7)),
+            Icon(Icons.check, size: 12, color: Colors.white.withOpacity(0.7)),
+          ],
+        );
+      case MessageStatus.read:
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.check, size: 12, color: Colors.blue),
+            Icon(Icons.check, size: 12, color: Colors.blue),
+          ],
+        );
       default:
         return SizedBox.shrink();
     }
@@ -794,6 +842,96 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     }
   }
 
+  Widget _buildMessageContent(ClubMessage message, bool isOwn) {
+    // Check if emoji-only message
+    final emojiOnlyPattern = RegExp(r'^(\s*[\p{Emoji}\p{Emoji_Modifier}\p{Emoji_Component}\p{Emoji_Modifier_Base}\p{Emoji_Presentation}\u200d]*\s*)+$', unicode: true);
+    final isEmojiOnly = message.messageType == 'emoji' || 
+                       (emojiOnlyPattern.hasMatch(message.content) && message.content.trim().length <= 12);
+    
+    if (isEmojiOnly) {
+      return _buildEmojiMessage(message.content, isOwn);
+    } else {
+      return _buildFormattedMessage(message.content, isOwn);
+    }
+  }
+  
+  Widget _buildEmojiMessage(String content, bool isOwn) {
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 8),
+      child: Text(
+        content,
+        style: TextStyle(
+          fontSize: 32, // Large emoji size
+        ),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+  
+  Widget _buildGifMessage(String gifUrl, bool isOwn) {
+    return Container(
+      constraints: BoxConstraints(
+        maxWidth: 200,
+        maxHeight: 200,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.network(
+          gifUrl,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Container(
+              height: 150,
+              width: 200,
+              child: Center(
+                child: CircularProgressIndicator(
+                  value: loadingProgress.expectedTotalBytes != null
+                      ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                      : null,
+                ),
+              ),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              height: 150,
+              width: 200,
+              decoration: BoxDecoration(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey[800]
+                    : Colors.grey[300],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.gif,
+                    size: 48,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white.withOpacity(0.5)
+                        : Colors.grey[600],
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'GIF failed to load',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white.withOpacity(0.5)
+                          : Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   Widget _buildFormattedMessage(String content, bool isOwn) {
     final baseColor = isOwn 
         ? Colors.white 
@@ -965,12 +1103,14 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       );
 
       if (result != null && result.files.isNotEmpty) {
-        _showImageCaptionDialog(result.files);
+        _startImageUpload(result.files);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking images: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error picking images: $e')),
+        );
+      }
     }
   }
 
@@ -992,8 +1132,17 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     }
   }
 
-  void _showImageCaptionDialog(List<PlatformFile> files) {
-    Map<String, String> captions = {};
+  Future<void> _startImageUpload(List<PlatformFile> files) async {
+    // Show caption dialog for single image, immediate upload for multiple
+    if (files.length == 1) {
+      _showSingleImageCaptionDialog(files.first);
+    } else {
+      _uploadImagesWithProgress(files, {});
+    }
+  }
+
+  void _showSingleImageCaptionDialog(PlatformFile file) {
+    final TextEditingController captionController = TextEditingController();
     
     showDialog(
       context: context,
@@ -1002,54 +1151,42 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
             ? Colors.grey[850]
             : Colors.white,
         title: Text(
-          'Add Captions (Optional)',
+          'Add Caption',
           style: TextStyle(
             color: Theme.of(context).brightness == Brightness.dark
                 ? Colors.white.withOpacity(0.9)
                 : Colors.black.withOpacity(0.8),
           ),
         ),
-        content: Container(
-          width: double.maxFinite,
-          constraints: BoxConstraints(maxHeight: 400),
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: files.length,
-            itemBuilder: (context, index) {
-              final file = files[index];
-              return Padding(
-                padding: EdgeInsets.only(bottom: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      file.name,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w500,
-                        fontSize: 14,
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.white.withOpacity(0.8)
-                            : Colors.black.withOpacity(0.7),
-                      ),
-                    ),
-                    SizedBox(height: 8),
-                    TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Add a caption...',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                      onChanged: (value) {
-                        captions[file.name] = value;
-                      },
-                    ),
-                  ],
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              file.name,
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 14,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white.withOpacity(0.8)
+                    : Colors.black.withOpacity(0.7),
+              ),
+            ),
+            SizedBox(height: 12),
+            TextField(
+              controller: captionController,
+              decoration: InputDecoration(
+                hintText: 'Write a message...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
-              );
-            },
-          ),
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              maxLines: 3,
+              minLines: 1,
+              textCapitalization: TextCapitalization.sentences,
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -1066,13 +1203,14 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              _uploadImages(files, captions);
+              final caption = captionController.text.trim();
+              _uploadImagesWithProgress([file], {file.name: caption});
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Theme.of(context).primaryColor,
             ),
             child: Text(
-              'Upload',
+              'Send',
               style: TextStyle(color: Colors.white),
             ),
           ),
@@ -1081,27 +1219,147 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     );
   }
 
-  Future<void> _uploadImages(List<PlatformFile> files, Map<String, String> captions) async {
+  Future<void> _uploadImagesWithProgress(List<PlatformFile> files, Map<String, String> captions) async {
+    final userProvider = context.read<UserProvider>();
+    final user = userProvider.user;
+    if (user == null) return;
+
+    // Generate temporary message ID
+    final tempMessageId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
+    
+    // Get the caption (message body) - use first non-empty caption or empty string
+    String messageBody = '';
+    for (String caption in captions.values) {
+      if (caption.isNotEmpty) {
+        messageBody = caption;
+        break;
+      }
+    }
+    
+    // Create optimistic message with image previews
+    final List<MessageImage> tempImages = files.map((file) {
+      return MessageImage(
+        url: file.path ?? '', // Use local path for preview
+        caption: null, // Caption becomes the message body
+      );
+    }).toList();
+    
+    // Create optimistic message
+    final optimisticMessage = ClubMessage(
+      id: tempMessageId,
+      clubId: widget.club.id,
+      senderId: user.id,
+      senderName: user.name,
+      senderProfilePicture: user.profilePicture,
+      senderRole: 'MEMBER',
+      content: messageBody,
+      pictures: tempImages,
+      messageType: files.length == 1 ? 'image' : 'text_with_images',
+      createdAt: DateTime.now(),
+      status: MessageStatus.sending,
+    );
+    
+    // Add message to list immediately with previews
+    setState(() {
+      _messages.add(optimisticMessage);
+    });
+    
+    // Scroll to bottom
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+    
     try {
+      // Upload images one by one
       List<MessageImage> uploadedImages = [];
-      
       for (PlatformFile file in files) {
         final uploadedUrl = await _uploadFile(file);
         if (uploadedUrl != null) {
           uploadedImages.add(MessageImage(
             url: uploadedUrl,
-            caption: captions[file.name]?.isNotEmpty == true ? captions[file.name] : null,
+            caption: null, // Caption is now the message body
           ));
         }
       }
       
       if (uploadedImages.isNotEmpty) {
-        _sendMessageWithAttachments(pictures: uploadedImages);
+        // Send the message with uploaded images
+        await _sendMessageWithUploadedImages(tempMessageId, messageBody, uploadedImages);
+      } else {
+        // Mark as failed if no images uploaded
+        setState(() {
+          final messageIndex = _messages.indexWhere((m) => m.id == tempMessageId);
+          if (messageIndex != -1) {
+            _messages[messageIndex] = _messages[messageIndex].copyWith(
+              status: MessageStatus.failed,
+              errorMessage: 'Failed to upload images',
+            );
+          }
+        });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error uploading images: $e')),
-      );
+      print('Error uploading images: $e');
+      // Mark as failed
+      setState(() {
+        final messageIndex = _messages.indexWhere((m) => m.id == tempMessageId);
+        if (messageIndex != -1) {
+          _messages[messageIndex] = _messages[messageIndex].copyWith(
+            status: MessageStatus.failed,
+            errorMessage: 'Upload failed: $e',
+          );
+        }
+      });
+    }
+  }
+
+  Future<void> _sendMessageWithUploadedImages(String tempMessageId, String messageBody, List<MessageImage> uploadedImages) async {
+    final userProvider = context.read<UserProvider>();
+    final user = userProvider.user;
+    if (user == null) return;
+
+    try {
+      final Map<String, dynamic> contentMap = {
+        'type': uploadedImages.length == 1 ? 'image' : 'text_with_images',
+        'body': messageBody,
+        'pictures': uploadedImages.map((img) => img.toJson()).toList(),
+      };
+
+      final requestData = {
+        'senderId': user.id,
+        'content': contentMap,
+      };
+
+      final response = await ApiService.post('/conversations/${widget.club.id}/messages', requestData);
+
+      // Update message with uploaded images and mark as sent
+      setState(() {
+        final messageIndex = _messages.indexWhere((m) => m.id == tempMessageId);
+        if (messageIndex != -1) {
+          _messages[messageIndex] = _messages[messageIndex].copyWith(
+            status: MessageStatus.sent,
+            pictures: uploadedImages,
+          );
+        }
+      });
+
+      print('✅ Message with images sent successfully');
+    } catch (e) {
+      print('❌ Error sending message with images: $e');
+      setState(() {
+        final messageIndex = _messages.indexWhere((m) => m.id == tempMessageId);
+        if (messageIndex != -1) {
+          _messages[messageIndex] = _messages[messageIndex].copyWith(
+            status: MessageStatus.failed,
+            errorMessage: 'Failed to send message with images',
+          );
+        }
+      });
     }
   }
 
@@ -1113,10 +1371,12 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         final uploadedUrl = await _uploadFile(file);
         if (uploadedUrl != null) {
           final extension = file.extension?.toLowerCase() ?? '';
+          final fileSize = _formatFileSize(file.size ?? 0);
           uploadedDocs.add(MessageDocument(
             url: uploadedUrl,
             filename: file.name,
             type: extension,
+            size: fileSize,
           ));
         }
       }
@@ -1222,8 +1482,17 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     final tempMessageId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
     
     // Create content with attachments
+    String messageType = 'text';
+    if (pictures != null && pictures.isNotEmpty) {
+      if (messageText.isEmpty) {
+        messageType = pictures.length == 1 ? 'image' : 'text_with_images';
+      } else {
+        messageType = 'text_with_images';
+      }
+    }
+    
     final Map<String, dynamic> contentMap = {
-      'type': 'text',
+      'type': messageType,
       'body': messageText,
     };
     
@@ -1246,6 +1515,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       content: messageText,
       pictures: pictures ?? [],
       documents: documents ?? [],
+      messageType: messageType,
       createdAt: DateTime.now(),
       status: MessageStatus.sending,
     );
@@ -1255,6 +1525,11 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       _isComposing = false;
       _messages.add(optimisticMessage);
     });
+    
+    // Debug logging
+    print('Sending message with ${pictures?.length ?? 0} pictures');
+    print('Message type: $messageType');
+    print('Message content: "$messageText"');
     
     // Send message
     try {
@@ -1355,7 +1630,68 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     return spans;
   }
 
+  Widget _buildImageWidget(MessageImage image) {
+    // Check if it's a local file path (during upload) or network URL
+    final isLocalFile = image.url.startsWith('/') || image.url.startsWith('file://') || !image.url.startsWith('http');
+    
+    if (isLocalFile && File(image.url).existsSync()) {
+      return Image.file(
+        File(image.url),
+        fit: BoxFit.cover,
+        height: 200,
+        width: double.infinity,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            height: 200,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.grey[800]
+                : Colors.grey[300],
+            child: Center(
+              child: Icon(
+                Icons.broken_image,
+                size: 48,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white.withOpacity(0.5)
+                    : Colors.grey[600],
+              ),
+            ),
+          );
+        },
+      );
+    } else {
+      return Image.network(
+        image.url,
+        fit: BoxFit.cover,
+        height: 200,
+        width: double.infinity,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            height: 200,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.grey[800]
+                : Colors.grey[300],
+            child: Center(
+              child: Icon(
+                Icons.broken_image,
+                size: 48,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white.withOpacity(0.5)
+                    : Colors.grey[600],
+              ),
+            ),
+          );
+        },
+      );
+    }
+  }
+
   Widget _buildImageGallery(List<MessageImage> images) {
+    // Debug logging
+    print('Building image gallery with ${images.length} images');
+    for (int i = 0; i < images.length; i++) {
+      print('Image $i: ${images[i].url}');
+    }
+    
     // If only 1-2 images, show them without borders/background
     if (images.length <= 2) {
       return Column(
@@ -1369,29 +1705,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    image.url,
-                    fit: BoxFit.cover,
-                    height: 200,
-                    width: double.infinity,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        height: 200,
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.grey[800]
-                            : Colors.grey[300],
-                        child: Center(
-                          child: Icon(
-                            Icons.broken_image,
-                            size: 48,
-                            color: Theme.of(context).brightness == Brightness.dark
-                                ? Colors.white.withOpacity(0.5)
-                                : Colors.grey[600],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                  child: _buildImageWidget(image),
                 ),
                 if (image.caption != null && image.caption!.isNotEmpty) ...[
                   SizedBox(height: 4),
@@ -1530,14 +1844,29 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                           fontSize: 14,
                         ),
                       ),
-                      Text(
-                        doc.type.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? Colors.white.withOpacity(0.6)
-                              : Colors.grey[600],
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            doc.type.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.white.withOpacity(0.6)
+                                  : Colors.grey[600],
+                            ),
+                          ),
+                          if (doc.size != null) ...[
+                            Text(
+                              ' • ${doc.size}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white.withOpacity(0.6)
+                                    : Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),
@@ -1697,10 +2026,20 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   }
 
   void _launchUrl(String url) async {
-    // For now, just show a snackbar - you can implement url_launcher here
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Opening: $url')),
-    );
+    try {
+      final Uri uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not launch $url')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error opening link: $e')),
+      );
+    }
   }
 
   void _showImageDialog(List<MessageImage> images, int initialIndex) {
@@ -1869,6 +2208,23 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       ),
     );
   }
+  
+  List<String> _getPopularEmojis() {
+    return [
+      '😀', '😂', '😍', '🥰', '😊', '😉', '😎', '🤔',
+      '😢', '😭', '😡', '🤬', '🥺', '😤', '😴', '🤤',
+      '👍', '👎', '👏', '🙌', '👋', '✋', '👌', '🤞',
+      '💪', '🙏', '✨', '🔥', '💯', '❤️', '💔', '😘',
+      '🏏', '⚾', '🏀', '⚽', '🎾', '🏆', '🥇', '🎉',
+      '🎊', '🎈', '🎁', '🍕', '🍔', '🍟', '🍗', '🌮',
+    ];
+  }
+  
+  String _formatFileSize(int bytes) {
+    if (bytes < 1024) return '${bytes}B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)}KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)}MB';
+  }
 
   Widget _buildLoadingState() {
     return Center(
@@ -1989,205 +2345,3 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   }
 }
 
-enum MessageStatus { sending, sent, failed }
-
-class MessageImage {
-  final String url;
-  final String? caption;
-  
-  MessageImage({required this.url, this.caption});
-  
-  factory MessageImage.fromJson(Map<String, dynamic> json) {
-    return MessageImage(
-      url: json['url'] ?? '',
-      caption: json['caption'],
-    );
-  }
-  
-  Map<String, dynamic> toJson() => {
-    'url': url,
-    if (caption != null) 'caption': caption,
-  };
-}
-
-class MessageDocument {
-  final String url;
-  final String filename;
-  final String type; // 'pdf' or 'txt'
-  
-  MessageDocument({required this.url, required this.filename, required this.type});
-  
-  factory MessageDocument.fromJson(Map<String, dynamic> json) {
-    return MessageDocument(
-      url: json['url'] ?? '',
-      filename: json['filename'] ?? '',
-      type: json['type'] ?? '',
-    );
-  }
-  
-  Map<String, dynamic> toJson() => {
-    'url': url,
-    'filename': filename,
-    'type': type,
-  };
-}
-
-class LinkMetadata {
-  final String url;
-  final String? title;
-  final String? description;
-  final String? image;
-  final String? siteName;
-  final String? favicon;
-  
-  LinkMetadata({
-    required this.url,
-    this.title,
-    this.description,
-    this.image,
-    this.siteName,
-    this.favicon,
-  });
-  
-  factory LinkMetadata.fromJson(Map<String, dynamic> json) {
-    return LinkMetadata(
-      url: json['url'] ?? '',
-      title: json['title'],
-      description: json['description'],
-      image: json['image'],
-      siteName: json['siteName'],
-      favicon: json['favicon'],
-    );
-  }
-  
-  Map<String, dynamic> toJson() => {
-    'url': url,
-    if (title != null) 'title': title,
-    if (description != null) 'description': description,
-    if (image != null) 'image': image,
-    if (siteName != null) 'siteName': siteName,
-    if (favicon != null) 'favicon': favicon,
-  };
-}
-
-class ClubMessage {
-  final String id;
-  final String clubId;
-  final String senderId;
-  final String senderName;
-  final String? senderProfilePicture;
-  final String? senderRole;
-  final String content;
-  final List<MessageImage> pictures;
-  final List<MessageDocument> documents;
-  final List<LinkMetadata> linkMeta;
-  final DateTime createdAt;
-  final MessageStatus status;
-  final String? errorMessage;
-
-  ClubMessage({
-    required this.id,
-    required this.clubId,
-    required this.senderId,
-    required this.senderName,
-    this.senderProfilePicture,
-    this.senderRole,
-    required this.content,
-    this.pictures = const [],
-    this.documents = const [],
-    this.linkMeta = const [],
-    required this.createdAt,
-    this.status = MessageStatus.sent,
-    this.errorMessage,
-  });
-
-  ClubMessage copyWith({
-    MessageStatus? status,
-    String? errorMessage,
-    List<MessageImage>? pictures,
-    List<MessageDocument>? documents,
-    List<LinkMetadata>? linkMeta,
-  }) {
-    return ClubMessage(
-      id: id,
-      clubId: clubId,
-      senderId: senderId,
-      senderName: senderName,
-      senderProfilePicture: senderProfilePicture,
-      senderRole: senderRole,
-      content: content,
-      pictures: pictures ?? this.pictures,
-      documents: documents ?? this.documents,
-      linkMeta: linkMeta ?? this.linkMeta,
-      createdAt: createdAt,
-      status: status ?? this.status,
-      errorMessage: errorMessage ?? this.errorMessage,
-    );
-  }
-
-  factory ClubMessage.fromJson(Map<String, dynamic> json) {
-    // Handle content - it could be a string or an object with type/body
-    String messageContent = '';
-    List<MessageImage> pictures = [];
-    List<MessageDocument> documents = [];
-    List<LinkMetadata> linkMeta = [];
-    
-    final content = json['content'];
-    if (content is String) {
-      messageContent = content;
-    } else if (content is Map<String, dynamic>) {
-      messageContent = content['body'] ?? content['text'] ?? '';
-      
-      // Parse pictures array
-      if (content['pictures'] is List) {
-        pictures = (content['pictures'] as List)
-            .map((pic) => MessageImage.fromJson(pic as Map<String, dynamic>))
-            .toList();
-      }
-      
-      // Parse documents array
-      if (content['documents'] is List) {
-        documents = (content['documents'] as List)
-            .map((doc) => MessageDocument.fromJson(doc as Map<String, dynamic>))
-            .toList();
-      }
-      
-      // Parse link metadata array
-      if (content['meta'] is List) {
-        linkMeta = (content['meta'] as List)
-            .map((meta) => LinkMetadata.fromJson(meta as Map<String, dynamic>))
-            .toList();
-      }
-    }
-    
-    // Extract sender info from nested objects if available
-    String senderName = 'Unknown';
-    String? senderProfilePicture;
-    String? senderRole;
-    
-    if (json.containsKey('sender') && json['sender'] is Map) {
-      final senderData = json['sender'] as Map<String, dynamic>;
-      senderName = senderData['name'] ?? senderName;
-      senderProfilePicture = senderData['profilePicture'];
-      senderRole = senderData['clubRole'] ?? 'MEMBER';
-    } else {
-      senderName = json['senderName'] ?? senderName;
-      senderProfilePicture = json['senderProfilePicture'];
-      senderRole = json['senderRole'] ?? json['clubRole'];
-    }
-    
-    return ClubMessage(
-      id: json['messageId'] ?? json['id'] ?? '',
-      clubId: json['clubId'] ?? '',
-      senderId: json['senderId'] ?? '',
-      senderName: senderName,
-      senderProfilePicture: senderProfilePicture,
-      senderRole: senderRole,
-      content: messageContent,
-      pictures: pictures,
-      documents: documents,
-      linkMeta: linkMeta,
-      createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
-    );
-  }
-}
