@@ -524,6 +524,316 @@ class AppTheme {
     ),
   );
 
+  // Dark Theme
+  static ThemeData get duggyDarkTheme {
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: primaryBlue,
+        brightness: Brightness.dark,
+        primary: lightBlue,
+        secondary: lighterBlue,
+        surface: Color(0xFF1a1a1a),
+        background: Color(0xFF121212),
+        error: errorRed,
+      ),
+      scaffoldBackgroundColor: Color(0xFF121212),
+      
+      // App Bar Theme - Dark
+      appBarTheme: AppBarTheme(
+        backgroundColor: Color(0xFF1e1e1e),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: false,
+        toolbarHeight: 56,
+        titleTextStyle: TextStyle(
+          color: Colors.white,
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+        ),
+        iconTheme: IconThemeData(color: Colors.white, size: 22),
+      ),
+      
+      // Card Theme - Dark
+      cardTheme: CardThemeData(
+        color: Color(0xFF1e1e1e),
+        elevation: 0,
+        margin: EdgeInsets.all(0),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(4),
+          side: BorderSide(
+            color: Color(0xFF333333).withOpacity(0.3),
+            width: 0.5,
+          ),
+        ),
+        shadowColor: Colors.black.withOpacity(0.3),
+      ),
+      
+      // Elevated Button Theme - Dark
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: lightBlue,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          textStyle: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      
+      // Outlined Button Theme - Dark
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: lightBlue,
+          side: BorderSide(color: lightBlue.withOpacity(0.3)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          textStyle: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      
+      // Text Button Theme - Dark
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: lightBlue,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          textStyle: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      
+      // Input Decoration Theme - Dark
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Color(0xFF2a2a2a),
+        isDense: true,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+            color: Color(0xFF444444).withOpacity(0.5),
+            width: 1,
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+            color: Color(0xFF444444).withOpacity(0.5),
+            width: 1,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+            color: lightBlue,
+            width: 2,
+          ),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+            color: errorRed,
+            width: 1,
+          ),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+            color: errorRed,
+            width: 2,
+          ),
+        ),
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        hintStyle: TextStyle(
+          color: Colors.grey[400],
+          fontSize: 14,
+        ),
+        labelStyle: TextStyle(
+          color: Colors.grey[400],
+          fontSize: 14,
+        ),
+      ),
+      
+      // Bottom Navigation Bar Theme - Dark
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: Color(0xFF1e1e1e),
+        selectedItemColor: lightBlue,
+        unselectedItemColor: Colors.grey[400],
+        type: BottomNavigationBarType.fixed,
+        elevation: 0,
+        selectedLabelStyle: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelStyle: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.normal,
+        ),
+      ),
+      
+      // Drawer Theme - Dark
+      drawerTheme: DrawerThemeData(
+        backgroundColor: Color(0xFF1e1e1e),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.only(
+            topRight: Radius.circular(24),
+            bottomRight: Radius.circular(24),
+          ),
+        ),
+      ),
+      
+      // List Tile Theme - Dark
+      listTileTheme: ListTileThemeData(
+        dense: true,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        iconColor: lightBlue,
+        textColor: Colors.white,
+        minVerticalPadding: 2,
+      ),
+      
+      // Text Theme - Dark
+      textTheme: TextTheme(
+        displayLarge: TextStyle(
+          color: Colors.white,
+          fontSize: 32,
+          fontWeight: FontWeight.bold,
+        ),
+        displayMedium: TextStyle(
+          color: Colors.white,
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+        ),
+        displaySmall: TextStyle(
+          color: Colors.white,
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+        ),
+        headlineLarge: TextStyle(
+          color: Colors.white,
+          fontSize: 22,
+          fontWeight: FontWeight.w600,
+        ),
+        headlineMedium: TextStyle(
+          color: Colors.white,
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+        ),
+        headlineSmall: TextStyle(
+          color: Colors.white,
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+        ),
+        titleLarge: TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+        ),
+        titleMedium: TextStyle(
+          color: Colors.white,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+        titleSmall: TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+        bodyLarge: TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+          fontWeight: FontWeight.normal,
+        ),
+        bodyMedium: TextStyle(
+          color: Colors.white,
+          fontSize: 14,
+          fontWeight: FontWeight.normal,
+        ),
+        bodySmall: TextStyle(
+          color: Colors.grey[400],
+          fontSize: 12,
+          fontWeight: FontWeight.normal,
+        ),
+        labelLarge: TextStyle(
+          color: Colors.white,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+        labelMedium: TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+        ),
+        labelSmall: TextStyle(
+          color: Colors.grey[400],
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      
+      // Progress Indicator Theme - Dark
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: lightBlue,
+        linearTrackColor: lightBlue.withOpacity(0.2),
+        circularTrackColor: lightBlue.withOpacity(0.2),
+      ),
+      
+      // Divider Theme - Dark
+      dividerTheme: DividerThemeData(
+        color: Color(0xFF333333).withOpacity(0.3),
+        thickness: 0.5,
+        space: 1,
+      ),
+      
+      // Dialog Theme - Dark
+      dialogTheme: DialogThemeData(
+        backgroundColor: Color(0xFF1e1e1e),
+        elevation: 8,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        titleTextStyle: TextStyle(
+          color: Colors.white,
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+        ),
+        contentTextStyle: TextStyle(
+          color: Colors.grey[400],
+          fontSize: 16,
+        ),
+      ),
+      
+      // Snack Bar Theme - Dark
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: Color(0xFF333333),
+        contentTextStyle: TextStyle(color: Colors.white),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(4),
+        ),
+        behavior: SnackBarBehavior.floating,
+        elevation: 4,
+      ),
+    );
+  }
+
   // Legacy alias for backward compatibility
   static ThemeData get cricketTheme => duggyTheme;
 }

@@ -128,260 +128,255 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text('Transactions'),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        foregroundColor: AppTheme.primaryTextColor,
-        actions: [
-          IconButton(
-            icon: Container(
-              padding: EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.cricketGreen.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                Icons.filter_list,
-                color: AppTheme.cricketGreen,
-                size: 20,
+        foregroundColor: Theme.of(context).textTheme.titleLarge?.color,
+        title: Row(
+          children: [
+            Expanded(
+              child: Container(
+                height: 40,
+                child: TextField(
+                  controller: _searchController,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Search transactions...',
+                    hintStyle: TextStyle(
+                      color: Theme.of(context).textTheme.bodySmall?.color,
+                      fontSize: 14,
+                    ),
+                    prefixIcon: Icon(
+                      Icons.search,
+                      color: Theme.of(context).iconTheme.color,
+                      size: 20,
+                    ),
+                    filled: true,
+                    fillColor: Theme.of(context).cardColor,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).primaryColor,
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                  onSubmitted: (value) {
+                    _searchQuery = value;
+                    _applyFilters();
+                  },
+                ),
               ),
             ),
-            onPressed: _showFilterBottomSheet,
-          ),
-          SizedBox(width: 8),
-        ],
+            SizedBox(width: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: IconButton(
+                icon: Icon(
+                  Icons.filter_list,
+                  color: Theme.of(context).primaryColor,
+                  size: 20,
+                ),
+                onPressed: _showFilterBottomSheet,
+              ),
+            ),
+          ],
+        ),
       ),
       body: RefreshIndicator(
         onRefresh: () => _loadTransactions(isRefresh: true),
-        color: AppTheme.cricketGreen,
-        child: Column(
-          children: [
-            // Search Bar
-            Container(
-              margin: EdgeInsets.all(16),
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'Search transactions...',
-                  prefixIcon: Icon(
-                    Icons.search,
-                    color: AppTheme.cricketGreen,
-                  ),
-                  suffixIcon: _searchQuery.isNotEmpty
-                      ? IconButton(
-                          icon: Icon(
-                            Icons.clear,
-                            color: AppTheme.secondaryTextColor,
-                          ),
-                          onPressed: () {
-                            _searchController.clear();
-                            _searchQuery = '';
-                            _applyFilters();
-                          },
-                        )
-                      : null,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: AppTheme.dividerColor.withOpacity(0.5),
-                      width: 1,
-                    ),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: AppTheme.dividerColor.withOpacity(0.5),
-                      width: 1,
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: AppTheme.cricketGreen,
-                      width: 2,
-                    ),
-                  ),
-                  filled: true,
-                  fillColor: AppTheme.surfaceColor,
+        color: Theme.of(context).primaryColor,
+        child: _isLoading
+            ? Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 3,
+                  color: Theme.of(context).primaryColor,
                 ),
-                onSubmitted: (value) {
-                  _searchQuery = value;
-                  _applyFilters();
-                },
-              ),
-            ),
-
-            // Summary Card
-            Container(
-              width: double.infinity,
-              margin: EdgeInsets.symmetric(horizontal: 16),
-              padding: EdgeInsets.all(24),
-              decoration: AppTheme.gradientDecoration.copyWith(
-                boxShadow: [
-                  BoxShadow(
-                    color: AppTheme.cricketGreen.withOpacity(0.2),
-                    blurRadius: 20,
-                    offset: Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    'Net Balance',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
-                      fontSize: 16,
+              )
+            : _transactions.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: EdgeInsets.all(32),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).primaryColor.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.receipt_long_outlined,
+                            size: 64,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        ),
+                        SizedBox(height: 24),
+                        Text(
+                          'No transactions found',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).textTheme.titleLarge?.color,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Your transaction history will appear here',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    '₹${_netBalance.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 32,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          children: [
-                            Text(
-                              'Credits',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.8),
-                                fontSize: 12,
-                              ),
+                  )
+                : CustomScrollView(
+                    slivers: [
+                      // Summary Card as header
+                      SliverToBoxAdapter(
+                        child: Container(
+                          width: double.infinity,
+                          margin: EdgeInsets.all(16),
+                          padding: EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Theme.of(context).primaryColor, Theme.of(context).primaryColorDark],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
-                            SizedBox(height: 4),
-                            Text(
-                              '₹${_totalCredits.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Theme.of(context).primaryColor.withOpacity(0.2),
+                                blurRadius: 20,
+                                offset: Offset(0, 8),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: Column(
-                          children: [
-                            Text(
-                              'Debits',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.8),
-                                fontSize: 12,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              '₹${_totalDebits.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: Column(
-                          children: [
-                            Text(
-                              'Total',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.8),
-                                fontSize: 12,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              '$_totalTransactions',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            SizedBox(height: 16),
-
-            // Transactions List
-            Expanded(
-              child: _isLoading
-                  ? Center(
-                      child: CircularProgressIndicator(
-                        strokeWidth: 3,
-                        color: AppTheme.cricketGreen,
-                      ),
-                    )
-                  : _transactions.isEmpty
-                      ? Center(
+                            ],
+                          ),
                           child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Container(
-                                padding: EdgeInsets.all(32),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.cricketGreen.withOpacity(0.1),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  Icons.receipt_long_outlined,
-                                  size: 64,
-                                  color: AppTheme.cricketGreen,
-                                ),
-                              ),
-                              SizedBox(height: 24),
                               Text(
-                                'No transactions found',
+                                'Net Balance',
                                 style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppTheme.primaryTextColor,
+                                  color: Colors.white.withOpacity(0.8),
+                                  fontSize: 16,
                                 ),
                               ),
                               SizedBox(height: 8),
                               Text(
-                                'Your transaction history will appear here',
+                                '₹${_netBalance.toStringAsFixed(2)}',
                                 style: TextStyle(
-                                  fontSize: 16,
-                                  color: AppTheme.secondaryTextColor,
+                                  color: Colors.white,
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.w600,
                                 ),
+                              ),
+                              SizedBox(height: 20),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      children: [
+                                        Text(
+                                          'Credits',
+                                          style: TextStyle(
+                                            color: Colors.white.withOpacity(0.8),
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        SizedBox(height: 4),
+                                        Text(
+                                          '₹${_totalCredits.toStringAsFixed(2)}',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Column(
+                                      children: [
+                                        Text(
+                                          'Debits',
+                                          style: TextStyle(
+                                            color: Colors.white.withOpacity(0.8),
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        SizedBox(height: 4),
+                                        Text(
+                                          '₹${_totalDebits.toStringAsFixed(2)}',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Column(
+                                      children: [
+                                        Text(
+                                          'Total',
+                                          style: TextStyle(
+                                            color: Colors.white.withOpacity(0.8),
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        SizedBox(height: 4),
+                                        Text(
+                                          '$_totalTransactions',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                        )
-                      : ListView.builder(
-                          padding: EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: _transactions.length + 1, // +1 for pagination
-                          itemBuilder: (context, index) {
+                        ),
+                      ),
+                      // Transaction List
+                      SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
                             if (index == _transactions.length) {
                               return _buildPaginationWidget();
                             }
                             final transaction = _transactions[index];
                             return _buildTransactionCard(transaction);
                           },
+                          childCount: _transactions.length + 1,
                         ),
-            ),
-          ],
-        ),
+                      ),
+                    ],
+                  ),
       ),
     );
   }
@@ -391,8 +386,22 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     final icon = _getTransactionIcon(transaction.purpose);
     
     return Container(
-      margin: EdgeInsets.only(bottom: 12),
-      decoration: AppTheme.softCardDecoration,
+      margin: EdgeInsets.only(bottom: 12, left: 16, right: 16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withOpacity(0.3),
+          width: 0.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
       child: Padding(
         padding: EdgeInsets.all(16),
         child: Row(
@@ -430,7 +439,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 16,
-                      color: AppTheme.primaryTextColor,
+                      color: Theme.of(context).textTheme.titleLarge?.color,
                     ),
                   ),
                   SizedBox(height: 4),
@@ -439,13 +448,13 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       Container(
                         padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: AppTheme.cricketGreen.withOpacity(0.1),
+                          color: Theme.of(context).primaryColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           _getPurposeText(transaction.purpose),
                           style: TextStyle(
-                            color: AppTheme.cricketGreen,
+                            color: Theme.of(context).primaryColor,
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                           ),
@@ -456,7 +465,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         Text(
                           '• ${transaction.club!.name}',
                           style: TextStyle(
-                            color: AppTheme.secondaryTextColor,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
                           ),
@@ -468,7 +477,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   Text(
                     DateFormat('MMM dd, yyyy • hh:mm a').format(transaction.createdAt),
                     style: TextStyle(
-                      color: AppTheme.secondaryTextColor,
+                      color: Theme.of(context).textTheme.bodySmall?.color,
                       fontSize: 12,
                     ),
                   ),

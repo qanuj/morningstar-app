@@ -1,18 +1,16 @@
 // lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:io' show Platform;
 import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
 import '../providers/club_provider.dart';
-import '../services/auth_service.dart';
+import '../providers/theme_provider.dart';
 import 'clubs.dart';
 import 'matches.dart';
 import 'transactions.dart';
 import 'store.dart';
 import 'polls.dart';
 import 'profile.dart';
-import 'login.dart';
 import 'notifications.dart';
 import 'my_orders.dart';
 import '../utils/theme.dart';
@@ -23,52 +21,36 @@ class HomeScreen extends StatefulWidget {
   _HomeScreenState createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  late AnimationController _headerAnimationController;
-  late Animation<double> _headerAnimation;
-  final ScrollController _scrollController = ScrollController();
-  Widget _currentScreen = MatchesScreen();
-  String _currentTitle = 'Matches';
+  int _selectedIndex = 0;
+  
+  final List<Widget> _screens = [
+    _DashboardScreen(), // Home dashboard
+    MatchesScreen(),
+    TransactionsScreen(),
+  ];
+  
+  final List<String> _titles = [
+    'Dashboard',
+    'Matches', 
+    'Transactions',
+  ];
 
-  @override
-  void initState() {
-    super.initState();
-    _headerAnimationController = AnimationController(
-      duration: Duration(milliseconds: 200),
-      vsync: this,
-    );
-    _headerAnimation = Tween<double>(begin: 1.0, end: 0.8).animate(
-      CurvedAnimation(
-        parent: _headerAnimationController,
-        curve: Curves.easeOutCubic,
-      ),
-    );
-
-    _scrollController.addListener(() {
-      if (_scrollController.offset > 30) {
-        _headerAnimationController.forward();
-      } else {
-        _headerAnimationController.reverse();
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _headerAnimationController.dispose();
-    _scrollController.dispose();
-    super.dispose();
-  }
 
   void _navigateToScreen(Widget screen, String title) {
-    setState(() {
-      _currentScreen = screen;
-      _currentTitle = title;
-    });
+    // For drawer navigation to screens not in bottom tabs
     Navigator.of(context).pop(); // Close drawer
-
-    // Soft haptic feedback
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => screen),
+    );
+    HapticFeedback.lightImpact();
+  }
+  
+  void _onBottomNavTap(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
     HapticFeedback.lightImpact();
   }
 
@@ -76,165 +58,135 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       drawer: _buildSideDrawer(),
-      body: NestedScrollView(
-        controller: _scrollController,
-        headerSliverBuilder: (context, innerBoxIsScrolled) {
-          return [
-            SliverAppBar(
-              expandedHeight: 120,
-              floating: false,
-              pinned: true,
-              elevation: 0,
-              backgroundColor: AppTheme.cricketGreen,
-              surfaceTintColor: Colors.transparent,
-              flexibleSpace: FlexibleSpaceBar(
-                centerTitle: false,
-                titlePadding: EdgeInsets.zero,
-                title: Container(
-                  padding: EdgeInsets.only(
-                    left: 72,
-                    right: 16,
-                    bottom: Platform.isIOS ? 12 : 16,
-                  ),
-                  child: AnimatedBuilder(
-                    animation: _headerAnimation,
-                    builder: (context, child) {
-                      return Consumer<ClubProvider>(
-                        builder: (context, clubProvider, child) {
-                          return Row(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              if (clubProvider.currentClub?.club.logo != null)
-                                Container(
-                                  width: 28 * _headerAnimation.value,
-                                  height: 28 * _headerAnimation.value,
-                                  margin: EdgeInsets.only(right: 12),
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.1),
-                                        blurRadius: 8,
-                                        offset: Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: ClipOval(
-                                    child: Image.network(
-                                      clubProvider.currentClub!.club.logo!,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) {
-                                            return Container(
-                                              decoration: BoxDecoration(
-                                                color: Colors.white,
-                                                shape: BoxShape.circle,
-                                              ),
-                                              child: DuggyLogoVariant.small(
-                                                color: AppTheme.primaryBlue,
-                                              ),
-                                            );
-                                          },
-                                    ),
-                                  ),
-                                ),
-                              Flexible(
-                                child: Text(
-                                  clubProvider.currentClub?.club.name ??
-                                      'Duggy',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18 * _headerAnimation.value,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 0.2,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ),
-              actions: [
-                _buildHeaderAction(
-                  icon: Icons.notifications_outlined,
-                  onPressed: () {
-                    HapticFeedback.lightImpact();
-                    Navigator.of(context).push(
-                      PageRouteBuilder(
-                        pageBuilder: (context, animation, secondaryAnimation) =>
-                            NotificationsScreen(),
-                        transitionsBuilder:
-                            (context, animation, secondaryAnimation, child) {
-                              return SlideTransition(
-                                position: animation.drive(
-                                  Tween(
-                                    begin: Offset(1.0, 0.0),
-                                    end: Offset.zero,
-                                  ).chain(
-                                    CurveTween(curve: Curves.easeOutCubic),
-                                  ),
-                                ),
-                                child: child,
-                              );
-                            },
-                      ),
-                    );
-                  },
-                ),
-                SizedBox(width: 12),
-              ],
-              leading: _buildHeaderAction(
-                icon: Icons.menu,
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  _scaffoldKey.currentState?.openDrawer();
-                },
-              ),
-            ),
-          ];
-        },
-        body: Container(
-          decoration: BoxDecoration(
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+        elevation: 0,
+        foregroundColor: Theme.of(context).appBarTheme.foregroundColor,
+        leading: GestureDetector(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            _scaffoldKey.currentState?.openDrawer();
+          },
+          child: Icon(
+            Icons.menu,
             color: Colors.white,
-          ),
-          child: ClipRRect(
-            child: _currentScreen,
+            size: 24,
           ),
         ),
+        title: Row(
+          children: [
+            DuggyLogoVariant.small(color: Colors.white),
+            SizedBox(width: 12),
+            Text(
+              'Duggy',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              Navigator.of(context).push(
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) =>
+                      NotificationsScreen(),
+                  transitionsBuilder:
+                      (context, animation, secondaryAnimation, child) {
+                        return SlideTransition(
+                          position: animation.drive(
+                            Tween(
+                              begin: Offset(1.0, 0.0),
+                              end: Offset.zero,
+                            ).chain(
+                              CurveTween(curve: Curves.easeOutCubic),
+                            ),
+                          ),
+                          child: child,
+                        );
+                      },
+                ),
+              );
+            },
+            child: Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: Icon(
+                Icons.notifications_outlined,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => ClubsScreen()),
+              );
+            },
+            child: Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: Icon(
+                Icons.swap_horiz,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: Container(
+        decoration: BoxDecoration(color: Colors.white),
+        child: ClipRRect(child: _screens[_selectedIndex]),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: _onBottomNavTap,
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.white,
+        selectedItemColor: AppTheme.cricketGreen,
+        unselectedItemColor: Colors.grey[600],
+        selectedLabelStyle: TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 12,
+        ),
+        unselectedLabelStyle: TextStyle(
+          fontWeight: FontWeight.w500,
+          fontSize: 12,
+        ),
+        elevation: 10,
+        items: [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.sports_cricket_outlined),
+            activeIcon: Icon(Icons.sports_cricket),
+            label: 'Matches',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.account_balance_wallet_outlined),
+            activeIcon: Icon(Icons.account_balance_wallet),
+            label: 'Transactions',
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildHeaderAction({
-    required IconData icon,
-    required VoidCallback onPressed,
-  }) {
-    return Container(
-      margin: EdgeInsets.only(left: 4),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          child: Container(
-            padding: EdgeInsets.all(5),
-            child: Icon(icon, color: Colors.white, size: 20),
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildSideDrawer() {
     return Drawer(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).drawerTheme.backgroundColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.only(
           topRight: Radius.circular(0),
@@ -249,172 +201,173 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           return Column(
             children: [
               // Profile Header
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.only(
-                  top: MediaQuery.of(context).padding.top + 20,
-                  bottom: 24,
-                  left: 20,
-                  right: 20,
-                ),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppTheme.cricketGreen, AppTheme.darkGreen],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+              GestureDetector(
+                onTap: () {
+                  Navigator.of(context).pop(); // Close drawer first
+                  _navigateToScreen(ProfileScreen(), 'Profile');
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.only(
+                    top: MediaQuery.of(context).padding.top + 20,
+                    bottom: 24,
+                    left: 20,
+                    right: 20,
                   ),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(0),
-                    bottomRight: Radius.circular(0),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Theme.of(context).primaryColor, Theme.of(context).primaryColorDark],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(0),
+                      bottomRight: Radius.circular(0),
+                    ),
                   ),
-                ),
-                child: Column(
-                  children: [
-                    Container(
-                      width: 70,
-                      height: 70,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 10,
-                            offset: Offset(0, 4),
-                          ),
-                        ],
+                  child: Row(
+                    children: [
+                      // User Picture on Left
+                      Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 10,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: ClipOval(
+                          child: user?.profilePicture != null
+                              ? Image.network(
+                                  user!.profilePicture!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Container(
+                                      color: AppTheme.cricketGreen.withOpacity(
+                                        0.1,
+                                      ),
+                                      child: Icon(
+                                        Icons.person,
+                                        color: AppTheme.cricketGreen,
+                                        size: 28,
+                                      ),
+                                    );
+                                  },
+                                )
+                              : Container(
+                                  color: AppTheme.cricketGreen.withOpacity(0.1),
+                                  child: Icon(
+                                    Icons.person,
+                                    color: AppTheme.cricketGreen,
+                                    size: 28,
+                                  ),
+                                ),
+                        ),
                       ),
-                      child: ClipOval(
-                        child: user?.profilePicture != null
-                            ? Image.network(
-                                user!.profilePicture!,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    color: AppTheme.cricketGreen.withOpacity(
-                                      0.1,
-                                    ),
-                                    child: Icon(
-                                      Icons.person,
-                                      color: AppTheme.cricketGreen,
-                                      size: 32,
-                                    ),
-                                  );
-                                },
-                              )
-                            : Container(
-                                color: AppTheme.cricketGreen.withOpacity(0.1),
-                                child: Icon(
-                                  Icons.person,
-                                  color: AppTheme.cricketGreen,
-                                  size: 32,
+                      SizedBox(width: 16),
+                      // User Info on Right
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              user?.name ?? 'User',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              user?.phoneNumber ?? '',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.8),
+                                fontSize: 14,
+                              ),
+                            ),
+                            if (currentClub != null) ...[
+                              SizedBox(height: 8),
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.1),
+                                    width: 0.5,
+                                  ),
+                                ),
+                                child: Text(
+                                  currentClub.role,
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
-                      ),
-                    ),
-                    SizedBox(height: 12),
-                    Text(
-                      user?.name ?? 'User',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      user?.phoneNumber ?? '',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.8),
-                        fontSize: 14,
-                      ),
-                    ),
-                    if (currentClub != null) ...[
-                      SizedBox(height: 8),
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
+                            ],
+                          ],
                         ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.1),
-                            width: 0.5,
-                          ),
-                        ),
-                        child: Text(
-                          currentClub.role,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
+                      ),
+                      // Chevron to indicate tap functionality
+                      Icon(
+                        Icons.chevron_right,
+                        color: Colors.white.withOpacity(0.6),
+                        size: 24,
                       ),
                     ],
-                  ],
+                  ),
                 ),
               ),
 
               // Menu Items
               Expanded(
                 child: ListView(
-                  padding: EdgeInsets.symmetric(vertical: 16),
+                  padding: EdgeInsets.symmetric(vertical: 2),
                   children: [
                     // Main Features
-                    _buildSectionHeader('Main'),
-                    _buildDrawerItem(
-                      icon: Icons.sports_cricket_outlined,
-                      title: 'Matches',
-                      isSelected: _currentTitle == 'Matches',
-                      onTap: () =>
-                          _navigateToScreen(MatchesScreen(), 'Matches'),
-                    ),
+                    _buildSectionHeader('Features'),
                     _buildDrawerItem(
                       icon: Icons.store_outlined,
                       title: 'Store',
-                      isSelected: _currentTitle == 'Store',
                       onTap: () => _navigateToScreen(StoreScreen(), 'Store'),
                     ),
                     _buildDrawerItem(
                       icon: Icons.shopping_bag_outlined,
                       title: 'My Orders',
-                      isSelected: _currentTitle == 'My Orders',
                       onTap: () =>
                           _navigateToScreen(MyOrdersScreen(), 'My Orders'),
                     ),
                     _buildDrawerItem(
                       icon: Icons.poll_outlined,
                       title: 'Polls',
-                      isSelected: _currentTitle == 'Polls',
                       onTap: () => _navigateToScreen(PollsScreen(), 'Polls'),
                     ),
 
-                    SizedBox(height: 20),
+                    SizedBox(height: 2),
 
                     // Club & Account
                     _buildSectionHeader('Club & Account'),
                     _buildDrawerItem(
                       icon: Icons.groups_outlined,
                       title: 'My Clubs',
-                      isSelected: _currentTitle == 'My Clubs',
                       onTap: () => _navigateToScreen(ClubsScreen(), 'My Clubs'),
-                    ),
-                    _buildDrawerItem(
-                      icon: Icons.account_balance_wallet_outlined,
-                      title: 'Transactions',
-                      isSelected: _currentTitle == 'Transactions',
-                      onTap: () => _navigateToScreen(
-                        TransactionsScreen(),
-                        'Transactions',
-                      ),
                     ),
                     _buildDrawerItem(
                       icon: Icons.person_outline,
                       title: 'Profile',
-                      isSelected: _currentTitle == 'Profile',
                       onTap: () =>
                           _navigateToScreen(ProfileScreen(), 'Profile'),
                     ),
@@ -423,6 +376,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
                     // Settings
                     _buildSectionHeader('Settings'),
+                    _buildThemeSwitcher(),
                     _buildDrawerItem(
                       icon: Icons.help_outline,
                       title: 'Help & Support',
@@ -442,55 +396,224 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ],
                 ),
               ),
-
-              // Logout Button
-              Container(
-                padding: EdgeInsets.all(20),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      _showLogoutDialog();
-                    },
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      width: double.infinity,
-                      padding: EdgeInsets.symmetric(vertical: 14),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.red.withOpacity(0.1),
-                          width: 0.5,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.logout_outlined,
-                            color: Colors.red,
-                            size: 20,
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            'Logout',
-                            style: TextStyle(
-                              color: Colors.red,
-                              fontWeight: FontWeight.w500,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildThemeSwitcher() {
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        return Container(
+          margin: EdgeInsets.symmetric(horizontal: 12, vertical: 1),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                _showThemeBottomSheet();
+              },
+              borderRadius: BorderRadius.circular(4),
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                child: Row(
+                  children: [
+                    Icon(
+                      themeProvider.themeModeIcon,
+                      color: AppTheme.cricketGreen.withOpacity(0.7),
+                      size: 20,
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Theme',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: AppTheme.primaryTextColor,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      themeProvider.themeModeText,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.secondaryTextColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    SizedBox(width: 4),
+                    Icon(
+                      Icons.chevron_right,
+                      color: AppTheme.secondaryTextColor,
+                      size: 16,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showThemeBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          return Container(
+            padding: EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.cricketGreen.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.palette_outlined,
+                        color: AppTheme.cricketGreen,
+                        size: 20,
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Text(
+                      'Choose Theme',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.primaryTextColor,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 24),
+                
+                // Theme options
+                _buildThemeOption(
+                  context,
+                  themeProvider,
+                  AppThemeMode.light,
+                  Icons.light_mode,
+                  'Light',
+                  'Always use light theme',
+                ),
+                _buildThemeOption(
+                  context,
+                  themeProvider,
+                  AppThemeMode.dark,
+                  Icons.dark_mode,
+                  'Dark',
+                  'Always use dark theme',
+                ),
+                _buildThemeOption(
+                  context,
+                  themeProvider,
+                  AppThemeMode.system,
+                  Icons.settings_brightness,
+                  'System',
+                  'Follow system setting',
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildThemeOption(
+    BuildContext context,
+    ThemeProvider themeProvider,
+    AppThemeMode mode,
+    IconData icon,
+    String title,
+    String subtitle,
+  ) {
+    final isSelected = themeProvider.themeMode == mode;
+    
+    return Container(
+      margin: EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            themeProvider.setThemeMode(mode);
+            Navigator.pop(context);
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? AppTheme.cricketGreen.withOpacity(0.08)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isSelected
+                    ? AppTheme.cricketGreen.withOpacity(0.3)
+                    : Colors.grey.withOpacity(0.2),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  color: isSelected
+                      ? AppTheme.cricketGreen
+                      : AppTheme.secondaryTextColor,
+                  size: 24,
+                ),
+                SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: isSelected
+                              ? AppTheme.cricketGreen
+                              : AppTheme.primaryTextColor,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.secondaryTextColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (isSelected)
+                  Icon(
+                    Icons.check_circle,
+                    color: AppTheme.cricketGreen,
+                    size: 20,
+                  ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -501,9 +624,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       child: Text(
         title,
         style: TextStyle(
-          fontSize: 13,
+          fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: AppTheme.secondaryTextColor,
+          color: Theme.of(context).textTheme.bodySmall?.color,
           letterSpacing: 0.5,
         ),
       ),
@@ -517,7 +640,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     bool isSelected = false,
   }) {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      margin: EdgeInsets.symmetric(horizontal: 12, vertical: 1),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -525,66 +648,50 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             HapticFeedback.lightImpact();
             onTap();
           },
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(4),
           child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
             decoration: BoxDecoration(
               color: isSelected
-                  ? AppTheme.cricketGreen.withOpacity(0.08)
+                  ? Theme.of(context).primaryColor.withOpacity(0.08)
                   : Colors.transparent,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(1),
               border: isSelected
                   ? Border.all(
-                      color: AppTheme.cricketGreen.withOpacity(0.1),
+                      color: Theme.of(context).primaryColor.withOpacity(0.1),
                       width: 0.5,
                     )
                   : null,
             ),
             child: Row(
               children: [
-                Container(
-                  padding: EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppTheme.cricketGreen.withOpacity(0.1)
-                        : AppTheme.cricketGreen.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: isSelected
-                        ? AppTheme.cricketGreen
-                        : AppTheme.cricketGreen.withOpacity(0.7),
-                    size: 20,
-                  ),
+                Icon(
+                  icon,
+                  color: isSelected
+                      ? Theme.of(context).primaryColor
+                      : Theme.of(context).iconTheme.color ?? Theme.of(context).primaryColor.withOpacity(0.7),
+                  size: 20,
                 ),
                 SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     title,
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 14,
                       fontWeight: isSelected
                           ? FontWeight.w600
                           : FontWeight.w500,
                       color: isSelected
-                          ? AppTheme.cricketGreen
-                          : AppTheme.primaryTextColor,
+                          ? Theme.of(context).primaryColor
+                          : Theme.of(context).textTheme.bodyMedium?.color,
                     ),
                   ),
                 ),
                 if (isSelected)
-                  Container(
-                    padding: EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: AppTheme.cricketGreen.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Icon(
-                      Icons.chevron_right,
-                      color: AppTheme.cricketGreen,
-                      size: 16,
-                    ),
+                  Icon(
+                    Icons.chevron_right,
+                    color: Theme.of(context).primaryColor,
+                    size: 16,
                   ),
               ],
             ),
@@ -609,9 +716,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 color: AppTheme.primaryBlue.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: DuggyLogoVariant.small(
-                color: AppTheme.primaryBlue,
-              ),
+              child: DuggyLogoVariant.small(color: AppTheme.primaryBlue),
             ),
             SizedBox(width: 12),
             Text(
@@ -686,59 +791,223 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  void _showLogoutDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'Logout',
-          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
-        ),
-        content: Text(
-          'Are you sure you want to logout?',
-          style: TextStyle(color: AppTheme.primaryTextColor, height: 1.4),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            style: TextButton.styleFrom(
-              foregroundColor: AppTheme.secondaryTextColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+}
+
+// Simple Dashboard Screen placeholder
+class _DashboardScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: Consumer2<UserProvider, ClubProvider>(
+        builder: (context, userProvider, clubProvider, child) {
+          final user = userProvider.user;
+          final currentClub = clubProvider.currentClub;
+
+          return SingleChildScrollView(
+            padding: EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Welcome Section
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Theme.of(context).primaryColor, Theme.of(context).primaryColorDark],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Welcome back,',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 16,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        user?.name ?? 'User',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (currentClub != null) ...[
+                        SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.groups,
+                              color: Colors.white.withOpacity(0.8),
+                              size: 16,
+                            ),
+                            SizedBox(width: 6),
+                            Text(
+                              currentClub.club.name,
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.9),
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                SizedBox(height: 24),
+
+                // Quick Actions
+                Text(
+                  'Quick Actions',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryTextColor,
+                  ),
+                ),
+                SizedBox(height: 16),
+                
+                GridView.count(
+                  crossAxisCount: 2,
+                  shrinkWrap: true,
+                  physics: NeverScrollableScrollPhysics(),
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                  childAspectRatio: 1.2,
+                  children: [
+                    _buildQuickActionCard(
+                      context,
+                      icon: Icons.store,
+                      title: 'Store',
+                      subtitle: 'Browse products',
+                      color: Colors.blue,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => StoreScreen()),
+                        );
+                      },
+                    ),
+                    _buildQuickActionCard(
+                      context,
+                      icon: Icons.shopping_bag,
+                      title: 'My Orders',
+                      subtitle: 'Track orders',
+                      color: Colors.orange,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => MyOrdersScreen()),
+                        );
+                      },
+                    ),
+                    _buildQuickActionCard(
+                      context,
+                      icon: Icons.poll,
+                      title: 'Polls',
+                      subtitle: 'Vote & participate',
+                      color: Colors.green,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => PollsScreen()),
+                        );
+                      },
+                    ),
+                    _buildQuickActionCard(
+                      context,
+                      icon: Icons.person,
+                      title: 'Profile',
+                      subtitle: 'Manage account',
+                      color: Colors.purple,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => ProfileScreen()),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ],
             ),
-            child: Text(
-              'Cancel',
-              style: TextStyle(fontWeight: FontWeight.w500),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildQuickActionCard(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Theme.of(context).cardColor,
+      borderRadius: BorderRadius.circular(16),
+      elevation: 2,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Theme.of(context).dividerColor,
+              width: 1,
             ),
           ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              await AuthService.logout();
-              Provider.of<UserProvider>(context, listen: false).logout();
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => LoginScreen()),
-                (route) => false,
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 28,
+                ),
               ),
-            ),
-            child: Text(
-              'Logout',
-              style: TextStyle(fontWeight: FontWeight.w500),
-            ),
+              SizedBox(height: 12),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).textTheme.titleLarge?.color,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).textTheme.bodySmall?.color,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
