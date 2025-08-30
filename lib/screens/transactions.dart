@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/transaction.dart';
 import '../services/api_service.dart';
-import '../services/auth_service.dart';
 import '../utils/theme.dart';
 
 class TransactionsScreen extends StatefulWidget {
@@ -407,20 +406,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         child: Row(
           children: [
             // Icon
-            Container(
+            Padding(
               padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: isCredit 
-                  ? Colors.green.withOpacity(0.1) 
-                  : Colors.red.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isCredit 
-                    ? Colors.green.withOpacity(0.3)
-                    : Colors.red.withOpacity(0.3),
-                  width: 0.5,
-                ),
-              ),
               child: Icon(
                 icon,
                 color: isCredit ? Colors.green : Colors.red,
@@ -531,7 +518,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             'Page $_currentPage of $_totalPages',
             style: TextStyle(
               fontWeight: FontWeight.w500,
-              color: AppTheme.primaryTextColor,
+              color: Theme.of(context).textTheme.bodyLarge?.color,
             ),
           ),
           ElevatedButton(
@@ -583,7 +570,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
-                    color: AppTheme.primaryTextColor,
+                    color: Theme.of(context).textTheme.headlineSmall?.color,
                   ),
                 ),
               ],
@@ -596,7 +583,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 16,
-                color: AppTheme.primaryTextColor,
+                color: Theme.of(context).textTheme.titleMedium?.color,
               ),
             ),
             SizedBox(height: 12),
@@ -617,7 +604,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 16,
-                color: AppTheme.primaryTextColor,
+                color: Theme.of(context).textTheme.titleMedium?.color,
               ),
             ),
             SizedBox(height: 12),
@@ -668,13 +655,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
   Widget _buildFilterChip(String label, String value, String currentValue) {
     final isSelected = currentValue == value;
-    return Container(
-      child: FilterChip(
+    return FilterChip(
         label: Text(
           label,
           style: TextStyle(
             fontWeight: FontWeight.w500,
-            color: isSelected ? AppTheme.cricketGreen : AppTheme.primaryTextColor,
+            color: isSelected ? AppTheme.cricketGreen : Theme.of(context).textTheme.bodyLarge?.color,
           ),
         ),
         selected: isSelected,
@@ -688,18 +674,17 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           });
         },
         selectedColor: AppTheme.cricketGreen.withOpacity(0.2),
-        backgroundColor: AppTheme.backgroundColor,
+        backgroundColor: Theme.of(context).dialogBackgroundColor,
         checkmarkColor: AppTheme.cricketGreen,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
           side: BorderSide(
             color: isSelected 
               ? AppTheme.cricketGreen.withOpacity(0.5)
-              : AppTheme.dividerColor.withOpacity(0.3),
+              : Theme.of(context).dividerColor.withOpacity(0.3),
             width: 0.5,
           ),
         ),
-      ),
     );
   }
 
