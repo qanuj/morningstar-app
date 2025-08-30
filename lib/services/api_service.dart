@@ -40,11 +40,19 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> post(String endpoint, Map<String, dynamic> data) async {
+    print('🔵 Making POST request to: $baseUrl$endpoint');
+    print('🔵 Request data: $data');
+    print('🔵 Request headers: $headers');
+    
     final response = await http.post(
       Uri.parse('$baseUrl$endpoint'),
       headers: headers,
       body: json.encode(data),
     );
+    
+    print('🔵 Response status: ${response.statusCode}');
+    print('🔵 Response body: ${response.body}');
+    
     return _handleResponse(response);
   }
 
@@ -75,17 +83,36 @@ class ApiService {
   }
 
   static Map<String, dynamic> _handleResponse(http.Response response) {
+    print('🔵 Handling response with status: ${response.statusCode}');
+    
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      print('🔵 Response Body: ${response.body}');
-      final decoded = json.decode(response.body);
-      // Handle both Map and List responses
-      if (decoded is List) {
-        return {'data': decoded};
+      print('✅ Success Response Body: ${response.body}');
+      
+      try {
+        final decoded = json.decode(response.body);
+        print('🔵 Decoded response: $decoded');
+        
+        // Handle both Map and List responses
+        if (decoded is List) {
+          return {'data': decoded};
+        }
+        return decoded as Map<String, dynamic>;
+      } catch (e) {
+        print('❌ Error decoding JSON: $e');
+        throw Exception('Invalid JSON response: ${response.body}');
       }
-      return decoded as Map<String, dynamic>;
     } else {
-      final error = json.decode(response.body);
-      throw Exception(error['error'] ?? error['message'] ?? 'API Error');
+      print('❌ Error Response Body: ${response.body}');
+      
+      try {
+        final error = json.decode(response.body);
+        final errorMessage = error['error'] ?? error['message'] ?? 'API Error (${response.statusCode})';
+        print('❌ Parsed error: $errorMessage');
+        throw Exception(errorMessage);
+      } catch (e) {
+        print('❌ Error parsing error response: $e');
+        throw Exception('API Error (${response.statusCode}): ${response.body}');
+      }
     }
   }
 }

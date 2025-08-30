@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/conversation_provider.dart';
 import '../providers/user_provider.dart';
+import '../providers/club_provider.dart';
 import '../models/conversation.dart';
+import '../models/club.dart';
 import '../utils/theme.dart';
 import '../widgets/custom_app_bar.dart';
 import 'chat_detail.dart';
@@ -22,7 +24,7 @@ class _ConversationsScreenState extends State<ConversationsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
     
     // Fetch conversations when screen loads
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -41,41 +43,9 @@ class _ConversationsScreenState extends State<ConversationsScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: PreferredSize(
-        preferredSize: Size.fromHeight(kToolbarHeight + 48),
-        child: AppBar(
-          backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-          elevation: 0,
-          title: Row(
-            children: [
-              Text(
-                'Duggy Conversations',
-                style: TextStyle(
-                  color: Theme.of(context).appBarTheme.foregroundColor,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            IconButton(
-              icon: Icon(Icons.search),
-              onPressed: _showSearchDialog,
-            ),
-          ],
-          bottom: TabBar(
-            controller: _tabController,
-            indicatorColor: Theme.of(context).primaryColor,
-            labelColor: Theme.of(context).primaryColor,
-            unselectedLabelColor: Theme.of(context).textTheme.bodyMedium?.color,
-            tabs: [
-              Tab(text: 'All'),
-              Tab(text: 'Announcements'),
-              Tab(text: 'Groups'),
-            ],
-          ),
-        ),
+      appBar: _ConversationsAppBar(
+        onSearchPressed: _showSearchDialog,
+        tabController: _tabController,
       ),
       body: Consumer<ConversationProvider>(
         builder: (context, conversationProvider, child) {
@@ -90,17 +60,12 @@ class _ConversationsScreenState extends State<ConversationsScreen>
           return TabBarView(
             controller: _tabController,
             children: [
-              _buildConversationsList(conversationProvider.searchConversations(_searchQuery)),
               _buildConversationsList(
                 conversationProvider.getConversationsByType(ConversationType.announcement)
                   .where((c) => c.title.toLowerCase().contains(_searchQuery.toLowerCase()))
                   .toList(),
               ),
-              _buildConversationsList(
-                conversationProvider.getConversationsByType(ConversationType.group)
-                  .where((c) => c.title.toLowerCase().contains(_searchQuery.toLowerCase()))
-                  .toList(),
-              ),
+              _buildClubsList(),
             ],
           );
         },
@@ -493,4 +458,460 @@ class _ConversationsScreenState extends State<ConversationsScreen>
       ),
     );
   }
+
+  Widget _buildClubsList() {
+    return Consumer<ClubProvider>(
+      builder: (context, clubProvider, child) {
+        if (clubProvider.isLoading) {
+          return _buildLoadingState();
+        }
+
+        if (clubProvider.clubs.isEmpty) {
+          return _buildEmptyClubsState();
+        }
+
+        return RefreshIndicator(
+          onRefresh: () => clubProvider.loadClubs(),
+          child: ListView.builder(
+            padding: EdgeInsets.all(16),
+            itemCount: clubProvider.clubs.length,
+            itemBuilder: (context, index) {
+              final clubMembership = clubProvider.clubs[index];
+              return _buildClubCard(clubMembership);
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildClubCard(ClubMembership clubMembership) {
+    final club = clubMembership.club;
+    final isCurrentClub = context.read<ClubProvider>().currentClub?.club.id == club.id;
+    
+    return Container(
+      margin: EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(12),
+        elevation: isCurrentClub ? 4 : 2,
+        child: InkWell(
+          onTap: () => _selectClub(clubMembership),
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: isCurrentClub 
+                ? Border.all(
+                    color: Theme.of(context).primaryColor.withOpacity(0.5),
+                    width: 2,
+                  )
+                : null,
+            ),
+            child: Row(
+              children: [
+                // Club Logo
+                _buildClubLogo(club),
+                SizedBox(width: 16),
+                
+                // Club Info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              club.name,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: isCurrentClub ? FontWeight.w600 : FontWeight.w500,
+                                color: Theme.of(context).textTheme.titleLarge?.color,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (isCurrentClub) ...[
+                            SizedBox(width: 8),
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).primaryColor,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                'Active',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                          if (club.isVerified) ...[
+                            SizedBox(width: 8),
+                            Icon(
+                              Icons.verified,
+                              color: Theme.of(context).primaryColor,
+                              size: 18,
+                            ),
+                          ],
+                        ],
+                      ),
+                      
+                      SizedBox(height: 4),
+                      
+                      // Role and location info
+                      Row(
+                        children: [
+                          // Role badge
+                          Container(
+                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: _getRoleColor(clubMembership.role).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              clubMembership.role,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: _getRoleColor(clubMembership.role),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          
+                          if (club.city != null) ...[
+                            SizedBox(width: 8),
+                            Icon(
+                              Icons.location_on_outlined,
+                              size: 12,
+                              color: Theme.of(context).textTheme.bodySmall?.color,
+                            ),
+                            SizedBox(width: 2),
+                            Text(
+                              club.city!,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context).textTheme.bodySmall?.color,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      
+                      if (club.description != null) ...[
+                        SizedBox(height: 6),
+                        Text(
+                          club.description!,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context).textTheme.bodyMedium?.color,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                
+                SizedBox(width: 12),
+                Icon(
+                  Icons.chevron_right,
+                  color: Theme.of(context).textTheme.bodySmall?.color,
+                  size: 24,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildClubLogo(Club club) {
+    return Container(
+      width: 56,
+      height: 56,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: Theme.of(context).primaryColor.withOpacity(0.2),
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).shadowColor.withOpacity(0.1),
+            blurRadius: 6,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(26),
+        child: club.logo != null
+            ? Image.network(
+                club.logo!,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return _buildDefaultClubLogo(club.name);
+                },
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return _buildDefaultClubLogo(club.name);
+                },
+              )
+            : _buildDefaultClubLogo(club.name),
+      ),
+    );
+  }
+
+  Widget _buildDefaultClubLogo(String clubName) {
+    return Container(
+      color: Theme.of(context).primaryColor.withOpacity(0.1),
+      child: Center(
+        child: Text(
+          clubName.isNotEmpty ? clubName.substring(0, 1).toUpperCase() : 'C',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).primaryColor,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _getRoleColor(String role) {
+    switch (role.toUpperCase()) {
+      case 'OWNER':
+      case 'ADMIN':
+        return AppTheme.warningOrange;
+      case 'CAPTAIN':
+      case 'VICE_CAPTAIN':
+        return AppTheme.primaryBlue;
+      case 'MEMBER':
+      default:
+        return AppTheme.successGreen;
+    }
+  }
+
+  void _selectClub(ClubMembership clubMembership) async {
+    HapticFeedback.lightImpact();
+    
+    // Set as current club
+    await context.read<ClubProvider>().setCurrentClub(clubMembership);
+    
+    // Show confirmation
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Switched to ${clubMembership.club.name}'),
+        duration: Duration(seconds: 2),
+        backgroundColor: Theme.of(context).primaryColor,
+      ),
+    );
+    
+    // Refresh conversations for the new club
+    context.read<ConversationProvider>().fetchConversations();
+  }
+
+  Widget _buildEmptyClubsState() {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.group_outlined,
+              size: 64,
+              color: Theme.of(context).textTheme.bodySmall?.color,
+            ),
+            SizedBox(height: 16),
+            Text(
+              'No clubs found',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
+                color: Theme.of(context).textTheme.titleLarge?.color,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Join a club to start chatting with other members!',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Theme.of(context).textTheme.bodyMedium?.color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ConversationsAppBar extends StatelessWidget implements PreferredSizeWidget {
+  final VoidCallback onSearchPressed;
+  final TabController tabController;
+
+  const _ConversationsAppBar({
+    Key? key,
+    required this.onSearchPressed,
+    required this.tabController,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Theme.of(context).primaryColor,
+            Theme.of(context).primaryColorDark,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).primaryColor.withOpacity(0.3),
+            offset: Offset(0, 2),
+            blurRadius: 8,
+          ),
+        ],
+      ),
+      child: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(
+            Icons.chat_bubble_outline,
+            color: Colors.white,
+            size: 24,
+          ),
+          onPressed: null, // Decorative only
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Chat',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+              ),
+            ),
+            Consumer<ConversationProvider>(
+              builder: (context, conversationProvider, child) {
+                final unreadCount = conversationProvider.totalUnreadCount;
+                if (unreadCount > 0) {
+                  return Text(
+                    '$unreadCount unread ${unreadCount == 1 ? 'message' : 'messages'}',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.9),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  );
+                } else {
+                  return Text(
+                    'Stay connected with your club',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
+        ),
+        actions: [
+          Container(
+            margin: EdgeInsets.only(right: 8),
+            child: Material(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(24),
+              child: InkWell(
+                onTap: onSearchPressed,
+                borderRadius: BorderRadius.circular(24),
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  child: Icon(
+                    Icons.search,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(48),
+          child: Container(
+            child: TabBar(
+              controller: tabController,
+              indicatorColor: Colors.white,
+              indicatorWeight: 3,
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.white.withOpacity(0.7),
+              labelStyle: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+              unselectedLabelStyle: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0.5,
+              ),
+              indicatorPadding: EdgeInsets.symmetric(horizontal: 16),
+              tabs: [
+                Tab(
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.campaign, size: 18),
+                        SizedBox(width: 6),
+                        Text('News'),
+                      ],
+                    ),
+                  ),
+                ),
+                Tab(
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.group, size: 18),
+                        SizedBox(width: 6),
+                        Text('Clubs'),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Size get preferredSize => Size.fromHeight(kToolbarHeight + 48);
 }
