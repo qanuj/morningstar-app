@@ -42,6 +42,22 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: Text('My Orders'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.home_outlined),
+            onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+            tooltip: 'Go to Home',
+          ),
+        ],
+      ),
       body: _isLoading
           ? Center(
               child: CircularProgressIndicator(

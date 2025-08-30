@@ -37,7 +37,17 @@ class _HomeScreenState extends State<HomeScreen> {
   void _navigateToScreen(Widget screen, String title) {
     // For drawer navigation to screens not in bottom tabs
     Navigator.of(context).pop(); // Close drawer
-    Navigator.of(context).push(MaterialPageRoute(builder: (context) => screen));
+    // Navigate immediately after closing drawer
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => screen,
+            settings: RouteSettings(name: '/$title'),
+          ),
+        );
+      }
+    });
     HapticFeedback.lightImpact();
   }
 
@@ -65,19 +75,19 @@ class _HomeScreenState extends State<HomeScreen> {
           },
           child: Icon(
             Icons.menu,
-            color: Theme.of(context).colorScheme.onPrimary,
+            color: Theme.of(context).appBarTheme.foregroundColor,
             size: 24,
           ),
         ),
         title: Row(
           children: [
             DuggyLogoVariant.small(
-              color: Theme.of(context).colorScheme.onPrimary,
+              color: Theme.of(context).appBarTheme.foregroundColor,
             ),
             Text(
               'Duggy',
               style: TextStyle(
-                color: Theme.of(context).colorScheme.onPrimary,
+                color: Theme.of(context).appBarTheme.foregroundColor,
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.2,
@@ -112,7 +122,7 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: EdgeInsets.only(right: 16),
               child: Icon(
                 Icons.notifications_outlined,
-                color: Theme.of(context).colorScheme.onPrimary,
+                color: Theme.of(context).appBarTheme.foregroundColor,
                 size: 24,
               ),
             ),
@@ -128,18 +138,16 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: EdgeInsets.only(right: 16),
               child: Icon(
                 Icons.swap_horiz,
-                color: Theme.of(context).colorScheme.onPrimary,
+                color: Theme.of(context).appBarTheme.foregroundColor,
                 size: 24,
               ),
             ),
           ),
         ],
       ),
-      body: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-        ),
-        child: ClipRRect(child: _screens[_selectedIndex]),
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _screens,
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
@@ -201,7 +209,6 @@ class _HomeScreenState extends State<HomeScreen> {
               // Profile Header
               GestureDetector(
                 onTap: () {
-                  Navigator.of(context).pop(); // Close drawer first
                   _navigateToScreen(ProfileScreen(), 'Profile');
                 },
                 child: Container(
@@ -234,7 +241,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         height: 60,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Theme.of(context).colorScheme.onPrimary,
+                          color: Theme.of(context).colorScheme.surface,
                           boxShadow: [
                             BoxShadow(
                               color: Theme.of(
@@ -286,7 +293,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             Text(
                               user?.name ?? 'User',
                               style: TextStyle(
-                                color: Theme.of(context).colorScheme.onPrimary,
+                                color: Colors.white,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w400,
                               ),
@@ -318,9 +325,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 child: Text(
                                   currentClub.role,
                                   style: TextStyle(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onPrimary,
+                                    color: Colors.white,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w400,
                                   ),
@@ -708,7 +713,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
 }
 
 // Simple Dashboard Screen placeholder
@@ -756,7 +760,7 @@ class _DashboardScreen extends StatelessWidget {
                       Text(
                         user?.name ?? 'User',
                         style: TextStyle(
-                          color: Theme.of(context).colorScheme.onPrimary,
+                          color: Colors.white,
                           fontSize: 12,
                           fontWeight: FontWeight.w400,
                         ),
@@ -893,19 +897,11 @@ class _DashboardScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Theme.of(context).dividerColor, width: 1),
-          ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
                 padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
                 child: Icon(icon, color: color, size: 28),
               ),
               SizedBox(height: 12),

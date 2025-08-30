@@ -206,12 +206,8 @@ class DuggyLogoVariant {
   }) => DuggyLogo(size: size, color: color, showText: showText, animated: true);
 
   // Special variant for splash screen
-  static Widget splash(BuildContext context) => DuggyLogo(
-    size: 150,
-    color: Theme.of(context).colorScheme.onBackground,
-    showText: true,
-    animated: true,
-  );
+  static Widget splash(BuildContext context) =>
+      DuggyLogo(size: 150, showText: true, animated: true);
 
   // Monochrome variant for certain contexts
   static Widget monochrome({double size = 64, bool showText = false}) =>

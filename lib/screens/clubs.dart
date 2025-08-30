@@ -30,12 +30,22 @@ class _ClubsScreenState extends State<ClubsScreen> with TickerProviderStateMixin
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text('My Clubs'),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        foregroundColor: AppTheme.primaryTextColor,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.home_outlined),
+            onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+            tooltip: 'Go to Home',
+          ),
+        ],
       ),
       body: Consumer<ClubProvider>(
         builder: (context, clubProvider, child) {

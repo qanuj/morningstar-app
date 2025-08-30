@@ -23,27 +23,27 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _checkAuthStatus() async {
     await ApiService.init();
-    
+
     final isLoggedIn = await AuthService.isLoggedIn();
-    
+
     await Future.delayed(Duration(seconds: 2)); // Show splash for 2 seconds
-    
+
     if (isLoggedIn) {
       try {
         await Provider.of<UserProvider>(context, listen: false).loadUser();
         await Provider.of<ClubProvider>(context, listen: false).loadClubs();
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => HomeScreen()),
-        );
+        Navigator.of(
+          context,
+        ).pushReplacement(MaterialPageRoute(builder: (_) => HomeScreen()));
       } catch (e) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => LoginScreen()),
-        );
+        Navigator.of(
+          context,
+        ).pushReplacement(MaterialPageRoute(builder: (_) => LoginScreen()));
       }
     } else {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => LoginScreen()),
-      );
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => LoginScreen()));
     }
   }
 
@@ -65,54 +65,49 @@ class _SplashScreenState extends State<SplashScreen> {
               children: [
                 // Animated Duggy Logo
                 DuggyLogoVariant.splash(context),
-                
+
                 SizedBox(height: 40),
-                
-                // App Title
-                Text(
-                  'DUGGY',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                    color: Theme.of(context).colorScheme.onPrimary,
-                    letterSpacing: 2,
-                  ),
-                ),
-                
-                SizedBox(height: 12),
-                
+
                 // Subtitle
                 Text(
                   'Your Cricket Club Companion',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.9),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onPrimary.withOpacity(0.9),
                     fontWeight: FontWeight.w400,
                     letterSpacing: 0.5,
                   ),
                 ),
-                
+
                 SizedBox(height: 60),
-                
+
                 // Loading Indicator
                 Container(
                   width: 40,
                   height: 40,
                   child: CircularProgressIndicator(
                     strokeWidth: 3,
-                    valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.onPrimary),
-                    backgroundColor: Theme.of(context).colorScheme.onPrimary.withOpacity(0.2),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Theme.of(context).colorScheme.onPrimary,
+                    ),
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.onPrimary.withOpacity(0.2),
                   ),
                 ),
-                
+
                 SizedBox(height: 20),
-                
+
                 // Loading Text
                 Text(
                   'Loading...',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.8),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onPrimary.withOpacity(0.8),
                     fontWeight: FontWeight.w400,
                   ),
                 ),
