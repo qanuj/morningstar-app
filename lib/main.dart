@@ -5,6 +5,7 @@ import 'services/api_service.dart';
 import 'providers/user_provider.dart';
 import 'providers/club_provider.dart';
 import 'providers/theme_provider.dart';
+import 'providers/conversation_provider.dart';
 import 'screens/splash.dart';
 import 'utils/theme.dart';
 
@@ -34,6 +35,7 @@ class MyAppState extends State<MyApp> {
       providers: [
         ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProvider(create: (_) => ClubProvider()),
+        ChangeNotifierProvider(create: (_) => ConversationProvider()),
         ChangeNotifierProvider.value(value: _themeProvider),
       ],
       child: Consumer<ThemeProvider>(

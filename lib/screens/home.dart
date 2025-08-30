@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
 import '../providers/club_provider.dart';
 import '../providers/theme_provider.dart';
+import '../providers/conversation_provider.dart';
 import 'clubs.dart';
 import 'matches.dart';
 import 'transactions.dart';
@@ -13,6 +14,7 @@ import 'polls.dart';
 import 'profile.dart';
 import 'notifications.dart';
 import 'my_orders.dart';
+import 'conversations.dart';
 import '../utils/theme.dart';
 import '../utils/dialogs.dart';
 import '../widgets/duggy_logo.dart';
@@ -28,15 +30,24 @@ class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int _selectedIndex = 0;
 
+  @override
+  void initState() {
+    super.initState();
+    // Initialize conversation data when home screen loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ConversationProvider>().fetchConversations();
+    });
+  }
+
   List<Widget> get _screens => [
     _DashboardScreen(onTabSwitch: _onBottomNavTap), // Home dashboard
     MatchesScreen(),
+    ConversationsScreen(), // Center tab
     StoreScreen(),
-    TransactionsScreen(),
     PollsScreen(),
   ];
 
-  final List<String> _titles = ['Home', 'Matches', 'Store', 'Transactions', 'Polls'];
+  final List<String> _titles = ['Home', 'Matches', 'Conversations', 'Store', 'Polls'];
 
   void _navigateToScreen(Widget screen, String title) {
     // For drawer navigation to screens not in bottom tabs
@@ -57,6 +68,46 @@ class _HomeScreenState extends State<HomeScreen> {
     HapticFeedback.lightImpact();
   }
 
+  Widget _buildConversationIcon(int unreadCount, bool isActive) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Icon(
+          isActive ? Icons.chat : Icons.chat_outlined,
+        ),
+        if (unreadCount > 0)
+          Positioned(
+            right: -6,
+            top: -6,
+            child: Container(
+              padding: EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  width: 1,
+                ),
+              ),
+              constraints: BoxConstraints(
+                minWidth: 16,
+                minHeight: 16,
+              ),
+              child: Text(
+                unreadCount > 99 ? '99+' : unreadCount.toString(),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -73,53 +124,57 @@ class _HomeScreenState extends State<HomeScreen> {
         index: _selectedIndex,
         children: _screens,
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: _onBottomNavTap,
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Theme.of(
-          context,
-        ).bottomNavigationBarTheme.backgroundColor,
-        selectedItemColor: Theme.of(context).colorScheme.primary,
-        unselectedItemColor: Theme.of(
-          context,
-        ).bottomNavigationBarTheme.unselectedItemColor,
-        selectedLabelStyle: TextStyle(
-          fontWeight: FontWeight.w400,
-          fontSize: 12,
-        ),
-        unselectedLabelStyle: TextStyle(
-          fontWeight: FontWeight.w400,
-          fontSize: 12,
-        ),
-        elevation: 10,
-        items: [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.sports_cricket_outlined),
-            activeIcon: Icon(Icons.sports_cricket),
-            label: 'Matches',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.store_outlined),
-            activeIcon: Icon(Icons.store),
-            label: 'Store',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.account_balance_wallet_outlined),
-            activeIcon: Icon(Icons.account_balance_wallet),
-            label: 'Transactions',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.poll_outlined),
-            activeIcon: Icon(Icons.poll),
-            label: 'Polls',
-          ),
-        ],
+      bottomNavigationBar: Consumer<ConversationProvider>(
+        builder: (context, conversationProvider, child) {
+          return BottomNavigationBar(
+            currentIndex: _selectedIndex,
+            onTap: _onBottomNavTap,
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: Theme.of(
+              context,
+            ).bottomNavigationBarTheme.backgroundColor,
+            selectedItemColor: Theme.of(context).colorScheme.primary,
+            unselectedItemColor: Theme.of(
+              context,
+            ).bottomNavigationBarTheme.unselectedItemColor,
+            selectedLabelStyle: TextStyle(
+              fontWeight: FontWeight.w400,
+              fontSize: 12,
+            ),
+            unselectedLabelStyle: TextStyle(
+              fontWeight: FontWeight.w400,
+              fontSize: 12,
+            ),
+            elevation: 10,
+            items: [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.home_outlined),
+                activeIcon: Icon(Icons.home),
+                label: 'Home',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.sports_cricket_outlined),
+                activeIcon: Icon(Icons.sports_cricket),
+                label: 'Matches',
+              ),
+              BottomNavigationBarItem(
+                icon: _buildConversationIcon(conversationProvider.totalUnreadCount, false),
+                activeIcon: _buildConversationIcon(conversationProvider.totalUnreadCount, true),
+                label: 'Chat',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.store_outlined),
+                activeIcon: Icon(Icons.store),
+                label: 'Store',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.poll_outlined),
+                activeIcon: Icon(Icons.poll),
+                label: 'Polls',
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -762,30 +817,26 @@ class _DashboardScreen extends StatelessWidget {
                     ),
                     _buildQuickActionCard(
                       context,
-                      icon: Icons.store,
-                      title: 'Store',
-                      subtitle: 'Browse products',
-                      color: AppTheme.lightBlue,
+                      icon: Icons.chat,
+                      title: 'Conversations',
+                      subtitle: 'Club discussions',
+                      color: AppTheme.primaryBlue,
                       onTap: () {
-                        // Switch to Store tab (index 2)
+                        // Switch to Conversations tab (index 2)
                         onTabSwitch?.call(2);
                         HapticFeedback.lightImpact();
                       },
                     ),
                     _buildQuickActionCard(
                       context,
-                      icon: Icons.shopping_bag,
-                      title: 'My Orders',
-                      subtitle: 'Track orders',
-                      color: AppTheme.warningOrange,
+                      icon: Icons.store,
+                      title: 'Store',
+                      subtitle: 'Browse products',
+                      color: AppTheme.lightBlue,
                       onTap: () {
-                        // Navigate to My Orders (not in bottom tabs)
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => MyOrdersScreen(),
-                          ),
-                        );
+                        // Switch to Store tab (index 3)
+                        onTabSwitch?.call(3);
+                        HapticFeedback.lightImpact();
                       },
                     ),
                     _buildQuickActionCard(
@@ -797,23 +848,6 @@ class _DashboardScreen extends StatelessWidget {
                       onTap: () {
                         // Switch to Polls tab (index 4)
                         onTabSwitch?.call(4);
-                        HapticFeedback.lightImpact();
-                      },
-                    ),
-                    _buildQuickActionCard(
-                      context,
-                      icon: Icons.person,
-                      title: 'Profile',
-                      subtitle: 'Manage account',
-                      color: AppTheme.primaryBlue,
-                      onTap: () {
-                        // Navigate to Profile (not in bottom tabs)
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ProfileScreen(),
-                          ),
-                        );
                         HapticFeedback.lightImpact();
                       },
                     ),
