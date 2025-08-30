@@ -143,16 +143,16 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       body: Container(
-        decoration: BoxDecoration(color: Colors.white),
+        decoration: BoxDecoration(color: Theme.of(context).scaffoldBackgroundColor),
         child: ClipRRect(child: _screens[_selectedIndex]),
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onBottomNavTap,
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
         selectedItemColor: AppTheme.cricketGreen,
-        unselectedItemColor: Colors.grey[600],
+        unselectedItemColor: Theme.of(context).bottomNavigationBarTheme.unselectedItemColor,
         selectedLabelStyle: TextStyle(
           fontWeight: FontWeight.w600,
           fontSize: 12,

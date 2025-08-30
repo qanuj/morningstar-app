@@ -23,10 +23,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   double _totalCredits = 0.0;
   double _totalDebits = 0.0;
   double _netBalance = 0.0;
-  
+
   PageController _balancePageController = PageController();
   int _currentBalanceIndex = 0;
-  
+
   // Sample club balances - in real app this would come from API
   List<Map<String, dynamic>> _clubBalances = [
     {
@@ -92,12 +92,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           .join('&');
 
       final response = await ApiService.get('/transactions?$queryString');
-      
+
       setState(() {
         _transactions = (response['transactions'] as List)
             .map((tx) => Transaction.fromJson(tx))
             .toList();
-        
+
         // Update pagination info
         final pagination = response['pagination'];
         _currentPage = pagination['currentPage'];
@@ -111,7 +111,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         _totalCredits = (summary['totalCredits'] ?? 0).toDouble();
         _totalDebits = (summary['totalDebits'] ?? 0).toDouble();
         _netBalance = (summary['netBalance'] ?? 0).toDouble();
-        
+
         // Update club balances
         _updateClubBalances();
       });
@@ -123,11 +123,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
     setState(() => _isLoading = false);
   }
-  
+
   void _updateClubBalances() {
     // Get unique clubs from transactions
     final clubMap = <String, Map<String, dynamic>>{};
-    
+
     // Initialize total balance
     clubMap['all'] = {
       'id': 'all',
@@ -137,7 +137,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       'debits': _totalDebits,
       'balance': _netBalance,
     };
-    
+
     // Calculate individual club balances
     for (final transaction in _transactions) {
       if (transaction.club != null) {
@@ -152,18 +152,88 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             'balance': 0.0,
           };
         }
-        
+
         if (transaction.type == 'CREDIT') {
           clubMap[clubId]!['credits'] += transaction.amount;
         } else {
           clubMap[clubId]!['debits'] += transaction.amount;
         }
-        
-        clubMap[clubId]!['balance'] = clubMap[clubId]!['credits'] - clubMap[clubId]!['debits'];
+
+        clubMap[clubId]!['balance'] =
+            clubMap[clubId]!['credits'] - clubMap[clubId]!['debits'];
       }
     }
-    
+
     _clubBalances = clubMap.values.toList();
+  }
+
+  Map<String, List<Transaction>> _groupTransactionsByDate(
+    List<Transaction> transactions,
+  ) {
+    final Map<String, List<Transaction>> groupedTransactions = {};
+
+    for (final transaction in transactions) {
+      final dateKey = DateFormat('yyyy-MM-dd').format(transaction.createdAt);
+      if (!groupedTransactions.containsKey(dateKey)) {
+        groupedTransactions[dateKey] = [];
+      }
+      groupedTransactions[dateKey]!.add(transaction);
+    }
+
+    return groupedTransactions;
+  }
+
+  String _formatDateHeader(String dateKey) {
+    final date = DateTime.parse(dateKey);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(Duration(days: 1));
+    final transactionDate = DateTime(date.year, date.month, date.day);
+
+    if (transactionDate == today) {
+      return 'Today';
+    } else if (transactionDate == yesterday) {
+      return 'Yesterday';
+    } else {
+      return DateFormat('MMM dd, yyyy').format(date);
+    }
+  }
+
+  Widget _buildDateHeader(String dateKey) {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Colors.white.withOpacity(0.1)
+            : Theme.of(context).primaryColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        _formatDateHeader(dateKey),
+        style: TextStyle(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.white.withOpacity(0.8)
+              : Theme.of(context).primaryColor,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  int _getChildCount() {
+    final groupedTransactions = _groupTransactionsByDate(_transactions);
+    int count = 0;
+
+    // Date headers + transactions count
+    for (final entry in groupedTransactions.entries) {
+      count += 1; // Date header
+      count += entry.value.length; // Transactions
+    }
+
+    count += 1; // Pagination widget
+    return count;
   }
 
   void _applyFilters() {
@@ -217,7 +287,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     ),
                     filled: true,
                     fillColor: Theme.of(context).cardColor,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 8,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: BorderSide.none,
@@ -242,19 +315,15 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               ),
             ),
             SizedBox(width: 8),
-            Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
+            IconButton(
+              icon: Icon(
+                Icons.filter_list,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white.withOpacity(0.8)
+                    : Theme.of(context).primaryColor,
+                size: 20,
               ),
-              child: IconButton(
-                icon: Icon(
-                  Icons.filter_list,
-                  color: Theme.of(context).primaryColor,
-                  size: 20,
-                ),
-                onPressed: _showFilterBottomSheet,
-              ),
+              onPressed: _showFilterBottomSheet,
             ),
           ],
         ),
@@ -270,221 +339,269 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 ),
               )
             : _transactions.isEmpty
-                ? Center(
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(32),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).primaryColor.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.receipt_long_outlined,
+                        size: 64,
+                        color: Theme.of(context).primaryColor,
+                      ),
+                    ),
+                    SizedBox(height: 24),
+                    Text(
+                      'No transactions found',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).textTheme.titleLarge?.color,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Your transaction history will appear here',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Theme.of(context).textTheme.bodySmall?.color,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : CustomScrollView(
+                slivers: [
+                  // Swipeable Balance Cards
+                  SliverToBoxAdapter(
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Container(
-                          padding: EdgeInsets.all(32),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).primaryColor.withOpacity(0.1),
-                            shape: BoxShape.circle,
+                          height: 180,
+                          margin: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
                           ),
-                          child: Icon(
-                            Icons.receipt_long_outlined,
-                            size: 64,
-                            color: Theme.of(context).primaryColor,
-                          ),
-                        ),
-                        SizedBox(height: 24),
-                        Text(
-                          'No transactions found',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            color: Theme.of(context).textTheme.titleLarge?.color,
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Your transaction history will appear here',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Theme.of(context).textTheme.bodySmall?.color,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : CustomScrollView(
-                    slivers: [
-                      // Swipeable Balance Cards
-                      SliverToBoxAdapter(
-                        child: Column(
-                          children: [
-                            Container(
-                              height: 180,
-                              margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              child: PageView.builder(
-                                controller: _balancePageController,
-                                onPageChanged: (index) {
-                                  setState(() {
-                                    _currentBalanceIndex = index;
-                                  });
-                                },
-                                itemCount: _clubBalances.length,
-                                itemBuilder: (context, index) {
-                                  final club = _clubBalances[index];
-                                  return Container(
-                                    margin: EdgeInsets.symmetric(horizontal: 4),
-                                    padding: EdgeInsets.all(24),
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: [Theme.of(context).primaryColor, Theme.of(context).primaryColorDark],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      ),
-                                      borderRadius: BorderRadius.circular(16),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Theme.of(context).primaryColor.withOpacity(0.2),
-                                          blurRadius: 20,
-                                          offset: Offset(0, 8),
-                                        ),
-                                      ],
+                          child: PageView.builder(
+                            controller: _balancePageController,
+                            onPageChanged: (index) {
+                              setState(() {
+                                _currentBalanceIndex = index;
+                              });
+                            },
+                            itemCount: _clubBalances.length,
+                            itemBuilder: (context, index) {
+                              final club = _clubBalances[index];
+                              return Container(
+                                margin: EdgeInsets.symmetric(horizontal: 4),
+                                padding: EdgeInsets.all(24),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Theme.of(context).primaryColor,
+                                      Theme.of(context).primaryColorDark,
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Theme.of(
+                                        context,
+                                      ).primaryColor.withOpacity(0.2),
+                                      blurRadius: 20,
+                                      offset: Offset(0, 8),
                                     ),
-                                    child: Column(
+                                  ],
+                                ),
+                                child: Column(
+                                  children: [
+                                    // Club info
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
-                                        // Club info
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            if (club['logo'] != null) ...[
-                                              Container(
-                                                width: 24,
-                                                height: 24,
-                                                child: ClipRRect(
-                                                  borderRadius: BorderRadius.circular(12),
-                                                  child: club['logo'].startsWith('http')
-                                                      ? Image.network(
-                                                          club['logo'],
-                                                          fit: BoxFit.cover,
-                                                          errorBuilder: (context, error, stackTrace) {
+                                        if (club['logo'] != null) ...[
+                                          Container(
+                                            width: 24,
+                                            height: 24,
+                                            child: ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              child:
+                                                  club['logo'].startsWith(
+                                                    'http',
+                                                  )
+                                                  ? Image.network(
+                                                      club['logo'],
+                                                      fit: BoxFit.cover,
+                                                      errorBuilder:
+                                                          (
+                                                            context,
+                                                            error,
+                                                            stackTrace,
+                                                          ) {
                                                             return DuggyLogoVariant.small();
                                                           },
-                                                        )
-                                                      : DuggyLogoVariant.small(),
-                                                ),
-                                              ),
-                                              SizedBox(width: 8),
-                                            ],
-                                            Text(
-                                              club['name'],
-                                              style: TextStyle(
-                                                color: Colors.white.withOpacity(0.8),
-                                                fontSize: 16,
-                                              ),
+                                                    )
+                                                  : DuggyLogoVariant.small(),
                                             ),
-                                          ],
-                                        ),
-                                        SizedBox(height: 8),
-                                        Text(
-                                          '₹${club['balance'].toStringAsFixed(2)}',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 32,
-                                            fontWeight: FontWeight.w600,
                                           ),
-                                        ),
-                                        SizedBox(height: 20),
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: Column(
-                                                children: [
-                                                  Text(
-                                                    'Credits',
-                                                    style: TextStyle(
-                                                      color: Colors.white.withOpacity(0.8),
-                                                      fontSize: 12,
-                                                    ),
-                                                  ),
-                                                  SizedBox(height: 4),
-                                                  Text(
-                                                    '₹${club['credits'].toStringAsFixed(2)}',
-                                                    style: TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 16,
-                                                      fontWeight: FontWeight.w600,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
+                                          SizedBox(width: 8),
+                                        ],
+                                        Text(
+                                          club['name'],
+                                          style: TextStyle(
+                                            color: Colors.white.withOpacity(
+                                              0.8,
                                             ),
-                                            Container(
-                                              width: 1,
-                                              height: 40,
-                                              color: Colors.white.withOpacity(0.3),
-                                            ),
-                                            Expanded(
-                                              child: Column(
-                                                children: [
-                                                  Text(
-                                                    'Debits',
-                                                    style: TextStyle(
-                                                      color: Colors.white.withOpacity(0.8),
-                                                      fontSize: 12,
-                                                    ),
-                                                  ),
-                                                  SizedBox(height: 4),
-                                                  Text(
-                                                    '₹${club['debits'].toStringAsFixed(2)}',
-                                                    style: TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 16,
-                                                      fontWeight: FontWeight.w600,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
+                                            fontSize: 16,
+                                          ),
                                         ),
                                       ],
                                     ),
-                                  );
-                                },
-                              ),
-                            ),
-                            // Page indicators
-                            if (_clubBalances.length > 1) ...[
-                              SizedBox(height: 12),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: List.generate(
-                                  _clubBalances.length,
-                                  (index) => Container(
-                                    width: 8,
-                                    height: 8,
-                                    margin: EdgeInsets.symmetric(horizontal: 4),
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: _currentBalanceIndex == index
-                                          ? Theme.of(context).primaryColor
-                                          : Theme.of(context).primaryColor.withOpacity(0.3),
+                                    SizedBox(height: 8),
+                                    Text(
+                                      '₹${club['balance'].toStringAsFixed(2)}',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 32,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
-                                  ),
+                                    SizedBox(height: 20),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            children: [
+                                              Text(
+                                                'Credits',
+                                                style: TextStyle(
+                                                  color: Colors.white
+                                                      .withOpacity(0.8),
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                              SizedBox(height: 4),
+                                              Text(
+                                                '₹${club['credits'].toStringAsFixed(2)}',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Container(
+                                          width: 1,
+                                          height: 40,
+                                          color: Colors.white.withOpacity(0.3),
+                                        ),
+                                        Expanded(
+                                          child: Column(
+                                            children: [
+                                              Text(
+                                                'Debits',
+                                                style: TextStyle(
+                                                  color: Colors.white
+                                                      .withOpacity(0.8),
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                              SizedBox(height: 4),
+                                              Text(
+                                                '₹${club['debits'].toStringAsFixed(2)}',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        // Page indicators
+                        if (_clubBalances.length > 1) ...[
+                          SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(
+                              _clubBalances.length,
+                              (index) => Container(
+                                width: 8,
+                                height: 8,
+                                margin: EdgeInsets.symmetric(horizontal: 4),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: _currentBalanceIndex == index
+                                      ? Theme.of(context).primaryColor
+                                      : Theme.of(
+                                          context,
+                                        ).primaryColor.withOpacity(0.3),
                                 ),
                               ),
-                            ],
-                          ],
-                        ),
-                      ),
-                      // Transaction List
-                      SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            if (index == _transactions.length) {
-                              return _buildPaginationWidget();
-                            }
-                            final transaction = _transactions[index];
-                            return _buildTransactionCard(transaction);
-                          },
-                          childCount: _transactions.length + 1,
-                        ),
-                      ),
-                    ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
+                  // Transaction List with Date Groups
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final groupedTransactions = _groupTransactionsByDate(
+                        _transactions,
+                      );
+                      final sortedDateKeys = groupedTransactions.keys.toList()
+                        ..sort((a, b) => b.compareTo(a)); // Latest first
+
+                      int currentIndex = 0;
+
+                      for (final dateKey in sortedDateKeys) {
+                        final transactions = groupedTransactions[dateKey]!;
+
+                        // Date header
+                        if (index == currentIndex) {
+                          return _buildDateHeader(dateKey);
+                        }
+                        currentIndex++;
+
+                        // Transaction cards for this date
+                        for (int i = 0; i < transactions.length; i++) {
+                          if (index == currentIndex) {
+                            return _buildTransactionCard(transactions[i]);
+                          }
+                          currentIndex++;
+                        }
+                      }
+
+                      // Pagination widget at the end
+                      if (index == currentIndex) {
+                        return _buildPaginationWidget();
+                      }
+
+                      return Container(); // Should never reach here
+                    }, childCount: _getChildCount()),
+                  ),
+                ],
+              ),
       ),
     );
   }
@@ -492,12 +609,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   Widget _buildTransactionCard(Transaction transaction) {
     final isCredit = transaction.type == 'CREDIT';
     final icon = _getTransactionIcon(transaction.purpose);
-    
+
     return Container(
-      margin: EdgeInsets.only(bottom: 12, left: 16, right: 16),
+      margin: EdgeInsets.only(bottom: 8, left: 12, right: 12),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: Theme.of(context).dividerColor.withOpacity(0.3),
           width: 0.5,
@@ -511,94 +628,118 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         ],
       ),
       child: Padding(
-        padding: EdgeInsets.all(16),
+        padding: EdgeInsets.all(8),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Icon
-            Padding(
-              padding: EdgeInsets.all(12),
-              child: Icon(
-                icon,
-                color: isCredit ? Colors.green : Colors.red,
-                size: 24,
-              ),
-            ),
-            SizedBox(width: 16),
-            
-            // Transaction Info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    transaction.description,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                      color: Theme.of(context).textTheme.titleLarge?.color,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).primaryColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          _getPurposeText(transaction.purpose),
-                          style: TextStyle(
-                            color: Theme.of(context).primaryColor,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      if (transaction.club != null && transaction.club!.logo != null) ...[
-                        SizedBox(width: 8),
-                        Container(
-                          width: 20,
-                          height: 20,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: transaction.club!.logo!.startsWith('http') 
+            // Club Icon with Transaction Badge
+            Stack(
+              children: [
+                // Club Icon (bigger)
+                Container(
+                  width: 40,
+                  height: 40,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child:
+                        transaction.club != null &&
+                            transaction.club!.logo != null
+                        ? (transaction.club!.logo!.startsWith('http')
                               ? Image.network(
                                   transaction.club!.logo!,
                                   fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) {
-                                    return DuggyLogoVariant.small();
+                                    return DuggyLogoVariant.medium();
                                   },
                                 )
-                              : DuggyLogoVariant.small(),
-                          ),
-                        ),
-                      ],
-                    ],
+                              : DuggyLogoVariant.medium())
+                        : DuggyLogoVariant.medium(),
+                  ),
+                ),
+                // Transaction Badge
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 18,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      color: isCredit ? Colors.green : Colors.red,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Color(0xFF1e1e1e)
+                            : Theme.of(context).cardColor,
+                        width: 2,
+                      ),
+                    ),
+                    child: Icon(icon, color: Colors.white, size: 10),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(width: 12),
+
+            // Transaction Info (Center)
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    transaction.description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w400,
+                      fontSize: 12,
+                      color: Theme.of(context).textTheme.titleLarge?.color,
+                      height: 1.2,
+                    ),
                   ),
                   SizedBox(height: 4),
-                  Text(
-                    DateFormat('MMM dd, yyyy • hh:mm a').format(transaction.createdAt),
-                    style: TextStyle(
-                      color: Theme.of(context).textTheme.bodySmall?.color,
-                      fontSize: 12,
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white.withOpacity(0.15)
+                          : Theme.of(context).primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      _getPurposeText(transaction.purpose),
+                      style: TextStyle(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white.withOpacity(0.9)
+                            : Theme.of(context).primaryColor,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            
-            // Amount
+
+            // Amount and Time (Right)
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   '${isCredit ? '+' : '-'}₹${transaction.amount.toStringAsFixed(2)}',
                   style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
                     color: isCredit ? Colors.green : Colors.red,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  DateFormat('hh:mm a').format(transaction.createdAt),
+                  style: TextStyle(
+                    color: Theme.of(context).textTheme.bodySmall?.color,
+                    fontSize: 9,
                   ),
                 ),
               ],
@@ -693,7 +834,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               ],
             ),
             SizedBox(height: 24),
-            
+
             // Type Filter
             Text(
               'Transaction Type',
@@ -714,7 +855,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               ],
             ),
             SizedBox(height: 24),
-            
+
             // Period Filter
             Text(
               'Time Period',
@@ -737,7 +878,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               ],
             ),
             SizedBox(height: 32),
-            
+
             // Apply Button
             SizedBox(
               width: double.infinity,
@@ -757,10 +898,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 ),
                 child: Text(
                   'Apply Filters',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
               ),
             ),
@@ -773,35 +911,41 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   Widget _buildFilterChip(String label, String value, String currentValue) {
     final isSelected = currentValue == value;
     return FilterChip(
-        label: Text(
-          label,
-          style: TextStyle(
-            fontWeight: FontWeight.w500,
-            color: isSelected ? AppTheme.cricketGreen : Theme.of(context).textTheme.bodyLarge?.color,
-          ),
+      label: Text(
+        label,
+        style: TextStyle(
+          fontWeight: FontWeight.w500,
+          color: isSelected
+              ? AppTheme.cricketGreen
+              : Theme.of(context).textTheme.bodyLarge?.color,
         ),
-        selected: isSelected,
-        onSelected: (selected) {
-          setState(() {
-            if (label == 'All' || label == 'Week' || label == 'Month' || label == '3 Months' || label == 'Year') {
-              _selectedPeriod = value;
-            } else {
-              _selectedType = value;
-            }
-          });
-        },
-        selectedColor: AppTheme.cricketGreen.withOpacity(0.2),
-        backgroundColor: Theme.of(context).dialogBackgroundColor,
-        checkmarkColor: AppTheme.cricketGreen,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(
-            color: isSelected 
+      ),
+      selected: isSelected,
+      onSelected: (selected) {
+        setState(() {
+          if (label == 'All' ||
+              label == 'Week' ||
+              label == 'Month' ||
+              label == '3 Months' ||
+              label == 'Year') {
+            _selectedPeriod = value;
+          } else {
+            _selectedType = value;
+          }
+        });
+      },
+      selectedColor: AppTheme.cricketGreen.withOpacity(0.2),
+      backgroundColor: Theme.of(context).dialogBackgroundColor,
+      checkmarkColor: AppTheme.cricketGreen,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: isSelected
               ? AppTheme.cricketGreen.withOpacity(0.5)
               : Theme.of(context).dividerColor.withOpacity(0.3),
-            width: 0.5,
-          ),
+          width: 0.5,
         ),
+      ),
     );
   }
 
