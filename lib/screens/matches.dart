@@ -259,75 +259,77 @@ class _MatchesScreenState extends State<MatchesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-        elevation: 0,
-        title: Row(
-          children: [
-            Expanded(
-              child: Container(
-                height: 40,
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: (value) {
-                    _loadMatches();
-                  },
-                  decoration: InputDecoration(
-                    hintText: 'Search matches...',
-                    hintStyle: TextStyle(
-                      color: Theme.of(context).textTheme.bodySmall?.color,
-                      fontSize: 12,
-                    ),
-                    prefixIcon: Icon(
-                      Icons.search,
-                      color: Theme.of(context).iconTheme.color,
-                      size: 20,
-                    ),
-                    filled: true,
-                    fillColor: Theme.of(context).cardColor,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 8,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide.none,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide.none,
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(
-                        color: Theme.of(context).primaryColor,
-                        width: 1,
+    return Column(
+        children: [
+          // Search header
+          Container(
+            padding: EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 40,
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (value) {
+                        _loadMatches();
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Search matches...',
+                        hintStyle: TextStyle(
+                          color: Theme.of(context).textTheme.bodySmall?.color,
+                          fontSize: 12,
+                        ),
+                        prefixIcon: Icon(
+                          Icons.search,
+                          color: Theme.of(context).iconTheme.color,
+                          size: 20,
+                        ),
+                        filled: true,
+                        fillColor: Theme.of(context).cardColor,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 8,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(
+                            color: Theme.of(context).primaryColor,
+                            width: 1,
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: Icon(
+                    Icons.filter_list,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white.withOpacity(0.8)
+                        : Theme.of(context).primaryColor,
+                    size: 20,
+                  ),
+                  onPressed: _showFilterBottomSheet,
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            IconButton(
-              icon: Icon(
-                Icons.filter_list,
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white.withOpacity(0.8)
-                    : Theme.of(context).primaryColor,
-                size: 20,
-              ),
-              onPressed: _showFilterBottomSheet,
-            ),
-          ],
-        ),
-      ),
-      body: RefreshIndicator(
-        onRefresh: _loadMatches,
-        color: Theme.of(context).primaryColor,
-        child: _isLoading
+          ),
+          // Main content
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _loadMatches,
+              color: Theme.of(context).primaryColor,
+              child: _isLoading
             ? Center(
                 child: CircularProgressIndicator(
                   strokeWidth: 3,
@@ -413,8 +415,10 @@ class _MatchesScreenState extends State<MatchesScreen> {
                   ),
                 ],
               ),
-      ),
-    );
+            ),
+          ),
+        ],
+      );
   }
 
 

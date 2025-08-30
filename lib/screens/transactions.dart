@@ -257,81 +257,82 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        foregroundColor: Theme.of(context).textTheme.titleLarge?.color,
-        title: Row(
-          children: [
-            Expanded(
-              child: Container(
-                height: 40,
-                child: TextField(
-                  controller: _searchController,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).textTheme.bodyMedium?.color,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: 'Search transactions...',
-                    hintStyle: TextStyle(
-                      color: Theme.of(context).textTheme.bodySmall?.color,
-                      fontSize: 12,
-                    ),
-                    prefixIcon: Icon(
-                      Icons.search,
-                      color: Theme.of(context).iconTheme.color,
-                      size: 20,
-                    ),
-                    filled: true,
-                    fillColor: Theme.of(context).cardColor,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 8,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide.none,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide.none,
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(
-                        color: Theme.of(context).colorScheme.primary,
-                        width: 1,
+    return Column(
+        children: [
+          // Search header
+          Container(
+            padding: EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 40,
+                    child: TextField(
+                      controller: _searchController,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
                       ),
+                      decoration: InputDecoration(
+                        hintText: 'Search transactions...',
+                        hintStyle: TextStyle(
+                          color: Theme.of(context).textTheme.bodySmall?.color,
+                          fontSize: 12,
+                        ),
+                        prefixIcon: Icon(
+                          Icons.search,
+                          color: Theme.of(context).iconTheme.color,
+                          size: 20,
+                        ),
+                        filled: true,
+                        fillColor: Theme.of(context).cardColor,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 8,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(
+                            color: Theme.of(context).colorScheme.primary,
+                            width: 1,
+                          ),
+                        ),
+                      ),
+                      onSubmitted: (value) {
+                        _searchQuery = value;
+                        _applyFilters();
+                      },
                     ),
                   ),
-                  onSubmitted: (value) {
-                    _searchQuery = value;
-                    _applyFilters();
-                  },
                 ),
-              ),
+                SizedBox(width: 8),
+                IconButton(
+                  icon: Icon(
+                    Icons.filter_list,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Theme.of(context).colorScheme.onSurface.withOpacity(0.8)
+                        : Theme.of(context).colorScheme.primary,
+                    size: 20,
+                  ),
+                  onPressed: _showFilterBottomSheet,
+                ),
+              ],
             ),
-            SizedBox(width: 8),
-            IconButton(
-              icon: Icon(
-                Icons.filter_list,
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Theme.of(context).colorScheme.onSurface.withOpacity(0.8)
-                    : Theme.of(context).colorScheme.primary,
-                size: 20,
-              ),
-              onPressed: _showFilterBottomSheet,
-            ),
-          ],
-        ),
-      ),
-      body: RefreshIndicator(
-        onRefresh: () => _loadTransactions(isRefresh: true),
-        color: Theme.of(context).colorScheme.primary,
-        child: _isLoading
+          ),
+          // Main content
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () => _loadTransactions(isRefresh: true),
+              color: Theme.of(context).colorScheme.primary,
+              child: _isLoading
             ? Center(
                 child: CircularProgressIndicator(
                   strokeWidth: 3,
@@ -602,8 +603,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   ),
                 ],
               ),
-      ),
-    );
+            ),
+          ),
+        ],
+      );
   }
 
   Widget _buildTransactionCard(Transaction transaction) {

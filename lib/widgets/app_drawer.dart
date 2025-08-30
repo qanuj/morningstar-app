@@ -10,21 +10,46 @@ import '../screens/my_orders.dart';
 import '../screens/transactions.dart';
 import '../screens/polls.dart';
 import '../screens/notifications.dart';
+import '../screens/clubs.dart';
+import '../utils/navigation_helper.dart';
 
 class AppDrawer extends StatelessWidget {
   final Function(Widget, String)? onNavigate;
+  final Function(int)? onTabSwitch; // For switching tabs in home screen
 
   const AppDrawer({
     super.key,
     this.onNavigate,
+    this.onTabSwitch,
   });
 
   void _navigateToScreen(BuildContext context, Widget screen, String screenName) {
     Navigator.of(context).pop(); // Close drawer first
+    
+    // Handle bottom tab pages
+    if (NavigationHelper.isBottomTabPage(screenName)) {
+      final tabIndex = NavigationHelper.getTabIndex(screenName);
+      if (tabIndex != null) {
+        if (onTabSwitch != null) {
+          // We're on home screen, just switch tabs
+          onTabSwitch!(tabIndex);
+        } else {
+          // Navigate to home screen with specific tab
+          Navigator.of(context).pushNamedAndRemoveUntil(
+            '/',
+            (route) => false,
+          );
+          // Note: We'll need to modify home screen to accept initial tab parameter
+        }
+        return;
+      }
+    }
+    
+    // Handle standalone pages
     if (onNavigate != null) {
       onNavigate!(screen, screenName);
     } else {
-      // Default navigation if no callback provided
+      // Default navigation for standalone pages
       Navigator.of(context).push(
         MaterialPageRoute(builder: (context) => screen),
       );
@@ -139,7 +164,7 @@ class AppDrawer extends StatelessWidget {
                                   currentClub.club.name,
                                   style: TextStyle(
                                     color: Colors.white,
-                                    fontSize: 12,
+                                    fontSize: 14,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -162,25 +187,32 @@ class AppDrawer extends StatelessWidget {
               // Menu Items
               Expanded(
                 child: ListView(
-                  padding: EdgeInsets.zero,
+                  padding: EdgeInsets.symmetric(vertical: 2),
                   children: [
+                    // Navigation
+                    _buildSectionHeader(context, 'Navigation'),
                     _buildDrawerItem(
                       context,
-                      icon: Icons.sports_cricket,
+                      icon: Icons.home_outlined,
+                      title: 'Home',
+                      onTap: () {
+                        Navigator.of(context).pop(); // Close drawer
+                        if (onTabSwitch != null) {
+                          onTabSwitch!(0); // Navigate to Home tab
+                        }
+                      },
+                    ),
+                    _buildDrawerItem(
+                      context,
+                      icon: Icons.sports_cricket_outlined,
                       title: 'Matches',
                       onTap: () => _navigateToScreen(context, MatchesScreen(), 'Matches'),
                     ),
                     _buildDrawerItem(
                       context,
-                      icon: Icons.store,
+                      icon: Icons.store_outlined,
                       title: 'Store',
                       onTap: () => _navigateToScreen(context, StoreScreen(), 'Store'),
-                    ),
-                    _buildDrawerItem(
-                      context,
-                      icon: Icons.shopping_bag_outlined,
-                      title: 'My Orders',
-                      onTap: () => _navigateToScreen(context, MyOrdersScreen(), 'Orders'),
                     ),
                     _buildDrawerItem(
                       context,
@@ -194,34 +226,61 @@ class AppDrawer extends StatelessWidget {
                       title: 'Polls',
                       onTap: () => _navigateToScreen(context, PollsScreen(), 'Polls'),
                     ),
+
+                    SizedBox(height: 2),
+
+                    // Main Features
+                    _buildSectionHeader(context, 'Features'),
+                    _buildDrawerItem(
+                      context,
+                      icon: Icons.shopping_bag_outlined,
+                      title: 'My Orders',
+                      onTap: () => _navigateToScreen(context, MyOrdersScreen(), 'My Orders'),
+                    ),
                     _buildDrawerItem(
                       context,
                       icon: Icons.notifications_outlined,
                       title: 'Notifications',
                       onTap: () => _navigateToScreen(context, NotificationsScreen(), 'Notifications'),
                     ),
-                    Divider(
-                      color: Theme.of(context).dividerColor.withOpacity(0.3),
-                      height: 32,
-                      indent: 16,
-                      endIndent: 16,
+
+                    SizedBox(height: 2),
+
+                    // Club & Account
+                    _buildSectionHeader(context, 'Club & Account'),
+                    _buildDrawerItem(
+                      context,
+                      icon: Icons.groups_outlined,
+                      title: 'My Clubs',
+                      onTap: () => _navigateToScreen(context, ClubsScreen(), 'My Clubs'),
                     ),
                     _buildDrawerItem(
                       context,
-                      icon: Icons.settings_outlined,
-                      title: 'Settings',
-                      onTap: () {
-                        // Navigate to settings when available
-                        Navigator.of(context).pop();
-                      },
+                      icon: Icons.person_outline,
+                      title: 'Profile',
+                      onTap: () => _navigateToScreen(context, ProfileScreen(), 'Profile'),
                     ),
+
+                    SizedBox(height: 20),
+
+                    // Settings
+                    _buildSectionHeader(context, 'Settings'),
                     _buildDrawerItem(
                       context,
                       icon: Icons.help_outline,
                       title: 'Help & Support',
                       onTap: () {
-                        // Navigate to help when available
                         Navigator.of(context).pop();
+                        // TODO: Navigate to help when available
+                      },
+                    ),
+                    _buildDrawerItem(
+                      context,
+                      icon: Icons.info_outline,
+                      title: 'About',
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        // TODO: Show about dialog when available
                       },
                     ),
                   ],
@@ -234,32 +293,71 @@ class AppDrawer extends StatelessWidget {
     );
   }
 
+  Widget _buildSectionHeader(BuildContext context, String title) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+          color: Theme.of(context).textTheme.bodySmall?.color,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
   Widget _buildDrawerItem(
     BuildContext context, {
     required IconData icon,
     required String title,
     required VoidCallback onTap,
+    bool isSelected = false,
   }) {
-    return ListTile(
-      leading: Icon(
-        icon,
-        color: Theme.of(context).iconTheme.color,
-        size: 24,
-      ),
-      title: Text(
-        title,
-        style: TextStyle(
-          color: Theme.of(context).textTheme.bodyLarge?.color,
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 12, vertical: 1),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            onTap();
+          },
+          borderRadius: BorderRadius.circular(4),
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? Theme.of(context).primaryColor.withOpacity(0.08)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: ListTile(
+              leading: Icon(
+                icon,
+                color: isSelected
+                    ? Theme.of(context).primaryColor
+                    : Theme.of(context).iconTheme.color,
+                size: 20,
+              ),
+              title: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: isSelected
+                      ? Theme.of(context).primaryColor
+                      : Theme.of(context).textTheme.bodyMedium?.color,
+                  fontWeight: isSelected ? FontWeight.w500 : FontWeight.w400,
+                ),
+              ),
+              dense: true,
+              visualDensity: VisualDensity.compact,
+              contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+            ),
+          ),
         ),
       ),
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-      dense: true,
     );
   }
 }

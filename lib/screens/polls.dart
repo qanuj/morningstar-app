@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../models/poll.dart';
 import '../services/api_service.dart';
 import '../widgets/duggy_logo.dart';
-import 'notifications.dart';
 
 class PollsScreen extends StatefulWidget {
   @override
@@ -12,7 +10,6 @@ class PollsScreen extends StatefulWidget {
 }
 
 class _PollsScreenState extends State<PollsScreen> {
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   List<Poll> _polls = [];
   bool _isLoading = false;
 
@@ -135,76 +132,7 @@ class _PollsScreenState extends State<PollsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      key: _scaffoldKey,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      drawer: Drawer(), // You can customize this later if needed
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-        elevation: 0,
-        foregroundColor: Theme.of(context).appBarTheme.foregroundColor,
-        leading: GestureDetector(
-          onTap: () {
-            HapticFeedback.lightImpact();
-            _scaffoldKey.currentState?.openDrawer();
-          },
-          child: Icon(
-            Icons.menu,
-            color: Theme.of(context).appBarTheme.foregroundColor,
-            size: 24,
-          ),
-        ),
-        title: Row(
-          children: [
-            DuggyLogoVariant.small(
-              color: Theme.of(context).appBarTheme.foregroundColor,
-            ),
-            Text(
-              'Polls',
-              style: TextStyle(
-                color: Theme.of(context).appBarTheme.foregroundColor,
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.2,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              Navigator.of(context).push(
-                PageRouteBuilder(
-                  pageBuilder: (context, animation, secondaryAnimation) =>
-                      NotificationsScreen(),
-                  transitionsBuilder:
-                      (context, animation, secondaryAnimation, child) {
-                        return SlideTransition(
-                          position: animation.drive(
-                            Tween(
-                              begin: Offset(1.0, 0.0),
-                              end: Offset.zero,
-                            ).chain(CurveTween(curve: Curves.easeOutCubic)),
-                          ),
-                          child: child,
-                        );
-                      },
-                ),
-              );
-            },
-            child: Padding(
-              padding: EdgeInsets.only(right: 16),
-              child: Icon(
-                Icons.notifications_outlined,
-                color: Theme.of(context).appBarTheme.foregroundColor,
-                size: 24,
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
+    return RefreshIndicator(
         onRefresh: _loadPolls,
         color: Theme.of(context).primaryColor,
         child: _isLoading
@@ -259,8 +187,7 @@ class _PollsScreenState extends State<PollsScreen> {
                       return _buildPollCard(poll);
                     },
                   ),
-      ),
-    );
+      );
   }
 
   // Helper method to get the option the user voted for

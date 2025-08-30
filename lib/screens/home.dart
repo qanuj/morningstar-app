@@ -16,6 +16,8 @@ import 'my_orders.dart';
 import '../utils/theme.dart';
 import '../utils/dialogs.dart';
 import '../widgets/duggy_logo.dart';
+import '../widgets/app_drawer.dart';
+import '../widgets/custom_app_bar.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -29,10 +31,12 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<Widget> _screens = [
     _DashboardScreen(), // Home dashboard
     MatchesScreen(),
+    StoreScreen(),
     TransactionsScreen(),
+    PollsScreen(),
   ];
 
-  final List<String> _titles = ['Dashboard', 'Matches', 'Transactions'];
+  final List<String> _titles = ['Home', 'Matches', 'Store', 'Transactions', 'Polls'];
 
   void _navigateToScreen(Widget screen, String title) {
     // For drawer navigation to screens not in bottom tabs
@@ -55,87 +59,12 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      drawer: _buildSideDrawer(),
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-        elevation: 0,
-        foregroundColor: Theme.of(context).appBarTheme.foregroundColor,
-        leading: GestureDetector(
-          onTap: () {
-            HapticFeedback.lightImpact();
-            _scaffoldKey.currentState?.openDrawer();
-          },
-          child: Icon(
-            Icons.menu,
-            color: Theme.of(context).appBarTheme.foregroundColor,
-            size: 24,
-          ),
-        ),
-        title: Row(
-          children: [
-            DuggyLogoVariant.small(
-              color: Theme.of(context).appBarTheme.foregroundColor,
-            ),
-            Text(
-              'Duggy',
-              style: TextStyle(
-                color: Theme.of(context).appBarTheme.foregroundColor,
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.2,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              Navigator.of(context).push(
-                PageRouteBuilder(
-                  pageBuilder: (context, animation, secondaryAnimation) =>
-                      NotificationsScreen(),
-                  transitionsBuilder:
-                      (context, animation, secondaryAnimation, child) {
-                        return SlideTransition(
-                          position: animation.drive(
-                            Tween(
-                              begin: Offset(1.0, 0.0),
-                              end: Offset.zero,
-                            ).chain(CurveTween(curve: Curves.easeOutCubic)),
-                          ),
-                          child: child,
-                        );
-                      },
-                ),
-              );
-            },
-            child: Padding(
-              padding: EdgeInsets.only(right: 16),
-              child: Icon(
-                Icons.notifications_outlined,
-                color: Theme.of(context).appBarTheme.foregroundColor,
-                size: 24,
-              ),
-            ),
-          ),
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (context) => ClubsScreen()));
-            },
-            child: Padding(
-              padding: EdgeInsets.only(right: 16),
-              child: Icon(
-                Icons.swap_horiz,
-                color: Theme.of(context).appBarTheme.foregroundColor,
-                size: 24,
-              ),
-            ),
-          ),
-        ],
+      drawer: AppDrawer(
+        onNavigate: _navigateToScreen,
+        onTabSwitch: _onBottomNavTap,
+      ),
+      appBar: HomeAppBar(
+        onDrawerTap: () => _scaffoldKey.currentState?.openDrawer(),
       ),
       body: IndexedStack(
         index: _selectedIndex,
@@ -173,9 +102,19 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Matches',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.store_outlined),
+            activeIcon: Icon(Icons.store),
+            label: 'Store',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.account_balance_wallet_outlined),
             activeIcon: Icon(Icons.account_balance_wallet),
             label: 'Transactions',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.poll_outlined),
+            activeIcon: Icon(Icons.poll),
+            label: 'Polls',
           ),
         ],
       ),

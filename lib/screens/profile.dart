@@ -5,6 +5,7 @@ import '../providers/club_provider.dart';
 import '../services/auth_service.dart';
 import '../utils/theme.dart';
 import '../utils/dialogs.dart';
+import '../widgets/custom_app_bar.dart';
 import 'login.dart';
 import 'edit_profile.dart';
 
@@ -13,27 +14,9 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: Text(
-          'Profile',
-          style: TextStyle(
-            color: Theme.of(context).appBarTheme.foregroundColor,
-            fontWeight: FontWeight.w400,
-            fontSize: 12,
-          ),
-        ),
-        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-        elevation: 0,
-        iconTheme: IconThemeData(
-          color: Theme.of(context).appBarTheme.foregroundColor,
-        ),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
-        ),
-        actions: [
+      appBar: DetailAppBar(
+        pageTitle: 'Profile',
+        customActions: [
           IconButton(
             icon: Icon(Icons.home_outlined),
             onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
