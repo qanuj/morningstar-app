@@ -21,7 +21,7 @@ class MyApp extends StatelessWidget {
       ],
       child: MaterialApp(
         title: 'Duggy',
-        theme: AppTheme.cricketTheme,
+        theme: AppTheme.duggyTheme,
         home: SplashScreen(),
         debugShowCheckedModeBanner: false,
       ),

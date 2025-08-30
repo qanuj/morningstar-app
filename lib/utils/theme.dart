@@ -2,43 +2,69 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static const Color cricketGreen = Color(0xFF2E7D32);
-  static const Color darkGreen = Color(0xFF1B5E20);
-  static const Color lightGreen = Color(0xFF4CAF50);
-  static const Color accentGreen = Color(0xFF66BB6A);
+  // Duggy Blue Brand Colors (from web project)
+  static const Color primaryBlue = Color(0xFF003f9b);      // Main brand color
+  static const Color lightBlue = Color(0xFF06aeef);        // Secondary actions, highlights
+  static const Color lighterBlue = Color(0xFF4dd0ff);      // Tertiary accents
+  static const Color darkBlue = Color(0xFF002d6b);         // Darker shade for gradients
   
-  // Neutral colors
-  static const Color backgroundColor = Color(0xFFF8F9FA);
-  static const Color surfaceColor = Color(0xFFFFFFFF);
-  static const Color cardColor = Color(0xFFFFFFFF);
-  static const Color dividerColor = Color(0xFFE0E0E0);
+  // Status Colors
+  static const Color successGreen = Color(0xFF16a34a);     // Success states
+  static const Color errorRed = Color(0xFFdc2626);         // Error states  
+  static const Color warningOrange = Color(0xFFf59e0b);    // Warning states
   
-  // Text colors
-  static const Color primaryTextColor = Color(0xFF1A1A1A);
-  static const Color secondaryTextColor = Color(0xFF6B7280);
-  static const Color tertiaryTextColor = Color(0xFF9CA3AF);
+  // Chart Colors (for analytics)
+  static const Color chart1 = Color(0xFF003f9b);          // Primary data
+  static const Color chart2 = Color(0xFF06aeef);          // Secondary data
+  static const Color chart3 = Color(0xFF4dd0ff);          // Tertiary data
+  static const Color chart4 = Color(0xFFfbbf24);          // Accent data
+  static const Color chart5 = Color(0xFFf97316);          // Warning data
+  
+  // Neutral Colors (from web project)
+  static const Color backgroundColor = Color(0xFFffffff);  // Main background
+  static const Color surfaceColor = Color(0xFFffffff);    // Card backgrounds
+  static const Color cardColor = Color(0xFFffffff);       // Card container
+  static const Color secondaryBg = Color(0xFFf8f9fa);     // Light backgrounds
+  static const Color dividerColor = Color(0xFFdee2e6);    // Borders, dividers
+  
+  // Text Colors (from web project)
+  static const Color primaryTextColor = Color(0xFF000000);  // Main headings
+  static const Color secondaryTextColor = Color(0xFF6c757d); // Supporting text
+  static const Color tertiaryTextColor = Color(0xFF9ca3af);  // Subtle text
+  
+  // Legacy color aliases for backward compatibility
+  static const Color cricketGreen = primaryBlue;
+  static const Color darkGreen = darkBlue;
+  static const Color lightGreen = lightBlue;
+  static const Color accentGreen = lighterBlue;
 
-  static ThemeData get cricketTheme {
+  static ThemeData get duggyTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: cricketGreen,
+        seedColor: primaryBlue,
         brightness: Brightness.light,
+        primary: primaryBlue,
+        secondary: lightBlue,
+        surface: surfaceColor,
+        background: backgroundColor,
+        error: errorRed,
       ),
       scaffoldBackgroundColor: backgroundColor,
       
-      // App Bar Theme
+      // App Bar Theme - Compact
       appBarTheme: AppBarTheme(
-        backgroundColor: cricketGreen,
+        backgroundColor: primaryBlue,
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: false,
+        toolbarHeight: 56, // Standard compact height
         titleTextStyle: TextStyle(
           color: Colors.white,
-          fontSize: 20,
+          fontSize: 18,
           fontWeight: FontWeight.w600,
         ),
-        iconTheme: IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(color: Colors.white, size: 22),
       ),
       
       // Card Theme
@@ -47,7 +73,7 @@ class AppTheme {
         elevation: 0,
         margin: EdgeInsets.all(0),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(4),
           side: BorderSide(
             color: dividerColor.withOpacity(0.3),
             width: 0.5,
@@ -59,16 +85,16 @@ class AppTheme {
       // Elevated Button Theme
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: cricketGreen,
+          backgroundColor: primaryBlue,
           foregroundColor: Colors.white,
           elevation: 0,
           shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
           ),
-          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           textStyle: TextStyle(
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -77,14 +103,14 @@ class AppTheme {
       // Outlined Button Theme
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: cricketGreen,
-          side: BorderSide(color: cricketGreen.withOpacity(0.3)),
+          foregroundColor: primaryBlue,
+          side: BorderSide(color: primaryBlue.withOpacity(0.3)),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
           ),
-          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           textStyle: TextStyle(
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -93,75 +119,76 @@ class AppTheme {
       // Text Button Theme
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: cricketGreen,
+          foregroundColor: primaryBlue,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
           ),
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           textStyle: TextStyle(
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
         ),
       ),
       
-      // Input Decoration Theme
+      // Input Decoration Theme - Compact but usable
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: surfaceColor,
+        isDense: true, // Makes inputs more compact
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(
             color: dividerColor.withOpacity(0.5),
             width: 1,
           ),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(
             color: dividerColor.withOpacity(0.5),
             width: 1,
           ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(
-            color: cricketGreen,
+            color: primaryBlue,
             width: 2,
           ),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(
             color: Colors.red,
             width: 1,
           ),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(
             color: Colors.red,
             width: 2,
           ),
         ),
-        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         hintStyle: TextStyle(
           color: secondaryTextColor,
-          fontSize: 16,
+          fontSize: 14,
         ),
         labelStyle: TextStyle(
           color: secondaryTextColor,
-          fontSize: 16,
+          fontSize: 14,
         ),
       ),
       
       // Bottom Navigation Bar Theme
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: surfaceColor,
-        selectedItemColor: cricketGreen,
+        selectedItemColor: primaryBlue,
         unselectedItemColor: secondaryTextColor,
         type: BottomNavigationBarType.fixed,
-        elevation: 8,
+        elevation: 0,
         selectedLabelStyle: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
@@ -184,41 +211,43 @@ class AppTheme {
         ),
       ),
       
-      // List Tile Theme
+      // List Tile Theme - Compact
       listTileTheme: ListTileThemeData(
+        dense: true, // Makes list tiles more compact
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
         ),
-        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        iconColor: cricketGreen,
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        iconColor: primaryBlue,
         textColor: primaryTextColor,
+        minVerticalPadding: 2, // Minimal vertical padding
       ),
       
-      // Chip Theme
+      // Chip Theme - Compact
       chipTheme: ChipThemeData(
-        backgroundColor: cricketGreen.withOpacity(0.1),
-        selectedColor: cricketGreen,
+        backgroundColor: primaryBlue.withOpacity(0.1),
+        selectedColor: primaryBlue,
         disabledColor: Colors.grey.withOpacity(0.2),
-        secondarySelectedColor: cricketGreen.withOpacity(0.2),
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        secondarySelectedColor: primaryBlue.withOpacity(0.2),
+        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         labelStyle: TextStyle(
-          color: cricketGreen,
-          fontSize: 14,
+          color: primaryBlue,
+          fontSize: 13,
           fontWeight: FontWeight.w500,
         ),
         secondaryLabelStyle: TextStyle(
           color: Colors.white,
-          fontSize: 14,
+          fontSize: 13,
           fontWeight: FontWeight.w500,
         ),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
         ),
       ),
       
       // Floating Action Button Theme
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: cricketGreen,
+        backgroundColor: primaryBlue,
         foregroundColor: Colors.white,
         elevation: 4,
         shape: RoundedRectangleBorder(
@@ -256,7 +285,7 @@ class AppTheme {
         backgroundColor: primaryTextColor,
         contentTextStyle: TextStyle(color: Colors.white),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(4),
         ),
         behavior: SnackBarBehavior.floating,
         elevation: 4,
@@ -343,16 +372,16 @@ class AppTheme {
       
       // Progress Indicator Theme
       progressIndicatorTheme: ProgressIndicatorThemeData(
-        color: cricketGreen,
+        color: primaryBlue,
         linearTrackColor: cricketGreen.withOpacity(0.2),
         circularTrackColor: cricketGreen.withOpacity(0.2),
       ),
       
       // Tab Bar Theme
       tabBarTheme: TabBarThemeData(
-        labelColor: cricketGreen,
+        labelColor: primaryBlue,
         unselectedLabelColor: secondaryTextColor,
-        indicatorColor: cricketGreen,
+        indicatorColor: primaryBlue,
         indicatorSize: TabBarIndicatorSize.tab,
         labelStyle: TextStyle(
           fontSize: 16,
@@ -369,7 +398,7 @@ class AppTheme {
         thumbColor: MaterialStateProperty.resolveWith<Color?>(
           (Set<MaterialState> states) {
             if (states.contains(MaterialState.selected)) {
-              return cricketGreen;
+              return primaryBlue;
             }
             return Colors.grey[300];
           },
@@ -377,7 +406,7 @@ class AppTheme {
         trackColor: MaterialStateProperty.resolveWith<Color?>(
           (Set<MaterialState> states) {
             if (states.contains(MaterialState.selected)) {
-              return cricketGreen.withOpacity(0.3);
+              return primaryBlue.withOpacity(0.3);
             }
             return Colors.grey[300];
           },
@@ -389,7 +418,7 @@ class AppTheme {
         fillColor: MaterialStateProperty.resolveWith<Color?>(
           (Set<MaterialState> states) {
             if (states.contains(MaterialState.selected)) {
-              return cricketGreen;
+              return primaryBlue;
             }
             return Colors.transparent;
           },
@@ -405,7 +434,7 @@ class AppTheme {
         fillColor: MaterialStateProperty.resolveWith<Color?>(
           (Set<MaterialState> states) {
             if (states.contains(MaterialState.selected)) {
-              return cricketGreen;
+              return primaryBlue;
             }
             return secondaryTextColor;
           },
@@ -445,7 +474,7 @@ class AppTheme {
   
   static BoxDecoration get gradientDecoration => BoxDecoration(
     gradient: LinearGradient(
-      colors: [cricketGreen, darkGreen],
+      colors: [primaryBlue, darkBlue],
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
     ),
@@ -454,10 +483,47 @@ class AppTheme {
   
   static BoxDecoration get softBorderDecoration => BoxDecoration(
     color: surfaceColor,
-    borderRadius: BorderRadius.circular(12),
+    borderRadius: BorderRadius.circular(8),
     border: Border.all(
-      color: dividerColor.withOpacity(0.5),
-      width: 1,
+      color: dividerColor.withOpacity(0.3),
+      width: 0.5,
     ),
   );
+  
+  // Ultra-compact helper methods for maximum space efficiency
+  static EdgeInsets get ultraCompactPadding => EdgeInsets.all(4);
+  static EdgeInsets get compactPadding => EdgeInsets.all(8);
+  static EdgeInsets get standardPadding => EdgeInsets.all(12);
+  
+  static EdgeInsets get ultraCompactMargin => EdgeInsets.all(2);
+  static EdgeInsets get compactMargin => EdgeInsets.all(4);
+  static EdgeInsets get standardMargin => EdgeInsets.all(8);
+  
+  // Compact spacing constants
+  static const double ultraCompactSpacing = 4;
+  static const double compactSpacing = 8;
+  static const double standardSpacing = 12;
+  static const double largeSpacing = 16;
+  
+  // Compact box decorations
+  static BoxDecoration get ultraCompactCardDecoration => BoxDecoration(
+    color: surfaceColor,
+    borderRadius: BorderRadius.circular(6),
+    border: Border.all(
+      color: dividerColor.withOpacity(0.2),
+      width: 0.5,
+    ),
+  );
+  
+  static BoxDecoration get compactListDecoration => BoxDecoration(
+    color: surfaceColor,
+    borderRadius: BorderRadius.circular(4),
+    border: Border.all(
+      color: dividerColor.withOpacity(0.1),
+      width: 0.5,
+    ),
+  );
+
+  // Legacy alias for backward compatibility
+  static ThemeData get cricketTheme => duggyTheme;
 }

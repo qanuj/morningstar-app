@@ -24,12 +24,32 @@ dependencies:
   badges: ^3.1.2
 
   cupertino_icons: ^1.0.8
+  flutter_svg: ^2.0.10+1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.1
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/duggy_logo_192.png"
+  min_sdk_android: 21
+  web:
+    generate: true
+    image_path: "assets/images/duggy_logo_192.png"
+    background_color: "#003f9b"
+    theme_color: "#003f9b"
+  windows:
+    generate: true
+    image_path: "assets/images/duggy_logo_192.png"
+    icon_size: 48
+  macos:
+    generate: true
+    image_path: "assets/images/duggy_logo_192.png"
 
 flutter:
 

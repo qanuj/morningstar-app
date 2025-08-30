@@ -16,6 +16,7 @@ import 'login.dart';
 import 'notifications.dart';
 import 'my_orders.dart';
 import '../utils/theme.dart';
+import '../widgets/duggy_logo.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -132,11 +133,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                                 color: Colors.white,
                                                 shape: BoxShape.circle,
                                               ),
-                                              child: Icon(
-                                                Icons.sports_cricket,
-                                                color: AppTheme.cricketGreen,
-                                                size:
-                                                    16 * _headerAnimation.value,
+                                              child: DuggyLogoVariant.small(
+                                                color: AppTheme.primaryBlue,
                                               ),
                                             );
                                           },
@@ -608,13 +606,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             Container(
               padding: EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppTheme.cricketGreen.withOpacity(0.1),
+                color: AppTheme.primaryBlue.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(
-                Icons.sports_cricket,
-                color: AppTheme.cricketGreen,
-                size: 20,
+              child: DuggyLogoVariant.small(
+                color: AppTheme.primaryBlue,
               ),
             ),
             SizedBox(width: 12),

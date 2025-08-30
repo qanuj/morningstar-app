@@ -4,6 +4,8 @@ import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import '../providers/user_provider.dart';
 import '../providers/club_provider.dart';
+import '../widgets/duggy_logo.dart';
+import '../utils/theme.dart';
 import 'login.dart';
 import 'home.dart';
 
@@ -48,53 +50,75 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFF2E7D32),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 20,
-                    spreadRadius: 5,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [AppTheme.primaryBlue, AppTheme.darkBlue],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Animated Duggy Logo
+                DuggyLogoVariant.splash(),
+                
+                SizedBox(height: 40),
+                
+                // App Title
+                Text(
+                  'DUGGY',
+                  style: TextStyle(
+                    fontSize: 48,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 2,
                   ),
-                ],
-              ),
-              child: Icon(
-                Icons.sports_cricket,
-                size: 60,
-                color: Color(0xFF2E7D32),
-              ),
+                ),
+                
+                SizedBox(height: 12),
+                
+                // Subtitle
+                Text(
+                  'Your Cricket Club Companion',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.white.withOpacity(0.9),
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                
+                SizedBox(height: 60),
+                
+                // Loading Indicator
+                Container(
+                  width: 40,
+                  height: 40,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    backgroundColor: Colors.white.withOpacity(0.2),
+                  ),
+                ),
+                
+                SizedBox(height: 20),
+                
+                // Loading Text
+                Text(
+                  'Loading...',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.white.withOpacity(0.8),
+                    fontWeight: FontWeight.w300,
+                  ),
+                ),
+              ],
             ),
-            SizedBox(height: 30),
-            Text(
-              'Duggy',
-              style: TextStyle(
-                fontSize: 48,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            SizedBox(height: 10),
-            Text(
-              'Your Cricket Club Companion',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.white70,
-              ),
-            ),
-            SizedBox(height: 50),
-            CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
-          ],
+          ),
         ),
       ),
     );
