@@ -18,7 +18,7 @@ class DuggyLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final logoColor = color ?? AppTheme.primaryBlue;
+    final logoColor = color ?? Theme.of(context).colorScheme.primary;
 
     if (animated) {
       return _AnimatedDuggyLogo(
@@ -55,7 +55,7 @@ class _StaticDuggyLogo extends StatelessWidget {
             borderRadius: BorderRadius.circular(size * 0.1),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Theme.of(context).shadowColor.withOpacity(0.1),
                 blurRadius: size * 0.2,
                 offset: Offset(0, size * 0.1),
               ),
@@ -68,9 +68,6 @@ class _StaticDuggyLogo extends StatelessWidget {
               width: size,
               height: size,
               fit: BoxFit.contain,
-              colorFilter: color != AppTheme.primaryBlue
-                  ? ColorFilter.mode(color, BlendMode.srcIn)
-                  : null,
             ),
           ),
         ),
@@ -80,8 +77,8 @@ class _StaticDuggyLogo extends StatelessWidget {
           Text(
             'DUGGY',
             style: TextStyle(
-              fontSize: size * 0.25,
-              fontWeight: FontWeight.bold,
+              fontSize: size * 0.4,
+              fontWeight: FontWeight.w600,
               color: color,
               letterSpacing: size * 0.02,
             ),
@@ -192,49 +189,9 @@ class _AnimatedDuggyLogoState extends State<_AnimatedDuggyLogo>
   }
 }
 
-class _DuggyBackgroundPainter extends CustomPainter {
-  final Color color;
-
-  _DuggyBackgroundPainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    // Draw subtle cricket field pattern
-    final center = Offset(size.width / 2, size.height / 2);
-
-    // Wicket lines
-    for (int i = 0; i < 3; i++) {
-      canvas.drawCircle(
-        center,
-        (size.width * 0.15) + (i * size.width * 0.1),
-        paint
-          ..strokeWidth = 1
-          ..style = PaintingStyle.stroke,
-      );
-    }
-
-    // Cricket pitch rectangle
-    final rect = RRect.fromLTRBR(
-      size.width * 0.3,
-      size.height * 0.25,
-      size.width * 0.7,
-      size.height * 0.75,
-      Radius.circular(size.width * 0.05),
-    );
-    canvas.drawRRect(rect, paint..style = PaintingStyle.stroke);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
 // Logo variants for different use cases
 class DuggyLogoVariant {
-  static Widget small({Color? color}) => DuggyLogo(size: 32, color: color);
+  static Widget small({Color? color}) => DuggyLogo(size: 42, color: color);
 
   static Widget medium({Color? color, bool showText = false}) =>
       DuggyLogo(size: 64, color: color, showText: showText);
@@ -249,18 +206,22 @@ class DuggyLogoVariant {
   }) => DuggyLogo(size: size, color: color, showText: showText, animated: true);
 
   // Special variant for splash screen
-  static Widget splash() =>
-      DuggyLogo(size: 150, color: Colors.white, showText: true, animated: true);
+  static Widget splash(BuildContext context) => DuggyLogo(
+    size: 150,
+    color: Theme.of(context).colorScheme.onBackground,
+    showText: true,
+    animated: true,
+  );
 
   // Monochrome variant for certain contexts
   static Widget monochrome({double size = 64, bool showText = false}) =>
-      Container(
+      SizedBox(
         width: size,
         height: showText ? size * 1.5 : size,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
+            SizedBox(
               width: size,
               height: size,
               child: SvgPicture.asset(
@@ -275,9 +236,9 @@ class DuggyLogoVariant {
               Text(
                 'DUGGY',
                 style: TextStyle(
-                  fontSize: size * 0.2,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
+                  fontSize: size * 0.12,
+                  fontWeight: FontWeight.w400,
+                  color: AppTheme.primaryTextColor,
                   letterSpacing: size * 0.01,
                 ),
               ),

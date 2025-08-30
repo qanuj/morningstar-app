@@ -131,25 +131,39 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
         children: [
           // Store Header
           Container(
             margin: EdgeInsets.all(16),
             padding: EdgeInsets.all(20),
-            decoration: AppTheme.softCardDecoration,
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Theme.of(context).dividerColor.withOpacity(0.3),
+                width: 0.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Theme.of(context).shadowColor.withOpacity(0.04),
+                  blurRadius: 8,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
             child: Row(
               children: [
                 Container(
                   padding: EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppTheme.cricketGreen.withOpacity(0.1),
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
                     Icons.store,
-                    color: AppTheme.cricketGreen,
+                    color: Theme.of(context).colorScheme.primary,
                     size: 24,
                   ),
                 ),
@@ -163,7 +177,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w400,
-                          color: AppTheme.primaryTextColor,
+                          color: Theme.of(context).textTheme.titleLarge?.color,
                         ),
                       ),
                       SizedBox(height: 4),
@@ -173,7 +187,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                           : 'Loading products...',
                         style: TextStyle(
                           fontSize: 12,
-                          color: AppTheme.secondaryTextColor,
+                          color: Theme.of(context).textTheme.bodySmall?.color,
                         ),
                       ),
                     ],
@@ -188,10 +202,10 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
             margin: EdgeInsets.symmetric(horizontal: 16),
             padding: EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: AppTheme.surfaceColor,
+              color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: AppTheme.dividerColor.withOpacity(0.3),
+                color: Theme.of(context).dividerColor.withOpacity(0.3),
                 width: 0.5,
               ),
             ),
@@ -199,11 +213,11 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
               controller: _tabController,
               indicatorSize: TabBarIndicatorSize.tab,
               indicator: BoxDecoration(
-                color: AppTheme.cricketGreen,
+                color: Theme.of(context).colorScheme.primary,
                 borderRadius: BorderRadius.circular(8),
               ),
-              labelColor: Colors.white,
-              unselectedLabelColor: AppTheme.secondaryTextColor,
+              labelColor: Theme.of(context).colorScheme.onPrimary,
+              unselectedLabelColor: Theme.of(context).textTheme.bodySmall?.color,
               labelStyle: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w400,
@@ -246,7 +260,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
       return Center(
         child: CircularProgressIndicator(
           strokeWidth: 3,
-          color: AppTheme.cricketGreen,
+          color: Theme.of(context).colorScheme.primary,
         ),
       );
     }
@@ -265,7 +279,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
               child: Icon(
                 Icons.checkroom_outlined,
                 size: 64,
-                color: AppTheme.cricketGreen,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
             SizedBox(height: 24),
@@ -274,7 +288,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w400,
-                color: AppTheme.primaryTextColor,
+                color: Theme.of(context).textTheme.titleLarge?.color,
               ),
             ),
             SizedBox(height: 8),
@@ -282,7 +296,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
               'Check back later for new jerseys',
               style: TextStyle(
                 fontSize: 12,
-                color: AppTheme.secondaryTextColor,
+                color: Theme.of(context).textTheme.bodySmall?.color,
               ),
             ),
           ],
@@ -292,7 +306,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
 
     return RefreshIndicator(
       onRefresh: _loadStoreData,
-      color: AppTheme.cricketGreen,
+      color: Theme.of(context).colorScheme.primary,
       child: GridView.builder(
         padding: EdgeInsets.all(16),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -315,7 +329,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
       return Center(
         child: CircularProgressIndicator(
           strokeWidth: 3,
-          color: AppTheme.cricketGreen,
+          color: Theme.of(context).colorScheme.primary,
         ),
       );
     }
@@ -334,7 +348,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
               child: Icon(
                 Icons.sports_cricket_outlined,
                 size: 64,
-                color: AppTheme.cricketGreen,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
             SizedBox(height: 24),
@@ -343,7 +357,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w400,
-                color: AppTheme.primaryTextColor,
+                color: Theme.of(context).textTheme.titleLarge?.color,
               ),
             ),
             SizedBox(height: 8),
@@ -351,7 +365,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
               'Check back later for new kits',
               style: TextStyle(
                 fontSize: 12,
-                color: AppTheme.secondaryTextColor,
+                color: Theme.of(context).textTheme.bodySmall?.color,
               ),
             ),
           ],
@@ -361,7 +375,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
 
     return RefreshIndicator(
       onRefresh: _loadStoreData,
-      color: AppTheme.cricketGreen,
+      color: Theme.of(context).colorScheme.primary,
       child: GridView.builder(
         padding: EdgeInsets.all(16),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -381,7 +395,21 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
 
   Widget _buildJerseyCard(Jersey jersey) {
     return Container(
-      decoration: AppTheme.softCardDecoration,
+      decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Theme.of(context).dividerColor.withOpacity(0.3),
+                    width: 0.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Theme.of(context).shadowColor.withOpacity(0.04),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -403,7 +431,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                   width: double.infinity,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-                    color: AppTheme.backgroundColor,
+                    color: Theme.of(context).scaffoldBackgroundColor,
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -412,29 +440,29 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                             imageUrl: jersey.images.first.url,
                             fit: BoxFit.cover,
                             placeholder: (context, url) => Container(
-                              color: AppTheme.backgroundColor,
+                              color: Theme.of(context).scaffoldBackgroundColor,
                               child: Center(
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: AppTheme.cricketGreen,
+                                  color: Theme.of(context).colorScheme.primary,
                                 ),
                               ),
                             ),
                             errorWidget: (context, url, error) => Container(
-                              color: AppTheme.backgroundColor,
+                              color: Theme.of(context).scaffoldBackgroundColor,
                               child: Icon(
                                 Icons.checkroom,
                                 size: 50,
-                                color: AppTheme.cricketGreen,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
                             ),
                           )
                         : Container(
-                            color: AppTheme.backgroundColor,
+                            color: Theme.of(context).scaffoldBackgroundColor,
                             child: Icon(
                               Icons.checkroom,
                               size: 50,
-                              color: AppTheme.cricketGreen,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                           ),
                   ),
@@ -454,7 +482,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                         style: TextStyle(
                           fontWeight: FontWeight.w400,
                           fontSize: 12,
-                          color: AppTheme.primaryTextColor,
+                          color: Theme.of(context).textTheme.titleLarge?.color,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -465,7 +493,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                           jersey.description!,
                           style: TextStyle(
                             fontSize: 12,
-                            color: AppTheme.secondaryTextColor,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -477,17 +505,17 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                         Container(
                           padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.1),
+                            color: AppTheme.lightBlue.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: Colors.blue.withOpacity(0.3),
+                              color: AppTheme.lightBlue.withOpacity(0.3),
                               width: 0.5,
                             ),
                           ),
                           child: Text(
                             'Ordered (${jersey.userOrderCount})',
                             style: TextStyle(
-                              color: Colors.blue,
+                              color: AppTheme.lightBlue,
                               fontSize: 12,
                               fontWeight: FontWeight.w400,
                             ),
@@ -505,7 +533,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                             '₹${jersey.basePrice.toStringAsFixed(0)}',
                             style: TextStyle(
                               fontWeight: FontWeight.w400,
-                              color: AppTheme.cricketGreen,
+                              color: Theme.of(context).colorScheme.primary,
                               fontSize: 12,
                             ),
                           ),
@@ -513,13 +541,13 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                             Container(
                               padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.red.withOpacity(0.1),
+                                color: AppTheme.errorRed.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
                                 'Unavailable',
                                 style: TextStyle(
-                                  color: Colors.red,
+                                  color: AppTheme.errorRed,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w400,
                                 ),
@@ -540,7 +568,21 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
 
   Widget _buildKitCard(Kit kit) {
     return Container(
-      decoration: AppTheme.softCardDecoration,
+      decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Theme.of(context).dividerColor.withOpacity(0.3),
+                    width: 0.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Theme.of(context).shadowColor.withOpacity(0.04),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -562,7 +604,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                   width: double.infinity,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-                    color: AppTheme.backgroundColor,
+                    color: Theme.of(context).scaffoldBackgroundColor,
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -571,29 +613,29 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                             imageUrl: kit.images.first.url,
                             fit: BoxFit.cover,
                             placeholder: (context, url) => Container(
-                              color: AppTheme.backgroundColor,
+                              color: Theme.of(context).scaffoldBackgroundColor,
                               child: Center(
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: AppTheme.cricketGreen,
+                                  color: Theme.of(context).colorScheme.primary,
                                 ),
                               ),
                             ),
                             errorWidget: (context, url, error) => Container(
-                              color: AppTheme.backgroundColor,
+                              color: Theme.of(context).scaffoldBackgroundColor,
                               child: Icon(
                                 Icons.sports_cricket,
                                 size: 50,
-                                color: AppTheme.cricketGreen,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
                             ),
                           )
                         : Container(
-                            color: AppTheme.backgroundColor,
+                            color: Theme.of(context).scaffoldBackgroundColor,
                             child: Icon(
                               Icons.sports_cricket,
                               size: 50,
-                              color: AppTheme.cricketGreen,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                           ),
                   ),
@@ -613,7 +655,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                         style: TextStyle(
                           fontWeight: FontWeight.w400,
                           fontSize: 12,
-                          color: AppTheme.primaryTextColor,
+                          color: Theme.of(context).textTheme.titleLarge?.color,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -629,7 +671,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                           _getKitTypeText(kit.type),
                           style: TextStyle(
                             fontSize: 12,
-                            color: AppTheme.cricketGreen,
+                            color: Theme.of(context).colorScheme.primary,
                             fontWeight: FontWeight.w400,
                           ),
                         ),
@@ -640,7 +682,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                           kit.brand!,
                           style: TextStyle(
                             fontSize: 12,
-                            color: AppTheme.secondaryTextColor,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
                           ),
                         ),
                       ],
@@ -651,17 +693,17 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                         Container(
                           padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.1),
+                            color: AppTheme.lightBlue.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: Colors.blue.withOpacity(0.3),
+                              color: AppTheme.lightBlue.withOpacity(0.3),
                               width: 0.5,
                             ),
                           ),
                           child: Text(
                             'Ordered (${kit.userOrderCount})',
                             style: TextStyle(
-                              color: Colors.blue,
+                              color: AppTheme.lightBlue,
                               fontSize: 12,
                               fontWeight: FontWeight.w400,
                             ),
@@ -679,7 +721,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                             '₹${kit.basePrice.toStringAsFixed(0)}',
                             style: TextStyle(
                               fontWeight: FontWeight.w400,
-                              color: AppTheme.cricketGreen,
+                              color: Theme.of(context).colorScheme.primary,
                               fontSize: 12,
                             ),
                           ),
@@ -687,13 +729,13 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                             Container(
                               padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.red.withOpacity(0.1),
+                                color: AppTheme.errorRed.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
                                 kit.stockQuantity == 0 ? 'Out of Stock' : 'Unavailable',
                                 style: TextStyle(
-                                  color: Colors.red,
+                                  color: AppTheme.errorRed,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w400,
                                 ),

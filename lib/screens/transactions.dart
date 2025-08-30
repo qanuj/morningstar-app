@@ -205,16 +205,16 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: Theme.of(context).brightness == Brightness.dark
-            ? Colors.white.withOpacity(0.1)
-            : Theme.of(context).primaryColor.withOpacity(0.1),
+            ? Theme.of(context).colorScheme.onSurface.withOpacity(0.1)
+            : Theme.of(context).colorScheme.primary.withOpacity(0.1),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         _formatDateHeader(dateKey),
         style: TextStyle(
           color: Theme.of(context).brightness == Brightness.dark
-              ? Colors.white.withOpacity(0.8)
-              : Theme.of(context).primaryColor,
+              ? Theme.of(context).colorScheme.onSurface.withOpacity(0.8)
+              : Theme.of(context).colorScheme.primary,
           fontSize: 12,
           fontWeight: FontWeight.w400,
         ),
@@ -302,7 +302,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: BorderSide(
-                        color: Theme.of(context).primaryColor,
+                        color: Theme.of(context).colorScheme.primary,
                         width: 1,
                       ),
                     ),
@@ -319,8 +319,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               icon: Icon(
                 Icons.filter_list,
                 color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white.withOpacity(0.8)
-                    : Theme.of(context).primaryColor,
+                    ? Theme.of(context).colorScheme.onSurface.withOpacity(0.8)
+                    : Theme.of(context).colorScheme.primary,
                 size: 20,
               ),
               onPressed: _showFilterBottomSheet,
@@ -330,12 +330,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: () => _loadTransactions(isRefresh: true),
-        color: Theme.of(context).primaryColor,
+        color: Theme.of(context).colorScheme.primary,
         child: _isLoading
             ? Center(
                 child: CircularProgressIndicator(
                   strokeWidth: 3,
-                  color: Theme.of(context).primaryColor,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
               )
             : _transactions.isEmpty
@@ -346,13 +346,13 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     Container(
                       padding: EdgeInsets.all(32),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor.withOpacity(0.1),
+                        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
                         Icons.receipt_long_outlined,
                         size: 64,
-                        color: Theme.of(context).primaryColor,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                     SizedBox(height: 24),
@@ -403,8 +403,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                 decoration: BoxDecoration(
                                   gradient: LinearGradient(
                                     colors: [
-                                      Theme.of(context).primaryColor,
-                                      Theme.of(context).primaryColorDark,
+                                      Theme.of(context).colorScheme.primary,
+                                      AppTheme.darkBlue,
                                     ],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
@@ -414,7 +414,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                     BoxShadow(
                                       color: Theme.of(
                                         context,
-                                      ).primaryColor.withOpacity(0.2),
+                                      ).colorScheme.primary.withOpacity(0.2),
                                       blurRadius: 20,
                                       offset: Offset(0, 8),
                                     ),
@@ -458,7 +458,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                         Text(
                                           club['name'],
                                           style: TextStyle(
-                                            color: Colors.white.withOpacity(
+                                            color: Theme.of(context).colorScheme.onPrimary.withOpacity(
                                               0.8,
                                             ),
                                             fontSize: 12,
@@ -470,7 +470,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                     Text(
                                       '₹${club['balance'].toStringAsFixed(2)}',
                                       style: TextStyle(
-                                        color: Colors.white,
+                                        color: Theme.of(context).colorScheme.onPrimary,
                                         fontSize: 12,
                                         fontWeight: FontWeight.w400,
                                       ),
@@ -484,7 +484,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                               Text(
                                                 'Credits',
                                                 style: TextStyle(
-                                                  color: Colors.white
+                                                  color: Theme.of(context).colorScheme.onPrimary
                                                       .withOpacity(0.8),
                                                   fontSize: 12,
                                                 ),
@@ -493,7 +493,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                               Text(
                                                 '₹${club['credits'].toStringAsFixed(2)}',
                                                 style: TextStyle(
-                                                  color: Colors.white,
+                                                  color: Theme.of(context).colorScheme.onPrimary,
                                                   fontSize: 12,
                                                   fontWeight: FontWeight.w400,
                                                 ),
@@ -504,7 +504,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                         Container(
                                           width: 1,
                                           height: 40,
-                                          color: Colors.white.withOpacity(0.3),
+                                          color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.3),
                                         ),
                                         Expanded(
                                           child: Column(
@@ -512,7 +512,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                               Text(
                                                 'Debits',
                                                 style: TextStyle(
-                                                  color: Colors.white
+                                                  color: Theme.of(context).colorScheme.onPrimary
                                                       .withOpacity(0.8),
                                                   fontSize: 12,
                                                 ),
@@ -521,7 +521,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                               Text(
                                                 '₹${club['debits'].toStringAsFixed(2)}',
                                                 style: TextStyle(
-                                                  color: Colors.white,
+                                                  color: Theme.of(context).colorScheme.onPrimary,
                                                   fontSize: 12,
                                                   fontWeight: FontWeight.w400,
                                                 ),
@@ -551,10 +551,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: _currentBalanceIndex == index
-                                      ? Theme.of(context).primaryColor
+                                      ? Theme.of(context).colorScheme.primary
                                       : Theme.of(
                                           context,
-                                        ).primaryColor.withOpacity(0.3),
+                                        ).colorScheme.primary.withOpacity(0.3),
                                 ),
                               ),
                             ),
@@ -621,7 +621,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Theme.of(context).shadowColor.withOpacity(0.04),
             blurRadius: 8,
             offset: Offset(0, 2),
           ),
@@ -664,16 +664,16 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     width: 18,
                     height: 18,
                     decoration: BoxDecoration(
-                      color: isCredit ? Colors.green : Colors.red,
+                      color: isCredit ? AppTheme.successGreen : AppTheme.errorRed,
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: Theme.of(context).brightness == Brightness.dark
-                            ? Color(0xFF1e1e1e)
+                            ? Theme.of(context).colorScheme.surface
                             : Theme.of(context).cardColor,
                         width: 2,
                       ),
                     ),
-                    child: Icon(icon, color: Colors.white, size: 10),
+                    child: Icon(icon, color: Theme.of(context).colorScheme.onPrimary, size: 10),
                   ),
                 ),
               ],
@@ -702,7 +702,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white.withOpacity(0.15)
+                          ? Theme.of(context).colorScheme.onSurface.withOpacity(0.15)
                           : Theme.of(context).primaryColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(6),
                     ),
@@ -710,7 +710,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       _getPurposeText(transaction.purpose),
                       style: TextStyle(
                         color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.white.withOpacity(0.9)
+                            ? Theme.of(context).colorScheme.onSurface.withOpacity(0.9)
                             : Theme.of(context).primaryColor,
                         fontSize: 12,
                         fontWeight: FontWeight.w400,
@@ -731,7 +731,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w400,
-                    color: isCredit ? Colors.green : Colors.red,
+                    color: isCredit ? AppTheme.successGreen : AppTheme.errorRed,
                   ),
                 ),
                 SizedBox(height: 2),
@@ -763,8 +763,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           ElevatedButton(
             onPressed: _hasPrevPage ? _loadPreviousPage : null,
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.cricketGreen,
-              foregroundColor: Colors.white,
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Theme.of(context).colorScheme.onPrimary,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -782,8 +782,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           ElevatedButton(
             onPressed: _hasNextPage ? _loadNextPage : null,
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.cricketGreen,
-              foregroundColor: Colors.white,
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Theme.of(context).colorScheme.onPrimary,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -813,12 +813,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 Container(
                   padding: EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: AppTheme.cricketGreen.withOpacity(0.1),
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
                     Icons.filter_list,
-                    color: AppTheme.cricketGreen,
+                    color: Theme.of(context).colorScheme.primary,
                     size: 20,
                   ),
                 ),
@@ -888,8 +888,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   _applyFilters();
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.cricketGreen,
-                  foregroundColor: Colors.white,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   padding: EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -916,7 +916,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         style: TextStyle(
           fontWeight: FontWeight.w400,
           color: isSelected
-              ? AppTheme.cricketGreen
+              ? Theme.of(context).colorScheme.primary
               : Theme.of(context).textTheme.bodyLarge?.color,
         ),
       ),
@@ -934,14 +934,14 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           }
         });
       },
-      selectedColor: AppTheme.cricketGreen.withOpacity(0.2),
+      selectedColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
       backgroundColor: Theme.of(context).dialogBackgroundColor,
-      checkmarkColor: AppTheme.cricketGreen,
+      checkmarkColor: Theme.of(context).colorScheme.primary,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
         side: BorderSide(
           color: isSelected
-              ? AppTheme.cricketGreen.withOpacity(0.5)
+              ? Theme.of(context).colorScheme.primary.withOpacity(0.5)
               : Theme.of(context).dividerColor.withOpacity(0.3),
           width: 0.5,
         ),

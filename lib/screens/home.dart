@@ -14,6 +14,7 @@ import 'profile.dart';
 import 'notifications.dart';
 import 'my_orders.dart';
 import '../utils/theme.dart';
+import '../utils/dialogs.dart';
 import '../widgets/duggy_logo.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -24,29 +25,22 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int _selectedIndex = 0;
-  
+
   final List<Widget> _screens = [
     _DashboardScreen(), // Home dashboard
     MatchesScreen(),
     TransactionsScreen(),
   ];
-  
-  final List<String> _titles = [
-    'Dashboard',
-    'Matches', 
-    'Transactions',
-  ];
 
+  final List<String> _titles = ['Dashboard', 'Matches', 'Transactions'];
 
   void _navigateToScreen(Widget screen, String title) {
     // For drawer navigation to screens not in bottom tabs
     Navigator.of(context).pop(); // Close drawer
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => screen),
-    );
+    Navigator.of(context).push(MaterialPageRoute(builder: (context) => screen));
     HapticFeedback.lightImpact();
   }
-  
+
   void _onBottomNavTap(int index) {
     setState(() {
       _selectedIndex = index;
@@ -71,20 +65,21 @@ class _HomeScreenState extends State<HomeScreen> {
           },
           child: Icon(
             Icons.menu,
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.onPrimary,
             size: 24,
           ),
         ),
         title: Row(
           children: [
-            DuggyLogoVariant.small(color: Colors.white),
-            SizedBox(width: 12),
+            DuggyLogoVariant.small(
+              color: Theme.of(context).colorScheme.onPrimary,
+            ),
             Text(
               'Duggy',
               style: TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w400,
+                color: Theme.of(context).colorScheme.onPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
                 letterSpacing: 0.2,
               ),
             ),
@@ -105,9 +100,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             Tween(
                               begin: Offset(1.0, 0.0),
                               end: Offset.zero,
-                            ).chain(
-                              CurveTween(curve: Curves.easeOutCubic),
-                            ),
+                            ).chain(CurveTween(curve: Curves.easeOutCubic)),
                           ),
                           child: child,
                         );
@@ -119,7 +112,7 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: EdgeInsets.only(right: 16),
               child: Icon(
                 Icons.notifications_outlined,
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.onPrimary,
                 size: 24,
               ),
             ),
@@ -127,15 +120,15 @@ class _HomeScreenState extends State<HomeScreen> {
           GestureDetector(
             onTap: () {
               HapticFeedback.lightImpact();
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => ClubsScreen()),
-              );
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (context) => ClubsScreen()));
             },
             child: Padding(
               padding: EdgeInsets.only(right: 16),
               child: Icon(
                 Icons.swap_horiz,
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.onPrimary,
                 size: 24,
               ),
             ),
@@ -143,16 +136,22 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       body: Container(
-        decoration: BoxDecoration(color: Theme.of(context).scaffoldBackgroundColor),
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+        ),
         child: ClipRRect(child: _screens[_selectedIndex]),
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onBottomNavTap,
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
-        selectedItemColor: AppTheme.cricketGreen,
-        unselectedItemColor: Theme.of(context).bottomNavigationBarTheme.unselectedItemColor,
+        backgroundColor: Theme.of(
+          context,
+        ).bottomNavigationBarTheme.backgroundColor,
+        selectedItemColor: Theme.of(context).colorScheme.primary,
+        unselectedItemColor: Theme.of(
+          context,
+        ).bottomNavigationBarTheme.unselectedItemColor,
         selectedLabelStyle: TextStyle(
           fontWeight: FontWeight.w400,
           fontSize: 12,
@@ -182,7 +181,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
 
   Widget _buildSideDrawer() {
     return Drawer(
@@ -216,7 +214,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Theme.of(context).primaryColor, Theme.of(context).primaryColorDark],
+                      colors: [
+                        Theme.of(context).primaryColor,
+                        Theme.of(context).primaryColorDark,
+                      ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -233,10 +234,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         height: 60,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onPrimary,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
+                              color: Theme.of(
+                                context,
+                              ).shadowColor.withOpacity(0.1),
                               blurRadius: 10,
                               offset: Offset(0, 4),
                             ),
@@ -254,7 +257,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                       ),
                                       child: Icon(
                                         Icons.person,
-                                        color: AppTheme.cricketGreen,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
                                         size: 28,
                                       ),
                                     );
@@ -264,7 +269,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                   color: AppTheme.cricketGreen.withOpacity(0.1),
                                   child: Icon(
                                     Icons.person,
-                                    color: AppTheme.cricketGreen,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
                                     size: 28,
                                   ),
                                 ),
@@ -279,7 +286,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             Text(
                               user?.name ?? 'User',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: Theme.of(context).colorScheme.onPrimary,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w400,
                               ),
@@ -311,7 +318,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                 child: Text(
                                   currentClub.role,
                                   style: TextStyle(
-                                    color: Colors.white,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onPrimary,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w400,
                                   ),
@@ -390,7 +399,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       title: 'About',
                       onTap: () {
                         Navigator.of(context).pop();
-                        _showAboutDialog();
+                        AppDialogs.showAboutDialog(context);
                       },
                     ),
                   ],
@@ -432,7 +441,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w400,
-                          color: AppTheme.primaryTextColor,
+                          color: Theme.of(context).textTheme.titleLarge?.color,
                         ),
                       ),
                     ),
@@ -440,14 +449,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       themeProvider.themeModeText,
                       style: TextStyle(
                         fontSize: 12,
-                        color: AppTheme.secondaryTextColor,
+                        color: Theme.of(context).textTheme.bodySmall?.color,
                         fontWeight: FontWeight.w400,
                       ),
                     ),
                     SizedBox(width: 4),
                     Icon(
                       Icons.chevron_right,
-                      color: AppTheme.secondaryTextColor,
+                      color: Theme.of(context).textTheme.bodySmall?.color,
                       size: 16,
                     ),
                   ],
@@ -484,7 +493,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       child: Icon(
                         Icons.palette_outlined,
-                        color: AppTheme.cricketGreen,
+                        color: Theme.of(context).colorScheme.primary,
                         size: 20,
                       ),
                     ),
@@ -494,13 +503,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w400,
-                        color: AppTheme.primaryTextColor,
+                        color: Theme.of(context).textTheme.titleLarge?.color,
                       ),
                     ),
                   ],
                 ),
                 SizedBox(height: 24),
-                
+
                 // Theme options
                 _buildThemeOption(
                   context,
@@ -543,7 +552,7 @@ class _HomeScreenState extends State<HomeScreen> {
     String subtitle,
   ) {
     final isSelected = themeProvider.themeMode == mode;
-    
+
     return Container(
       margin: EdgeInsets.only(bottom: 8),
       child: Material(
@@ -598,7 +607,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         subtitle,
                         style: TextStyle(
                           fontSize: 12,
-                          color: AppTheme.secondaryTextColor,
+                          color: Theme.of(context).textTheme.bodySmall?.color,
                         ),
                       ),
                     ],
@@ -607,7 +616,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (isSelected)
                   Icon(
                     Icons.check_circle,
-                    color: AppTheme.cricketGreen,
+                    color: Theme.of(context).colorScheme.primary,
                     size: 20,
                   ),
               ],
@@ -669,7 +678,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon,
                   color: isSelected
                       ? Theme.of(context).primaryColor
-                      : Theme.of(context).iconTheme.color ?? Theme.of(context).primaryColor.withOpacity(0.7),
+                      : Theme.of(context).iconTheme.color ??
+                            Theme.of(context).primaryColor.withOpacity(0.7),
                   size: 20,
                 ),
                 SizedBox(width: 12),
@@ -699,96 +709,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showAboutDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Container(
-              padding: EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryBlue.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: DuggyLogoVariant.small(color: AppTheme.primaryBlue),
-            ),
-            SizedBox(width: 12),
-            Text(
-              'About Duggy',
-              style: TextStyle(fontWeight: FontWeight.w400, fontSize: 12),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Duggy - Your Cricket Club Companion',
-              style: TextStyle(fontWeight: FontWeight.w400, fontSize: 12),
-            ),
-            SizedBox(height: 12),
-            Text(
-              'Version 1.0.0',
-              style: TextStyle(
-                color: AppTheme.secondaryTextColor,
-                fontSize: 12,
-              ),
-            ),
-            SizedBox(height: 12),
-            Text(
-              'Manage your cricket club activities, matches, store orders, and more with Duggy.',
-              style: TextStyle(height: 1.5, color: AppTheme.primaryTextColor),
-            ),
-            SizedBox(height: 16),
-            Container(
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.cricketGreen.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: AppTheme.cricketGreen.withOpacity(0.1),
-                  width: 0.5,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.language, color: AppTheme.cricketGreen, size: 16),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Visit duggy.app for more information',
-                      style: TextStyle(
-                        color: AppTheme.cricketGreen,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            style: TextButton.styleFrom(
-              foregroundColor: AppTheme.cricketGreen,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: Text('Close', style: TextStyle(fontWeight: FontWeight.w400)),
-          ),
-        ],
-      ),
-    );
-  }
-
 }
 
 // Simple Dashboard Screen placeholder
@@ -813,7 +733,10 @@ class _DashboardScreen extends StatelessWidget {
                   padding: EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Theme.of(context).primaryColor, Theme.of(context).primaryColorDark],
+                      colors: [
+                        Theme.of(context).primaryColor,
+                        Theme.of(context).primaryColorDark,
+                      ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -833,7 +756,7 @@ class _DashboardScreen extends StatelessWidget {
                       Text(
                         user?.name ?? 'User',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onPrimary,
                           fontSize: 12,
                           fontWeight: FontWeight.w400,
                         ),
@@ -870,11 +793,11 @@ class _DashboardScreen extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w400,
-                    color: AppTheme.primaryTextColor,
+                    color: Theme.of(context).textTheme.titleLarge?.color,
                   ),
                 ),
                 SizedBox(height: 16),
-                
+
                 GridView.count(
                   crossAxisCount: 2,
                   shrinkWrap: true,
@@ -888,11 +811,13 @@ class _DashboardScreen extends StatelessWidget {
                       icon: Icons.store,
                       title: 'Store',
                       subtitle: 'Browse products',
-                      color: Colors.blue,
+                      color: AppTheme.lightBlue,
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => StoreScreen()),
+                          MaterialPageRoute(
+                            builder: (context) => StoreScreen(),
+                          ),
                         );
                       },
                     ),
@@ -901,11 +826,13 @@ class _DashboardScreen extends StatelessWidget {
                       icon: Icons.shopping_bag,
                       title: 'My Orders',
                       subtitle: 'Track orders',
-                      color: Colors.orange,
+                      color: AppTheme.warningOrange,
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => MyOrdersScreen()),
+                          MaterialPageRoute(
+                            builder: (context) => MyOrdersScreen(),
+                          ),
                         );
                       },
                     ),
@@ -914,11 +841,13 @@ class _DashboardScreen extends StatelessWidget {
                       icon: Icons.poll,
                       title: 'Polls',
                       subtitle: 'Vote & participate',
-                      color: Colors.green,
+                      color: AppTheme.successGreen,
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => PollsScreen()),
+                          MaterialPageRoute(
+                            builder: (context) => PollsScreen(),
+                          ),
                         );
                       },
                     ),
@@ -927,11 +856,13 @@ class _DashboardScreen extends StatelessWidget {
                       icon: Icons.person,
                       title: 'Profile',
                       subtitle: 'Manage account',
-                      color: Colors.purple,
+                      color: AppTheme.primaryBlue,
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => ProfileScreen()),
+                          MaterialPageRoute(
+                            builder: (context) => ProfileScreen(),
+                          ),
                         );
                       },
                     ),
@@ -964,10 +895,7 @@ class _DashboardScreen extends StatelessWidget {
           padding: EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: Theme.of(context).dividerColor,
-              width: 1,
-            ),
+            border: Border.all(color: Theme.of(context).dividerColor, width: 1),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -978,11 +906,7 @@ class _DashboardScreen extends StatelessWidget {
                   color: color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 28,
-                ),
+                child: Icon(icon, color: color, size: 28),
               ),
               SizedBox(height: 12),
               Text(

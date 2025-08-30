@@ -64,7 +64,7 @@ class _SplashScreenState extends State<SplashScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // Animated Duggy Logo
-                DuggyLogoVariant.splash(),
+                DuggyLogoVariant.splash(context),
                 
                 SizedBox(height: 40),
                 
@@ -74,7 +74,7 @@ class _SplashScreenState extends State<SplashScreen> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w400,
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.onPrimary,
                     letterSpacing: 2,
                   ),
                 ),
@@ -86,7 +86,7 @@ class _SplashScreenState extends State<SplashScreen> {
                   'Your Cricket Club Companion',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.white.withOpacity(0.9),
+                    color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.9),
                     fontWeight: FontWeight.w400,
                     letterSpacing: 0.5,
                   ),
@@ -100,8 +100,8 @@ class _SplashScreenState extends State<SplashScreen> {
                   height: 40,
                   child: CircularProgressIndicator(
                     strokeWidth: 3,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    backgroundColor: Colors.white.withOpacity(0.2),
+                    valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.onPrimary),
+                    backgroundColor: Theme.of(context).colorScheme.onPrimary.withOpacity(0.2),
                   ),
                 ),
                 
@@ -112,7 +112,7 @@ class _SplashScreenState extends State<SplashScreen> {
                   'Loading...',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.white.withOpacity(0.8),
+                    color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.8),
                     fontWeight: FontWeight.w400,
                   ),
                 ),

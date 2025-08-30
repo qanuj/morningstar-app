@@ -4,6 +4,7 @@ import '../providers/user_provider.dart';
 import '../providers/club_provider.dart';
 import '../services/auth_service.dart';
 import '../utils/theme.dart';
+import '../utils/dialogs.dart';
 import 'login.dart';
 import 'edit_profile.dart';
 
@@ -62,11 +63,13 @@ class ProfileScreen extends StatelessWidget {
                                 : null,
                             child: user.profilePicture == null
                                 ? Text(
-                                    user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
+                                    user.name.isNotEmpty
+                                        ? user.name[0].toUpperCase()
+                                        : 'U',
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w400,
-                                      color: Colors.white,
+                                      color: AppTheme.surfaceColor,
                                     ),
                                   )
                                 : null,
@@ -83,7 +86,10 @@ class ProfileScreen extends StatelessWidget {
                         ),
                         SizedBox(height: 8),
                         Container(
-                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: AppTheme.cricketGreen.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(16),
@@ -122,7 +128,7 @@ class ProfileScreen extends StatelessWidget {
                             label: Text('Edit Profile'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppTheme.cricketGreen,
-                              foregroundColor: Colors.white,
+                              foregroundColor: AppTheme.surfaceColor,
                               padding: EdgeInsets.symmetric(vertical: 12),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -179,7 +185,7 @@ class ProfileScreen extends StatelessWidget {
                                 'Total Balance',
                                 '₹${user.balance.toStringAsFixed(0)}',
                                 Icons.account_balance_wallet,
-                                Colors.green,
+                                AppTheme.successGreen,
                               ),
                             ),
                             SizedBox(width: 16),
@@ -188,7 +194,7 @@ class ProfileScreen extends StatelessWidget {
                                 'Total Spent',
                                 '₹${user.totalExpenses.toStringAsFixed(0)}',
                                 Icons.receipt,
-                                Colors.orange,
+                                AppTheme.warningOrange,
                               ),
                             ),
                           ],
@@ -211,7 +217,7 @@ class ProfileScreen extends StatelessWidget {
                                   'Club Role',
                                   currentClub.role,
                                   Icons.person,
-                                  Colors.blue,
+                                  AppTheme.lightBlue,
                                 ),
                               ),
                             ],
@@ -292,7 +298,10 @@ class ProfileScreen extends StatelessWidget {
                           // TODO: Navigate to notifications settings
                         },
                       ),
-                      Divider(height: 1, color: AppTheme.dividerColor.withOpacity(0.3)),
+                      Divider(
+                        height: 1,
+                        color: AppTheme.dividerColor.withOpacity(0.3),
+                      ),
                       _buildSettingsItem(
                         icon: Icons.help_outline,
                         title: 'Help & Support',
@@ -300,19 +309,25 @@ class ProfileScreen extends StatelessWidget {
                           // TODO: Navigate to help
                         },
                       ),
-                      Divider(height: 1, color: AppTheme.dividerColor.withOpacity(0.3)),
+                      Divider(
+                        height: 1,
+                        color: AppTheme.dividerColor.withOpacity(0.3),
+                      ),
                       _buildSettingsItem(
                         icon: Icons.info_outline,
                         title: 'About',
                         onTap: () {
-                          _showAboutDialog(context);
+                          AppDialogs.showAboutDialog(context);
                         },
                       ),
-                      Divider(height: 1, color: AppTheme.dividerColor.withOpacity(0.3)),
+                      Divider(
+                        height: 1,
+                        color: AppTheme.dividerColor.withOpacity(0.3),
+                      ),
                       _buildSettingsItem(
                         icon: Icons.logout,
                         title: 'Logout',
-                        titleColor: Colors.red,
+                        titleColor: AppTheme.errorRed,
                         onTap: () => _showLogoutDialog(context),
                       ),
                     ],
@@ -328,16 +343,18 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatCard(String label, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: color.withOpacity(0.2),
-          width: 0.5,
-        ),
+        border: Border.all(color: color.withOpacity(0.2), width: 0.5),
       ),
       child: Column(
         children: [
@@ -354,10 +371,7 @@ class ProfileScreen extends StatelessWidget {
           SizedBox(height: 4),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 12,
-              color: AppTheme.secondaryTextColor,
-            ),
+            style: TextStyle(fontSize: 12, color: AppTheme.secondaryTextColor),
             textAlign: TextAlign.center,
           ),
         ],
@@ -370,14 +384,14 @@ class ProfileScreen extends StatelessWidget {
       margin: EdgeInsets.only(bottom: 16),
       padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isComplete 
-          ? Colors.green.withOpacity(0.1) 
-          : AppTheme.backgroundColor,
+        color: isComplete
+            ? AppTheme.successGreen.withOpacity(0.1)
+            : AppTheme.backgroundColor,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: isComplete 
-            ? Colors.green.withOpacity(0.3)
-            : AppTheme.dividerColor.withOpacity(0.3),
+          color: isComplete
+              ? AppTheme.successGreen.withOpacity(0.3)
+              : AppTheme.dividerColor.withOpacity(0.3),
           width: 0.5,
         ),
       ),
@@ -386,14 +400,16 @@ class ProfileScreen extends StatelessWidget {
           Container(
             padding: EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: isComplete 
-                ? Colors.green.withOpacity(0.2)
-                : AppTheme.dividerColor.withOpacity(0.2),
+              color: isComplete
+                  ? AppTheme.successGreen.withOpacity(0.2)
+                  : AppTheme.dividerColor.withOpacity(0.2),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
               icon,
-              color: isComplete ? Colors.green : AppTheme.secondaryTextColor,
+              color: isComplete
+                  ? AppTheme.successGreen
+                  : AppTheme.secondaryTextColor,
               size: 20,
             ),
           ),
@@ -410,7 +426,9 @@ class ProfileScreen extends StatelessWidget {
           ),
           Icon(
             isComplete ? Icons.check_circle : Icons.radio_button_unchecked,
-            color: isComplete ? Colors.green : AppTheme.secondaryTextColor,
+            color: isComplete
+                ? AppTheme.successGreen
+                : AppTheme.secondaryTextColor,
             size: 20,
           ),
         ],
@@ -435,9 +453,9 @@ class ProfileScreen extends StatelessWidget {
               Container(
                 padding: EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: titleColor != null 
-                    ? titleColor.withOpacity(0.1)
-                    : AppTheme.cricketGreen.withOpacity(0.1),
+                  color: titleColor != null
+                      ? titleColor.withOpacity(0.1)
+                      : AppTheme.cricketGreen.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -473,9 +491,7 @@ class ProfileScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text('Logout'),
         content: Text('Are you sure you want to logout?'),
         actions: [
@@ -494,8 +510,8 @@ class ProfileScreen extends StatelessWidget {
               );
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
+              backgroundColor: AppTheme.errorRed,
+              foregroundColor: AppTheme.surfaceColor,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -507,83 +523,4 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  void _showAboutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: Row(
-          children: [
-            Container(
-              padding: EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.cricketGreen.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                Icons.sports_cricket,
-                color: AppTheme.cricketGreen,
-                size: 20,
-              ),
-            ),
-            SizedBox(width: 12),
-            Text('About Duggy'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Duggy - Your Cricket Club Companion',
-              style: TextStyle(
-                fontWeight: FontWeight.w400,
-                fontSize: 12,
-              ),
-            ),
-            SizedBox(height: 12),
-            Text('Version 1.0.0'),
-            SizedBox(height: 12),
-            Text(
-              'Manage your cricket club activities, matches, store orders, and more with Duggy.',
-              style: TextStyle(height: 1.4),
-            ),
-            SizedBox(height: 16),
-            Container(
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.cricketGreen.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.language,
-                    color: AppTheme.cricketGreen,
-                    size: 16,
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    'Visit duggy.app for more information',
-                    style: TextStyle(
-                      color: AppTheme.cricketGreen,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
 }

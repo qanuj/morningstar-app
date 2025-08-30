@@ -93,7 +93,7 @@ class _PollsScreenState extends State<PollsScreen> {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.cricketGreen,
-              foregroundColor: Colors.white,
+              foregroundColor: AppTheme.surfaceColor,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -217,7 +217,7 @@ class _PollsScreenState extends State<PollsScreen> {
                       Container(
                         padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.red,
+                          color: AppTheme.errorRed,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
@@ -271,7 +271,7 @@ class _PollsScreenState extends State<PollsScreen> {
                                   ),
                                   child: Icon(
                                     Icons.sports_cricket,
-                                    color: Colors.white,
+                                    color: AppTheme.surfaceColor,
                                     size: 12,
                                   ),
                                 );
@@ -427,13 +427,13 @@ class _PollsScreenState extends State<PollsScreen> {
                       ),
                       if (poll.expiresAt != null) ...[
                         SizedBox(width: 16),
-                        Icon(Icons.event, size: 16, color: isExpired ? Colors.red : AppTheme.secondaryTextColor),
+                        Icon(Icons.event, size: 16, color: isExpired ? AppTheme.errorRed : AppTheme.secondaryTextColor),
                         SizedBox(width: 4),
                         Text(
                           'Expires ${DateFormat('MMM dd, yyyy').format(poll.expiresAt!)}',
                           style: TextStyle(
                             fontSize: 12,
-                            color: isExpired ? Colors.red : AppTheme.secondaryTextColor,
+                            color: isExpired ? AppTheme.errorRed : AppTheme.secondaryTextColor,
                           ),
                         ),
                       ],

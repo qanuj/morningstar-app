@@ -5,7 +5,6 @@ import '../providers/user_provider.dart';
 import '../providers/club_provider.dart';
 import '../widgets/keyboard_avoiding_wrapper.dart';
 import 'home.dart';
-import '../utils/theme.dart';
 
 class OTPScreen extends StatefulWidget {
   final String phoneNumber;
@@ -84,7 +83,7 @@ class _OTPScreenState extends State<OTPScreen> {
   @override
   Widget build(BuildContext context) {
     return KeyboardAvoidingWrapper(
-      backgroundColor: AppTheme.cricketGreen,
+      backgroundColor: Theme.of(context).colorScheme.primary,
       appBar: AppBar(
         title: Text('Verify OTP'),
         backgroundColor: Colors.transparent,
@@ -96,7 +95,7 @@ class _OTPScreenState extends State<OTPScreen> {
           Icon(
             Icons.message,
             size: 80,
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.onPrimary,
           ),
           SizedBox(height: 20),
           Text(
@@ -104,7 +103,7 @@ class _OTPScreenState extends State<OTPScreen> {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w400,
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.onPrimary,
             ),
           ),
           SizedBox(height: 10),
@@ -113,18 +112,18 @@ class _OTPScreenState extends State<OTPScreen> {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 12,
-              color: Colors.white70,
+              color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.7),
             ),
           ),
           SizedBox(height: 40),
           Container(
             padding: EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black26,
+                  color: Theme.of(context).shadowColor.withOpacity(0.26),
                   blurRadius: 20,
                   spreadRadius: 5,
                 ),
@@ -150,7 +149,7 @@ class _OTPScreenState extends State<OTPScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: AppTheme.cricketGreen, width: 2),
+                      borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
                     ),
                     counterText: '',
                   ),
@@ -161,20 +160,20 @@ class _OTPScreenState extends State<OTPScreen> {
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _verifyOTP,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.cricketGreen,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
                       padding: EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     child: _isLoading
-                        ? CircularProgressIndicator(color: Colors.white)
+                        ? CircularProgressIndicator(color: Theme.of(context).colorScheme.onPrimary)
                         : Text(
                             'Verify OTP',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w400,
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.onPrimary,
                             ),
                           ),
                   ),

@@ -61,7 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return KeyboardAvoidingWrapper(
-      backgroundColor: AppTheme.primaryBlue,
+      backgroundColor: Theme.of(context).colorScheme.primary,
       child: SafeArea(
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: 24),
@@ -74,14 +74,14 @@ class _LoginScreenState extends State<LoginScreen> {
               Container(
                 padding: EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
+                  color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.2),
                     width: 1,
                   ),
                 ),
-                child: DuggyLogoVariant.medium(color: Colors.white),
+                child: DuggyLogoVariant.medium(color: Theme.of(context).colorScheme.onPrimary),
               ),
               
               SizedBox(height: 24),
@@ -92,7 +92,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w400,
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.onPrimary,
                   letterSpacing: -0.5,
                 ),
                 textAlign: TextAlign.center,
@@ -105,7 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 'Your Cricket Club Companion',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.white.withOpacity(0.8),
+                  color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.8),
                   fontWeight: FontWeight.w400,
                 ),
                 textAlign: TextAlign.center,
@@ -118,11 +118,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 margin: EdgeInsets.symmetric(horizontal: 8),
                 padding: EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.onPrimary,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Theme.of(context).shadowColor.withOpacity(0.1),
                       blurRadius: 24,
                       offset: Offset(0, 8),
                       spreadRadius: 0,
@@ -137,7 +137,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w400,
-                        color: AppTheme.primaryBlue,
+                        color: Theme.of(context).colorScheme.primary,
                         letterSpacing: -0.3,
                       ),
                     ),
@@ -164,28 +164,28 @@ class _LoginScreenState extends State<LoginScreen> {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w400,
-                              color: AppTheme.primaryTextColor,
+                              color: Theme.of(context).textTheme.titleLarge?.color,
                             ),
                           ),
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(
-                            color: AppTheme.dividerColor,
+                            color: Theme.of(context).dividerColor,
                             width: 1,
                           ),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(
-                            color: AppTheme.dividerColor,
+                            color: Theme.of(context).dividerColor,
                             width: 1,
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(
-                            color: AppTheme.primaryBlue,
+                            color: Theme.of(context).colorScheme.primary,
                             width: 2,
                           ),
                         ),
@@ -202,8 +202,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _sendOTP,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryBlue,
-                          foregroundColor: Colors.white,
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          foregroundColor: Theme.of(context).colorScheme.onPrimary,
                           padding: EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -216,7 +216,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 height: 20,
                                 width: 20,
                                 child: CircularProgressIndicator(
-                                  color: Colors.white,
+                                  color: Theme.of(context).colorScheme.onPrimary,
                                   strokeWidth: 2,
                                 ),
                               )
@@ -241,7 +241,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 'We\'ll send you a verification code',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.white.withOpacity(0.7),
+                  color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.7),
                   fontWeight: FontWeight.w400,
                 ),
                 textAlign: TextAlign.center,

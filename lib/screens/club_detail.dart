@@ -105,7 +105,7 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
                     ? Text(
                         club.name,
                         style: TextStyle(
-                          color: Colors.white,
+                          color: AppTheme.surfaceColor,
                           fontWeight: FontWeight.w400,
                           fontSize: 12,
                         ),
@@ -254,7 +254,7 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w400,
-                              color: Colors.white,
+                              color: AppTheme.surfaceColor,
                               shadows: [
                                 Shadow(
                                   offset: Offset(0, 2),
@@ -276,7 +276,7 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
                             ),
                             child: Icon(
                               Icons.verified,
-                              color: Colors.white,
+                              color: AppTheme.surfaceColor,
                               size: 20,
                             ),
                           ),
