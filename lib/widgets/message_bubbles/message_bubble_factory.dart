@@ -12,6 +12,7 @@ class MessageBubbleFactory extends StatelessWidget {
   final bool isOwn;
   final bool isPinned;
   final bool isSelected;
+  final VoidCallback? onRetryUpload;
 
   const MessageBubbleFactory({
     Key? key,
@@ -19,6 +20,7 @@ class MessageBubbleFactory extends StatelessWidget {
     required this.isOwn,
     required this.isPinned,
     this.isSelected = false,
+    this.onRetryUpload,
   }) : super(key: key);
 
   @override
@@ -36,6 +38,7 @@ class MessageBubbleFactory extends StatelessWidget {
         isOwn: isOwn,
         isPinned: isPinned,
         isSelected: isSelected,
+        onRetryUpload: onRetryUpload,
       );
     } else if (message.linkMeta.isNotEmpty) {
       // LINK MESSAGE: Thumbnail, title, full link
