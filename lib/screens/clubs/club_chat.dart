@@ -2839,9 +2839,23 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     });
 
     try {
-      // Upload images one by one
+      // Upload images one by one with progress tracking
       List<MessageImage> uploadedImages = [];
-      for (PlatformFile file in files) {
+      for (int i = 0; i < files.length; i++) {
+        final file = files[i];
+        
+        // Update message with current upload progress
+        setState(() {
+          final messageIndex = _messages.indexWhere((m) => m.id == tempMessageId);
+          if (messageIndex != -1) {
+            // Update message to show which image is currently uploading
+            _messages[messageIndex] = _messages[messageIndex].copyWith(
+              status: MessageStatus.sending,
+              errorMessage: 'Uploading image ${i + 1}/${files.length}...',
+            );
+          }
+        });
+        
         final uploadedUrl = await _uploadFile(file);
         if (uploadedUrl != null) {
           uploadedImages.add(
@@ -2850,6 +2864,18 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
               caption: null, // Caption is now the message body
             ),
           );
+        } else {
+          // If any upload fails, mark message as failed immediately
+          setState(() {
+            final messageIndex = _messages.indexWhere((m) => m.id == tempMessageId);
+            if (messageIndex != -1) {
+              _messages[messageIndex] = _messages[messageIndex].copyWith(
+                status: MessageStatus.failed,
+                errorMessage: 'Failed to upload image ${i + 1}/${files.length}',
+              );
+            }
+          });
+          return; // Stop upload process on first failure
         }
       }
 
@@ -2899,11 +2925,23 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     if (user == null) return;
 
     try {
-      final Map<String, dynamic> contentMap = {
-        'type': 'text',
-        'body': messageBody.trim().isEmpty ? ' ' : messageBody,
-        'pictures': uploadedImages.map((img) => img.toJson()).toList(),
-      };
+      final Map<String, dynamic> contentMap;
+      
+      if (uploadedImages.length == 1 && messageBody.trim().isEmpty) {
+        // Single image without text - use "image" type
+        contentMap = {
+          'type': 'image',
+          'body': messageBody.trim().isEmpty ? ' ' : messageBody,
+          'pictures': uploadedImages.map((img) => img.toJson()).toList(),
+        };
+      } else {
+        // Text with images or multiple images - use "text_with_images" type
+        contentMap = {
+          'type': 'text_with_images',
+          'body': messageBody.trim().isEmpty ? ' ' : messageBody,
+          'images': uploadedImages.map((img) => img.url).toList(),
+        };
+      }
 
       final requestData = {'senderId': user.id, 'content': contentMap};
 
