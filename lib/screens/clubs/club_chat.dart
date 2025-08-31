@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'dart:convert';
 import '../../providers/user_provider.dart';
 import '../../models/club.dart';
@@ -19,10 +21,7 @@ import 'package:url_launcher/url_launcher.dart';
 class ClubChatScreen extends StatefulWidget {
   final Club club;
 
-  const ClubChatScreen({
-    Key? key,
-    required this.club,
-  }) : super(key: key);
+  const ClubChatScreen({Key? key, required this.club}) : super(key: key);
 
   @override
   _ClubChatScreenState createState() => _ClubChatScreenState();
@@ -35,8 +34,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   bool _isLoading = true;
   bool _isComposing = false;
   String? _error;
-  bool _showEmojiPicker = false;
-  bool _showGifPicker = false;
   final FocusNode _textFieldFocusNode = FocusNode();
 
   @override
@@ -61,14 +58,16 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         _error = null;
       });
 
-      final response = await ApiService.get('/conversations/${widget.club.id}/messages');
-      
+      final response = await ApiService.get(
+        '/conversations/${widget.club.id}/messages',
+      );
+
       if (response['success'] == true || response['messages'] != null) {
         final List<dynamic> messageData = response['messages'] ?? [];
         _messages = messageData
             .map((json) => ClubMessage.fromJson(json as Map<String, dynamic>))
             .toList();
-        
+
         // Sort by creation time (oldest first for chat display)
         _messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
       } else {
@@ -84,10 +83,10 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
   Future<void> _sendMessage() async {
     if (!_isComposing) return;
-    
+
     final content = _messageController.text.trim();
     if (content.isEmpty) return;
-    
+
     final userProvider = context.read<UserProvider>();
     final user = userProvider.user;
     if (user == null) {
@@ -100,19 +99,27 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       );
       return;
     }
-    
+
     // Generate temporary message ID
     final tempMessageId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
-    
+
     // Check if message is emoji-only
-    final emojiOnlyPattern = RegExp(r'^(\s*[\p{Emoji}\p{Emoji_Modifier}\p{Emoji_Component}\p{Emoji_Modifier_Base}\p{Emoji_Presentation}\u200d]*\s*)+$', unicode: true);
-    final isEmojiOnly = emojiOnlyPattern.hasMatch(content) && content.trim().length <= 12; // Max 4 emojis
-    
+    final emojiOnlyPattern = RegExp(
+      r'^(\s*[\p{Emoji}\p{Emoji_Modifier}\p{Emoji_Component}\p{Emoji_Modifier_Base}\p{Emoji_Presentation}\u200d]*\s*)+$',
+      unicode: true,
+    );
+    final isEmojiOnly =
+        emojiOnlyPattern.hasMatch(content) &&
+        content.trim().length <= 12; // Max 4 emojis
+
     // Detect links and fetch metadata
     List<LinkMetadata> linkMeta = [];
     final urlPattern = RegExp(r'https?://[^\s]+');
-    final urls = urlPattern.allMatches(content).map((match) => match.group(0)!).toList();
-    
+    final urls = urlPattern
+        .allMatches(content)
+        .map((match) => match.group(0)!)
+        .toList();
+
     // Determine message type
     String messageType = 'text';
     if (isEmojiOnly) {
@@ -120,7 +127,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     } else if (urls.isNotEmpty) {
       messageType = 'link';
     }
-    
+
     // Create optimistic message (add immediately to list)
     final optimisticMessage = ClubMessage(
       id: tempMessageId,
@@ -133,14 +140,14 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       createdAt: DateTime.now(),
       status: MessageStatus.sending,
     );
-    
+
     // Clear input and add message to list immediately
     _messageController.clear();
     setState(() {
       _isComposing = false;
       _messages.add(optimisticMessage);
     });
-    
+
     // Scroll to bottom to show new message
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
@@ -151,9 +158,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         );
       }
     });
-    
+
     HapticFeedback.lightImpact();
-    
+
     // Fetch link metadata if URLs found
     if (urls.isNotEmpty) {
       for (String url in urls) {
@@ -163,39 +170,42 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         }
       }
     }
-    
+
     try {
-      print('🔵 Sending message to club ${widget.club.id} from user ${user.id}');
+      print(
+        '🔵 Sending message to club ${widget.club.id} from user ${user.id}',
+      );
       print('🔵 Message content: $content');
-      
+
       final Map<String, dynamic> contentMap = {
         'type': messageType,
         'body': content,
       };
-      
+
       if (linkMeta.isNotEmpty) {
         contentMap['meta'] = linkMeta.map((meta) => meta.toJson()).toList();
       }
-      
-      final requestData = {
-        'senderId': user.id,
-        'content': contentMap,
-      };
-      
+
+      final requestData = {'senderId': user.id, 'content': contentMap};
+
       print('🔵 Request data: $requestData');
-      
-      final response = await ApiService.post('/conversations/${widget.club.id}/messages', requestData);
-      
+
+      final response = await ApiService.post(
+        '/conversations/${widget.club.id}/messages',
+        requestData,
+      );
+
       print('🔵 Full API Response: $response');
-      
+
       // Check different possible response structures
       bool isSuccess = false;
       String? messageId;
-      
+
       if (response.containsKey('messageId') && response['messageId'] != null) {
         isSuccess = true;
         messageId = response['messageId'];
-      } else if (response.containsKey('success') && response['success'] == true) {
+      } else if (response.containsKey('success') &&
+          response['success'] == true) {
         isSuccess = true;
         messageId = response['messageId'];
       } else if (response.containsKey('id')) {
@@ -214,13 +224,15 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         isSuccess = true;
         messageId = DateTime.now().millisecondsSinceEpoch.toString();
       }
-      
+
       print('🔵 Is success: $isSuccess, Message ID: $messageId');
-      
+
       if (isSuccess) {
         // Update the optimistic message to sent status with real ID and metadata
         setState(() {
-          final messageIndex = _messages.indexWhere((m) => m.id == tempMessageId);
+          final messageIndex = _messages.indexWhere(
+            (m) => m.id == tempMessageId,
+          );
           if (messageIndex != -1) {
             _messages[messageIndex] = _messages[messageIndex].copyWith(
               status: MessageStatus.sent,
@@ -228,12 +240,14 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
             );
           }
         });
-        
+
         print('✅ Message sent successfully: $messageId');
       } else {
         // Mark message as failed
         setState(() {
-          final messageIndex = _messages.indexWhere((m) => m.id == tempMessageId);
+          final messageIndex = _messages.indexWhere(
+            (m) => m.id == tempMessageId,
+          );
           if (messageIndex != -1) {
             _messages[messageIndex] = _messages[messageIndex].copyWith(
               status: MessageStatus.failed,
@@ -241,18 +255,18 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
             );
           }
         });
-        
+
         print('❌ Message send failed - no success indicator in response');
       }
     } catch (e) {
       print('❌ Error sending message: $e');
       print('❌ Error type: ${e.runtimeType}');
-      
+
       String errorMessage = 'Unable to send message';
       if (e.toString().contains('Exception:')) {
         errorMessage = e.toString().replaceFirst('Exception: ', '');
       }
-      
+
       // Mark message as failed with error message
       setState(() {
         final messageIndex = _messages.indexWhere((m) => m.id == tempMessageId);
@@ -269,8 +283,11 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      resizeToAvoidBottomInset: true, // This ensures the body resizes when keyboard appears
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? Colors.grey[850]
+          : Colors.grey[100],
+      resizeToAvoidBottomInset:
+          true, // This ensures the body resizes when keyboard appears
       appBar: AppBar(
         backgroundColor: Theme.of(context).primaryColor,
         elevation: 0,
@@ -332,24 +349,35 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
           ),
         ],
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Messages List
-            Expanded(
-              child: _isLoading
-                  ? _buildLoadingState()
-                  : _error != null
+      body: Column(
+        children: [
+          // Messages List - Takes all available space
+          Expanded(
+            child: SafeArea(
+              bottom: false,
+              child: Container(
+                width: double.infinity,
+                child: GestureDetector(
+                  onTap: () {
+                    // Close keyboard when tapping in messages area
+                    FocusScope.of(context).unfocus();
+                  },
+                  behavior: HitTestBehavior.opaque,
+                  child: _isLoading
+                      ? _buildLoadingState()
+                      : _error != null
                       ? _buildErrorState(_error!)
                       : _messages.isEmpty
-                          ? _buildEmptyState()
-                          : _buildMessagesList(),
+                      ? _buildEmptyState()
+                      : _buildMessagesList(),
+                ),
+              ),
             ),
-            
-            // Message Input
-            _buildMessageInput(),
-          ],
-        ),
+          ),
+
+          // Message Input - Sticks to bottom footer
+          _buildMessageInput(),
+        ],
       ),
     );
   }
@@ -357,46 +385,59 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   Widget _buildMessagesList() {
     return ListView.builder(
       controller: _scrollController,
-      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       itemCount: _messages.length,
       itemBuilder: (context, index) {
         final message = _messages[index];
         final previousMessage = index > 0 ? _messages[index - 1] : null;
-        final nextMessage = index < _messages.length - 1 ? _messages[index + 1] : null;
-        
-        final showSenderInfo = previousMessage == null || 
-                              previousMessage.senderId != message.senderId ||
-                              message.createdAt.difference(previousMessage.createdAt).inMinutes > 10;
-        
-        final isLastFromSender = nextMessage == null || 
-                                nextMessage.senderId != message.senderId ||
-                                nextMessage.createdAt.difference(message.createdAt).inMinutes > 10;
-        
+        final nextMessage = index < _messages.length - 1
+            ? _messages[index + 1]
+            : null;
+
+        final showSenderInfo =
+            previousMessage == null ||
+            previousMessage.senderId != message.senderId ||
+            message.createdAt.difference(previousMessage.createdAt).inMinutes >
+                10;
+
+        final isLastFromSender =
+            nextMessage == null ||
+            nextMessage.senderId != message.senderId ||
+            nextMessage.createdAt.difference(message.createdAt).inMinutes > 10;
+
         return _buildMessageBubble(message, showSenderInfo, isLastFromSender);
       },
     );
   }
 
-  Widget _buildMessageBubble(ClubMessage message, bool showSenderInfo, bool isLastFromSender) {
+  Widget _buildMessageBubble(
+    ClubMessage message,
+    bool showSenderInfo,
+    bool isLastFromSender,
+  ) {
     final userProvider = context.read<UserProvider>();
     final isOwn = message.senderId == userProvider.user?.id;
-    
+
     return Container(
-      margin: EdgeInsets.only(bottom: isLastFromSender ? 8 : 2),
+      margin: EdgeInsets.only(bottom: isLastFromSender ? 4 : 1),
       child: Row(
-        mainAxisAlignment: isOwn ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isOwn
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isOwn && showSenderInfo) _buildSenderAvatar(message),
           if (!isOwn && !showSenderInfo) SizedBox(width: 34),
-          
+
           Flexible(
             child: Container(
               constraints: BoxConstraints(
                 maxWidth: MediaQuery.of(context).size.width * 0.75,
               ),
               child: Column(
-                crossAxisAlignment: isOwn ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                crossAxisAlignment: isOwn
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
                 children: [
                   if (!isOwn && showSenderInfo) ...[
                     Padding(
@@ -408,22 +449,31 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: Theme.of(context).brightness == Brightness.dark 
+                              color:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
                                   ? Colors.white.withOpacity(0.9)
                                   : Colors.black.withOpacity(0.7),
                             ),
                           ),
-                          if (message.senderRole != null && 
-                              message.senderRole!.isNotEmpty && 
+                          if (message.senderRole != null &&
+                              message.senderRole!.isNotEmpty &&
                               _shouldShowRole(message.senderRole!)) ...[
                             SizedBox(width: 6),
                             Container(
-                              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
-                                color: _getRoleColor(message.senderRole!).withOpacity(0.2),
+                                color: _getRoleColor(
+                                  message.senderRole!,
+                                ).withOpacity(0.2),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
-                                  color: _getRoleColor(message.senderRole!).withOpacity(0.4),
+                                  color: _getRoleColor(
+                                    message.senderRole!,
+                                  ).withOpacity(0.4),
                                   width: 0.5,
                                 ),
                               ),
@@ -441,38 +491,64 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                       ),
                     ),
                   ],
-                  
+
                   GestureDetector(
-                    onTap: message.status == MessageStatus.failed 
-                        ? () => _showErrorDialog(message) 
+                    onTap: message.status == MessageStatus.failed
+                        ? () => _showErrorDialog(message)
                         : null,
                     child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
-                        color: isOwn 
-                            ? (message.status == MessageStatus.failed 
-                                ? (Theme.of(context).brightness == Brightness.dark 
-                                    ? Colors.red[800]
-                                    : Colors.red.withOpacity(0.7))
-                                : Theme.of(context).primaryColor)
+                        color: isOwn
+                            ? (message.status == MessageStatus.failed
+                                  ? (Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? Colors.red[800]
+                                        : Colors.red.withOpacity(0.7))
+                                  : Theme.of(context).primaryColor)
                             : (Theme.of(context).brightness == Brightness.dark
-                                ? Colors.grey[800]!
-                                : Theme.of(context).cardColor),
+                                  ? Colors.grey[800]!
+                                  : Theme.of(context).cardColor),
                         borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(showSenderInfo && !isOwn ? 4 : 18),
-                          topRight: Radius.circular(showSenderInfo && isOwn ? 4 : 18),
-                          bottomLeft: Radius.circular(isOwn ? 18 : (isLastFromSender ? 18 : 4)),
-                          bottomRight: Radius.circular(isOwn ? (isLastFromSender ? 18 : 4) : 18),
+                          topLeft: Radius.circular(
+                            showSenderInfo && !isOwn ? 4 : 18,
+                          ),
+                          topRight: Radius.circular(
+                            showSenderInfo && isOwn ? 4 : 18,
+                          ),
+                          bottomLeft: Radius.circular(
+                            isOwn ? 18 : (isLastFromSender ? 18 : 4),
+                          ),
+                          bottomRight: Radius.circular(
+                            isOwn ? (isLastFromSender ? 18 : 4) : 18,
+                          ),
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Theme.of(context).shadowColor.withOpacity(0.1),
-                            blurRadius: 4,
-                            offset: Offset(0, 2),
+                            color: Theme.of(
+                              context,
+                            ).shadowColor.withOpacity(0.08),
+                            blurRadius: 3,
+                            spreadRadius: 0,
+                            offset: Offset(0, 1),
+                          ),
+                          BoxShadow(
+                            color: Theme.of(
+                              context,
+                            ).shadowColor.withOpacity(0.04),
+                            blurRadius: 8,
+                            spreadRadius: 0,
+                            offset: Offset(0, 3),
                           ),
                         ],
                         border: message.status == MessageStatus.failed
-                            ? Border.all(color: Colors.red.withOpacity(0.5), width: 1)
+                            ? Border.all(
+                                color: Colors.red.withOpacity(0.5),
+                                width: 1,
+                              )
                             : null,
                       ),
                       child: Row(
@@ -490,11 +566,52 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                                   // Debug: Print when we're about to show images
                                   Builder(
                                     builder: (context) {
-                                      print('Message ${message.id} has ${message.pictures.length} pictures');
                                       return SizedBox.shrink();
                                     },
                                   ),
-                                  _buildImageGallery(message.pictures),
+                                  Stack(
+                                    children: [
+                                      _buildImageGallery(message.pictures),
+                                      // Show upload progress overlay if message is sending
+                                      if (message.status ==
+                                          MessageStatus.sending)
+                                        Positioned.fill(
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              color: Colors.black.withOpacity(
+                                                0.5,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                            child: Center(
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  SizedBox(
+                                                    width: 24,
+                                                    height: 24,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                          color: Colors.white,
+                                                          strokeWidth: 2,
+                                                        ),
+                                                  ),
+                                                  SizedBox(height: 8),
+                                                  Text(
+                                                    'Uploading...',
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 12,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
                                 ],
                                 if (message.documents.isNotEmpty)
                                   _buildDocumentList(message.documents),
@@ -511,7 +628,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                       ),
                     ),
                   ),
-                  
+
                   if (isLastFromSender) ...[
                     SizedBox(height: 2),
                     Padding(
@@ -526,7 +643,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                             _formatMessageTime(message.createdAt),
                             style: TextStyle(
                               fontSize: 10,
-                              color: Theme.of(context).brightness == Brightness.dark 
+                              color:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
                                   ? Colors.white.withOpacity(0.6)
                                   : Colors.black.withOpacity(0.5),
                             ),
@@ -550,7 +669,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
               ),
             ),
           ),
-          
+
           if (isOwn && showSenderInfo) SizedBox(width: 8),
         ],
       ),
@@ -569,11 +688,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
           ),
         );
       case MessageStatus.failed:
-        return Icon(
-          Icons.error_outline,
-          size: 14,
-          color: Colors.red,
-        );
+        return Icon(Icons.error_outline, size: 14, color: Colors.red);
       case MessageStatus.sent:
         return Icon(
           Icons.check,
@@ -608,16 +723,10 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         backgroundColor: Theme.of(context).brightness == Brightness.dark
             ? Colors.grey[850]
             : Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            Icon(
-              Icons.error_outline,
-              color: Colors.red,
-              size: 24,
-            ),
+            Icon(Icons.error_outline, color: Colors.red, size: 24),
             SizedBox(width: 12),
             Text(
               'Message Failed',
@@ -674,10 +783,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
             SizedBox(height: 12),
             Text(
               'Error: ${message.errorMessage ?? "Unknown error"}',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.red,
-              ),
+              style: TextStyle(fontSize: 12, color: Colors.red),
             ),
           ],
         ),
@@ -701,12 +807,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: Theme.of(context).primaryColor,
             ),
-            child: Text(
-              'Retry',
-              style: TextStyle(
-                color: Colors.white,
-              ),
-            ),
+            child: Text('Retry', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -720,7 +821,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       _messageController.text = failedMessage.content;
       _isComposing = true;
     });
-    
+
     // Trigger send after a short delay to allow UI to update
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _sendMessage();
@@ -732,7 +833,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       color: Theme.of(context).primaryColor.withOpacity(0.1),
       child: Center(
         child: Text(
-          widget.club.name.isNotEmpty ? widget.club.name.substring(0, 1).toUpperCase() : 'C',
+          widget.club.name.isNotEmpty
+              ? widget.club.name.substring(0, 1).toUpperCase()
+              : 'C',
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -758,7 +861,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
-        child: message.senderProfilePicture != null && message.senderProfilePicture!.isNotEmpty
+        child:
+            message.senderProfilePicture != null &&
+                message.senderProfilePicture!.isNotEmpty
             ? Image.network(
                 message.senderProfilePicture!,
                 fit: BoxFit.cover,
@@ -774,13 +879,15 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       ),
     );
   }
-  
+
   Widget _buildDefaultSenderAvatar(ClubMessage message) {
     return Container(
       color: _getRoleColor(message.senderRole ?? 'MEMBER').withOpacity(0.1),
       child: Center(
         child: Text(
-          message.senderName.isNotEmpty ? message.senderName.substring(0, 1).toUpperCase() : '?',
+          message.senderName.isNotEmpty
+              ? message.senderName.substring(0, 1).toUpperCase()
+              : '?',
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -790,7 +897,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       ),
     );
   }
-  
+
   Color _getRoleColor(String role) {
     switch (role.toUpperCase()) {
       case 'OWNER':
@@ -805,12 +912,12 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         return Colors.blue;
       case 'MEMBER':
       default:
-        return Theme.of(context).brightness == Brightness.dark 
-            ? Colors.grey[400]! 
+        return Theme.of(context).brightness == Brightness.dark
+            ? Colors.grey[400]!
             : Colors.grey[600]!;
     }
   }
-  
+
   String _formatRole(String role) {
     switch (role.toUpperCase()) {
       case 'VICE_CAPTAIN':
@@ -828,7 +935,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         return 'M';
     }
   }
-  
+
   bool _shouldShowRole(String role) {
     switch (role.toUpperCase()) {
       case 'OWNER':
@@ -844,17 +951,22 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
   Widget _buildMessageContent(ClubMessage message, bool isOwn) {
     // Check if emoji-only message
-    final emojiOnlyPattern = RegExp(r'^(\s*[\p{Emoji}\p{Emoji_Modifier}\p{Emoji_Component}\p{Emoji_Modifier_Base}\p{Emoji_Presentation}\u200d]*\s*)+$', unicode: true);
-    final isEmojiOnly = message.messageType == 'emoji' || 
-                       (emojiOnlyPattern.hasMatch(message.content) && message.content.trim().length <= 12);
-    
+    final emojiOnlyPattern = RegExp(
+      r'^(\s*[\p{Emoji}\p{Emoji_Modifier}\p{Emoji_Component}\p{Emoji_Modifier_Base}\p{Emoji_Presentation}\u200d]*\s*)+$',
+      unicode: true,
+    );
+    final isEmojiOnly =
+        message.messageType == 'emoji' ||
+        (emojiOnlyPattern.hasMatch(message.content) &&
+            message.content.trim().length <= 12);
+
     if (isEmojiOnly) {
       return _buildEmojiMessage(message.content, isOwn);
     } else {
       return _buildFormattedMessage(message.content, isOwn);
     }
   }
-  
+
   Widget _buildEmojiMessage(String content, bool isOwn) {
     return Container(
       padding: EdgeInsets.symmetric(vertical: 8),
@@ -867,13 +979,10 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       ),
     );
   }
-  
+
   Widget _buildGifMessage(String gifUrl, bool isOwn) {
     return Container(
-      constraints: BoxConstraints(
-        maxWidth: 200,
-        maxHeight: 200,
-      ),
+      constraints: BoxConstraints(maxWidth: 200, maxHeight: 200),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: Image.network(
@@ -887,7 +996,8 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
               child: Center(
                 child: CircularProgressIndicator(
                   value: loadingProgress.expectedTotalBytes != null
-                      ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                      ? loadingProgress.cumulativeBytesLoaded /
+                            loadingProgress.expectedTotalBytes!
                       : null,
                 ),
               ),
@@ -933,23 +1043,23 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   }
 
   Widget _buildFormattedMessage(String content, bool isOwn) {
-    final baseColor = isOwn 
-        ? Colors.white 
+    final baseColor = isOwn
+        ? Colors.white
         : (Theme.of(context).brightness == Brightness.dark
-            ? Colors.white.withOpacity(0.9)
-            : Colors.black.withOpacity(0.8));
+              ? Colors.white.withOpacity(0.9)
+              : Colors.black.withOpacity(0.8));
 
-    final codeBackgroundColor = isOwn 
+    final codeBackgroundColor = isOwn
         ? Colors.white.withOpacity(0.2)
         : (Theme.of(context).brightness == Brightness.dark
-            ? Colors.grey[700]!.withOpacity(0.5)
-            : Colors.grey[200]!);
+              ? Colors.grey[700]!.withOpacity(0.5)
+              : Colors.grey[200]!);
 
-    final quoteColor = isOwn 
-        ? Colors.white.withOpacity(0.8) 
+    final quoteColor = isOwn
+        ? Colors.white.withOpacity(0.8)
         : (Theme.of(context).brightness == Brightness.dark
-            ? Colors.white.withOpacity(0.7)
-            : Colors.black.withOpacity(0.6));
+              ? Colors.white.withOpacity(0.7)
+              : Colors.black.withOpacity(0.6));
 
     return SelectableText.rich(
       _parseFormattedText(content, baseColor, codeBackgroundColor, quoteColor),
@@ -957,48 +1067,66 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     );
   }
 
-  TextSpan _parseFormattedText(String text, Color baseColor, Color codeBackgroundColor, Color quoteColor) {
+  TextSpan _parseFormattedText(
+    String text,
+    Color baseColor,
+    Color codeBackgroundColor,
+    Color quoteColor,
+  ) {
     final List<TextSpan> spans = [];
     final lines = text.split('\n');
-    
+
     for (int lineIndex = 0; lineIndex < lines.length; lineIndex++) {
       String line = lines[lineIndex];
-      
+
       // Handle block quotes
       if (line.startsWith('> ')) {
-        spans.add(TextSpan(
-          text: line.substring(2) + (lineIndex < lines.length - 1 ? '\n' : ''),
-          style: TextStyle(
-            fontStyle: FontStyle.italic,
-            color: quoteColor,
+        spans.add(
+          TextSpan(
+            text:
+                line.substring(2) + (lineIndex < lines.length - 1 ? '\n' : ''),
+            style: TextStyle(fontStyle: FontStyle.italic, color: quoteColor),
           ),
-        ));
+        );
         continue;
       }
-      
+
       // Handle bulleted lists
       if (line.startsWith('- ') || line.startsWith('* ')) {
-        spans.add(TextSpan(
-          text: '• ' + line.substring(2) + (lineIndex < lines.length - 1 ? '\n' : ''),
-          style: TextStyle(color: baseColor),
-        ));
+        spans.add(
+          TextSpan(
+            text:
+                '• ' +
+                line.substring(2) +
+                (lineIndex < lines.length - 1 ? '\n' : ''),
+            style: TextStyle(color: baseColor),
+          ),
+        );
         continue;
       }
-      
+
       // Handle numbered lists (simple detection)
       final numberListMatch = RegExp(r'^(\d+)\.\s').firstMatch(line);
       if (numberListMatch != null) {
-        spans.add(TextSpan(
-          text: line + (lineIndex < lines.length - 1 ? '\n' : ''),
-          style: TextStyle(color: baseColor),
-        ));
+        spans.add(
+          TextSpan(
+            text: line + (lineIndex < lines.length - 1 ? '\n' : ''),
+            style: TextStyle(color: baseColor),
+          ),
+        );
         continue;
       }
-      
+
       // Parse inline formatting for regular lines
-      spans.addAll(_parseInlineFormatting(line + (lineIndex < lines.length - 1 ? '\n' : ''), baseColor, codeBackgroundColor));
+      spans.addAll(
+        _parseInlineFormatting(
+          line + (lineIndex < lines.length - 1 ? '\n' : ''),
+          baseColor,
+          codeBackgroundColor,
+        ),
+      );
     }
-    
+
     return TextSpan(children: spans);
   }
 
@@ -1055,7 +1183,11 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     );
   }
 
-  Widget _buildUploadOption({required IconData icon, required String label, required VoidCallback onTap}) {
+  Widget _buildUploadOption({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -1107,9 +1239,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error picking images: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error picking images: $e')));
       }
     }
   }
@@ -1126,9 +1258,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         _uploadDocuments(result.files);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking documents: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error picking documents: $e')));
     }
   }
 
@@ -1141,9 +1273,80 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     }
   }
 
+  Widget _buildImagePreview(PlatformFile file) {
+    // Check if it's a local file path or bytes
+    if (file.bytes != null) {
+      // Web platform - use bytes
+      return Image.memory(
+        file.bytes!,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            height: 150,
+            color: Colors.grey[300],
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.broken_image, size: 48, color: Colors.grey[600]),
+                  SizedBox(height: 8),
+                  Text(
+                    'Failed to load image',
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    } else if (file.path != null) {
+      // Mobile platform - use file path
+      return Image.file(
+        File(file.path!),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            height: 150,
+            color: Colors.grey[300],
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.broken_image, size: 48, color: Colors.grey[600]),
+                  SizedBox(height: 8),
+                  Text(
+                    'Failed to load image',
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    } else {
+      // Fallback - show placeholder
+      return Container(
+        height: 150,
+        color: Colors.grey[300],
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.image, size: 48, color: Colors.grey[600]),
+              SizedBox(height: 8),
+              Text('Image preview', style: TextStyle(color: Colors.grey[600])),
+            ],
+          ),
+        ),
+      );
+    }
+  }
+
   void _showSingleImageCaptionDialog(PlatformFile file) {
     final TextEditingController captionController = TextEditingController();
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1162,17 +1365,16 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              file.name,
-              style: TextStyle(
-                fontWeight: FontWeight.w500,
-                fontSize: 14,
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white.withOpacity(0.8)
-                    : Colors.black.withOpacity(0.7),
+            // Image Preview
+            Container(
+              constraints: BoxConstraints(maxHeight: 200, maxWidth: 300),
+              width: double.infinity,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: _buildImagePreview(file),
               ),
             ),
-            SizedBox(height: 12),
+            SizedBox(height: 16),
             TextField(
               controller: captionController,
               decoration: InputDecoration(
@@ -1180,7 +1382,10 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
               ),
               maxLines: 3,
               minLines: 1,
@@ -1209,24 +1414,24 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: Theme.of(context).primaryColor,
             ),
-            child: Text(
-              'Send',
-              style: TextStyle(color: Colors.white),
-            ),
+            child: Text('Send', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _uploadImagesWithProgress(List<PlatformFile> files, Map<String, String> captions) async {
+  Future<void> _uploadImagesWithProgress(
+    List<PlatformFile> files,
+    Map<String, String> captions,
+  ) async {
     final userProvider = context.read<UserProvider>();
     final user = userProvider.user;
     if (user == null) return;
 
     // Generate temporary message ID
     final tempMessageId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
-    
+
     // Get the caption (message body) - use first non-empty caption or empty string
     String messageBody = '';
     for (String caption in captions.values) {
@@ -1235,7 +1440,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         break;
       }
     }
-    
+
     // Create optimistic message with image previews
     final List<MessageImage> tempImages = files.map((file) {
       return MessageImage(
@@ -1243,7 +1448,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         caption: null, // Caption becomes the message body
       );
     }).toList();
-    
+
     // Create optimistic message
     final optimisticMessage = ClubMessage(
       id: tempMessageId,
@@ -1258,12 +1463,12 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       createdAt: DateTime.now(),
       status: MessageStatus.sending,
     );
-    
+
     // Add message to list immediately with previews
     setState(() {
       _messages.add(optimisticMessage);
     });
-    
+
     // Scroll to bottom
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
@@ -1274,27 +1479,35 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         );
       }
     });
-    
+
     try {
       // Upload images one by one
       List<MessageImage> uploadedImages = [];
       for (PlatformFile file in files) {
         final uploadedUrl = await _uploadFile(file);
         if (uploadedUrl != null) {
-          uploadedImages.add(MessageImage(
-            url: uploadedUrl,
-            caption: null, // Caption is now the message body
-          ));
+          uploadedImages.add(
+            MessageImage(
+              url: uploadedUrl,
+              caption: null, // Caption is now the message body
+            ),
+          );
         }
       }
-      
+
       if (uploadedImages.isNotEmpty) {
         // Send the message with uploaded images
-        await _sendMessageWithUploadedImages(tempMessageId, messageBody, uploadedImages);
+        await _sendMessageWithUploadedImages(
+          tempMessageId,
+          messageBody,
+          uploadedImages,
+        );
       } else {
         // Mark as failed if no images uploaded
         setState(() {
-          final messageIndex = _messages.indexWhere((m) => m.id == tempMessageId);
+          final messageIndex = _messages.indexWhere(
+            (m) => m.id == tempMessageId,
+          );
           if (messageIndex != -1) {
             _messages[messageIndex] = _messages[messageIndex].copyWith(
               status: MessageStatus.failed,
@@ -1318,24 +1531,28 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     }
   }
 
-  Future<void> _sendMessageWithUploadedImages(String tempMessageId, String messageBody, List<MessageImage> uploadedImages) async {
+  Future<void> _sendMessageWithUploadedImages(
+    String tempMessageId,
+    String messageBody,
+    List<MessageImage> uploadedImages,
+  ) async {
     final userProvider = context.read<UserProvider>();
     final user = userProvider.user;
     if (user == null) return;
 
     try {
       final Map<String, dynamic> contentMap = {
-        'type': uploadedImages.length == 1 ? 'image' : 'text_with_images',
-        'body': messageBody,
+        'type': 'text',
+        'body': messageBody.trim().isEmpty ? ' ' : messageBody,
         'pictures': uploadedImages.map((img) => img.toJson()).toList(),
       };
 
-      final requestData = {
-        'senderId': user.id,
-        'content': contentMap,
-      };
+      final requestData = {'senderId': user.id, 'content': contentMap};
 
-      final response = await ApiService.post('/conversations/${widget.club.id}/messages', requestData);
+      final response = await ApiService.post(
+        '/conversations/${widget.club.id}/messages',
+        requestData,
+      );
 
       // Update message with uploaded images and mark as sent
       setState(() {
@@ -1363,31 +1580,69 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     }
   }
 
+  Future<void> _sendMessageWithDocuments(
+    List<MessageDocument> uploadedDocs,
+  ) async {
+    try {
+      final response = await ApiService.post(
+        '/clubs/${widget.club.id}/messages',
+        {
+          'content': {
+            'type': 'document',
+            'body':
+                '${uploadedDocs.length} document${uploadedDocs.length > 1 ? 's' : ''} shared',
+            'documents': uploadedDocs.map((doc) => doc.toJson()).toList(),
+          },
+        },
+      );
+
+      final newMessage = ClubMessage.fromJson(response);
+
+      setState(() {
+        _messages.insert(0, newMessage);
+      });
+
+      print('✅ Message with documents sent successfully');
+    } catch (e) {
+      print('❌ Error sending message with documents: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send documents: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _uploadDocuments(List<PlatformFile> files) async {
     try {
       List<MessageDocument> uploadedDocs = [];
-      
+
       for (PlatformFile file in files) {
         final uploadedUrl = await _uploadFile(file);
         if (uploadedUrl != null) {
           final extension = file.extension?.toLowerCase() ?? '';
           final fileSize = _formatFileSize(file.size ?? 0);
-          uploadedDocs.add(MessageDocument(
-            url: uploadedUrl,
-            filename: file.name,
-            type: extension,
-            size: fileSize,
-          ));
+          uploadedDocs.add(
+            MessageDocument(
+              url: uploadedUrl,
+              filename: file.name,
+              type: extension,
+              size: fileSize,
+            ),
+          );
         }
       }
-      
+
       if (uploadedDocs.isNotEmpty) {
-        _sendMessageWithAttachments(documents: uploadedDocs);
+        await _sendMessageWithDocuments(uploadedDocs);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error uploading documents: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error uploading documents: $e')));
     }
   }
 
@@ -1396,29 +1651,51 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
         final html = response.body;
-        
+
         // Extract metadata using RegExp
-        String? title = _extractMetaContent(html, r'<title[^>]*>([^<]+)</title>');
+        String? title = _extractMetaContent(
+          html,
+          r'<title[^>]*>([^<]+)</title>',
+        );
         if (title == null) {
-          title = _extractMetaContent(html, r'<meta[^>]*property=["\047]og:title["\047][^>]*content=["\047]([^"\047>]*)["\047][^>]*>');
+          title = _extractMetaContent(
+            html,
+            r'<meta[^>]*property=["\047]og:title["\047][^>]*content=["\047]([^"\047>]*)["\047][^>]*>',
+          );
         }
-        
-        String? description = _extractMetaContent(html, r'<meta[^>]*name=["\047]description["\047][^>]*content=["\047]([^"\047>]*)["\047][^>]*>');
+
+        String? description = _extractMetaContent(
+          html,
+          r'<meta[^>]*name=["\047]description["\047][^>]*content=["\047]([^"\047>]*)["\047][^>]*>',
+        );
         if (description == null) {
-          description = _extractMetaContent(html, r'<meta[^>]*property=["\047]og:description["\047][^>]*content=["\047]([^"\047>]*)["\047][^>]*>');
+          description = _extractMetaContent(
+            html,
+            r'<meta[^>]*property=["\047]og:description["\047][^>]*content=["\047]([^"\047>]*)["\047][^>]*>',
+          );
         }
-        
-        String? image = _extractMetaContent(html, r'<meta[^>]*property=["\047]og:image["\047][^>]*content=["\047]([^"\047>]*)["\047][^>]*>');
-        
-        String? siteName = _extractMetaContent(html, r'<meta[^>]*property=["\047]og:site_name["\047][^>]*content=["\047]([^"\047>]*)["\047][^>]*>');
-        
+
+        String? image = _extractMetaContent(
+          html,
+          r'<meta[^>]*property=["\047]og:image["\047][^>]*content=["\047]([^"\047>]*)["\047][^>]*>',
+        );
+
+        String? siteName = _extractMetaContent(
+          html,
+          r'<meta[^>]*property=["\047]og:site_name["\047][^>]*content=["\047]([^"\047>]*)["\047][^>]*>',
+        );
+
         // Get favicon
-        String? favicon = _extractMetaContent(html, r'<link[^>]*rel=["\047](?:icon|shortcut icon)["\047][^>]*href=["\047]([^"\047>]*)["\047][^>]*>');
+        String? favicon = _extractMetaContent(
+          html,
+          r'<link[^>]*rel=["\047](?:icon|shortcut icon)["\047][^>]*href=["\047]([^"\047>]*)["\047][^>]*>',
+        );
         if (favicon != null && !favicon.startsWith('http')) {
           final uri = Uri.parse(url);
-          favicon = '${uri.scheme}://${uri.host}${favicon.startsWith('/') ? '' : '/'}$favicon';
+          favicon =
+              '${uri.scheme}://${uri.host}${favicon.startsWith('/') ? '' : '/'}$favicon';
         }
-        
+
         return LinkMetadata(
           url: url,
           title: title,
@@ -1433,34 +1710,144 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     }
     return null;
   }
-  
+
   String? _extractMetaContent(String html, String pattern) {
     final regex = RegExp(pattern, caseSensitive: false);
     final match = regex.firstMatch(html);
     return match?.group(1)?.trim();
   }
 
+  Future<List<int>?> _compressImage(PlatformFile file) async {
+    try {
+      // Check if file is an image
+      final extension = file.extension?.toLowerCase();
+      if (extension == null ||
+          !['jpg', 'jpeg', 'png', 'webp'].contains(extension)) {
+        // Not an image, return original bytes
+        return file.bytes ?? await File(file.path!).readAsBytes();
+      }
+
+      final originalSize = file.size ?? 0;
+      print(
+        '🗜️ Attempting to compress image: ${file.name} (${(originalSize / (1024 * 1024)).toStringAsFixed(2)} MB)',
+      );
+
+      // If file is already small (< 1MB), don't compress
+      if (originalSize < 1024 * 1024) {
+        print('📷 Image is small enough, skipping compression');
+        return file.bytes ?? await File(file.path!).readAsBytes();
+      }
+
+      List<int>? result;
+
+      try {
+        if (file.bytes != null) {
+          // Compress from bytes (web)
+          result = await FlutterImageCompress.compressWithList(
+            file.bytes!,
+            minHeight: 1920, // Max height 1920px
+            minWidth: 1920, // Max width 1920px
+            quality: 70, // 70% quality
+            format: CompressFormat.jpeg,
+          );
+        } else if (file.path != null) {
+          // Compress from file path (mobile)
+          result = await FlutterImageCompress.compressWithFile(
+            file.path!,
+            minHeight: 1920, // Max height 1920px
+            minWidth: 1920, // Max width 1920px
+            quality: 70, // 70% quality
+            format: CompressFormat.jpeg,
+          );
+        }
+      } catch (compressionError) {
+        print('⚠️ Compression library error: $compressionError');
+        result = null;
+      }
+
+      // If compression failed or returned null, use original
+      if (result == null || result.isEmpty) {
+        print('🔄 Compression failed, using original image');
+        result = (file.bytes ?? await File(file.path!).readAsBytes())
+            .cast<int>();
+      }
+
+      final finalSize = result.length;
+      if (finalSize < originalSize) {
+        final reductionPercent = ((1 - finalSize / originalSize) * 100)
+            .toStringAsFixed(1);
+        print(
+          '✅ Image compressed: ${file.name} (${(finalSize / (1024 * 1024)).toStringAsFixed(2)} MB) - $reductionPercent% reduction',
+        );
+      } else {
+        print(
+          '📷 Using original image: ${file.name} (${(finalSize / (1024 * 1024)).toStringAsFixed(2)} MB)',
+        );
+      }
+
+      return result;
+    } catch (e) {
+      print('❌ Image processing failed: $e');
+      // Return original bytes if everything fails
+      try {
+        return file.bytes ?? await File(file.path!).readAsBytes();
+      } catch (fallbackError) {
+        print('❌ Failed to read original file: $fallbackError');
+        return null;
+      }
+    }
+  }
+
   Future<String?> _uploadFile(PlatformFile file) async {
     try {
-      final bytes = file.bytes ?? await File(file.path!).readAsBytes();
-      
+      // Compress image if it's an image file
+      final bytes = await _compressImage(file);
+      if (bytes == null) {
+        throw Exception('Failed to process file: ${file.name}');
+      }
+
       var request = http.MultipartRequest(
         'POST',
         Uri.parse('${ApiService.baseUrl}/upload'),
       );
-      
-      request.headers.addAll(ApiService.headers);
+
+      request.headers.addAll(ApiService.fileHeaders);
+      // Determine content type based on file extension
+      String? contentType;
+      final extension = file.extension?.toLowerCase();
+      switch (extension) {
+        case 'jpg':
+        case 'jpeg':
+          contentType = 'image/jpeg';
+          break;
+        case 'png':
+          contentType = 'image/png';
+          break;
+        case 'webp':
+          contentType = 'image/webp';
+          break;
+        case 'pdf':
+          contentType = 'application/pdf';
+          break;
+        case 'txt':
+          contentType = 'text/plain';
+          break;
+        default:
+          contentType = 'application/octet-stream';
+      }
+
       request.files.add(
         http.MultipartFile.fromBytes(
           'file',
           bytes,
           filename: file.name,
+          contentType: MediaType.parse(contentType),
         ),
       );
-      
+
       final response = await request.send();
       final responseData = await response.stream.bytesToString();
-      
+
       if (response.statusCode == 200) {
         final Map<String, dynamic> result = json.decode(responseData);
         return result['url'];
@@ -1473,183 +1860,110 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     }
   }
 
-  void _sendMessageWithAttachments({List<MessageImage>? pictures, List<MessageDocument>? documents}) async {
-    final userProvider = context.read<UserProvider>();
-    final user = userProvider.user;
-    if (user == null) return;
-
-    final messageText = _messageController.text.trim();
-    final tempMessageId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
-    
-    // Create content with attachments
-    String messageType = 'text';
-    if (pictures != null && pictures.isNotEmpty) {
-      if (messageText.isEmpty) {
-        messageType = pictures.length == 1 ? 'image' : 'text_with_images';
-      } else {
-        messageType = 'text_with_images';
-      }
-    }
-    
-    final Map<String, dynamic> contentMap = {
-      'type': messageType,
-      'body': messageText,
-    };
-    
-    if (pictures != null && pictures.isNotEmpty) {
-      contentMap['pictures'] = pictures.map((p) => p.toJson()).toList();
-    }
-    
-    if (documents != null && documents.isNotEmpty) {
-      contentMap['documents'] = documents.map((d) => d.toJson()).toList();
-    }
-    
-    // Create optimistic message
-    final optimisticMessage = ClubMessage(
-      id: tempMessageId,
-      clubId: widget.club.id,
-      senderId: user.id,
-      senderName: user.name,
-      senderProfilePicture: user.profilePicture,
-      senderRole: 'MEMBER',
-      content: messageText,
-      pictures: pictures ?? [],
-      documents: documents ?? [],
-      messageType: messageType,
-      createdAt: DateTime.now(),
-      status: MessageStatus.sending,
-    );
-    
-    _messageController.clear();
-    setState(() {
-      _isComposing = false;
-      _messages.add(optimisticMessage);
-    });
-    
-    // Debug logging
-    print('Sending message with ${pictures?.length ?? 0} pictures');
-    print('Message type: $messageType');
-    print('Message content: "$messageText"');
-    
-    // Send message
-    try {
-      final requestData = {
-        'senderId': user.id,
-        'content': contentMap,
-      };
-      
-      final response = await ApiService.post('/conversations/${widget.club.id}/messages', requestData);
-      
-      setState(() {
-        final messageIndex = _messages.indexWhere((m) => m.id == tempMessageId);
-        if (messageIndex != -1) {
-          _messages[messageIndex] = _messages[messageIndex].copyWith(status: MessageStatus.sent);
-        }
-      });
-    } catch (e) {
-      setState(() {
-        final messageIndex = _messages.indexWhere((m) => m.id == tempMessageId);
-        if (messageIndex != -1) {
-          _messages[messageIndex] = _messages[messageIndex].copyWith(
-            status: MessageStatus.failed,
-            errorMessage: 'Failed to send message with attachments',
-          );
-        }
-      });
-    }
-  }
-
-  List<TextSpan> _parseInlineFormatting(String text, Color baseColor, Color codeBackgroundColor) {
+  List<TextSpan> _parseInlineFormatting(
+    String text,
+    Color baseColor,
+    Color codeBackgroundColor,
+  ) {
     final List<TextSpan> spans = [];
     int currentIndex = 0;
-    
+
     // Combined regex for all inline formatting
     final regex = RegExp(r'(\*[^*]+\*)|(_[^_]+_)|(~[^~]+~)|(`[^`]+`)');
-    
+
     for (final match in regex.allMatches(text)) {
       // Add text before the match
       if (match.start > currentIndex) {
-        spans.add(TextSpan(
-          text: text.substring(currentIndex, match.start),
-          style: TextStyle(color: baseColor),
-        ));
+        spans.add(
+          TextSpan(
+            text: text.substring(currentIndex, match.start),
+            style: TextStyle(color: baseColor),
+          ),
+        );
       }
-      
+
       final matchedText = match.group(0)!;
-      
+
       if (matchedText.startsWith('*') && matchedText.endsWith('*')) {
         // Bold: *text*
-        spans.add(TextSpan(
-          text: matchedText.substring(1, matchedText.length - 1),
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: baseColor,
+        spans.add(
+          TextSpan(
+            text: matchedText.substring(1, matchedText.length - 1),
+            style: TextStyle(fontWeight: FontWeight.bold, color: baseColor),
           ),
-        ));
+        );
       } else if (matchedText.startsWith('_') && matchedText.endsWith('_')) {
         // Italic: _text_
-        spans.add(TextSpan(
-          text: matchedText.substring(1, matchedText.length - 1),
-          style: TextStyle(
-            fontStyle: FontStyle.italic,
-            color: baseColor,
+        spans.add(
+          TextSpan(
+            text: matchedText.substring(1, matchedText.length - 1),
+            style: TextStyle(fontStyle: FontStyle.italic, color: baseColor),
           ),
-        ));
+        );
       } else if (matchedText.startsWith('~') && matchedText.endsWith('~')) {
         // Strikethrough: ~text~
-        spans.add(TextSpan(
-          text: matchedText.substring(1, matchedText.length - 1),
-          style: TextStyle(
-            decoration: TextDecoration.lineThrough,
-            color: baseColor,
+        spans.add(
+          TextSpan(
+            text: matchedText.substring(1, matchedText.length - 1),
+            style: TextStyle(
+              decoration: TextDecoration.lineThrough,
+              color: baseColor,
+            ),
           ),
-        ));
+        );
       } else if (matchedText.startsWith('`') && matchedText.endsWith('`')) {
         // Inline code: `text`
-        spans.add(TextSpan(
-          text: matchedText.substring(1, matchedText.length - 1),
-          style: TextStyle(
-            fontFamily: 'monospace',
-            backgroundColor: codeBackgroundColor,
-            color: baseColor,
+        spans.add(
+          TextSpan(
+            text: matchedText.substring(1, matchedText.length - 1),
+            style: TextStyle(
+              fontFamily: 'monospace',
+              backgroundColor: codeBackgroundColor,
+              color: baseColor,
+            ),
           ),
-        ));
+        );
       }
-      
+
       currentIndex = match.end;
     }
-    
+
     // Add remaining text
     if (currentIndex < text.length) {
-      spans.add(TextSpan(
-        text: text.substring(currentIndex),
-        style: TextStyle(color: baseColor),
-      ));
+      spans.add(
+        TextSpan(
+          text: text.substring(currentIndex),
+          style: TextStyle(color: baseColor),
+        ),
+      );
     }
-    
+
     return spans;
   }
 
-  Widget _buildImageWidget(MessageImage image) {
+  Widget _buildImageWidget(MessageImage image, {double height = 200}) {
     // Check if it's a local file path (during upload) or network URL
-    final isLocalFile = image.url.startsWith('/') || image.url.startsWith('file://') || !image.url.startsWith('http');
-    
+    final isLocalFile =
+        image.url.startsWith('/') ||
+        image.url.startsWith('file://') ||
+        !image.url.startsWith('http');
+
     if (isLocalFile && File(image.url).existsSync()) {
       return Image.file(
         File(image.url),
         fit: BoxFit.cover,
-        height: 200,
+        height: height,
         width: double.infinity,
         errorBuilder: (context, error, stackTrace) {
           return Container(
-            height: 200,
+            height: height,
             color: Theme.of(context).brightness == Brightness.dark
                 ? Colors.grey[800]
                 : Colors.grey[300],
             child: Center(
               child: Icon(
                 Icons.broken_image,
-                size: 48,
+                size: height > 150 ? 48 : 24,
                 color: Theme.of(context).brightness == Brightness.dark
                     ? Colors.white.withOpacity(0.5)
                     : Colors.grey[600],
@@ -1662,18 +1976,18 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       return Image.network(
         image.url,
         fit: BoxFit.cover,
-        height: 200,
+        height: height,
         width: double.infinity,
         errorBuilder: (context, error, stackTrace) {
           return Container(
-            height: 200,
+            height: height,
             color: Theme.of(context).brightness == Brightness.dark
                 ? Colors.grey[800]
                 : Colors.grey[300],
             child: Center(
               child: Icon(
                 Icons.broken_image,
-                size: 48,
+                size: height > 150 ? 48 : 24,
                 color: Theme.of(context).brightness == Brightness.dark
                     ? Colors.white.withOpacity(0.5)
                     : Colors.grey[600],
@@ -1686,43 +2000,43 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   }
 
   Widget _buildImageGallery(List<MessageImage> images) {
-    // Debug logging
-    print('Building image gallery with ${images.length} images');
-    for (int i = 0; i < images.length; i++) {
-      print('Image $i: ${images[i].url}');
-    }
-    
     // If only 1-2 images, show them without borders/background
     if (images.length <= 2) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(height: 8),
-          ...images.map((image) => Padding(
-            padding: EdgeInsets.only(bottom: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: _buildImageWidget(image),
-                ),
-                if (image.caption != null && image.caption!.isNotEmpty) ...[
-                  SizedBox(height: 4),
-                  Text(
-                    image.caption!,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white.withOpacity(0.6)
-                          : Colors.grey[600],
-                      fontStyle: FontStyle.italic,
-                    ),
+          ...images
+              .map(
+                (image) => Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: _buildImageWidget(image),
+                      ),
+                      if (image.caption != null &&
+                          image.caption!.isNotEmpty) ...[
+                        SizedBox(height: 4),
+                        Text(
+                          image.caption!,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white.withOpacity(0.6)
+                                : Colors.grey[600],
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                ],
-              ],
-            ),
-          )).toList(),
+                ),
+              )
+              .toList(),
         ],
       );
     }
@@ -1744,26 +2058,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                       children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            images[i].url,
-                            fit: BoxFit.cover,
-                            height: 120,
-                            width: double.infinity,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                height: 120,
-                                color: Theme.of(context).brightness == Brightness.dark
-                                    ? Colors.grey[800]
-                                    : Colors.grey[300],
-                                child: Icon(
-                                  Icons.broken_image,
-                                  color: Theme.of(context).brightness == Brightness.dark
-                                      ? Colors.white.withOpacity(0.5)
-                                      : Colors.grey[600],
-                                ),
-                              );
-                            },
-                          ),
+                          child: _buildImageWidget(images[i], height: 120),
                         ),
                         // Show +n more on 4th image if there are more
                         if (i == 3 && images.length > 4)
@@ -1811,76 +2106,86 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(height: 8),
-        ...documents.map((doc) => Padding(
-          padding: EdgeInsets.only(bottom: 8),
-          child: Container(
-            padding: EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.grey[800]
-                  : Colors.grey[100],
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.grey[600]!
-                    : Colors.grey[300]!,
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  doc.type == 'pdf' ? Icons.picture_as_pdf : Icons.description,
-                  color: doc.type == 'pdf' ? Colors.red : Colors.blue,
-                ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+        ...documents
+            .map(
+              (doc) => Padding(
+                padding: EdgeInsets.only(bottom: 8),
+                child: Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey[800]
+                        : Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey[600]!
+                          : Colors.grey[300]!,
+                    ),
+                  ),
+                  child: Row(
                     children: [
-                      Text(
-                        doc.filename,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
-                          fontSize: 14,
-                        ),
+                      Icon(
+                        doc.type == 'pdf'
+                            ? Icons.picture_as_pdf
+                            : Icons.description,
+                        color: doc.type == 'pdf' ? Colors.red : Colors.blue,
                       ),
-                      Row(
-                        children: [
-                          Text(
-                            doc.type.toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(context).brightness == Brightness.dark
-                                  ? Colors.white.withOpacity(0.6)
-                                  : Colors.grey[600],
-                            ),
-                          ),
-                          if (doc.size != null) ...[
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                             Text(
-                              ' • ${doc.size}',
+                              doc.filename,
                               style: TextStyle(
-                                fontSize: 12,
-                                color: Theme.of(context).brightness == Brightness.dark
-                                    ? Colors.white.withOpacity(0.6)
-                                    : Colors.grey[600],
+                                fontWeight: FontWeight.w500,
+                                fontSize: 14,
                               ),
                             ),
+                            Row(
+                              children: [
+                                Text(
+                                  doc.type.toUpperCase(),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color:
+                                        Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? Colors.white.withOpacity(0.6)
+                                        : Colors.grey[600],
+                                  ),
+                                ),
+                                if (doc.size != null) ...[
+                                  Text(
+                                    ' • ${doc.size}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color:
+                                          Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? Colors.white.withOpacity(0.6)
+                                          : Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
                           ],
-                        ],
+                        ),
+                      ),
+                      Icon(
+                        Icons.download,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white.withOpacity(0.6)
+                            : Colors.grey[600],
                       ),
                     ],
                   ),
                 ),
-                Icon(
-                  Icons.download,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white.withOpacity(0.6)
-                      : Colors.grey[600],
-                ),
-              ],
-            ),
-          ),
-        )).toList(),
+              ),
+            )
+            .toList(),
       ],
     );
   }
@@ -1889,138 +2194,163 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     return Column(
       children: [
         SizedBox(height: 8),
-        ...linkMeta.map((link) => Padding(
-          padding: EdgeInsets.only(bottom: 8),
-          child: InkWell(
-            onTap: () => _launchUrl(link.url),
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.grey[700]!
-                      : Colors.grey[300]!,
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Image preview if available
-                  if (link.image != null && link.image!.isNotEmpty)
-                    ClipRRect(
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-                      child: Image.network(
-                        link.image!,
-                        width: double.infinity,
-                        height: 150,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return SizedBox.shrink(); // Hide if image fails to load
-                        },
+        ...linkMeta
+            .map(
+              (link) => Padding(
+                padding: EdgeInsets.only(bottom: 8),
+                child: InkWell(
+                  onTap: () => _launchUrl(link.url),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.grey[700]!
+                            : Colors.grey[300]!,
                       ),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  
-                  // Content
-                  Padding(
-                    padding: EdgeInsets.all(12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Title
-                        if (link.title != null && link.title!.isNotEmpty)
-                          Text(
-                            link.title!,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Theme.of(context).brightness == Brightness.dark
-                                  ? Colors.white.withOpacity(0.9)
-                                  : Colors.black.withOpacity(0.8),
+                        // Image preview if available
+                        if (link.image != null && link.image!.isNotEmpty)
+                          ClipRRect(
+                            borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(12),
                             ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        
-                        // Description
-                        if (link.description != null && link.description!.isNotEmpty) ...[
-                          SizedBox(height: 4),
-                          Text(
-                            link.description!,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Theme.of(context).brightness == Brightness.dark
-                                  ? Colors.white.withOpacity(0.7)
-                                  : Colors.black.withOpacity(0.6),
+                            child: Image.network(
+                              link.image!,
+                              width: double.infinity,
+                              height: 150,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return SizedBox.shrink(); // Hide if image fails to load
+                              },
                             ),
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
                           ),
-                        ],
-                        
-                        // Site info
-                        SizedBox(height: 8),
-                        Row(
-                          children: [
-                            // Favicon if available
-                            if (link.favicon != null && link.favicon!.isNotEmpty) ...[
-                              Image.network(
-                                link.favicon!,
-                                width: 16,
-                                height: 16,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Icon(
-                                    Icons.language,
+
+                        // Content
+                        Padding(
+                          padding: EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Title
+                              if (link.title != null && link.title!.isNotEmpty)
+                                Text(
+                                  link.title!,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color:
+                                        Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? Colors.white.withOpacity(0.9)
+                                        : Colors.black.withOpacity(0.8),
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+
+                              // Description
+                              if (link.description != null &&
+                                  link.description!.isNotEmpty) ...[
+                                SizedBox(height: 4),
+                                Text(
+                                  link.description!,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color:
+                                        Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? Colors.white.withOpacity(0.7)
+                                        : Colors.black.withOpacity(0.6),
+                                  ),
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+
+                              // Site info
+                              SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  // Favicon if available
+                                  if (link.favicon != null &&
+                                      link.favicon!.isNotEmpty) ...[
+                                    Image.network(
+                                      link.favicon!,
+                                      width: 16,
+                                      height: 16,
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
+                                            return Icon(
+                                              Icons.language,
+                                              size: 16,
+                                              color:
+                                                  Theme.of(
+                                                        context,
+                                                      ).brightness ==
+                                                      Brightness.dark
+                                                  ? Colors.white.withOpacity(
+                                                      0.6,
+                                                    )
+                                                  : Colors.grey[600],
+                                            );
+                                          },
+                                    ),
+                                    SizedBox(width: 8),
+                                  ] else ...[
+                                    Icon(
+                                      Icons.language,
+                                      size: 16,
+                                      color:
+                                          Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? Colors.white.withOpacity(0.6)
+                                          : Colors.grey[600],
+                                    ),
+                                    SizedBox(width: 8),
+                                  ],
+
+                                  Expanded(
+                                    child: Text(
+                                      link.siteName ?? Uri.parse(link.url).host,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color:
+                                            Theme.of(context).brightness ==
+                                                Brightness.dark
+                                            ? Colors.white.withOpacity(0.6)
+                                            : Colors.grey[600],
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+
+                                  Icon(
+                                    Icons.open_in_new,
                                     size: 16,
-                                    color: Theme.of(context).brightness == Brightness.dark
+                                    color:
+                                        Theme.of(context).brightness ==
+                                            Brightness.dark
                                         ? Colors.white.withOpacity(0.6)
                                         : Colors.grey[600],
-                                  );
-                                },
+                                  ),
+                                ],
                               ),
-                              SizedBox(width: 8),
-                            ] else ...[
-                              Icon(
-                                Icons.language,
-                                size: 16,
-                                color: Theme.of(context).brightness == Brightness.dark
-                                    ? Colors.white.withOpacity(0.6)
-                                    : Colors.grey[600],
-                              ),
-                              SizedBox(width: 8),
                             ],
-                            
-                            Expanded(
-                              child: Text(
-                                link.siteName ?? Uri.parse(link.url).host,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Theme.of(context).brightness == Brightness.dark
-                                      ? Colors.white.withOpacity(0.6)
-                                      : Colors.grey[600],
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            
-                            Icon(
-                              Icons.open_in_new,
-                              size: 16,
-                              color: Theme.of(context).brightness == Brightness.dark
-                                  ? Colors.white.withOpacity(0.6)
-                                  : Colors.grey[600],
-                            ),
-                          ],
+                          ),
                         ),
                       ],
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
-        )).toList(),
+            )
+            .toList(),
       ],
     );
   }
@@ -2031,14 +2361,14 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not launch $url')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not launch $url')));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error opening link: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error opening link: $e')));
     }
   }
 
@@ -2068,9 +2398,16 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.broken_image, size: 64, color: Colors.white54),
+                                  Icon(
+                                    Icons.broken_image,
+                                    size: 64,
+                                    color: Colors.white54,
+                                  ),
                                   SizedBox(height: 16),
-                                  Text('Failed to load image', style: TextStyle(color: Colors.white54)),
+                                  Text(
+                                    'Failed to load image',
+                                    style: TextStyle(color: Colors.white54),
+                                  ),
                                 ],
                               ),
                             );
@@ -2085,10 +2422,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                         color: Colors.black87,
                         child: Text(
                           image.caption!,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                          ),
+                          style: TextStyle(color: Colors.white, fontSize: 16),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -2112,17 +2446,19 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   }
 
   Widget _buildMessageInput() {
-    return Container(
-      padding: EdgeInsets.only(
-        left: 12,
-        right: 12,
-        top: 8,
-        bottom: 8 + MediaQuery.of(context).padding.bottom,
-      ),
+    return SafeArea(
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.only(
+          left: 12, 
+          right: 12, 
+          top: 4, 
+          bottom: 4,
+        ),
       decoration: BoxDecoration(
-        color: Theme.of(context).brightness == Brightness.dark 
+        color: Theme.of(context).brightness == Brightness.dark
             ? Colors.grey[900]!
-            : Theme.of(context).cardColor,
+            : Colors.grey[50],
         border: Border(
           top: BorderSide(
             color: Theme.of(context).dividerColor.withOpacity(0.3),
@@ -2131,15 +2467,10 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         ),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          // Upload button
-          Material(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.grey[700]!
-                : Colors.grey[300]!,
-            borderRadius: BorderRadius.circular(18),
-            child: InkWell(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Upload button
+            InkWell(
               onTap: _showUploadOptions,
               borderRadius: BorderRadius.circular(18),
               child: Container(
@@ -2154,72 +2485,113 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                 ),
               ),
             ),
-          ),
-          SizedBox(width: 8),
-          Expanded(
-            child: TextField(
-              controller: _messageController,
-              decoration: InputDecoration(
-                hintText: 'Type a message...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.grey[800]!
-                    : Theme.of(context).scaffoldBackgroundColor,
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              ),
-              maxLines: 3,
-              minLines: 1,
-              textCapitalization: TextCapitalization.sentences,
-              keyboardType: TextInputType.multiline,
-              textInputAction: TextInputAction.newline,
-              onChanged: (value) {
-                setState(() {
-                  _isComposing = value.trim().isNotEmpty;
-                });
-              },
-            ),
-          ),
-          // Send button - only show when there's text to send
-          if (_isComposing) ...[
             SizedBox(width: 8),
-            Material(
-              color: Theme.of(context).primaryColor,
-              borderRadius: BorderRadius.circular(18),
-              child: InkWell(
+            Expanded(
+              child: TextField(
+                controller: _messageController,
+                focusNode: _textFieldFocusNode,
+                autofocus: false,
+                decoration: InputDecoration(
+                  hintText: 'Type a message...',
+                  border: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  filled: false,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 12,
+                  ),
+                  isDense: true,
+                ),
+                style: TextStyle(fontSize: 16),
+                maxLines: 3,
+                minLines: 1,
+                textCapitalization: TextCapitalization.sentences,
+                keyboardType: TextInputType.multiline,
+                textInputAction: TextInputAction.newline,
+                onChanged: (value) {
+                  setState(() {
+                    _isComposing = value.trim().isNotEmpty;
+                  });
+                },
+              ),
+            ),
+            // Send button - only show when there's text to send
+            if (_isComposing) ...[
+              SizedBox(width: 8),
+              InkWell(
                 onTap: _sendMessage,
                 borderRadius: BorderRadius.circular(18),
                 child: Container(
                   width: 36,
                   height: 36,
                   child: Icon(
-                    Icons.send,
-                    color: Colors.white,
-                    size: 18,
+                    Icons.send, 
+                    color: Theme.of(context).primaryColor, 
+                    size: 20,
                   ),
                 ),
               ),
-            ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
-  
+
   List<String> _getPopularEmojis() {
     return [
-      '😀', '😂', '😍', '🥰', '😊', '😉', '😎', '🤔',
-      '😢', '😭', '😡', '🤬', '🥺', '😤', '😴', '🤤',
-      '👍', '👎', '👏', '🙌', '👋', '✋', '👌', '🤞',
-      '💪', '🙏', '✨', '🔥', '💯', '❤️', '💔', '😘',
-      '🏏', '⚾', '🏀', '⚽', '🎾', '🏆', '🥇', '🎉',
-      '🎊', '🎈', '🎁', '🍕', '🍔', '🍟', '🍗', '🌮',
+      '😀',
+      '😂',
+      '😍',
+      '🥰',
+      '😊',
+      '😉',
+      '😎',
+      '🤔',
+      '😢',
+      '😭',
+      '😡',
+      '🤬',
+      '🥺',
+      '😤',
+      '😴',
+      '🤤',
+      '👍',
+      '👎',
+      '👏',
+      '🙌',
+      '👋',
+      '✋',
+      '👌',
+      '🤞',
+      '💪',
+      '🙏',
+      '✨',
+      '🔥',
+      '💯',
+      '❤️',
+      '💔',
+      '😘',
+      '🏏',
+      '⚾',
+      '🏀',
+      '⚽',
+      '🎾',
+      '🏆',
+      '🥇',
+      '🎉',
+      '🎊',
+      '🎈',
+      '🎁',
+      '🍕',
+      '🍔',
+      '🍟',
+      '🍗',
+      '🌮',
     ];
   }
-  
+
   String _formatFileSize(int bytes) {
     if (bytes < 1024) return '${bytes}B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)}KB';
@@ -2282,10 +2654,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
               ),
             ),
             SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _loadMessages,
-              child: Text('Try Again'),
-            ),
+            ElevatedButton(onPressed: _loadMessages, child: Text('Try Again')),
           ],
         ),
       ),
@@ -2344,4 +2713,3 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     }
   }
 }
-
