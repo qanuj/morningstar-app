@@ -2,6 +2,8 @@ import 'message_status.dart';
 import 'message_image.dart';
 import 'message_document.dart';
 import 'link_metadata.dart';
+import 'message_reaction.dart';
+import 'message_reply.dart';
 
 class ClubMessage {
   final String id;
@@ -19,6 +21,10 @@ class ClubMessage {
   final DateTime createdAt;
   final MessageStatus status;
   final String? errorMessage;
+  final List<MessageReaction> reactions;
+  final MessageReply? replyTo;
+  final bool deleted;
+  final String? deletedBy;
 
   ClubMessage({
     required this.id,
@@ -36,6 +42,10 @@ class ClubMessage {
     required this.createdAt,
     this.status = MessageStatus.sent,
     this.errorMessage,
+    this.reactions = const [],
+    this.replyTo,
+    this.deleted = false,
+    this.deletedBy,
   });
 
   ClubMessage copyWith({
@@ -46,6 +56,10 @@ class ClubMessage {
     List<LinkMetadata>? linkMeta,
     String? gifUrl,
     String? messageType,
+    List<MessageReaction>? reactions,
+    MessageReply? replyTo,
+    bool? deleted,
+    String? deletedBy,
   }) {
     return ClubMessage(
       id: id,
@@ -63,6 +77,10 @@ class ClubMessage {
       createdAt: createdAt,
       status: status ?? this.status,
       errorMessage: errorMessage ?? this.errorMessage,
+      reactions: reactions ?? this.reactions,
+      replyTo: replyTo ?? this.replyTo,
+      deleted: deleted ?? this.deleted,
+      deletedBy: deletedBy ?? this.deletedBy,
     );
   }
 
@@ -75,16 +93,29 @@ class ClubMessage {
     List<MessageDocument> documents = [];
     List<LinkMetadata> linkMeta = [];
     
+    // Check for deleted message
+    bool isDeleted = false;
+    String? deletedByName;
+    
     final content = json['content'];
     if (content is String) {
       messageContent = content;
       messageType = 'text';
     } else if (content is Map<String, dynamic>) {
-      messageType = content['type'] ?? 'text';
-      messageContent = content['body'] ?? content['text'] ?? '';
+      // Check if message is deleted
+      if (content['deleted'] == true) {
+        isDeleted = true;
+        deletedByName = content['deletedBy'] ?? content['deletedByName'];
+        messageContent = '';
+        messageType = 'deleted';
+      } else {
+        messageType = content['type'] ?? 'text';
+        messageContent = content['body'] ?? content['text'] ?? '';
+      }
       
-      // Handle different message types
-      switch (messageType) {
+      // Handle different message types (only if not deleted)
+      if (!isDeleted) {
+        switch (messageType) {
         case 'gif':
           gifUrl = content['url'];
           break;
@@ -120,6 +151,7 @@ class ClubMessage {
             )];
           }
           break;
+        }
       }
       
       // Parse pictures array (for existing format compatibility)
@@ -160,6 +192,20 @@ class ClubMessage {
       senderRole = json['senderRole'] ?? json['clubRole'];
     }
     
+    // Parse reactions
+    List<MessageReaction> reactions = [];
+    if (json['reactions'] is List) {
+      reactions = (json['reactions'] as List)
+          .map((reaction) => MessageReaction.fromJson(reaction as Map<String, dynamic>))
+          .toList();
+    }
+    
+    // Parse reply
+    MessageReply? replyTo;
+    if (json['replyTo'] is Map<String, dynamic>) {
+      replyTo = MessageReply.fromJson(json['replyTo'] as Map<String, dynamic>);
+    }
+    
     return ClubMessage(
       id: json['messageId'] ?? json['id'] ?? '',
       clubId: json['clubId'] ?? '',
@@ -174,6 +220,10 @@ class ClubMessage {
       gifUrl: gifUrl,
       messageType: messageType,
       createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
+      reactions: reactions,
+      replyTo: replyTo,
+      deleted: isDeleted,
+      deletedBy: deletedByName,
     );
   }
 }

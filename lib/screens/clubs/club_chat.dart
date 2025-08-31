@@ -14,9 +14,12 @@ import '../../models/message_status.dart';
 import '../../models/message_image.dart';
 import '../../models/message_document.dart';
 import '../../models/link_metadata.dart';
+import '../../models/message_reaction.dart';
+import '../../models/message_reply.dart';
 import '../../services/api_service.dart';
 // import 'package:emoji_picker_flutter/emoji_picker_flutter.dart'; // Package not available
 import 'package:url_launcher/url_launcher.dart';
+import '../../widgets/club_info_dialog.dart';
 
 class ClubChatScreen extends StatefulWidget {
   final Club club;
@@ -35,6 +38,18 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   bool _isComposing = false;
   String? _error;
   final FocusNode _textFieldFocusNode = FocusNode();
+  MessageReply? _replyingTo;
+  bool _showEmojiReactionPicker = false;
+  ClubMessage? _selectedMessageForReaction;
+
+  // Slide-to-reply state
+  double _slideOffset = 0.0;
+  bool _isSliding = false;
+  String? _slidingMessageId;
+
+  // Message selection state
+  bool _isSelectionMode = false;
+  Set<String> _selectedMessageIds = <String>{};
 
   @override
   void initState() {
@@ -139,13 +154,15 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       content: content,
       createdAt: DateTime.now(),
       status: MessageStatus.sending,
+      replyTo: _replyingTo,
     );
 
-    // Clear input and add message to list immediately
+    // Clear input and reply state, add message to list immediately
     _messageController.clear();
     setState(() {
       _isComposing = false;
       _messages.add(optimisticMessage);
+      _replyingTo = null; // Clear reply after sending
     });
 
     // Scroll to bottom to show new message
@@ -186,7 +203,11 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         contentMap['meta'] = linkMeta.map((meta) => meta.toJson()).toList();
       }
 
-      final requestData = {'senderId': user.id, 'content': contentMap};
+      final requestData = {
+        'senderId': user.id,
+        'content': contentMap,
+        if (_replyingTo != null) 'replyTo': _replyingTo!.toJson(),
+      };
 
       print('🔵 Request data: $requestData');
 
@@ -280,104 +301,368 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     }
   }
 
+  void _handleSlideGesture(
+    DragUpdateDetails details,
+    ClubMessage message,
+    bool isOwn,
+  ) {
+    // Only allow slide-to-reply for non-own messages (swipe right) and own messages (swipe left)
+    final delta = details.delta.dx;
+    final threshold = 30.0; // Minimum slide distance to trigger reply
+
+    setState(() {
+      if (isOwn && delta < 0) {
+        // Own messages: slide left to reply
+        _slideOffset = delta.abs().clamp(0.0, 80.0);
+        _isSliding = _slideOffset > threshold;
+        _slidingMessageId = message.id;
+      } else if (!isOwn && delta > 0) {
+        // Other messages: slide right to reply
+        _slideOffset = delta.clamp(0.0, 80.0);
+        _isSliding = _slideOffset > threshold;
+        _slidingMessageId = message.id;
+      }
+    });
+  }
+
+  void _handleSlideEnd(
+    DragEndDetails details,
+    ClubMessage message,
+    bool isOwn,
+  ) {
+    if (_isSliding && _slidingMessageId == message.id && _slideOffset > 50.0) {
+      // Trigger reply if user slid far enough
+      HapticFeedback.selectionClick();
+      _setReply(message);
+    }
+
+    // Reset slide state
+    setState(() {
+      _slideOffset = 0.0;
+      _isSliding = false;
+      _slidingMessageId = null;
+    });
+  }
+
+  void _setReply(ClubMessage message) {
+    setState(() {
+      _replyingTo = MessageReply(
+        messageId: message.id,
+        senderId: message.senderId,
+        senderName: message.senderName,
+        content: message.content,
+        messageType: message.messageType,
+      );
+    });
+    _textFieldFocusNode.requestFocus();
+  }
+
+  void _toggleSelection(String messageId) {
+    setState(() {
+      if (_selectedMessageIds.contains(messageId)) {
+        _selectedMessageIds.remove(messageId);
+        if (_selectedMessageIds.isEmpty) {
+          _isSelectionMode = false;
+        }
+      } else {
+        _selectedMessageIds.add(messageId);
+        _isSelectionMode = true;
+      }
+    });
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _isSelectionMode = false;
+      _selectedMessageIds.clear();
+    });
+  }
+
+  Future<void> _deleteSelectedMessages() async {
+    if (_selectedMessageIds.isEmpty) return;
+
+    try {
+      // Use bulk delete endpoint
+      await ApiService.delete(
+        '/conversations/${widget.club.id}/messages/delete',
+        {'messageIds': _selectedMessageIds.toList()},
+      );
+
+      // Remove deleted messages from local list
+      setState(() {
+        _messages.removeWhere(
+          (message) => _selectedMessageIds.contains(message.id),
+        );
+        _exitSelectionMode();
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${_selectedMessageIds.length} message(s) deleted'),
+            backgroundColor: Color(0xFF003f9b),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete messages: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _cancelReply() {
+    setState(() {
+      _replyingTo = null;
+    });
+  }
+
+  void _showReactionPicker(ClubMessage message) {
+    setState(() {
+      _selectedMessageForReaction = message;
+      _showEmojiReactionPicker = true;
+    });
+  }
+
+  void _hideReactionPicker() {
+    setState(() {
+      _showEmojiReactionPicker = false;
+      _selectedMessageForReaction = null;
+    });
+  }
+
+  void _addReaction(String emoji) async {
+    if (_selectedMessageForReaction == null) return;
+
+    final userProvider = context.read<UserProvider>();
+    final user = userProvider.user;
+    if (user == null) return;
+
+    final messageId = _selectedMessageForReaction!.id;
+    final reaction = MessageReaction(
+      emoji: emoji,
+      userId: user.id,
+      userName: user.name,
+      createdAt: DateTime.now(),
+    );
+
+    try {
+      await ApiService.post(
+        '/conversations/${widget.club.id}/messages/$messageId/reactions',
+        reaction.toJson(),
+      );
+
+      // Update local message with the reaction
+      setState(() {
+        final messageIndex = _messages.indexWhere((m) => m.id == messageId);
+        if (messageIndex != -1) {
+          final message = _messages[messageIndex];
+          final updatedReactions = List<MessageReaction>.from(
+            message.reactions,
+          );
+
+          // Remove any existing reaction from this user with the same emoji
+          updatedReactions.removeWhere(
+            (r) => r.userId == user.id && r.emoji == emoji,
+          );
+
+          // Add the new reaction
+          updatedReactions.add(reaction);
+
+          _messages[messageIndex] = message.copyWith(
+            reactions: updatedReactions,
+          );
+        }
+      });
+
+      _hideReactionPicker();
+    } catch (e) {
+      print('Error adding reaction: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to add reaction')));
+      }
+    }
+  }
+
+  void _removeReaction(ClubMessage message, MessageReaction reaction) async {
+    final userProvider = context.read<UserProvider>();
+    final user = userProvider.user;
+    if (user == null || reaction.userId != user.id) return;
+
+    try {
+      await ApiService.delete(
+        '/conversations/${widget.club.id}/messages/${message.id}/reactions/${reaction.emoji}',
+      );
+
+      // Update local message by removing the reaction
+      setState(() {
+        final messageIndex = _messages.indexWhere((m) => m.id == message.id);
+        if (messageIndex != -1) {
+          final updatedReactions = message.reactions
+              .where((r) => !(r.userId == user.id && r.emoji == reaction.emoji))
+              .toList();
+
+          _messages[messageIndex] = message.copyWith(
+            reactions: updatedReactions,
+          );
+        }
+      });
+    } catch (e) {
+      print('Error removing reaction: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).brightness == Brightness.dark
           ? Colors.grey[850]
           : Colors.grey[100],
-      resizeToAvoidBottomInset:
-          true, // This ensures the body resizes when keyboard appears
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        backgroundColor: Theme.of(context).primaryColor,
+        backgroundColor: Color(0xFF003f9b),
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Row(
-          children: [
-            // Club Logo
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: widget.club.logo != null && widget.club.logo!.isNotEmpty
-                    ? Image.network(
-                        widget.club.logo!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return _buildDefaultClubLogo();
-                        },
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return _buildDefaultClubLogo();
-                        },
-                      )
-                    : _buildDefaultClubLogo(),
-              ),
-            ),
-            SizedBox(width: 12),
-            // Club Name
-            Expanded(
-              child: Text(
-                widget.club.name,
+        title: _isSelectionMode
+            ? Text(
+                '${_selectedMessageIds.length} message${_selectedMessageIds.length == 1 ? '' : 's'} selected',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              )
+            : Row(
+                children: [
+                  // Club Logo
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child:
+                          widget.club.logo != null &&
+                              widget.club.logo!.isNotEmpty
+                          ? Image.network(
+                              widget.club.logo!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return _buildDefaultClubLogo();
+                              },
+                              loadingBuilder:
+                                  (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return _buildDefaultClubLogo();
+                                  },
+                            )
+                          : _buildDefaultClubLogo(),
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  // Club Name and Status
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: _showClubInfoDialog,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.club.name,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            'tap here for club info',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.8),
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh, color: Colors.white),
-            onPressed: _loadMessages,
-            tooltip: 'Refresh',
-          ),
-        ],
+        actions: _isSelectionMode
+            ? [
+                IconButton(
+                  icon: Icon(Icons.close, color: Colors.white),
+                  onPressed: _exitSelectionMode,
+                  tooltip: 'Cancel selection',
+                ),
+                IconButton(
+                  icon: Icon(Icons.delete, color: Colors.white),
+                  onPressed: _selectedMessageIds.isNotEmpty
+                      ? _deleteSelectedMessages
+                      : null,
+                  tooltip: 'Delete selected messages',
+                ),
+              ]
+            : [
+                IconButton(
+                  icon: Icon(Icons.more_vert, color: Colors.white),
+                  onPressed: _loadMessages,
+                  tooltip: 'More options',
+                ),
+              ],
       ),
-      body: Column(
-        children: [
-          // Messages List - Takes all available space
-          Expanded(
-            child: SafeArea(
-              bottom: false,
-              child: Container(
-                width: double.infinity,
-                child: GestureDetector(
-                  onTap: () {
-                    // Close keyboard when tapping in messages area
-                    FocusScope.of(context).unfocus();
-                  },
-                  behavior: HitTestBehavior.opaque,
-                  child: _isLoading
-                      ? _buildLoadingState()
-                      : _error != null
-                      ? _buildErrorState(_error!)
-                      : _messages.isEmpty
-                      ? _buildEmptyState()
-                      : _buildMessagesList(),
+      body: Container(
+        child: Column(
+          children: [
+            // Messages List - Takes all available space
+            Expanded(
+              child: SafeArea(
+                bottom: false,
+                child: Container(
+                  width: double.infinity,
+                  child: GestureDetector(
+                    onTap: () {
+                      // Close keyboard when tapping in messages area
+                      FocusScope.of(context).unfocus();
+                    },
+                    behavior: HitTestBehavior.opaque,
+                    child: _isLoading
+                        ? _buildLoadingState()
+                        : _error != null
+                        ? _buildErrorState(_error!)
+                        : _messages.isEmpty
+                        ? _buildEmptyState()
+                        : _buildMessagesList(),
+                  ),
                 ),
               ),
             ),
-          ),
 
-          // Message Input - Sticks to bottom footer
-          _buildMessageInput(),
-        ],
+            // Reply preview (if replying to a message)
+            if (_replyingTo != null) _buildReplyPreview(),
+
+            // Message Input - Sticks to bottom footer
+            _buildMessageInput(),
+          ],
+        ),
       ),
     );
   }
@@ -385,7 +670,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   Widget _buildMessagesList() {
     return ListView.builder(
       controller: _scrollController,
-      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       itemCount: _messages.length,
       itemBuilder: (context, index) {
         final message = _messages[index];
@@ -419,258 +704,320 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     final isOwn = message.senderId == userProvider.user?.id;
 
     return Container(
-      margin: EdgeInsets.only(bottom: isLastFromSender ? 4 : 1),
-      child: Row(
-        mainAxisAlignment: isOwn
-            ? MainAxisAlignment.end
-            : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.end,
+      margin: EdgeInsets.only(bottom: isLastFromSender ? 2 : 0.5),
+      child: Column(
         children: [
-          if (!isOwn && showSenderInfo) _buildSenderAvatar(message),
-          if (!isOwn && !showSenderInfo) SizedBox(width: 34),
+          Row(
+            mainAxisAlignment: isOwn
+                ? MainAxisAlignment.end
+                : MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (!isOwn && showSenderInfo) _buildSenderAvatar(message),
+              if (!isOwn && !showSenderInfo) SizedBox(width: 34),
 
-          Flexible(
-            child: Container(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.75,
-              ),
-              child: Column(
-                crossAxisAlignment: isOwn
-                    ? CrossAxisAlignment.end
-                    : CrossAxisAlignment.start,
-                children: [
-                  if (!isOwn && showSenderInfo) ...[
-                    Padding(
-                      padding: EdgeInsets.only(left: 8, bottom: 2),
-                      child: Row(
-                        children: [
-                          Text(
-                            message.senderName,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? Colors.white.withOpacity(0.9)
-                                  : Colors.black.withOpacity(0.7),
+              Flexible(
+                child: Container(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width * 0.75,
+                  ),
+                  child: Stack(
+                    children: [
+                      // Reply icon background (shown during slide)
+                      if (_isSliding && _slidingMessageId == message.id)
+                        Positioned(
+                          right: isOwn ? null : 10,
+                          left: isOwn ? 10 : null,
+                          top: 0,
+                          bottom: 0,
+                          child: AnimatedContainer(
+                            duration: Duration(milliseconds: 100),
+                            width: 50,
+                            decoration: BoxDecoration(
+                              color: Color(0xFF06aeef).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(25),
                             ),
-                          ),
-                          if (message.senderRole != null &&
-                              message.senderRole!.isNotEmpty &&
-                              _shouldShowRole(message.senderRole!)) ...[
-                            SizedBox(width: 6),
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: _getRoleColor(
-                                  message.senderRole!,
-                                ).withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: _getRoleColor(
-                                    message.senderRole!,
-                                  ).withOpacity(0.4),
-                                  width: 0.5,
-                                ),
-                              ),
-                              child: Text(
-                                _formatRole(message.senderRole!),
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w500,
-                                  color: _getRoleColor(message.senderRole!),
-                                ),
+                            alignment: Alignment.center,
+                            child: AnimatedScale(
+                              scale: _slideOffset > 50.0 ? 1.2 : 1.0,
+                              duration: Duration(milliseconds: 100),
+                              child: Icon(
+                                Icons.reply,
+                                color: Color(
+                                  0xFF06aeef,
+                                ).withOpacity(_slideOffset > 50.0 ? 1.0 : 0.7),
+                                size: _slideOffset > 50.0 ? 32 : 28,
                               ),
                             ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
-
-                  GestureDetector(
-                    onTap: message.status == MessageStatus.failed
-                        ? () => _showErrorDialog(message)
-                        : null,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isOwn
-                            ? (message.status == MessageStatus.failed
-                                  ? (Theme.of(context).brightness ==
-                                            Brightness.dark
-                                        ? Colors.red[800]
-                                        : Colors.red.withOpacity(0.7))
-                                  : Theme.of(context).primaryColor)
-                            : (Theme.of(context).brightness == Brightness.dark
-                                  ? Colors.grey[800]!
-                                  : Theme.of(context).cardColor),
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(
-                            showSenderInfo && !isOwn ? 4 : 18,
-                          ),
-                          topRight: Radius.circular(
-                            showSenderInfo && isOwn ? 4 : 18,
-                          ),
-                          bottomLeft: Radius.circular(
-                            isOwn ? 18 : (isLastFromSender ? 18 : 4),
-                          ),
-                          bottomRight: Radius.circular(
-                            isOwn ? (isLastFromSender ? 18 : 4) : 18,
                           ),
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Theme.of(
-                              context,
-                            ).shadowColor.withOpacity(0.08),
-                            blurRadius: 3,
-                            spreadRadius: 0,
-                            offset: Offset(0, 1),
-                          ),
-                          BoxShadow(
-                            color: Theme.of(
-                              context,
-                            ).shadowColor.withOpacity(0.04),
-                            blurRadius: 8,
-                            spreadRadius: 0,
-                            offset: Offset(0, 3),
-                          ),
-                        ],
-                        border: message.status == MessageStatus.failed
-                            ? Border.all(
-                                color: Colors.red.withOpacity(0.5),
-                                width: 1,
-                              )
-                            : null,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (message.gifUrl != null)
-                                  _buildGifMessage(message.gifUrl!, isOwn)
-                                else if (message.content.isNotEmpty)
-                                  _buildMessageContent(message, isOwn),
-                                if (message.pictures.isNotEmpty) ...[
-                                  // Debug: Print when we're about to show images
-                                  Builder(
-                                    builder: (context) {
-                                      return SizedBox.shrink();
-                                    },
+
+                      // Message content with slide animation
+                      Transform.translate(
+                        offset: Offset(
+                          _slidingMessageId == message.id
+                              ? (isOwn ? -_slideOffset : _slideOffset)
+                              : 0.0,
+                          0.0,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: isOwn
+                              ? CrossAxisAlignment.end
+                              : CrossAxisAlignment.start,
+                          children: [
+                            // Reply info (if this message is a reply)
+                            if (message.replyTo != null)
+                              _buildReplyInfo(message.replyTo!, isOwn),
+
+                            GestureDetector(
+                              onTap: _isSelectionMode && !message.deleted
+                                  ? () => _toggleSelection(message.id)
+                                  : (message.status == MessageStatus.failed
+                                        ? () => _showErrorDialog(message)
+                                        : null),
+                              onLongPress: (_isSelectionMode || message.deleted)
+                                  ? null
+                                  : () => _showMessageOptions(message),
+                              onPanUpdate: (_isSelectionMode || message.deleted)
+                                  ? null
+                                  : (details) => _handleSlideGesture(
+                                      details,
+                                      message,
+                                      isOwn,
+                                    ),
+                              onPanEnd: (_isSelectionMode || message.deleted)
+                                  ? null
+                                  : (details) => _handleSlideEnd(
+                                      details,
+                                      message,
+                                      isOwn,
+                                    ),
+                              child: Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color:
+                                      _selectedMessageIds.contains(message.id)
+                                      ? Color(0xFF003f9b).withOpacity(0.3)
+                                      : (isOwn
+                                            ? (message.status ==
+                                                      MessageStatus.failed
+                                                  ? (Theme.of(
+                                                              context,
+                                                            ).brightness ==
+                                                            Brightness.dark
+                                                        ? Colors.red[800]
+                                                        : Colors.red
+                                                              .withOpacity(0.7))
+                                                  : Color(0xFF06aeef))
+                                            : (Theme.of(context).brightness ==
+                                                      Brightness.dark
+                                                  ? Colors.grey[800]!
+                                                  : Theme.of(
+                                                      context,
+                                                    ).cardColor)),
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: Radius.circular(
+                                      showSenderInfo && !isOwn ? 2 : 7.5,
+                                    ),
+                                    topRight: Radius.circular(
+                                      showSenderInfo && isOwn ? 2 : 7.5,
+                                    ),
+                                    bottomLeft: Radius.circular(
+                                      isOwn
+                                          ? 7.5
+                                          : (isLastFromSender ? 7.5 : 2),
+                                    ),
+                                    bottomRight: Radius.circular(
+                                      isOwn
+                                          ? (isLastFromSender ? 7.5 : 2)
+                                          : 7.5,
+                                    ),
                                   ),
-                                  Stack(
-                                    children: [
-                                      _buildImageGallery(message.pictures),
-                                      // Show upload progress overlay if message is sending
-                                      if (message.status ==
-                                          MessageStatus.sending)
-                                        Positioned.fill(
-                                          child: Container(
-                                            decoration: BoxDecoration(
-                                              color: Colors.black.withOpacity(
-                                                0.5,
-                                              ),
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                            ),
-                                            child: Center(
-                                              child: Column(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  SizedBox(
-                                                    width: 24,
-                                                    height: 24,
-                                                    child:
-                                                        CircularProgressIndicator(
-                                                          color: Colors.white,
-                                                          strokeWidth: 2,
-                                                        ),
-                                                  ),
-                                                  SizedBox(height: 8),
-                                                  Text(
-                                                    'Uploading...',
-                                                    style: TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 12,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.08),
+                                      blurRadius: 1,
+                                      spreadRadius: 0.5,
+                                      offset: Offset(0, 1),
+                                    ),
+                                  ],
+                                  border: message.status == MessageStatus.failed
+                                      ? Border.all(
+                                          color: Colors.red.withOpacity(0.5),
+                                          width: 1,
+                                        )
+                                      : null,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: isOwn
+                                      ? CrossAxisAlignment.end
+                                      : CrossAxisAlignment.start,
+                                  children: [
+                                    // Sender name inside bubble for received messages
+                                    if (!isOwn && showSenderInfo) ...[
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            message.senderName,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                              color:
+                                                  Theme.of(
+                                                        context,
+                                                      ).brightness ==
+                                                      Brightness.dark
+                                                  ? Color(0xFF06aeef)
+                                                  : Color(0xFF003f9b),
                                             ),
                                           ),
-                                        ),
+                                          // Role icon for Admin and Owner only
+                                          if (message.senderRole != null &&
+                                              (message.senderRole!
+                                                          .toUpperCase() ==
+                                                      'ADMIN' ||
+                                                  message.senderRole!
+                                                          .toUpperCase() ==
+                                                      'OWNER')) ...[
+                                            SizedBox(width: 4),
+                                            Icon(
+                                              message.senderRole!
+                                                          .toUpperCase() ==
+                                                      'OWNER'
+                                                  ? Icons.star
+                                                  : Icons.shield,
+                                              size: 12,
+                                              color:
+                                                  message.senderRole!
+                                                          .toUpperCase() ==
+                                                      'OWNER'
+                                                  ? Colors.orange
+                                                  : Colors.purple,
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                      SizedBox(height: 2),
                                     ],
-                                  ),
-                                ],
-                                if (message.documents.isNotEmpty)
-                                  _buildDocumentList(message.documents),
-                                if (message.linkMeta.isNotEmpty)
-                                  _buildLinkPreviews(message.linkMeta),
-                              ],
-                            ),
-                          ),
-                          if (isOwn) ...[
-                            SizedBox(width: 8),
-                            _buildMessageStatusIcon(message.status),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
 
-                  if (isLastFromSender) ...[
-                    SizedBox(height: 2),
-                    Padding(
-                      padding: EdgeInsets.only(
-                        left: isOwn ? 0 : 8,
-                        right: isOwn ? 8 : 0,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _formatMessageTime(message.createdAt),
-                            style: TextStyle(
-                              fontSize: 10,
-                              color:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? Colors.white.withOpacity(0.6)
-                                  : Colors.black.withOpacity(0.5),
-                            ),
-                          ),
-                          if (message.status == MessageStatus.failed) ...[
-                            SizedBox(width: 4),
-                            Text(
-                              '• Tap to retry',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.red,
-                                fontStyle: FontStyle.italic,
+                                    // Message content
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        if (message.gifUrl != null)
+                                          _buildGifMessage(
+                                            message.gifUrl!,
+                                            isOwn,
+                                          )
+                                        else if (message.content.isNotEmpty)
+                                          _buildMessageContent(message, isOwn),
+                                        if (message.pictures.isNotEmpty) ...[
+                                          Stack(
+                                            children: [
+                                              _buildImageGallery(
+                                                message.pictures,
+                                              ),
+                                              // Show upload progress overlay if message is sending
+                                              if (message.status ==
+                                                  MessageStatus.sending)
+                                                Positioned.fill(
+                                                  child: Container(
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.black
+                                                          .withOpacity(0.5),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            12,
+                                                          ),
+                                                    ),
+                                                    child: Center(
+                                                      child: Column(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          SizedBox(
+                                                            width: 24,
+                                                            height: 24,
+                                                            child:
+                                                                CircularProgressIndicator(
+                                                                  color: Colors
+                                                                      .white,
+                                                                  strokeWidth:
+                                                                      2,
+                                                                ),
+                                                          ),
+                                                          SizedBox(height: 8),
+                                                          Text(
+                                                            'Uploading...',
+                                                            style: TextStyle(
+                                                              color:
+                                                                  Colors.white,
+                                                              fontSize: 12,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ],
+                                        if (message.documents.isNotEmpty)
+                                          _buildDocumentList(message.documents),
+                                        if (message.linkMeta.isNotEmpty)
+                                          _buildLinkPreviews(message.linkMeta),
+                                      ],
+                                    ),
+                                    // Status icon below message for own messages
+                                    if (isOwn) ...[
+                                      SizedBox(height: 2),
+                                      _buildMessageStatusIcon(message.status),
+                                    ],
+                                  ],
+                                ),
                               ),
                             ),
+
+                            // Reactions display (not shown for deleted messages)
+                            if (message.reactions.isNotEmpty && !message.deleted) ...[
+                              SizedBox(height: 4),
+                              _buildReactionsDisplay(message),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
-                    ),
-                  ],
-                ],
+                    ],
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
 
-          if (isOwn && showSenderInfo) SizedBox(width: 8),
+          // Timestamp display outside the main bubble
+          if (isLastFromSender) ...[
+            SizedBox(height: 2),
+            Padding(
+              padding: EdgeInsets.only(
+                left: isOwn ? 0 : 8,
+                right: isOwn ? 8 : 0,
+              ),
+              child: Text(
+                _formatMessageTime(message.createdAt),
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white.withOpacity(0.6)
+                      : Colors.black.withOpacity(0.5),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -711,9 +1058,8 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
             Icon(Icons.check, size: 12, color: Colors.blue),
           ],
         );
-      default:
-        return SizedBox.shrink();
     }
+    return SizedBox.shrink();
   }
 
   void _showErrorDialog(ClubMessage message) {
@@ -918,38 +1264,12 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     }
   }
 
-  String _formatRole(String role) {
-    switch (role.toUpperCase()) {
-      case 'VICE_CAPTAIN':
-        return 'VC';
-      case 'CAPTAIN':
-        return 'C';
-      case 'OWNER':
-        return 'O';
-      case 'ADMIN':
-        return 'A';
-      case 'COACH':
-        return 'Coach';
-      case 'MEMBER':
-      default:
-        return 'M';
-    }
-  }
-
-  bool _shouldShowRole(String role) {
-    switch (role.toUpperCase()) {
-      case 'OWNER':
-      case 'ADMIN':
-        return true;
-      case 'UNKNOWN':
-      case '':
-        return false;
-      default:
-        return false;
-    }
-  }
-
   Widget _buildMessageContent(ClubMessage message, bool isOwn) {
+    // Check if message is deleted
+    if (message.deleted) {
+      return _buildDeletedMessage(message);
+    }
+    
     // Check if emoji-only message
     final emojiOnlyPattern = RegExp(
       r'^(\s*[\p{Emoji}\p{Emoji_Modifier}\p{Emoji_Component}\p{Emoji_Modifier_Base}\p{Emoji_Presentation}\u200d]*\s*)+$',
@@ -1042,21 +1362,64 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     );
   }
 
+  Widget _buildDeletedMessage(ClubMessage message) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Colors.grey[800]?.withOpacity(0.5)
+            : Colors.grey[300]?.withOpacity(0.7),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.delete_outline,
+            size: 16,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white.withOpacity(0.5)
+                : Colors.black.withOpacity(0.5),
+          ),
+          SizedBox(width: 6),
+          Text(
+            message.deletedBy != null 
+                ? '[deleted by ${message.deletedBy}]'
+                : '[deleted]',
+            style: TextStyle(
+              fontSize: 13,
+              fontStyle: FontStyle.italic,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white.withOpacity(0.5)
+                  : Colors.black.withOpacity(0.5),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFormattedMessage(String content, bool isOwn) {
     final baseColor = isOwn
-        ? Colors.white
+        ? (Theme.of(context).brightness == Brightness.dark
+              ? Colors.white
+              : Colors.black.withOpacity(0.9))
         : (Theme.of(context).brightness == Brightness.dark
               ? Colors.white.withOpacity(0.9)
               : Colors.black.withOpacity(0.8));
 
     final codeBackgroundColor = isOwn
-        ? Colors.white.withOpacity(0.2)
+        ? (Theme.of(context).brightness == Brightness.dark
+              ? Colors.white.withOpacity(0.2)
+              : Colors.black.withOpacity(0.1))
         : (Theme.of(context).brightness == Brightness.dark
               ? Colors.grey[700]!.withOpacity(0.5)
               : Colors.grey[200]!);
 
     final quoteColor = isOwn
-        ? Colors.white.withOpacity(0.8)
+        ? (Theme.of(context).brightness == Brightness.dark
+              ? Colors.white.withOpacity(0.8)
+              : Colors.black.withOpacity(0.7))
         : (Theme.of(context).brightness == Brightness.dark
               ? Colors.white.withOpacity(0.7)
               : Colors.black.withOpacity(0.6));
@@ -1549,7 +1912,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
       final requestData = {'senderId': user.id, 'content': contentMap};
 
-      final response = await ApiService.post(
+      await ApiService.post(
         '/conversations/${widget.club.id}/messages',
         requestData,
       );
@@ -2445,20 +2808,16 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     );
   }
 
-  Widget _buildMessageInput() {
-    return SafeArea(
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.only(
-          left: 12, 
-          right: 12, 
-          top: 4, 
-          bottom: 4,
-        ),
+  Widget _buildReplyPreview() {
+    if (_replyingTo == null) return SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Theme.of(context).brightness == Brightness.dark
-            ? Colors.grey[900]!
-            : Colors.grey[50],
+            ? Color(0xFF1e2428)
+            : Colors.white,
         border: Border(
           top: BorderSide(
             color: Theme.of(context).dividerColor.withOpacity(0.3),
@@ -2467,72 +2826,168 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         ),
       ),
       child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(width: 3, height: 40, color: Color(0xFF06aeef)),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.reply, size: 16, color: Color(0xFF06aeef)),
+                    SizedBox(width: 4),
+                    Text(
+                      'Replying to ${_replyingTo!.senderName}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF06aeef),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 4),
+                Text(
+                  _replyingTo!.content,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white.withOpacity(0.7)
+                        : Colors.black.withOpacity(0.6),
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: _cancelReply,
+            icon: Icon(
+              Icons.close,
+              size: 20,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white.withOpacity(0.7)
+                  : Colors.black.withOpacity(0.6),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMessageInput() {
+    return SafeArea(
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.grey[900]!
+              : Colors.grey[50],
+          border: Border(
+            top: BorderSide(
+              color: Theme.of(context).dividerColor.withOpacity(0.3),
+              width: 0.5,
+            ),
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            // Upload button
-            InkWell(
-              onTap: _showUploadOptions,
-              borderRadius: BorderRadius.circular(18),
-              child: Container(
-                width: 36,
-                height: 36,
-                child: Icon(
-                  Icons.add,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white.withOpacity(0.8)
-                      : Colors.black.withOpacity(0.7),
-                  size: 20,
-                ),
+            // Attachment button (+)
+            IconButton(
+              onPressed: _showUploadOptions,
+              icon: Icon(
+                Icons.add,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey[400]
+                    : Colors.grey[600],
               ),
+              iconSize: 28,
             ),
-            SizedBox(width: 8),
+
+            // Expanded message input area
             Expanded(
-              child: TextField(
-                controller: _messageController,
-                focusNode: _textFieldFocusNode,
-                autofocus: false,
-                decoration: InputDecoration(
-                  hintText: 'Type a message...',
-                  border: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  filled: false,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 12,
-                  ),
-                  isDense: true,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Color(0xFF2a2f32)
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(25),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 2,
+                      spreadRadius: 0.5,
+                      offset: Offset(0, 1),
+                    ),
+                  ],
                 ),
-                style: TextStyle(fontSize: 16),
-                maxLines: 3,
-                minLines: 1,
-                textCapitalization: TextCapitalization.sentences,
-                keyboardType: TextInputType.multiline,
-                textInputAction: TextInputAction.newline,
-                onChanged: (value) {
-                  setState(() {
-                    _isComposing = value.trim().isNotEmpty;
-                  });
-                },
+                child: Row(
+                  children: [
+                    // Text field
+                    Expanded(
+                      child: TextField(
+                        controller: _messageController,
+                        focusNode: _textFieldFocusNode,
+                        autofocus: false,
+                        decoration: InputDecoration(
+                          hintText: 'Type a message',
+                          hintStyle: TextStyle(
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                ? Colors.grey[400]
+                                : Colors.grey[600],
+                            fontSize: 16,
+                          ),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                        ),
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white
+                              : Colors.black,
+                        ),
+                        maxLines: 5,
+                        minLines: 1,
+                        textCapitalization: TextCapitalization.sentences,
+                        keyboardType: TextInputType.multiline,
+                        textInputAction: TextInputAction.newline,
+                        onChanged: (value) {
+                          setState(() {
+                            _isComposing = value.trim().isNotEmpty;
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            // Send button - only show when there's text to send
-            if (_isComposing) ...[
-              SizedBox(width: 8),
-              InkWell(
-                onTap: _sendMessage,
-                borderRadius: BorderRadius.circular(18),
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  child: Icon(
-                    Icons.send, 
-                    color: Theme.of(context).primaryColor, 
-                    size: 20,
-                  ),
+            SizedBox(width: 4),
+            // Send/Mic button
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Color(0xFF003f9b),
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                onPressed: _isComposing ? _sendMessage : () {},
+                icon: Icon(
+                  _isComposing ? Icons.send : Icons.mic,
+                  color: Colors.white,
+                  size: 22,
                 ),
               ),
-            ],
+            ),
           ],
         ),
       ),
@@ -2711,5 +3166,254 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     } else {
       return '${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
     }
+  }
+
+  Widget _buildReplyInfo(MessageReply reply, bool isOwn) {
+    return Container(
+      margin: EdgeInsets.only(bottom: 8),
+      child: Container(
+        padding: EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: (Theme.of(context).brightness == Brightness.dark
+              ? Colors.white.withOpacity(0.1)
+              : Colors.black.withOpacity(0.1)),
+          borderRadius: BorderRadius.circular(6),
+          border: Border(left: BorderSide(color: Color(0xFF06aeef), width: 3)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              reply.senderName,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF06aeef),
+              ),
+            ),
+            SizedBox(height: 2),
+            Text(
+              reply.content,
+              style: TextStyle(
+                fontSize: 13,
+                color: (Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white.withOpacity(0.8)
+                    : Colors.black.withOpacity(0.6)),
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReactionsDisplay(ClubMessage message) {
+    // Group reactions by emoji
+    Map<String, List<MessageReaction>> reactionGroups = {};
+    for (var reaction in message.reactions) {
+      reactionGroups.putIfAbsent(reaction.emoji, () => []).add(reaction);
+    }
+
+    final userProvider = context.read<UserProvider>();
+    final currentUserId = userProvider.user?.id;
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 4,
+      children: reactionGroups.entries.map((entry) {
+        final emoji = entry.key;
+        final reactions = entry.value;
+        final hasUserReacted = reactions.any((r) => r.userId == currentUserId);
+
+        return GestureDetector(
+          onTap: () {
+            if (hasUserReacted) {
+              final userReaction = reactions.firstWhere(
+                (r) => r.userId == currentUserId,
+              );
+              _removeReaction(message, userReaction);
+            } else {
+              _addReaction(emoji);
+            }
+          },
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: hasUserReacted
+                  ? Color(0xFF06aeef).withOpacity(0.2)
+                  : (Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white.withOpacity(0.1)
+                        : Colors.black.withOpacity(0.1)),
+              borderRadius: BorderRadius.circular(12),
+              border: hasUserReacted
+                  ? Border.all(color: Color(0xFF06aeef), width: 1)
+                  : null,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(emoji, style: TextStyle(fontSize: 14)),
+                if (reactions.length > 1) ...[
+                  SizedBox(width: 4),
+                  Text(
+                    reactions.length.toString(),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: hasUserReacted
+                          ? Color(0xFF06aeef)
+                          : (Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white.withOpacity(0.8)
+                                : Colors.black.withOpacity(0.6)),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  void _showMessageOptions(ClubMessage message) {
+    HapticFeedback.lightImpact(); // Add haptic feedback for better UX
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? Color(0xFF2a2f32)
+          : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => Container(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Message preview
+            Container(
+              margin: EdgeInsets.symmetric(horizontal: 16),
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white.withOpacity(0.1)
+                    : Colors.black.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                message.content,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white.withOpacity(0.8)
+                      : Colors.black.withOpacity(0.7),
+                ),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            SizedBox(height: 16),
+
+            // Quick reactions
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: ['👍', '❤️', '😂', '😮', '😢', '😡']
+                    .map(
+                      (emoji) => GestureDetector(
+                        onTap: () {
+                          Navigator.pop(context);
+                          setState(() {
+                            _selectedMessageForReaction = message;
+                          });
+                          _addReaction(emoji);
+                        },
+                        child: Container(
+                          padding: EdgeInsets.all(8),
+                          child: Text(emoji, style: TextStyle(fontSize: 24)),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+
+            Divider(height: 32),
+
+            // Options
+            _buildOptionTile(
+              icon: Icons.reply,
+              title: 'Reply',
+              onTap: () {
+                Navigator.pop(context);
+                _setReply(message);
+              },
+            ),
+            _buildOptionTile(
+              icon: Icons.add_reaction_outlined,
+              title: 'Add Reaction',
+              onTap: () {
+                Navigator.pop(context);
+                _showReactionPicker(message);
+              },
+            ),
+            _buildOptionTile(
+              icon: Icons.copy,
+              title: 'Copy Text',
+              onTap: () {
+                Navigator.pop(context);
+                Clipboard.setData(ClipboardData(text: message.content));
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('Message copied')));
+              },
+            ),
+            _buildOptionTile(
+              icon: Icons.check_circle_outline,
+              title: 'Select Message',
+              onTap: () {
+                Navigator.pop(context);
+                _toggleSelection(message.id);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOptionTile({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Icon(
+        icon,
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Colors.white.withOpacity(0.8)
+            : Colors.black.withOpacity(0.7),
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.white.withOpacity(0.9)
+              : Colors.black.withOpacity(0.8),
+        ),
+      ),
+      onTap: onTap,
+    );
+  }
+
+  void _showClubInfoDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => ClubInfoDialog(club: widget.club),
+    );
   }
 }

@@ -30,6 +30,10 @@ class ApiService {
     if (_token != null) 'Authorization': 'Bearer $_token',
   };
 
+  static Map<String, String> get fileHeaders => {
+    if (_token != null) 'Authorization': 'Bearer $_token',
+  };
+
   static Future<Map<String, dynamic>> get(String endpoint) async {
     print('🔵 Making GET request to: $baseUrl$endpoint');
     final response = await http.get(
@@ -39,24 +43,30 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  static Future<Map<String, dynamic>> post(String endpoint, Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> post(
+    String endpoint,
+    Map<String, dynamic> data,
+  ) async {
     print('🔵 Making POST request to: $baseUrl$endpoint');
     print('🔵 Request data: $data');
     print('🔵 Request headers: $headers');
-    
+
     final response = await http.post(
       Uri.parse('$baseUrl$endpoint'),
       headers: headers,
       body: json.encode(data),
     );
-    
+
     print('🔵 Response status: ${response.statusCode}');
     print('🔵 Response body: ${response.body}');
-    
+
     return _handleResponse(response);
   }
 
-  static Future<Map<String, dynamic>> put(String endpoint, Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> put(
+    String endpoint,
+    Map<String, dynamic> data,
+  ) async {
     final response = await http.put(
       Uri.parse('$baseUrl$endpoint'),
       headers: headers,
@@ -65,7 +75,10 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  static Future<Map<String, dynamic>> patch(String endpoint, Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> patch(
+    String endpoint,
+    Map<String, dynamic> data,
+  ) async {
     final response = await http.patch(
       Uri.parse('$baseUrl$endpoint'),
       headers: headers,
@@ -74,24 +87,25 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  static Future<Map<String, dynamic>> delete(String endpoint) async {
+  static Future<Map<String, dynamic>> delete(String endpoint, [Map<String, dynamic>? data]) async {
     final response = await http.delete(
       Uri.parse('$baseUrl$endpoint'),
       headers: headers,
+      body: data != null ? json.encode(data) : null,
     );
     return _handleResponse(response);
   }
 
   static Map<String, dynamic> _handleResponse(http.Response response) {
     print('🔵 Handling response with status: ${response.statusCode}');
-    
+
     if (response.statusCode >= 200 && response.statusCode < 300) {
       print('✅ Success Response Body: ${response.body}');
-      
+
       try {
         final decoded = json.decode(response.body);
         print('🔵 Decoded response: $decoded');
-        
+
         // Handle both Map and List responses
         if (decoded is List) {
           return {'data': decoded};
@@ -103,10 +117,13 @@ class ApiService {
       }
     } else {
       print('❌ Error Response Body: ${response.body}');
-      
+
       try {
         final error = json.decode(response.body);
-        final errorMessage = error['error'] ?? error['message'] ?? 'API Error (${response.statusCode})';
+        final errorMessage =
+            error['error'] ??
+            error['message'] ??
+            'API Error (${response.statusCode})';
         print('❌ Parsed error: $errorMessage');
         throw Exception(errorMessage);
       } catch (e) {
