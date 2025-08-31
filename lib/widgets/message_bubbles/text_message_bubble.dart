@@ -39,18 +39,18 @@ class TextMessageBubble extends StatelessWidget {
         // Images first (if any)
         if (message.pictures.isNotEmpty) ...[
           _buildImageGallery(context),
-          if (message.content.isNotEmpty || message.documents.isNotEmpty)
+          if (message.content.trim().isNotEmpty || message.documents.isNotEmpty)
             SizedBox(height: 8),
         ],
 
         // Documents (if any)
         if (message.documents.isNotEmpty) ...[
           _buildDocumentList(context),
-          if (message.content.isNotEmpty) SizedBox(height: 8),
+          if (message.content.trim().isNotEmpty) SizedBox(height: 8),
         ],
 
         // Text content below media (if any)
-        if (message.content.isNotEmpty) _buildTextContent(context),
+        if (message.content.trim().isNotEmpty) _buildTextContent(context),
       ],
     );
   }
@@ -330,10 +330,11 @@ class TextMessageBubble extends StatelessWidget {
                             doc.size!,
                             style: TextStyle(
                               fontSize: 12,
-                              color: isOwn 
-                                  ? (Theme.of(context).brightness == Brightness.dark
-                                      ? Colors.white70 
-                                      : Color(0xFF003f9b).withOpacity(0.7))
+                              color: isOwn
+                                  ? (Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? Colors.white70
+                                        : Color(0xFF003f9b).withOpacity(0.7))
                                   : Colors.grey[600],
                             ),
                           ),
@@ -397,7 +398,7 @@ class TextMessageBubble extends StatelessWidget {
 
   void _openImageGallery(BuildContext context, int initialIndex) {
     // Get the URL of the initial image to display
-    final initialImageUrl = initialIndex < message.pictures.length 
+    final initialImageUrl = initialIndex < message.pictures.length
         ? message.pictures[initialIndex].url
         : message.pictures.first.url;
 

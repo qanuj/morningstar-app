@@ -154,7 +154,7 @@ class ClubMessage {
         messageType = 'deleted';
       } else {
         messageType = content['type'] ?? 'text';
-        messageContent = content['body'] ?? content['text'] ?? '';
+        messageContent = (content['body'] ?? content['text'] ?? '').toString().trim();
       }
 
       // Handle different message types (only if not deleted)
@@ -171,6 +171,14 @@ class ClubMessage {
             }
             break;
           case 'text_with_images':
+            if (content['images'] is List) {
+              pictures = (content['images'] as List)
+                  .map((url) => MessageImage(url: url as String))
+                  .toList();
+            }
+            break;
+          case 'text':
+            // Handle text messages with images array
             if (content['images'] is List) {
               pictures = (content['images'] as List)
                   .map((url) => MessageImage(url: url as String))

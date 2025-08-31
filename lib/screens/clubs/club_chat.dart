@@ -64,7 +64,8 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   String? _lastTextValue;
 
   // Audio recording widget key
-  final GlobalKey<AudioRecordingWidgetState> _audioRecordingKey = GlobalKey<AudioRecordingWidgetState>();
+  final GlobalKey<AudioRecordingWidgetState> _audioRecordingKey =
+      GlobalKey<AudioRecordingWidgetState>();
 
   // Message selection state
   bool _isSelectionMode = false;
@@ -610,7 +611,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       });
     }
   }
-
 
   void _handleTextChanged(String value) {
     // Check if the text contains an image URL (simple detection for paste events)
@@ -1478,8 +1478,8 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                                     ),
                               child: Container(
                                 padding: EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
+                                  horizontal: 4,
+                                  vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
                                   color:
@@ -3894,7 +3894,8 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             // Check if audio recording is active - if so, show full-width recording interface
-            if (_audioRecordingKey.currentState?.isRecording == true || _audioRecordingKey.currentState?.hasRecording == true) ...[
+            if (_audioRecordingKey.currentState?.isRecording == true ||
+                _audioRecordingKey.currentState?.hasRecording == true) ...[
               // Full-width audio recording interface
               AudioRecordingWidget(
                 key: _audioRecordingKey,
@@ -3948,7 +3949,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                           decoration: InputDecoration(
                             hintText: 'Type a message',
                             hintStyle: TextStyle(
-                              color: Theme.of(context).brightness == Brightness.dark
+                              color:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
                                   ? Colors.grey[400]
                                   : Colors.grey[600],
                               fontSize: 16,
@@ -3961,7 +3964,8 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                           ),
                           style: TextStyle(
                             fontSize: 16,
-                            color: Theme.of(context).brightness == Brightness.dark
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
                                 ? Colors.white
                                 : Colors.black,
                           ),
@@ -3982,7 +3986,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                   ),
                 ),
               ),
-              
+
               // Camera button - hidden when composing
               if (!_isComposing)
                 IconButton(
@@ -3997,13 +4001,10 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                 ),
 
               // Send button or audio recording widget
-              if (_isComposing) 
+              if (_isComposing)
                 IconButton(
                   onPressed: _sendMessage,
-                  icon: Icon(
-                    Icons.send,
-                    color: Color(0xFF003f9b),
-                  ),
+                  icon: Icon(Icons.send, color: Color(0xFF003f9b)),
                   iconSize: 28,
                 )
               else
