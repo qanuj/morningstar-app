@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
+import 'dart:async';
 import '../../providers/conversation_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../models/conversation.dart';
@@ -35,6 +36,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   List<File> _selectedImages = [];
   File? _selectedDocument;
   String? _selectedDocumentName;
+  
+  // Audio recording state
+  bool _isRecording = false;
+  bool _hasRecording = false;
+  Duration _recordingDuration = Duration.zero;
+  Timer? _recordingTimer;
+  File? _recordedAudioFile;
 
   @override
   void initState() {
@@ -50,6 +58,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    _recordingTimer?.cancel();
     super.dispose();
   }
 
@@ -953,7 +962,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   child: TextField(
                     controller: _messageController,
                     decoration: InputDecoration(
-                      hintText: 'Type a message...',
+                      hintText: _isRecording 
+                          ? 'Recording... ${_formatRecordingDuration(_recordingDuration)}'
+                          : (_hasRecording ? 'Audio recorded' : 'Type a message...'),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
                         borderSide: BorderSide.none,
@@ -964,21 +975,23 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       suffixIcon: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Emoji button
-                          IconButton(
-                            onPressed: _toggleEmojiPicker,
-                            icon: Icon(
-                              Icons.emoji_emotions_outlined,
-                              color: Theme.of(context).primaryColor.withOpacity(0.7),
-                              size: 22,
+                          // Emoji button (only show when not recording)
+                          if (!_isRecording && !_hasRecording)
+                            IconButton(
+                              onPressed: _toggleEmojiPicker,
+                              icon: Icon(
+                                Icons.emoji_emotions_outlined,
+                                color: Theme.of(context).primaryColor.withOpacity(0.7),
+                                size: 22,
+                              ),
                             ),
-                          ),
                         ],
                       ),
                     ),
                     maxLines: 5,
                     minLines: 1,
                     textCapitalization: TextCapitalization.sentences,
+                    enabled: !_isRecording && !_hasRecording, // Disable input when recording or has recording
                     onChanged: (text) {
                       // Detect links and show preview
                       _detectLinks(text);
@@ -987,26 +1000,73 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 ),
               ),
               
-              // Send/Voice button
-              Material(
-                color: _isComposing 
-                    ? Theme.of(context).primaryColor 
-                    : Theme.of(context).primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(24),
-                child: InkWell(
-                  onTap: _isComposing ? _sendMessage : _startVoiceRecording,
+              // Send/Voice/Delete button
+              if (_hasRecording) ...[
+                // Delete button
+                Material(
+                  color: Colors.red.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(24),
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    child: Icon(
-                      _isComposing ? Icons.send : Icons.mic,
-                      color: _isComposing ? Colors.white : Theme.of(context).primaryColor,
-                      size: 20,
+                  child: InkWell(
+                    onTap: _deleteRecording,
+                    borderRadius: BorderRadius.circular(24),
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      child: Icon(
+                        Icons.delete,
+                        color: Colors.red,
+                        size: 20,
+                      ),
                     ),
                   ),
                 ),
-              ),
+                SizedBox(width: 8),
+                // Send audio button
+                Material(
+                  color: Theme.of(context).primaryColor,
+                  borderRadius: BorderRadius.circular(24),
+                  child: InkWell(
+                    onTap: _sendAudioMessage,
+                    borderRadius: BorderRadius.circular(24),
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      child: Icon(
+                        Icons.send,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ),
+              ] else ...[
+                // Send/Voice button
+                Material(
+                  color: _isComposing 
+                      ? Theme.of(context).primaryColor 
+                      : (_isRecording ? Colors.red : Theme.of(context).primaryColor.withOpacity(0.1)),
+                  borderRadius: BorderRadius.circular(24),
+                  child: InkWell(
+                    onTap: _isComposing 
+                        ? _sendMessage 
+                        : (_isRecording ? _stopVoiceRecording : _startVoiceRecording),
+                    borderRadius: BorderRadius.circular(24),
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      child: Icon(
+                        _isComposing 
+                            ? Icons.send 
+                            : (_isRecording ? Icons.stop : Icons.mic),
+                        color: _isComposing 
+                            ? Colors.white 
+                            : (_isRecording ? Colors.white : Theme.of(context).primaryColor),
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ],
@@ -1117,15 +1177,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _buildAttachmentOption(
-                  icon: Icons.gif_box,
-                  label: 'GIF',
-                  color: Colors.orange,
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showGifPicker();
-                  },
-                ),
-                _buildAttachmentOption(
                   icon: Icons.location_on,
                   label: 'Location',
                   color: Colors.green,
@@ -1141,6 +1192,15 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   onTap: () {
                     Navigator.pop(context);
                     _pickVideo();
+                  },
+                ),
+                _buildAttachmentOption(
+                  icon: Icons.gif_box,
+                  label: 'GIF',
+                  color: Colors.orange,
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showGifPicker();
                   },
                 ),
               ],
@@ -1198,13 +1258,97 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 
   void _startVoiceRecording() {
-    // TODO: Implement voice recording
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Voice recording coming soon!'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    if (_isRecording || _hasRecording) return;
+    
+    setState(() {
+      _isRecording = true;
+      _recordingDuration = Duration.zero;
+    });
+    
+    // Start the timer to track recording duration
+    _recordingTimer = Timer.periodic(Duration(seconds: 1), (timer) {
+      setState(() {
+        _recordingDuration = Duration(seconds: timer.tick);
+      });
+    });
+    
+    HapticFeedback.mediumImpact();
+    
+    // TODO: Start actual audio recording here
+    // For now, just simulate recording
+    print('Started recording...');
+  }
+
+  void _stopVoiceRecording() {
+    if (!_isRecording) return;
+    
+    _recordingTimer?.cancel();
+    
+    setState(() {
+      _isRecording = false;
+      _hasRecording = true;
+      // TODO: Set the actual recorded file
+      // _recordedAudioFile = recordedFile;
+    });
+    
+    HapticFeedback.lightImpact();
+    
+    // TODO: Stop actual audio recording here
+    print('Stopped recording. Duration: ${_formatRecordingDuration(_recordingDuration)}');
+  }
+
+  void _deleteRecording() {
+    setState(() {
+      _hasRecording = false;
+      _recordingDuration = Duration.zero;
+      _recordedAudioFile = null;
+    });
+    
+    HapticFeedback.selectionClick();
+    
+    // TODO: Delete the recorded file
+    print('Recording deleted');
+  }
+
+  void _sendAudioMessage() async {
+    if (!_hasRecording) return;
+    
+    final duration = _recordingDuration;
+    
+    // Reset recording state
+    setState(() {
+      _hasRecording = false;
+      _recordingDuration = Duration.zero;
+      _recordedAudioFile = null;
+    });
+    
+    HapticFeedback.lightImpact();
+    
+    // TODO: Upload audio file and send message
+    final richContent = {
+      'type': 'voice',
+      'url': 'placeholder_audio_url', // This would be the uploaded audio URL
+      'duration': duration.inSeconds,
+    };
+    
+    final success = await context
+        .read<ConversationProvider>()
+        .sendRichMessage(
+          widget.conversation.id, 
+          MessageType.voice, 
+          richContent,
+        );
+    
+    if (success) {
+      _scrollToBottom();
+      print('Audio message sent. Duration: ${_formatRecordingDuration(duration)}');
+    }
+  }
+
+  String _formatRecordingDuration(Duration duration) {
+    final minutes = duration.inMinutes;
+    final seconds = duration.inSeconds % 60;
+    return '${minutes.toString().padLeft(1, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
   void _pickImageFromCamera() {
@@ -1320,13 +1464,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 
   void _showGifPicker() {
-    showModalBottomSheet(
-      context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => GifPickerWidget(
-        onGifSelected: _onGifSelected,
+    // TODO: Implement GIF picker when needed
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('GIF picker coming soon!'),
+        duration: Duration(seconds: 2),
       ),
     );
   }
