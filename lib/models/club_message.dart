@@ -31,6 +31,9 @@ class ClubMessage {
   final bool pinned;
   final DateTime? pinStart;
   final DateTime? pinEnd;
+  // Local-only fields for read/delivered tracking
+  final DateTime? deliveredAt;
+  final DateTime? readAt;
 
   ClubMessage({
     required this.id,
@@ -57,6 +60,8 @@ class ClubMessage {
     this.pinned = false,
     this.pinStart,
     this.pinEnd,
+    this.deliveredAt,
+    this.readAt,
   });
 
   ClubMessage copyWith({
@@ -76,6 +81,8 @@ class ClubMessage {
     bool? pinned,
     DateTime? pinStart,
     DateTime? pinEnd,
+    DateTime? deliveredAt,
+    DateTime? readAt,
   }) {
     return ClubMessage(
       id: id,
@@ -102,6 +109,8 @@ class ClubMessage {
       pinned: pinned ?? this.pinned,
       pinStart: pinStart ?? this.pinStart,
       pinEnd: pinEnd ?? this.pinEnd,
+      deliveredAt: deliveredAt ?? this.deliveredAt,
+      readAt: readAt ?? this.readAt,
     );
   }
 
@@ -258,9 +267,57 @@ class ClubMessage {
       deleted: isDeleted,
       deletedBy: deletedByName,
       starred: json['starred'] ?? false,
-      pinned: json['pinned'] ?? false,
+      pinned: _calculatePinnedStatus(json['pinStart'], json['pinEnd']),
       pinStart: json['pinStart'] != null ? DateTime.parse(json['pinStart']) : null,
       pinEnd: json['pinEnd'] != null ? DateTime.parse(json['pinEnd']) : null,
+      // Local-only fields - not from server JSON
+      deliveredAt: json['deliveredAt'] != null ? DateTime.parse(json['deliveredAt']) : null,
+      readAt: json['readAt'] != null ? DateTime.parse(json['readAt']) : null,
     );
+  }
+
+  static bool _calculatePinnedStatus(dynamic pinStart, dynamic pinEnd) {
+    if (pinStart == null || pinEnd == null) return false;
+    
+    try {
+      final startTime = DateTime.parse(pinStart);
+      final endTime = DateTime.parse(pinEnd);
+      final now = DateTime.now();
+      
+      return now.isAfter(startTime) && now.isBefore(endTime);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'messageId': id, // For API compatibility
+      'clubId': clubId,
+      'senderId': senderId,
+      'senderName': senderName,
+      'senderProfilePicture': senderProfilePicture,
+      'senderRole': senderRole,
+      'content': content,
+      'pictures': pictures.map((p) => p.toJson()).toList(),
+      'documents': documents.map((d) => d.toJson()).toList(),
+      'audio': audio?.toJson(),
+      'linkMeta': linkMeta.map((l) => l.toJson()).toList(),
+      'gifUrl': gifUrl,
+      'messageType': messageType,
+      'createdAt': createdAt.toIso8601String(),
+      'reactions': reactions.map((r) => r.toJson()).toList(),
+      'replyTo': replyTo?.toJson(),
+      'deleted': deleted,
+      'deletedBy': deletedBy,
+      'starred': starred,
+      'pinned': _calculatePinnedStatus(pinStart?.toIso8601String(), pinEnd?.toIso8601String()),
+      'pinStart': pinStart?.toIso8601String(),
+      'pinEnd': pinEnd?.toIso8601String(),
+      // Local-only fields for storage
+      'deliveredAt': deliveredAt?.toIso8601String(),
+      'readAt': readAt?.toIso8601String(),
+    };
   }
 }
