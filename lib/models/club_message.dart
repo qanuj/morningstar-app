@@ -203,12 +203,12 @@ class ClubMessage {
             break;
           case 'audio':
             if (content['url'] != null) {
-              audio = MessageAudio(
-                url: content['url'],
-                filename: content['name'] ?? 'audio',
-                duration: content['duration'],
-                size: content['size'],
-              );
+              audio = MessageAudio.fromJson({
+                'url': content['url'],
+                'name': content['name'],
+                'duration': content['duration'],
+                'size': content['size'],
+              });
             }
             break;
         }

@@ -330,7 +330,11 @@ class TextMessageBubble extends StatelessWidget {
                             doc.size!,
                             style: TextStyle(
                               fontSize: 12,
-                              color: isOwn ? Colors.white70 : Colors.grey[600],
+                              color: isOwn 
+                                  ? (Theme.of(context).brightness == Brightness.dark
+                                      ? Colors.white70 
+                                      : Color(0xFF003f9b).withOpacity(0.7))
+                                  : Colors.grey[600],
                             ),
                           ),
                       ],
@@ -357,7 +361,9 @@ class TextMessageBubble extends StatelessWidget {
       style: TextStyle(
         fontSize: 16,
         color: isOwn
-            ? Colors.white
+            ? (Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white
+                  : Color(0xFF003f9b)) // Dark blue for light backgrounds
             : (Theme.of(context).brightness == Brightness.dark
                   ? Colors.white
                   : Colors.black87),

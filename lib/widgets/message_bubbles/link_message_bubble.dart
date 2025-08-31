@@ -45,7 +45,9 @@ class LinkMessageBubble extends StatelessWidget {
             style: TextStyle(
               fontSize: 16,
               color: isOwn
-                  ? Colors.white
+                  ? (Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white
+                        : Color(0xFF003f9b)) // Dark blue for light backgrounds
                   : (Theme.of(context).brightness == Brightness.dark
                         ? Colors.white
                         : Colors.black87),
@@ -126,7 +128,9 @@ class LinkMessageBubble extends StatelessWidget {
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                         color: isOwn
-                            ? Colors.white
+                            ? (Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.white
+                                  : Color(0xFF003f9b))
                             : (Theme.of(context).brightness == Brightness.dark
                                   ? Colors.white
                                   : Colors.black87),
@@ -145,7 +149,9 @@ class LinkMessageBubble extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 14,
                         color: isOwn
-                            ? Colors.white.withOpacity(0.8)
+                            ? (Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.white.withOpacity(0.8)
+                                  : Color(0xFF003f9b).withOpacity(0.7))
                             : (Theme.of(context).brightness == Brightness.dark
                                   ? Colors.white.withOpacity(0.8)
                                   : Colors.grey[600]),

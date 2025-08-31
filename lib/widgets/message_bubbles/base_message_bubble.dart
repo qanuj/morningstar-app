@@ -9,6 +9,8 @@ class BaseMessageBubble extends StatelessWidget {
   final Widget content;
   final bool isPinned;
   final bool isSelected;
+  final bool isTransparent;
+  final Color? customColor;
 
   const BaseMessageBubble({
     super.key,
@@ -17,19 +19,23 @@ class BaseMessageBubble extends StatelessWidget {
     required this.content,
     required this.isPinned,
     this.isSelected = false,
+    this.isTransparent = false,
+    this.customColor,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: _getBubbleColor(context),
-        borderRadius: BorderRadius.circular(12),
-        border: message.status == MessageStatus.failed
-            ? Border.all(color: Colors.red, width: 1)
-            : null,
-      ),
+      decoration: isTransparent 
+          ? null 
+          : BoxDecoration(
+              color: _getBubbleColor(context),
+              borderRadius: BorderRadius.circular(12),
+              border: message.status == MessageStatus.failed
+                  ? Border.all(color: Colors.red, width: 1)
+                  : null,
+            ),
       child: Stack(
         children: [
           // Message content
@@ -46,6 +52,16 @@ class BaseMessageBubble extends StatelessWidget {
   }
 
   Color _getBubbleColor(BuildContext context) {
+    // Transparent bubbles have no background color
+    if (isTransparent) {
+      return Colors.transparent;
+    }
+    
+    // Custom color overrides everything except transparent
+    if (customColor != null) {
+      return customColor!;
+    }
+    
     // Selection state overrides other colors
     if (isSelected) {
       return Color(0xFF003f9b).withOpacity(0.3);
@@ -84,15 +100,15 @@ class BaseMessageBubble extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Pin icon (first)
-          if (isOwn && isPinned) ...[
-            Icon(Icons.push_pin, size: 10, color: iconColor),
+          // Star icon (first)
+          if (isOwn && message.starred.isStarred) ...[
+            Icon(Icons.star, size: 10, color: iconColor),
             SizedBox(width: 4),
           ],
 
-          // Star icon (second)
-          if (isOwn && message.starred.isStarred) ...[
-            Icon(Icons.star, size: 10, color: iconColor),
+          // Pin icon (second)
+          if (isOwn && isPinned) ...[
+            Icon(Icons.push_pin, size: 10, color: iconColor),
             SizedBox(width: 4),
           ],
 
@@ -102,7 +118,7 @@ class BaseMessageBubble extends StatelessWidget {
             style: TextStyle(fontSize: 10, color: iconColor),
           ),
 
-          // Status tick (fourth) - only for own messages
+          // Status tick (fourth - rightmost) - only for own messages
           if (isOwn) ...[SizedBox(width: 4), _buildStatusIcon(iconColor)],
         ],
       ),

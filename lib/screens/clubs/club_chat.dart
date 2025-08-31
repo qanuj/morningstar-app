@@ -234,9 +234,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         final serverPinnedMessages = serverMessages
             .where((m) => _isCurrentlyPinned(m))
             .toList();
-        print(
-          '🔄 Server sync: ${serverPinnedMessages.length} pinned messages among ${serverMessages.length} total',
-        );
 
         // Merge with local read/delivered status
         final cachedMessages = await MessageStorageService.loadMessages(
@@ -1253,11 +1250,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         .where((m) => _isCurrentlyPinned(m))
         .toList();
 
-    // Log pinned messages for debugging
-    if (pinnedMessages.isNotEmpty) {
-      print('📌 Found ${pinnedMessages.length} pinned messages');
-    }
-
     // All messages in chronological order (including pinned ones)
     final allMessages = List<ClubMessage>.from(_messages);
     allMessages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
@@ -1322,7 +1314,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
     return AnimatedContainer(
       duration: Duration(milliseconds: 300),
-      margin: EdgeInsets.only(bottom: isLastFromSender ? 2 : 0.5),
+      margin: EdgeInsets.only(bottom: isLastFromSender ? 12 : 4),
       decoration: _highlightedMessageId == message.id
           ? BoxDecoration(
               color: Color(0xFF06aeef).withOpacity(0.2),
@@ -1604,7 +1596,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                                       message: message,
                                       isOwn: isOwn,
                                       isPinned: _isCurrentlyPinned(message),
-                                      isSelected: _selectedMessageIds.contains(message.id),
+                                      isSelected: _selectedMessageIds.contains(
+                                        message.id,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -2736,10 +2730,12 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       List<MessageImage> uploadedImages = [];
       for (int i = 0; i < files.length; i++) {
         final file = files[i];
-        
+
         // Update message with current upload progress
         setState(() {
-          final messageIndex = _messages.indexWhere((m) => m.id == tempMessageId);
+          final messageIndex = _messages.indexWhere(
+            (m) => m.id == tempMessageId,
+          );
           if (messageIndex != -1) {
             // Update message to show which image is currently uploading
             _messages[messageIndex] = _messages[messageIndex].copyWith(
@@ -2748,7 +2744,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
             );
           }
         });
-        
+
         final uploadedUrl = await _uploadFile(file);
         if (uploadedUrl != null) {
           uploadedImages.add(
@@ -2760,7 +2756,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         } else {
           // If any upload fails, mark message as failed immediately
           setState(() {
-            final messageIndex = _messages.indexWhere((m) => m.id == tempMessageId);
+            final messageIndex = _messages.indexWhere(
+              (m) => m.id == tempMessageId,
+            );
             if (messageIndex != -1) {
               _messages[messageIndex] = _messages[messageIndex].copyWith(
                 status: MessageStatus.failed,

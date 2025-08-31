@@ -43,7 +43,9 @@ class GifMessageBubble extends StatelessWidget {
             style: TextStyle(
               fontSize: 16,
               color: isOwn
-                  ? Colors.white
+                  ? (Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Color(0xFF003f9b)) // Dark blue for light backgrounds
                   : (Theme.of(context).brightness == Brightness.dark
                       ? Colors.white
                       : Colors.black87),
