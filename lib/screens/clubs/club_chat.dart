@@ -5,9 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter_sound/flutter_sound.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 import 'dart:async';
 import 'package:http/http.dart' as http;
@@ -23,6 +21,7 @@ import '../../models/link_metadata.dart';
 import '../../models/message_reaction.dart';
 import '../../models/message_reply.dart';
 import '../../models/starred_info.dart';
+import '../../models/message_audio.dart';
 import '../../services/api_service.dart';
 import '../../services/message_storage_service.dart';
 // import 'package:emoji_picker_flutter/emoji_picker_flutter.dart'; // Package not available
@@ -32,7 +31,7 @@ import '../../widgets/audio_player_widget.dart';
 import '../../widgets/message_bubbles/message_bubble_factory.dart';
 import '../../widgets/image_caption_dialog.dart';
 import '../../widgets/image_gallery_screen.dart';
-import '../shared/audio_recording_screen.dart';
+import '../../widgets/audio_recording_widget.dart';
 
 class ClubChatScreen extends StatefulWidget {
   final Club club;
@@ -64,14 +63,8 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   // Paste image detection
   String? _lastTextValue;
 
-  // Audio recording state
-  bool _isRecording = false;
-  bool _hasRecording = false;
-  Duration _recordingDuration = Duration.zero;
-  Timer? _recordingTimer;
-  File? _recordedAudioFile;
-  String? _audioPath;
-  final FlutterSoundRecorder _audioRecorder = FlutterSoundRecorder();
+  // Audio recording widget key
+  final GlobalKey<AudioRecordingWidgetState> _audioRecordingKey = GlobalKey<AudioRecordingWidgetState>();
 
   // Message selection state
   bool _isSelectionMode = false;
@@ -93,23 +86,12 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     // Remove the listener since we handle it in onChanged now
     _loadMessages();
     _startPinnedRefreshTimer();
-    _initializeRecorder();
-  }
-  
-  Future<void> _initializeRecorder() async {
-    try {
-      await _audioRecorder.openRecorder();
-    } catch (e) {
-      print('Error initializing recorder: $e');
-    }
   }
 
   @override
   void dispose() {
     _highlightTimer?.cancel();
     _pinnedRefreshTimer?.cancel();
-    _recordingTimer?.cancel();
-    _audioRecorder.closeRecorder();
     _messageController.dispose();
     _scrollController.dispose();
     _textFieldFocusNode.dispose();
@@ -629,265 +611,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     }
   }
 
-  Future<void> _startVoiceRecording() async {
-    if (_isRecording || _hasRecording) return;
-    
-    try {
-      // Ensure recorder is opened
-      try {
-        await _audioRecorder.openRecorder();
-      } catch (e) {
-        // Recorder might already be opened
-      }
-      
-      // Check permission status first
-      final initialStatus = await Permission.microphone.status;
-      
-      // If permission is not granted, request it
-      if (!initialStatus.isGranted) {
-        final permissionStatus = await Permission.microphone.request();
-        if (!permissionStatus.isGranted) {
-          _showPermissionDeniedDialog();
-          return;
-        }
-      }
-
-      // Create audio file path
-      final directory = await getApplicationDocumentsDirectory();
-      final fileName = 'audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
-      _audioPath = '${directory.path}/$fileName';
-
-      // Start recording
-      await _audioRecorder.startRecorder(
-        toFile: _audioPath!,
-        codec: Codec.aacMP4,
-      );
-
-      setState(() {
-        _isRecording = true;
-        _recordingDuration = Duration.zero;
-      });
-
-      // Start the timer to track recording duration
-      _recordingTimer = Timer.periodic(Duration(seconds: 1), (timer) {
-        setState(() {
-          _recordingDuration = Duration(seconds: timer.tick);
-        });
-      });
-      
-      HapticFeedback.mediumImpact();
-      print('Recording started successfully to: $_audioPath');
-      
-    } catch (e) {
-      print('Error starting recording: $e');
-      setState(() {
-        _isRecording = false;
-      });
-      _showErrorDialog('Failed to start recording: ${e.toString()}');
-    }
-  }
-
-  Future<void> _stopVoiceRecording() async {
-    if (!_isRecording) return;
-    
-    try {
-      final path = await _audioRecorder.stopRecorder();
-      
-      _recordingTimer?.cancel();
-      
-      setState(() {
-        _isRecording = false;
-        _hasRecording = true;
-        if (path != null && path.isNotEmpty) {
-          _recordedAudioFile = File(path);
-          _audioPath = path;
-        }
-      });
-      
-      HapticFeedback.lightImpact();
-      
-      if (path != null && path.isNotEmpty) {
-        // Check file details
-        final file = File(path);
-        if (await file.exists()) {
-          final fileSize = await file.length();
-          print('Recording stopped successfully:');
-          print('  Path: $path');
-          print('  Duration: ${_formatRecordingDuration(_recordingDuration)}');
-          print('  File size: ${(fileSize / 1024).toStringAsFixed(2)} KB');
-        }
-      }
-    } catch (e) {
-      print('Error stopping recording: $e');
-      _showErrorDialog('Failed to stop recording. Please try again.');
-    }
-  }
-
-  void _deleteRecording() {
-    setState(() {
-      _hasRecording = false;
-      _recordingDuration = Duration.zero;
-      _recordedAudioFile = null;
-    });
-    
-    HapticFeedback.selectionClick();
-    
-    // TODO: Delete the recorded file
-    print('Recording deleted');
-  }
-
-  void _sendAudioRecording() async {
-    if (!_hasRecording || _recordedAudioFile == null) return;
-    
-    final audioFile = _recordedAudioFile!;
-    final duration = _recordingDuration;
-    
-    // Reset recording state
-    setState(() {
-      _hasRecording = false;
-      _recordingDuration = Duration.zero;
-      _recordedAudioFile = null;
-    });
-    
-    HapticFeedback.lightImpact();
-    
-    // Send the actual audio message using existing method
-    await _sendAudioMessage(audioFile.path);
-    
-    print('Audio message sent. Duration: ${_formatRecordingDuration(duration)}');
-  }
-
-  String _formatRecordingDuration(Duration duration) {
-    final minutes = duration.inMinutes;
-    final seconds = duration.inSeconds % 60;
-    return '${minutes.toString().padLeft(1, '0')}:${seconds.toString().padLeft(2, '0')}';
-  }
-
-  void _showPermissionDeniedDialog() {
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Text('Microphone Permission Required'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.mic_off,
-              size: 48,
-              color: Colors.orange,
-            ),
-            SizedBox(height: 16),
-            Text(
-              'This app needs microphone access to record voice messages.',
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Please grant permission to continue.',
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              if (mounted) Navigator.of(context).pop();
-            },
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (mounted) Navigator.of(context).pop();
-              
-              // Try requesting permission again
-              final newStatus = await Permission.microphone.request();
-              if (newStatus.isGranted) {
-                _startVoiceRecording();
-              } else if (newStatus.isPermanentlyDenied) {
-                _showPermissionPermanentlyDeniedDialog();
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xFF003f9b),
-            ),
-            child: Text('Try Again', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showPermissionPermanentlyDeniedDialog() {
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Text('Permission Permanently Denied'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.mic_off,
-              size: 48,
-              color: Colors.red,
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Microphone access has been permanently denied. Please enable it manually in Settings.',
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Settings > Privacy & Security > Microphone > Duggy',
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              if (mounted) Navigator.of(context).pop();
-            },
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (mounted) Navigator.of(context).pop();
-              await openAppSettings();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xFF003f9b),
-            ),
-            child: Text('Open Settings', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showErrorDialog(String message) {
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Error'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () {
-              if (mounted) Navigator.of(context).pop();
-            },
-            child: Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _handleTextChanged(String value) {
     // Check if the text contains an image URL (simple detection for paste events)
@@ -953,7 +676,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       }
 
       // Create a temporary file
-      final tempDir = await getTemporaryDirectory();
+      final tempDir = await getApplicationDocumentsDirectory();
       final fileName = imageUrl
           .split('/')
           .last
@@ -1009,7 +732,12 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
     final tempMessageId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
 
-    // Create optimistic message
+    // Create temporary audio file info
+    final audioFile = File(audioPath);
+    final fileName = audioFile.path.split('/').last;
+    final fileSize = await audioFile.length();
+
+    // Create optimistic message with audio structure
     final optimisticMessage = ClubMessage(
       id: tempMessageId,
       clubId: widget.club.id,
@@ -1018,11 +746,18 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       senderProfilePicture: user.profilePicture,
       senderRole: 'MEMBER',
       content: 'Audio message',
-      messageType: 'audio', // Now properly using audio type
+      messageType: 'audio',
       createdAt: DateTime.now(),
       status: MessageStatus.sending,
       starred: StarredInfo(isStarred: false),
       pin: PinInfo(isPinned: false),
+      // Add audio structure for the bubble
+      audio: MessageAudio(
+        url: audioPath, // Use local path initially
+        filename: fileName,
+        duration: 0, // Will be updated when upload completes
+        size: fileSize,
+      ),
     );
 
     // Add message to list immediately
@@ -1042,11 +777,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     });
 
     try {
-      // Create temporary audio file info
-      final audioFile = File(audioPath);
-      final fileName = audioFile.path.split('/').last;
-      final fileSize = await audioFile.length();
-
       // Create fake PlatformFile for upload function
       final platformFile = PlatformFile(
         name: fileName,
@@ -1055,7 +785,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       );
 
       // Upload audio file first
+      debugPrint('🔄 Starting audio file upload...');
       final uploadedUrl = await _uploadFile(platformFile);
+      debugPrint('📁 Upload result: $uploadedUrl');
       if (uploadedUrl == null) {
         throw Exception('Failed to upload audio file');
       }
@@ -1071,14 +803,16 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         },
       };
 
+      debugPrint('📤 Sending message data: $messageData');
       final response = await ApiService.post(
         '/conversations/${widget.club.id}/messages',
         messageData,
       );
 
-      if (response['success'] == true) {
+      debugPrint('📥 API Response: $response');
+      if (response != null && response is Map<String, dynamic>) {
         debugPrint('✅ Audio message sent successfully');
-        // Add new message to local storage
+        // The response is the message object directly, not wrapped in success
         final newMessage = ClubMessage.fromJson(response);
         await MessageStorageService.addMessage(widget.club.id, newMessage);
 
@@ -1095,7 +829,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
           await audioFile.delete();
         }
       } else {
-        throw Exception(response['message'] ?? 'Failed to send audio message');
+        throw Exception('Unexpected response format');
       }
     } catch (e) {
       debugPrint('❌ Error sending audio message: $e');
@@ -4159,8 +3893,22 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            // Attachment button (+) - hidden during recording states
-            if (!_isRecording && !_hasRecording)
+            // Check if audio recording is active - if so, show full-width recording interface
+            if (_audioRecordingKey.currentState?.isRecording == true || _audioRecordingKey.currentState?.hasRecording == true) ...[
+              // Full-width audio recording interface
+              AudioRecordingWidget(
+                key: _audioRecordingKey,
+                onAudioRecorded: _sendAudioMessage,
+                isComposing: _isComposing,
+                onRecordingStateChanged: () {
+                  setState(() {
+                    // This will trigger a rebuild with the new recording state
+                  });
+                },
+              ),
+            ] else ...[
+              // Normal input interface
+              // Attachment button (+)
               IconButton(
                 onPressed: _showUploadOptions,
                 icon: Icon(
@@ -4168,129 +3916,107 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                   color: Theme.of(context).brightness == Brightness.dark
                       ? Colors.grey[400]
                       : Colors.grey[600],
-              ),
-              iconSize: 28,
-            ),
-
-            // Expanded message input area
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Color(0xFF2a2f32)
-                      : Colors.white,
-                  borderRadius: BorderRadius.circular(25),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 2,
-                      spreadRadius: 0.5,
-                      offset: Offset(0, 1),
-                    ),
-                  ],
                 ),
-                child: Row(
-                  children: [
-                    // Text field
-                    Expanded(
-                      child: TextField(
-                        controller: _messageController,
-                        focusNode: _textFieldFocusNode,
-                        autofocus: false,
-                        enabled: !_isRecording && !_hasRecording,
-                        decoration: InputDecoration(
-                          hintText: _isRecording 
-                              ? 'Recording... ${_formatRecordingDuration(_recordingDuration)}'
-                              : (_hasRecording ? 'Audio recorded' : 'Type a message'),
-                          hintStyle: TextStyle(
-                            color:
-                                Theme.of(context).brightness == Brightness.dark
-                                ? Colors.grey[400]
-                                : Colors.grey[600],
-                            fontSize: 16,
-                          ),
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                        ),
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? Colors.white
-                              : Colors.black,
-                        ),
-                        maxLines: 5,
-                        minLines: 1,
-                        textCapitalization: TextCapitalization.sentences,
-                        keyboardType: TextInputType.multiline,
-                        textInputAction: TextInputAction.newline,
-                        onChanged: (value) {
-                          setState(() {
-                            _isComposing = value.trim().isNotEmpty;
-                          });
-                          _handleTextChanged(value);
-                        },
+                iconSize: 28,
+              ),
+
+              // Expanded message input area
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Color(0xFF2a2f32)
+                        : Colors.white,
+                    borderRadius: BorderRadius.circular(25),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 2,
+                        spreadRadius: 0.5,
+                        offset: Offset(0, 1),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      // Text field
+                      Expanded(
+                        child: TextField(
+                          controller: _messageController,
+                          focusNode: _textFieldFocusNode,
+                          autofocus: false,
+                          decoration: InputDecoration(
+                            hintText: 'Type a message',
+                            hintStyle: TextStyle(
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.grey[400]
+                                  : Colors.grey[600],
+                              fontSize: 16,
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                          ),
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white
+                                : Colors.black,
+                          ),
+                          maxLines: 5,
+                          minLines: 1,
+                          textCapitalization: TextCapitalization.sentences,
+                          keyboardType: TextInputType.multiline,
+                          textInputAction: TextInputAction.newline,
+                          onChanged: (value) {
+                            setState(() {
+                              _isComposing = value.trim().isNotEmpty;
+                            });
+                            _handleTextChanged(value);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            // Camera button - hidden during recording states and when composing
-            if (!_isComposing && !_isRecording && !_hasRecording)
-              IconButton(
-                onPressed: _capturePhotoWithCamera,
-                icon: Icon(
-                  Icons.camera_alt,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.grey[400]
-                      : Colors.grey[600],
+              
+              // Camera button - hidden when composing
+              if (!_isComposing)
+                IconButton(
+                  onPressed: _capturePhotoWithCamera,
+                  icon: Icon(
+                    Icons.camera_alt,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey[400]
+                        : Colors.grey[600],
+                  ),
+                  iconSize: 28,
                 ),
-                iconSize: 28,
-              ),
 
-            // Delete/Send buttons for recording or Send/Mic button
-            if (_hasRecording) ...[
-              // Delete button
-              IconButton(
-                onPressed: _deleteRecording,
-                icon: Icon(
-                  Icons.delete,
-                  color: Colors.red,
+              // Send button or audio recording widget
+              if (_isComposing) 
+                IconButton(
+                  onPressed: _sendMessage,
+                  icon: Icon(
+                    Icons.send,
+                    color: Color(0xFF003f9b),
+                  ),
+                  iconSize: 28,
+                )
+              else
+                AudioRecordingWidget(
+                  key: _audioRecordingKey,
+                  onAudioRecorded: _sendAudioMessage,
+                  isComposing: _isComposing,
+                  onRecordingStateChanged: () {
+                    setState(() {
+                      // This will trigger a rebuild with the new recording state
+                    });
+                  },
                 ),
-                iconSize: 28,
-              ),
-              // Send audio button
-              IconButton(
-                onPressed: _sendAudioRecording,
-                icon: Icon(
-                  Icons.send,
-                  color: Color(0xFF003f9b),
-                ),
-                iconSize: 28,
-              ),
-            ] else ...[
-              // Send/Mic button
-              IconButton(
-                onPressed: _isComposing 
-                    ? _sendMessage 
-                    : (_isRecording ? _stopVoiceRecording : _startVoiceRecording),
-                icon: Icon(
-                  _isComposing 
-                      ? Icons.send 
-                      : (_isRecording ? Icons.stop : Icons.mic),
-                  color: _isComposing
-                      ? Color(0xFF003f9b)
-                      : (_isRecording 
-                          ? Colors.red
-                          : (Theme.of(context).brightness == Brightness.dark
-                              ? Colors.grey[400]
-                              : Colors.grey[600])),
-                ),
-                iconSize: 28,
-              ),
             ],
           ],
         ),
