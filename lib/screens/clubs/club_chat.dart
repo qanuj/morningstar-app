@@ -4723,21 +4723,11 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
   Future<void> _pinMessageWithDuration(ClubMessage message, int hours) async {
     try {
-      final now = DateTime.now();
-      final pinEnd = now.add(Duration(hours: hours));
-
-      final requestData = {
-        'pinStart': now.toIso8601String(),
-        'pinEnd': pinEnd.toIso8601String(),
-      };
-
-      final result = await ApiService.post(
+      final requestData = {'durationHours': hours};
+      await ApiService.post(
         '/conversations/${widget.club.id}/messages/${message.id}/pin',
         requestData,
       );
-
-      print('🔵 Pinned message response: $result');
-
       // Sync from server to get authoritative pinned status for all users
       await _syncMessagesFromServer();
 
