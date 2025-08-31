@@ -87,7 +87,7 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  static Future<Map<String, dynamic>> delete(String endpoint, [Map<String, dynamic>? data]) async {
+  static Future<Map<String, dynamic>> delete(String endpoint, [dynamic data]) async {
     final response = await http.delete(
       Uri.parse('$baseUrl$endpoint'),
       headers: headers,

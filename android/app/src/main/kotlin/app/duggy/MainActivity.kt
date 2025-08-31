@@ -1,4 +1,4 @@
-package com.example.duggy
+package app.duggy
 
 import io.flutter.embedding.android.FlutterActivity
 

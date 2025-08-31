@@ -98,3 +98,89 @@ class ClubMembership {
     );
   }
 }
+
+class ClubMember {
+  final String id;
+  final String name;
+  final String? profilePicture;
+
+  ClubMember({
+    required this.id,
+    required this.name,
+    this.profilePicture,
+  });
+
+  factory ClubMember.fromJson(Map<String, dynamic> json) {
+    return ClubMember(
+      id: json['id'] ?? '',
+      name: json['name'] ?? '',
+      profilePicture: json['profilePicture'],
+    );
+  }
+}
+
+class DetailedClubInfo {
+  final String id;
+  final String name;
+  final String? slug;
+  final String? logo;
+  final String? description;
+  final String url;
+  final int membersCount;
+  final List<ClubMember> owners;
+  final List<ClubMember> admins;
+  final String? upiId;
+  final String? upiIdDescription;
+  final String upiIdCurrency;
+  final double? membershipFee;
+  final String membershipFeeCurrency;
+  final String? membershipFeeDescription;
+  final int? defaultPinDurationHours;
+  final List<String> pinMessagePermissions;
+
+  DetailedClubInfo({
+    required this.id,
+    required this.name,
+    this.slug,
+    this.logo,
+    this.description,
+    required this.url,
+    required this.membersCount,
+    required this.owners,
+    required this.admins,
+    this.upiId,
+    this.upiIdDescription,
+    required this.upiIdCurrency,
+    this.membershipFee,
+    required this.membershipFeeCurrency,
+    this.membershipFeeDescription,
+    this.defaultPinDurationHours,
+    required this.pinMessagePermissions,
+  });
+
+  factory DetailedClubInfo.fromJson(Map<String, dynamic> json) {
+    return DetailedClubInfo(
+      id: json['id'] ?? '',
+      name: json['name'] ?? '',
+      slug: json['slug'],
+      logo: json['logo'],
+      description: json['description'],
+      url: json['url'] ?? '',
+      membersCount: json['membersCount'] ?? 0,
+      owners: (json['owners'] as List? ?? [])
+          .map((owner) => ClubMember.fromJson(owner as Map<String, dynamic>))
+          .toList(),
+      admins: (json['admins'] as List? ?? [])
+          .map((admin) => ClubMember.fromJson(admin as Map<String, dynamic>))
+          .toList(),
+      upiId: json['upiId'],
+      upiIdDescription: json['upiIdDescription'],
+      upiIdCurrency: json['upiIdCurrency'] ?? 'INR',
+      membershipFee: json['membershipFee']?.toDouble(),
+      membershipFeeCurrency: json['membershipFeeCurrency'] ?? 'INR',
+      membershipFeeDescription: json['membershipFeeDescription'],
+      defaultPinDurationHours: json['defaultPinDurationHours'],
+      pinMessagePermissions: List<String>.from(json['pinMessagePermissions'] ?? []),
+    );
+  }
+}

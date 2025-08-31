@@ -1,6 +1,7 @@
 import 'message_status.dart';
 import 'message_image.dart';
 import 'message_document.dart';
+import 'message_audio.dart';
 import 'link_metadata.dart';
 import 'message_reaction.dart';
 import 'message_reply.dart';
@@ -15,9 +16,10 @@ class ClubMessage {
   final String content;
   final List<MessageImage> pictures;
   final List<MessageDocument> documents;
+  final MessageAudio? audio;
   final List<LinkMetadata> linkMeta;
   final String? gifUrl; // For GIF messages
-  final String? messageType; // 'text', 'image', 'link', 'emoji', 'gif', 'document'
+  final String? messageType; // 'text', 'image', 'link', 'emoji', 'gif', 'document', 'audio'
   final DateTime createdAt;
   final MessageStatus status;
   final String? errorMessage;
@@ -25,6 +27,10 @@ class ClubMessage {
   final MessageReply? replyTo;
   final bool deleted;
   final String? deletedBy;
+  final bool starred;
+  final bool pinned;
+  final DateTime? pinStart;
+  final DateTime? pinEnd;
 
   ClubMessage({
     required this.id,
@@ -36,6 +42,7 @@ class ClubMessage {
     required this.content,
     this.pictures = const [],
     this.documents = const [],
+    this.audio,
     this.linkMeta = const [],
     this.gifUrl,
     this.messageType,
@@ -46,6 +53,10 @@ class ClubMessage {
     this.replyTo,
     this.deleted = false,
     this.deletedBy,
+    this.starred = false,
+    this.pinned = false,
+    this.pinStart,
+    this.pinEnd,
   });
 
   ClubMessage copyWith({
@@ -53,6 +64,7 @@ class ClubMessage {
     String? errorMessage,
     List<MessageImage>? pictures,
     List<MessageDocument>? documents,
+    MessageAudio? audio,
     List<LinkMetadata>? linkMeta,
     String? gifUrl,
     String? messageType,
@@ -60,6 +72,10 @@ class ClubMessage {
     MessageReply? replyTo,
     bool? deleted,
     String? deletedBy,
+    bool? starred,
+    bool? pinned,
+    DateTime? pinStart,
+    DateTime? pinEnd,
   }) {
     return ClubMessage(
       id: id,
@@ -71,6 +87,7 @@ class ClubMessage {
       content: content,
       pictures: pictures ?? this.pictures,
       documents: documents ?? this.documents,
+      audio: audio ?? this.audio,
       linkMeta: linkMeta ?? this.linkMeta,
       gifUrl: gifUrl ?? this.gifUrl,
       messageType: messageType ?? this.messageType,
@@ -81,6 +98,10 @@ class ClubMessage {
       replyTo: replyTo ?? this.replyTo,
       deleted: deleted ?? this.deleted,
       deletedBy: deletedBy ?? this.deletedBy,
+      starred: starred ?? this.starred,
+      pinned: pinned ?? this.pinned,
+      pinStart: pinStart ?? this.pinStart,
+      pinEnd: pinEnd ?? this.pinEnd,
     );
   }
 
@@ -91,6 +112,7 @@ class ClubMessage {
     String? gifUrl;
     List<MessageImage> pictures = [];
     List<MessageDocument> documents = [];
+    MessageAudio? audio;
     List<LinkMetadata> linkMeta = [];
     
     // Check for deleted message
@@ -149,6 +171,16 @@ class ClubMessage {
               type: content['name']?.split('.').last ?? 'file',
               size: content['size'],
             )];
+          }
+          break;
+        case 'audio':
+          if (content['url'] != null) {
+            audio = MessageAudio(
+              url: content['url'],
+              filename: content['name'] ?? 'audio',
+              duration: content['duration'],
+              size: content['size'],
+            );
           }
           break;
         }
@@ -216,6 +248,7 @@ class ClubMessage {
       content: messageContent,
       pictures: pictures,
       documents: documents,
+      audio: audio,
       linkMeta: linkMeta,
       gifUrl: gifUrl,
       messageType: messageType,
@@ -224,6 +257,10 @@ class ClubMessage {
       replyTo: replyTo,
       deleted: isDeleted,
       deletedBy: deletedByName,
+      starred: json['starred'] ?? false,
+      pinned: json['pinned'] ?? false,
+      pinStart: json['pinStart'] != null ? DateTime.parse(json['pinStart']) : null,
+      pinEnd: json['pinEnd'] != null ? DateTime.parse(json['pinEnd']) : null,
     );
   }
 }

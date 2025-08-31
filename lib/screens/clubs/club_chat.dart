@@ -3,9 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:io';
+import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
+import 'package:path_provider/path_provider.dart';
 import 'dart:convert';
 import '../../providers/user_provider.dart';
 import '../../models/club.dart';
@@ -20,6 +24,10 @@ import '../../services/api_service.dart';
 // import 'package:emoji_picker_flutter/emoji_picker_flutter.dart'; // Package not available
 import 'package:url_launcher/url_launcher.dart';
 import '../../widgets/club_info_dialog.dart';
+import '../../widgets/audio_player_widget.dart';
+import '../../widgets/image_caption_dialog.dart';
+import '../../widgets/image_gallery_screen.dart';
+import '../shared/audio_recording_screen.dart';
 
 class ClubChatScreen extends StatefulWidget {
   final Club club;
@@ -37,6 +45,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   bool _isLoading = true;
   bool _isComposing = false;
   String? _error;
+  DetailedClubInfo? _detailedClubInfo;
   final FocusNode _textFieldFocusNode = FocusNode();
   MessageReply? _replyingTo;
   bool _showEmojiReactionPicker = false;
@@ -47,6 +56,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   bool _isSliding = false;
   String? _slidingMessageId;
 
+  // Paste image detection
+  String? _lastTextValue;
+
   // Message selection state
   bool _isSelectionMode = false;
   Set<String> _selectedMessageIds = <String>{};
@@ -56,10 +68,13 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     super.initState();
     // Remove the listener since we handle it in onChanged now
     _loadMessages();
+    _startPinnedRefreshTimer();
   }
 
   @override
   void dispose() {
+    _highlightTimer?.cancel();
+    _pinnedRefreshTimer?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     _textFieldFocusNode.dispose();
@@ -83,8 +98,16 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
             .map((json) => ClubMessage.fromJson(json as Map<String, dynamic>))
             .toList();
 
+        // Parse detailed club info from API response
+        if (response['club'] != null) {
+          _detailedClubInfo = DetailedClubInfo.fromJson(response['club'] as Map<String, dynamic>);
+        }
+
         // Sort by creation time (oldest first for chat display)
         _messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        
+        // Restart the pinned refresh timer with new messages
+        _startPinnedRefreshTimer();
       } else {
         _error = response['message'] ?? 'Failed to load messages';
       }
@@ -301,6 +324,200 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     }
   }
 
+  void _openAudioRecording() async {
+    // Open audio recording screen directly - permission will be requested when user taps record
+    final result = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AudioRecordingScreen(
+          onAudioRecorded: (audioPath) {
+            _sendAudioMessage(audioPath);
+          },
+        ),
+      ),
+    );
+  }
+
+  void _handleTextChanged(String value) {
+    // Check if the text contains an image URL (simple detection for paste events)
+    if (value.trim() != _lastTextValue?.trim()) {
+      final newText = value.trim();
+      if (_isImageUrl(newText) && newText.isNotEmpty) {
+        // Clear the text field and show image paste dialog
+        _messageController.clear();
+        setState(() {
+          _isComposing = false;
+        });
+        _showImagePasteDialog(newText);
+      }
+      _lastTextValue = value;
+    }
+  }
+
+  bool _isImageUrl(String url) {
+    if (url.isEmpty) return false;
+
+    // Check if it's a valid URL
+    try {
+      final uri = Uri.parse(url);
+      if (!uri.hasScheme || (!uri.scheme.startsWith('http'))) return false;
+
+      // Check common image extensions
+      final path = uri.path.toLowerCase();
+      final imageExtensions = [
+        '.jpg',
+        '.jpeg',
+        '.png',
+        '.gif',
+        '.webp',
+        '.bmp',
+        '.svg',
+      ];
+      return imageExtensions.any((ext) => path.endsWith(ext));
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<void> _showImagePasteDialog(String imageUrl) async {
+    Navigator.of(context).push(
+      MaterialPageRoute<String>(
+        builder: (context) => ImageCaptionDialog(
+          imageUrl: imageUrl,
+          title: 'Send Image',
+          onSend: (caption, croppedPath) =>
+              _sendImageFromUrl(imageUrl, caption),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _sendImageFromUrl(String imageUrl, String caption) async {
+    try {
+      // Download the image first
+      final response = await http.get(Uri.parse(imageUrl));
+      if (response.statusCode != 200) {
+        _showErrorSnackBar('Failed to download image');
+        return;
+      }
+
+      // Create a temporary file
+      final tempDir = await getTemporaryDirectory();
+      final fileName = imageUrl
+          .split('/')
+          .last
+          .split('?')
+          .first; // Remove query params
+      final tempFile = File('${tempDir.path}/$fileName');
+      await tempFile.writeAsBytes(response.bodyBytes);
+
+      // Create PlatformFile for upload
+      final platformFile = PlatformFile(
+        name: fileName,
+        size: response.bodyBytes.length,
+        path: tempFile.path,
+        bytes: response.bodyBytes,
+      );
+
+      // Use existing upload function
+      final uploadedUrl = await _uploadFile(platformFile);
+      if (uploadedUrl != null && caption.isNotEmpty) {
+        // Send a text message with caption
+        _messageController.text = caption;
+        setState(() {
+          _isComposing = true;
+        });
+        await _sendMessage();
+      }
+
+      // Clean up temp file
+      try {
+        await tempFile.delete();
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+    } catch (e) {
+      _showErrorSnackBar('Failed to process image: $e');
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  Future<void> _sendAudioMessage(String audioPath) async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final user = userProvider.user;
+
+    if (user == null) {
+      debugPrint('❌ Cannot send audio message - user not logged in');
+      return;
+    }
+
+    final tempMessageId = DateTime.now().millisecondsSinceEpoch.toString();
+
+    try {
+      // Create temporary audio file info
+      final audioFile = File(audioPath);
+      final fileName = audioFile.path.split('/').last;
+      final fileSize = await audioFile.length();
+
+      // Create fake PlatformFile for upload function
+      final platformFile = PlatformFile(
+        name: fileName,
+        size: fileSize,
+        path: audioPath,
+      );
+
+      // Upload audio file first
+      final uploadedUrl = await _uploadFile(platformFile);
+      if (uploadedUrl == null) {
+        throw Exception('Failed to upload audio file');
+      }
+
+      // Create message with uploaded audio
+      final messageData = {
+        'content': {
+          'type': 'audio',
+          'url': uploadedUrl,
+          'name': fileName,
+          'size': fileSize,
+        },
+      };
+
+      final response = await ApiService.post(
+        '/conversations/${widget.club.id}/messages',
+        messageData,
+      );
+
+      if (response['success'] == true) {
+        debugPrint('✅ Audio message sent successfully');
+        await _loadMessages();
+
+        // Clean up local file
+        if (await audioFile.exists()) {
+          await audioFile.delete();
+        }
+      } else {
+        throw Exception(response['message'] ?? 'Failed to send audio message');
+      }
+    } catch (e) {
+      debugPrint('❌ Error sending audio message: $e');
+
+      // Show error to user
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send audio message'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   void _handleSlideGesture(
     DragUpdateDetails details,
     ClubMessage message,
@@ -382,26 +599,45 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     if (_selectedMessageIds.isEmpty) return;
 
     try {
-      // Use bulk delete endpoint
-      await ApiService.delete(
-        '/conversations/${widget.club.id}/messages/delete',
-        {'messageIds': _selectedMessageIds.toList()},
-      );
+      // Store message IDs before clearing them
+      final messageIdsToDelete = _selectedMessageIds.toList();
 
-      // Remove deleted messages from local list
+      // Provide immediate feedback before API call
+      final userProvider = context.read<UserProvider>();
+      final currentUser = userProvider.user;
+
       setState(() {
-        _messages.removeWhere(
-          (message) => _selectedMessageIds.contains(message.id),
-        );
+        for (int i = _messages.length - 1; i >= 0; i--) {
+          final message = _messages[i];
+          if (_selectedMessageIds.contains(message.id)) {
+            if (message.deleted) {
+              // Already deleted message - remove completely from list
+              _messages.removeAt(i);
+            } else {
+              // Not deleted yet - mark as deleted with user info
+              _messages[i] = message.copyWith(
+                deleted: true,
+                deletedBy: currentUser?.name ?? 'Someone',
+              );
+            }
+          }
+        }
         _exitSelectionMode();
       });
 
+      // Make API call in background using stored IDs
+      final response = await ApiService.delete(
+        '/conversations/${widget.club.id}/messages/delete',
+        messageIdsToDelete,
+      );
+
       if (mounted) {
+        // Use response message or fall back to default
+        final message =
+            response['message'] ??
+            '${messageIdsToDelete.length} message(s) deleted';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${_selectedMessageIds.length} message(s) deleted'),
-            backgroundColor: Color(0xFF003f9b),
-          ),
+          SnackBar(content: Text(message), backgroundColor: Color(0xFF003f9b)),
         );
       }
     } catch (e) {
@@ -629,13 +865,12 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                 ),
               ],
       ),
-      body: Container(
-        child: Column(
-          children: [
-            // Messages List - Takes all available space
-            Expanded(
-              child: SafeArea(
-                bottom: false,
+      body: SafeArea(
+        child: Container(
+          child: Column(
+            children: [
+              // Messages List - Takes all available space
+              Expanded(
                 child: Container(
                   width: double.infinity,
                   child: GestureDetector(
@@ -654,44 +889,64 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                   ),
                 ),
               ),
-            ),
 
-            // Reply preview (if replying to a message)
-            if (_replyingTo != null) _buildReplyPreview(),
+              // Reply preview (if replying to a message)
+              if (_replyingTo != null) _buildReplyPreview(),
 
-            // Message Input - Sticks to bottom footer
-            _buildMessageInput(),
-          ],
+              // Message Input - Sticks to bottom footer
+              _buildMessageInput(),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildMessagesList() {
-    return ListView.builder(
-      controller: _scrollController,
-      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      itemCount: _messages.length,
-      itemBuilder: (context, index) {
-        final message = _messages[index];
-        final previousMessage = index > 0 ? _messages[index - 1] : null;
-        final nextMessage = index < _messages.length - 1
-            ? _messages[index + 1]
-            : null;
+    final pinnedMessages = _messages.where((m) => _isCurrentlyPinned(m)).toList();
+    final unpinnedMessages = _messages.where((m) => !_isCurrentlyPinned(m)).toList();
+    
+    // Sort unpinned messages by creation time
+    unpinnedMessages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
-        final showSenderInfo =
-            previousMessage == null ||
-            previousMessage.senderId != message.senderId ||
-            message.createdAt.difference(previousMessage.createdAt).inMinutes >
-                10;
+    return Column(
+      children: [
+        // Pinned messages section at the top
+        if (pinnedMessages.isNotEmpty) _buildPinnedMessagesSection(pinnedMessages),
+        
+        // Regular messages list
+        Expanded(
+          child: ListView.builder(
+            controller: _scrollController,
+            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            itemCount: unpinnedMessages.length,
+            itemBuilder: (context, index) {
+              final message = unpinnedMessages[index];
+              final previousMessage = index > 0 ? unpinnedMessages[index - 1] : null;
+              final nextMessage = index < unpinnedMessages.length - 1
+                  ? unpinnedMessages[index + 1]
+                  : null;
 
-        final isLastFromSender =
-            nextMessage == null ||
-            nextMessage.senderId != message.senderId ||
-            nextMessage.createdAt.difference(message.createdAt).inMinutes > 10;
+              final showSenderInfo =
+                  previousMessage == null ||
+                  previousMessage.senderId != message.senderId ||
+                  message.createdAt.difference(previousMessage.createdAt).inMinutes >
+                      10;
 
-        return _buildMessageBubble(message, showSenderInfo, isLastFromSender);
-      },
+              final isLastFromSender =
+                  nextMessage == null ||
+                  nextMessage.senderId != message.senderId ||
+                  nextMessage.createdAt.difference(message.createdAt).inMinutes > 10;
+
+              // Add highlight key for scroll-to functionality
+              return Container(
+                key: ValueKey('message_${message.id}'),
+                child: _buildMessageBubble(message, showSenderInfo, isLastFromSender),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -703,8 +958,18 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     final userProvider = context.read<UserProvider>();
     final isOwn = message.senderId == userProvider.user?.id;
 
-    return Container(
+    return AnimatedContainer(
+      duration: Duration(milliseconds: 300),
       margin: EdgeInsets.only(bottom: isLastFromSender ? 2 : 0.5),
+      decoration: _highlightedMessageId == message.id
+          ? BoxDecoration(
+              color: Color(0xFF06aeef).withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            )
+          : null,
+      padding: _highlightedMessageId == message.id
+          ? EdgeInsets.symmetric(horizontal: 8, vertical: 4)
+          : EdgeInsets.zero,
       child: Column(
         children: [
           Row(
@@ -744,10 +1009,34 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                               child: Icon(
                                 Icons.reply,
                                 color: Color(
-                                  0xFF06aeef,
+                                  0xFF06aeff,
                                 ).withOpacity(_slideOffset > 50.0 ? 1.0 : 0.7),
                                 size: _slideOffset > 50.0 ? 32 : 28,
                               ),
+                            ),
+                          ),
+                        ),
+
+                      // Star icon for starred messages (not shown for deleted messages)
+                      if (message.starred && !message.deleted)
+                        Positioned(
+                          right: isOwn ? 4 : null,
+                          left: isOwn ? null : 4,
+                          top: 2,
+                          child: Container(
+                            padding: EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.black.withOpacity(0.3)
+                                  : Colors.white.withOpacity(0.8),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.star,
+                              size: 12,
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.grey[400]
+                                  : Colors.grey[600],
                             ),
                           ),
                         ),
@@ -770,11 +1059,13 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                               _buildReplyInfo(message.replyTo!, isOwn),
 
                             GestureDetector(
-                              onTap: _isSelectionMode && !message.deleted
-                                  ? () => _toggleSelection(message.id)
-                                  : (message.status == MessageStatus.failed
-                                        ? () => _showErrorDialog(message)
-                                        : null),
+                              onTap: message.deleted
+                                  ? null
+                                  : _isSelectionMode
+                                      ? () => _toggleSelection(message.id)
+                                      : message.status == MessageStatus.failed
+                                          ? () => _showErrorDialog(message)
+                                          : () => _showMessageOptions(message),
                               onLongPress: (_isSelectionMode || message.deleted)
                                   ? null
                                   : () => _showMessageOptions(message),
@@ -811,7 +1102,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                                                         ? Colors.red[800]
                                                         : Colors.red
                                                               .withOpacity(0.7))
-                                                  : Color(0xFF06aeef))
+                                                  : (Theme.of(context).brightness == Brightness.dark
+                                                      ? Color(0xFF1E3A8A)
+                                                      : Color(0xFFE3F2FD)))
                                             : (Theme.of(context).brightness ==
                                                       Brightness.dark
                                                   ? Colors.grey[800]!
@@ -985,7 +1278,8 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                             ),
 
                             // Reactions display (not shown for deleted messages)
-                            if (message.reactions.isNotEmpty && !message.deleted) ...[
+                            if (message.reactions.isNotEmpty &&
+                                !message.deleted) ...[
                               SizedBox(height: 4),
                               _buildReactionsDisplay(message),
                             ],
@@ -1269,7 +1563,21 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     if (message.deleted) {
       return _buildDeletedMessage(message);
     }
-    
+
+    // Handle audio messages
+    if (message.messageType == 'audio' && message.audio != null) {
+      return Container(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.75,
+          minWidth: 200,
+        ),
+        child: AudioPlayerWidget(
+          audioPath: message.audio!.url,
+          isFromCurrentUser: isOwn,
+        ),
+      );
+    }
+
     // Check if emoji-only message
     final emojiOnlyPattern = RegExp(
       r'^(\s*[\p{Emoji}\p{Emoji_Modifier}\p{Emoji_Component}\p{Emoji_Modifier_Base}\p{Emoji_Presentation}\u200d]*\s*)+$',
@@ -1363,38 +1671,14 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   }
 
   Widget _buildDeletedMessage(ClubMessage message) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
+    return Text(
+      message.deletedBy != null ? 'deleted by ${message.deletedBy?.toLowerCase()}' : 'deleted',
+      style: TextStyle(
+        fontSize: 13,
+        fontStyle: FontStyle.italic,
         color: Theme.of(context).brightness == Brightness.dark
-            ? Colors.grey[800]?.withOpacity(0.5)
-            : Colors.grey[300]?.withOpacity(0.7),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.delete_outline,
-            size: 16,
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.white.withOpacity(0.5)
-                : Colors.black.withOpacity(0.5),
-          ),
-          SizedBox(width: 6),
-          Text(
-            message.deletedBy != null 
-                ? '[deleted by ${message.deletedBy}]'
-                : '[deleted]',
-            style: TextStyle(
-              fontSize: 13,
-              fontStyle: FontStyle.italic,
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.white.withOpacity(0.5)
-                  : Colors.black.withOpacity(0.5),
-            ),
-          ),
-        ],
+            ? Colors.white.withOpacity(0.5)
+            : Colors.black.withOpacity(0.5),
       ),
     );
   }
@@ -1424,7 +1708,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
               ? Colors.white.withOpacity(0.7)
               : Colors.black.withOpacity(0.6));
 
-    return SelectableText.rich(
+    return Text.rich(
       _parseFormattedText(content, baseColor, codeBackgroundColor, quoteColor),
       style: TextStyle(fontSize: 16, color: baseColor),
     );
@@ -1502,45 +1786,171 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (context) => Container(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Add to message',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white.withOpacity(0.9)
-                    : Colors.black.withOpacity(0.8),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (context, scrollController) => Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.grey[850]
+                : Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                width: 36,
+                height: 4,
+                margin: EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[400],
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
-            SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildUploadOption(
-                  icon: Icons.image,
-                  label: 'Photos',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _pickImages();
-                  },
+
+              // Scrollable content
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      // First row - Photos, Document, Location, Audio
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _buildGridOption(
+                            icon: Icons.photo_library,
+                            iconColor: Color(0xFF2196F3),
+                            title: 'Photos',
+                            onTap: () {
+                              Navigator.pop(context);
+                              _pickImages();
+                            },
+                          ),
+                          _buildGridOption(
+                            icon: Icons.description,
+                            iconColor: Color(0xFF2196F3),
+                            title: 'Document',
+                            onTap: () {
+                              Navigator.pop(context);
+                              _pickDocuments();
+                            },
+                          ),
+                          _buildGridOption(
+                            icon: Icons.location_on,
+                            iconColor: Color(0xFF00C853),
+                            title: 'Location',
+                            onTap: () {
+                              Navigator.pop(context);
+                              _shareLocation();
+                            },
+                          ),
+                          _buildGridOption(
+                            icon: Icons.mic,
+                            iconColor: Color(0xFF003f9b),
+                            title: 'Audio',
+                            onTap: () {
+                              Navigator.pop(context);
+                              _openAudioRecording();
+                            },
+                          ),
+                        ],
+                      ),
+
+                      SizedBox(height: 30),
+
+                      // Second row - Contact, Catalog, Quick replies, Poll
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _buildGridOption(
+                            icon: Icons.person,
+                            iconColor: Colors.grey[700]!,
+                            title: 'Contact',
+                            onTap: () {
+                              Navigator.pop(context);
+                              _showCreateMatch(); // Placeholder for contact sharing
+                            },
+                          ),
+                          _buildGridOption(
+                            icon: Icons.storefront,
+                            iconColor: Colors.black,
+                            title: 'Catalog',
+                            onTap: () {
+                              Navigator.pop(context);
+                              _showCreateTournament(); // Placeholder for catalog
+                            },
+                          ),
+                          _buildGridOption(
+                            icon: Icons.bolt,
+                            iconColor: Color(0xFFFFB300),
+                            title: 'Quick replies',
+                            onTap: () {
+                              Navigator.pop(context);
+                              _showCreateEvent(); // Placeholder for quick replies
+                            },
+                          ),
+                          _buildGridOption(
+                            icon: Icons.poll,
+                            iconColor: Color(0xFFFFB300),
+                            title: 'Poll',
+                            onTap: () {
+                              Navigator.pop(context);
+                              _showCreatePoll();
+                            },
+                          ),
+                        ],
+                      ),
+
+                      SizedBox(height: 30),
+
+                      // Third row - Event, Share UPI QR (conditional)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _buildGridOption(
+                            icon: Icons.event,
+                            iconColor: Color(0xFFE53935),
+                            title: 'Event',
+                            onTap: () {
+                              Navigator.pop(context);
+                              _showCreateEvent();
+                            },
+                          ),
+                          if (_canShareUPIQR())
+                            _buildGridOption(
+                              icon: Icons.qr_code_2,
+                              iconColor: Color(0xFF2196F3),
+                              title: 'Share UPI QR',
+                              onTap: () {
+                                Navigator.pop(context);
+                                _shareClubUPIQR();
+                              },
+                            ),
+                          // Empty spacers to maintain alignment
+                          if (!_canShareUPIQR()) ...[
+                            SizedBox(width: 70),
+                            SizedBox(width: 70),
+                          ],
+                          SizedBox(
+                            width: 70,
+                          ), // Always add one spacer for balance
+                        ],
+                      ),
+
+                      SizedBox(
+                        height: 50,
+                      ), // Extra space at bottom for future additions
+                    ],
+                  ),
                 ),
-                _buildUploadOption(
-                  icon: Icons.insert_drive_file,
-                  label: 'Documents',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _pickDocuments();
-                  },
-                ),
-              ],
-            ),
-            SizedBox(height: 16),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1589,6 +1999,157 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     );
   }
 
+  Widget _buildMenuOption({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: iconColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 22, color: iconColor),
+            ),
+            SizedBox(width: 16),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white.withOpacity(0.9)
+                    : Colors.black.withOpacity(0.8),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGridOption({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: 70,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 30, color: iconColor),
+            ),
+            SizedBox(height: 8),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white.withOpacity(0.8)
+                    : Colors.black.withOpacity(0.7),
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCreatePoll() {
+    _showErrorSnackBar('Poll creation coming soon!');
+  }
+
+  void _showCreateMatch() {
+    _showErrorSnackBar('Match creation coming soon!');
+  }
+
+  void _showCreateTournament() {
+    _showErrorSnackBar('Tournament creation coming soon!');
+  }
+
+  void _showCreateEvent() {
+    _showErrorSnackBar('Event creation coming soon!');
+  }
+
+  void _shareLocation() {
+    _showErrorSnackBar('Location sharing coming soon!');
+  }
+
+  bool _canShareUPIQR() {
+    // TODO: This should check the current user's role in the club
+    // For now, we'll check if UPI ID is available in the club data
+    // In a complete implementation, this would verify the user is OWNER or ADMIN
+    final userProvider = context.read<UserProvider>();
+    final user = userProvider.user;
+
+    if (user == null) return false;
+
+    // For demo purposes, return true if club has UPI ID configured
+    // In production, this should also check user role in club membership
+    return widget.club.upiId != null && widget.club.upiId!.isNotEmpty;
+  }
+
+  void _shareClubUPIQR() {
+    // For now, show a placeholder message
+    // In the future, this would fetch the club's UPI QR code from the server
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Share Club UPI QR'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.qr_code, size: 64, color: Color(0xFF9C27B0)),
+            SizedBox(height: 16),
+            Text(
+              'Club UPI QR Code sharing coming soon!',
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Members will be able to scan and pay directly to the club.',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF003f9b)),
+            child: Text('OK', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _pickImages() async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -1605,6 +2166,42 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error picking images: $e')));
+      }
+    }
+  }
+
+  Future<void> _capturePhotoWithCamera() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 85,
+        maxWidth: 1920,
+        maxHeight: 1080,
+      );
+
+      if (image != null) {
+        // Convert XFile to PlatformFile for compatibility with existing flow
+        final File imageFile = File(image.path);
+        final List<int> imageBytes = await imageFile.readAsBytes();
+
+        final PlatformFile platformFile = PlatformFile(
+          name: image.name.isNotEmpty
+              ? image.name
+              : 'camera_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          path: image.path,
+          size: imageBytes.length,
+          bytes: null, // Keep as null since we have path
+        );
+
+        // Use the existing image upload flow which includes caption dialog
+        _startImageUpload([platformFile]);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error capturing photo: $e')));
       }
     }
   }
@@ -1708,78 +2305,28 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   }
 
   void _showSingleImageCaptionDialog(PlatformFile file) {
-    final TextEditingController captionController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Theme.of(context).brightness == Brightness.dark
-            ? Colors.grey[850]
-            : Colors.white,
-        title: Text(
-          'Add Caption',
-          style: TextStyle(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.white.withOpacity(0.9)
-                : Colors.black.withOpacity(0.8),
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image Preview
-            Container(
-              constraints: BoxConstraints(maxHeight: 200, maxWidth: 300),
-              width: double.infinity,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: _buildImagePreview(file),
-              ),
-            ),
-            SizedBox(height: 16),
-            TextField(
-              controller: captionController,
-              decoration: InputDecoration(
-                hintText: 'Write a message...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-              ),
-              maxLines: 3,
-              minLines: 1,
-              textCapitalization: TextCapitalization.sentences,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white.withOpacity(0.6)
-                    : Colors.black.withOpacity(0.5),
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              final caption = captionController.text.trim();
+    Navigator.of(context).push(
+      MaterialPageRoute<String>(
+        builder: (context) => ImageCaptionDialog(
+          imageFile: file,
+          title: 'Send Image',
+          onSend: (caption, croppedPath) {
+            // If image was cropped, use the cropped version
+            if (croppedPath != null) {
+              final croppedFile = PlatformFile(
+                name: file.name,
+                size: File(croppedPath).lengthSync(),
+                path: croppedPath,
+              );
+              _uploadImagesWithProgress(
+                [croppedFile],
+                {croppedFile.name: caption},
+              );
+            } else {
               _uploadImagesWithProgress([file], {file.name: caption});
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).primaryColor,
-            ),
-            child: Text('Send', style: TextStyle(color: Colors.white)),
-          ),
-        ],
+            }
+          },
+        ),
       ),
     );
   }
@@ -1912,23 +2459,21 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
       final requestData = {'senderId': user.id, 'content': contentMap};
 
-      await ApiService.post(
+      final response = await ApiService.post(
         '/conversations/${widget.club.id}/messages',
         requestData,
       );
 
-      // Update message with uploaded images and mark as sent
+      print('✅ Message with images sent successfully');
+      print('📡 Server response: $response');
+
+      // Remove temporary message and reload all messages to get the server version
       setState(() {
-        final messageIndex = _messages.indexWhere((m) => m.id == tempMessageId);
-        if (messageIndex != -1) {
-          _messages[messageIndex] = _messages[messageIndex].copyWith(
-            status: MessageStatus.sent,
-            pictures: uploadedImages,
-          );
-        }
+        _messages.removeWhere((m) => m.id == tempMessageId);
       });
 
-      print('✅ Message with images sent successfully');
+      // Reload messages to get the proper server response with images
+      await _loadMessages();
     } catch (e) {
       print('❌ Error sending message with images: $e');
       setState(() {
@@ -2195,9 +2740,30 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         case 'txt':
           contentType = 'text/plain';
           break;
+        case 'm4a':
+          contentType = 'audio/mp4';
+          break;
+        case 'mp4':
+          contentType = 'video/mp4';
+          break;
+        case 'mp3':
+          contentType = 'audio/mpeg';
+          break;
+        case 'wav':
+          contentType = 'audio/wav';
+          break;
+        case 'aac':
+          contentType = 'audio/aac';
+          break;
         default:
           contentType = 'application/octet-stream';
       }
+
+      // Debug: Print upload information
+      print('Uploading file: ${file.name}');
+      print('  Extension: $extension');
+      print('  Content Type: $contentType');
+      print('  File Size: ${file.size} bytes');
 
       request.files.add(
         http.MultipartFile.fromBytes(
@@ -2363,6 +2929,12 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   }
 
   Widget _buildImageGallery(List<MessageImage> images) {
+    // Collect all captions to display below images
+    final allCaptions = images
+        .where((img) => img.caption != null && img.caption!.isNotEmpty)
+        .map((img) => img.caption!)
+        .toList();
+
     // If only 1-2 images, show them without borders/background
     if (images.length <= 2) {
       return Column(
@@ -2370,36 +2942,43 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         children: [
           SizedBox(height: 8),
           ...images
+              .asMap()
+              .entries
               .map(
-                (image) => Padding(
+                (entry) => Padding(
                   padding: EdgeInsets.only(bottom: 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ClipRRect(
+                  child: GestureDetector(
+                    onTap: () => _openImageGallery(images, entry.key),
+                    child: Hero(
+                      tag: 'image_${entry.value.url}',
+                      child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: _buildImageWidget(image),
+                        child: _buildImageWidget(entry.value),
                       ),
-                      if (image.caption != null &&
-                          image.caption!.isNotEmpty) ...[
-                        SizedBox(height: 4),
-                        Text(
-                          image.caption!,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color:
-                                Theme.of(context).brightness == Brightness.dark
-                                ? Colors.white.withOpacity(0.6)
-                                : Colors.grey[600],
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ],
-                    ],
+                    ),
                   ),
                 ),
               )
               .toList(),
+          // Show all captions below images
+          if (allCaptions.isNotEmpty) ...[
+            SizedBox(height: 4),
+            ...allCaptions.map(
+              (caption) => Padding(
+                padding: EdgeInsets.only(bottom: 4),
+                child: Text(
+                  caption,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white.withOpacity(0.6)
+                        : Colors.grey[600],
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       );
     }
@@ -2419,9 +2998,12 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                     padding: EdgeInsets.only(right: i < 3 ? 4 : 0),
                     child: Stack(
                       children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: _buildImageWidget(images[i], height: 120),
+                        Hero(
+                          tag: 'image_${images[i].url}',
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: _buildImageWidget(images[i], height: 120),
+                          ),
                         ),
                         // Show +n more on 4th image if there are more
                         if (i == 3 && images.length > 4)
@@ -2449,7 +3031,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                             color: Colors.transparent,
                             child: InkWell(
                               borderRadius: BorderRadius.circular(8),
-                              onTap: () => _showImageDialog(images, i),
+                              onTap: () => _openImageGallery(images, i),
                             ),
                           ),
                         ),
@@ -2460,7 +3042,38 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
             ],
           ),
         ),
+        // Show all captions below the grid
+        if (allCaptions.isNotEmpty) ...[
+          SizedBox(height: 8),
+          ...allCaptions.map(
+            (caption) => Padding(
+              padding: EdgeInsets.only(bottom: 4),
+              child: Text(
+                caption,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white.withOpacity(0.6)
+                      : Colors.grey[600],
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+          ),
+        ],
       ],
+    );
+  }
+
+  void _openImageGallery(List<MessageImage> images, int initialIndex) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ImageGalleryScreen(
+          messages: _messages,
+          initialImageIndex: initialIndex,
+          initialImageUrl: images[initialIndex].url,
+        ),
+      ),
     );
   }
 
@@ -2963,6 +3576,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                           setState(() {
                             _isComposing = value.trim().isNotEmpty;
                           });
+                          _handleTextChanged(value);
                         },
                       ),
                     ),
@@ -2970,23 +3584,30 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                 ),
               ),
             ),
-            SizedBox(width: 4),
+            // Camera button
+            IconButton(
+              onPressed: _capturePhotoWithCamera,
+              icon: Icon(
+                Icons.camera_alt,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey[400]
+                    : Colors.grey[600],
+              ),
+              iconSize: 28,
+            ),
+
             // Send/Mic button
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: Color(0xFF003f9b),
-                shape: BoxShape.circle,
+            IconButton(
+              onPressed: _isComposing ? _sendMessage : _openAudioRecording,
+              icon: Icon(
+                _isComposing ? Icons.send : Icons.mic,
+                color: _isComposing
+                    ? Color(0xFF003f9b)
+                    : (Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey[400]
+                          : Colors.grey[600]),
               ),
-              child: IconButton(
-                onPressed: _isComposing ? _sendMessage : () {},
-                icon: Icon(
-                  _isComposing ? Icons.send : Icons.mic,
-                  color: Colors.white,
-                  size: 22,
-                ),
-              ),
+              iconSize: 28,
             ),
           ],
         ),
@@ -3293,48 +3914,34 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Message preview
-            Container(
-              margin: EdgeInsets.symmetric(horizontal: 16),
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white.withOpacity(0.1)
-                    : Colors.black.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                message.content,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white.withOpacity(0.8)
-                      : Colors.black.withOpacity(0.7),
-                ),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            SizedBox(height: 16),
-
-            // Quick reactions
+            // Quick reactions at the top
             Container(
               padding: EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: ['👍', '❤️', '😂', '😮', '😢', '😡']
+                children: ['👍', '❤️', '😂', '😮', '😢', '🙏', '🔥', '+']
                     .map(
                       (emoji) => GestureDetector(
                         onTap: () {
                           Navigator.pop(context);
-                          setState(() {
-                            _selectedMessageForReaction = message;
-                          });
-                          _addReaction(emoji);
+                          if (emoji == '+') {
+                            _showReactionPicker(message);
+                          } else {
+                            setState(() {
+                              _selectedMessageForReaction = message;
+                            });
+                            _addReaction(emoji);
+                          }
                         },
                         child: Container(
                           padding: EdgeInsets.all(8),
-                          child: Text(emoji, style: TextStyle(fontSize: 24)),
+                          decoration: BoxDecoration(
+                            color: emoji == '+' ? Colors.grey.withOpacity(0.2) : null,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: emoji == '+' 
+                            ? Icon(Icons.add, size: 24, color: Colors.grey)
+                            : Text(emoji, style: TextStyle(fontSize: 24)),
                         ),
                       ),
                     )
@@ -3354,30 +3961,51 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
               },
             ),
             _buildOptionTile(
-              icon: Icons.add_reaction_outlined,
-              title: 'Add Reaction',
-              onTap: () {
-                Navigator.pop(context);
-                _showReactionPicker(message);
-              },
-            ),
-            _buildOptionTile(
               icon: Icons.copy,
-              title: 'Copy Text',
+              title: 'Copy',
               onTap: () {
                 Navigator.pop(context);
                 Clipboard.setData(ClipboardData(text: message.content));
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text('Message copied')));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Message copied')),
+                );
               },
             ),
             _buildOptionTile(
-              icon: Icons.check_circle_outline,
-              title: 'Select Message',
+              icon: Icons.info_outline,
+              title: 'Info',
               onTap: () {
                 Navigator.pop(context);
-                _toggleSelection(message.id);
+                _showMessageInfo(message);
+              },
+            ),
+            _buildOptionTile(
+              icon: message.starred ? Icons.star : Icons.star_outline,
+              title: message.starred ? 'Unstar' : 'Star',
+              onTap: () {
+                Navigator.pop(context);
+                _toggleStar(message);
+              },
+            ),
+            _buildOptionTile(
+              icon: message.pinned ? Icons.push_pin : Icons.push_pin_outlined,
+              title: message.pinned ? 'Unpin' : 'Pin',
+              onTap: () {
+                Navigator.pop(context);
+                _togglePin(message);
+              },
+            ),
+            _buildOptionTile(
+              icon: Icons.delete,
+              title: 'Delete',
+              titleColor: Colors.red,
+              iconColor: Colors.red,
+              onTap: () {
+                Navigator.pop(context);
+                setState(() {
+                  _isSelectionMode = true;
+                  _selectedMessageIds.add(message.id);
+                });
               },
             ),
           ],
@@ -3390,20 +4018,22 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     required IconData icon,
     required String title,
     required VoidCallback onTap,
+    Color? iconColor,
+    Color? titleColor,
   }) {
     return ListTile(
       leading: Icon(
         icon,
-        color: Theme.of(context).brightness == Brightness.dark
+        color: iconColor ?? (Theme.of(context).brightness == Brightness.dark
             ? Colors.white.withOpacity(0.8)
-            : Colors.black.withOpacity(0.7),
+            : Colors.black.withOpacity(0.7)),
       ),
       title: Text(
         title,
         style: TextStyle(
-          color: Theme.of(context).brightness == Brightness.dark
+          color: titleColor ?? (Theme.of(context).brightness == Brightness.dark
               ? Colors.white.withOpacity(0.9)
-              : Colors.black.withOpacity(0.8),
+              : Colors.black.withOpacity(0.8)),
         ),
       ),
       onTap: onTap,
@@ -3413,7 +4043,448 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   void _showClubInfoDialog() {
     showDialog(
       context: context,
-      builder: (context) => ClubInfoDialog(club: widget.club),
+      builder: (context) => ClubInfoDialog(
+        club: widget.club,
+        detailedClubInfo: _detailedClubInfo,
+      ),
     );
   }
+
+  void _showMessageInfo(ClubMessage message) async {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Message Info'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Fetching message status...'),
+            SizedBox(height: 16),
+            CircularProgressIndicator(),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Close'),
+          ),
+        ],
+      ),
+    );
+
+    try {
+      final response = await ApiService.get(
+        '/conversations/${widget.club.id}/messages/${message.id}/status',
+      );
+      
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Message Info'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Sent at: ${_formatDateTime(message.createdAt)}'),
+                SizedBox(height: 8),
+                if (response['deliveredTo'] != null && response['deliveredTo'].isNotEmpty) ...[
+                  Text('Delivered to:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ...response['deliveredTo'].map<Widget>((user) => 
+                    Padding(
+                      padding: EdgeInsets.only(left: 16, top: 2),
+                      child: Text('• ${user['name']}'),
+                    ),
+                  ).toList(),
+                  SizedBox(height: 8),
+                ],
+                if (response['readBy'] != null && response['readBy'].isNotEmpty) ...[
+                  Text('Read by:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ...response['readBy'].map<Widget>((user) => 
+                    Padding(
+                      padding: EdgeInsets.only(left: 16, top: 2),
+                      child: Text('• ${user['name']} at ${_formatDateTime(DateTime.parse(user['readAt']))}'),
+                    ),
+                  ).toList(),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Close'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Error'),
+            content: Text('Failed to fetch message status: $e'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Close'),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    return '${dateTime.day}/${dateTime.month}/${dateTime.year} at ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
+  }
+
+  void _toggleStar(ClubMessage message) async {
+    try {
+      final endpoint = message.starred ? '/unstar' : '/star';
+      await ApiService.post(
+        '/conversations/${widget.club.id}/messages/${message.id}$endpoint',
+        {},
+      );
+      
+      setState(() {
+        final index = _messages.indexWhere((m) => m.id == message.id);
+        if (index != -1) {
+          _messages[index] = _messages[index].copyWith(starred: !message.starred);
+        }
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message.starred ? 'Message unstarred' : 'Message starred'),
+            backgroundColor: Color(0xFF003f9b),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to ${message.starred ? 'unstar' : 'star'} message: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _togglePin(ClubMessage message) async {
+    try {
+      final endpoint = message.pinned ? '/unpin' : '/pin';
+      await ApiService.post(
+        '/conversations/${widget.club.id}/messages/${message.id}$endpoint',
+        {},
+      );
+      
+      setState(() {
+        final index = _messages.indexWhere((m) => m.id == message.id);
+        if (index != -1) {
+          _messages[index] = _messages[index].copyWith(pinned: !message.pinned);
+        }
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message.pinned ? 'Message unpinned' : 'Message pinned'),
+            backgroundColor: Color(0xFF003f9b),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to ${message.pinned ? 'unpin' : 'pin'} message: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Add these new fields for highlighting
+  String? _highlightedMessageId;
+  Timer? _highlightTimer;
+  Timer? _pinnedRefreshTimer;
+
+  // Helper method to check if a message is currently pinned based on time
+  bool _isCurrentlyPinned(ClubMessage message) {
+    if (!message.pinned) return false;
+    
+    // If pinStart and pinEnd are not set, treat as permanently pinned
+    if (message.pinStart == null || message.pinEnd == null) return true;
+    
+    final now = DateTime.now();
+    return now.isAfter(message.pinStart!) && now.isBefore(message.pinEnd!);
+  }
+
+  // Start a timer to refresh pinned messages when pin periods expire
+  void _startPinnedRefreshTimer() {
+    _pinnedRefreshTimer?.cancel();
+    
+    // Check for pin expiry every minute
+    _pinnedRefreshTimer = Timer.periodic(Duration(minutes: 1), (timer) {
+      if (mounted) {
+        final currentPinnedIds = _messages.where((m) => _isCurrentlyPinned(m)).map((m) => m.id).toSet();
+        final previousPinnedIds = _lastKnownPinnedIds ?? <String>{};
+        
+        // If the set of pinned messages has changed, refresh the UI
+        if (currentPinnedIds.length != previousPinnedIds.length || 
+            !currentPinnedIds.containsAll(previousPinnedIds)) {
+          setState(() {
+            _lastKnownPinnedIds = currentPinnedIds;
+          });
+        }
+      }
+    });
+    
+    // Store current pinned message IDs for comparison
+    _lastKnownPinnedIds = _messages.where((m) => _isCurrentlyPinned(m)).map((m) => m.id).toSet();
+  }
+
+  Set<String>? _lastKnownPinnedIds;
+
+  Widget _buildPinnedMessagesSection(List<ClubMessage> pinnedMessages) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Color(0xFFF8F9FA),
+        border: Border(
+          bottom: BorderSide(color: Color(0xFFDEE2E6), width: 1),
+        ),
+      ),
+      child: Column(
+        children: pinnedMessages.map((message) => _buildPinnedMessageItem(message)).toList(),
+      ),
+    );
+  }
+
+  Widget _buildPinnedMessageItem(ClubMessage message) {
+    final bool hasImages = message.pictures.isNotEmpty;
+    final String displayText = hasImages ? 'Photo' : message.content.trim();
+    final String firstLine = displayText.split('\n').first;
+    
+    return GestureDetector(
+      onTap: () => _scrollToMessage(message.id),
+      onLongPress: () => _showPinnedMessageOptions(message),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            // Pin icon
+            Icon(
+              Icons.push_pin,
+              size: 16,
+              color: Color(0xFF6C757D),
+            ),
+            SizedBox(width: 8),
+            
+            // Message content
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      // Sender name
+                      Text(
+                        message.senderName,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF003f9b),
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      // Message preview
+                      Expanded(
+                        child: Text(
+                          firstLine,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF6C757D),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            
+            // Images (if any)
+            if (hasImages) _buildPinnedMessageImages(message.pictures),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPinnedMessageImages(List<MessageImage> pictures) {
+    final imagesToShow = pictures.take(3).toList();
+    
+    return Container(
+      height: 40,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: imagesToShow.asMap().entries.map((entry) {
+          final index = entry.key;
+          final image = entry.value;
+          final isLast = index == imagesToShow.length - 1;
+          final remainingCount = pictures.length - 3;
+          
+          return Container(
+            margin: EdgeInsets.only(left: index > 0 ? 4 : 0),
+            child: Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: CachedNetworkImage(
+                    imageUrl: image.url,
+                    width: 40,
+                    height: 40,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      width: 40,
+                      height: 40,
+                      color: Colors.grey[300],
+                      child: Icon(Icons.image, color: Colors.grey[600], size: 16),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      width: 40,
+                      height: 40,
+                      color: Colors.grey[300],
+                      child: Icon(Icons.broken_image, color: Colors.grey[600], size: 16),
+                    ),
+                  ),
+                ),
+                // Show count overlay on last image if there are more than 3
+                if (isLast && remainingCount > 0)
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '+$remainingCount',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  void _scrollToMessage(String messageId) {
+    final messageIndex = _messages.indexWhere((m) => m.id == messageId);
+    if (messageIndex == -1) return;
+    
+    // Calculate position for unpinned messages only (since pinned are at the top)
+    final unpinnedMessages = _messages.where((m) => !_isCurrentlyPinned(m)).toList();
+    final unpinnedIndex = unpinnedMessages.indexWhere((m) => m.id == messageId);
+    
+    if (unpinnedIndex == -1) return;
+    
+    // Scroll to the message
+    final itemHeight = 100.0; // Approximate height per message
+    final targetOffset = unpinnedIndex * itemHeight;
+    
+    _scrollController.animateTo(
+      targetOffset,
+      duration: Duration(milliseconds: 500),
+      curve: Curves.easeInOut,
+    );
+    
+    // Highlight the message
+    _highlightMessage(messageId);
+  }
+
+  void _highlightMessage(String messageId) {
+    setState(() {
+      _highlightedMessageId = messageId;
+    });
+    
+    // Clear highlight after 2 seconds
+    _highlightTimer?.cancel();
+    _highlightTimer = Timer(Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          _highlightedMessageId = null;
+        });
+      }
+    });
+  }
+
+  void _showPinnedMessageOptions(ClubMessage message) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Color(0xFF2D3748)
+              : Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                margin: EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              SizedBox(height: 20),
+              _buildOptionTile(
+                icon: Icons.navigation,
+                title: 'Go to message',
+                onTap: () {
+                  Navigator.pop(context);
+                  _scrollToMessage(message.id);
+                },
+              ),
+              _buildOptionTile(
+                icon: Icons.push_pin_outlined,
+                title: 'Unpin',
+                onTap: () {
+                  Navigator.pop(context);
+                  _togglePin(message);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
 }
