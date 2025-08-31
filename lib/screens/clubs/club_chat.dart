@@ -752,7 +752,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       senderProfilePicture: user.profilePicture,
       senderRole: 'MEMBER',
       content: 'Audio message',
-      messageType: 'document', // Since we're treating audio as document
+      messageType: 'audio', // Now properly using audio type
       createdAt: DateTime.now(),
       status: MessageStatus.sending,
       starred: StarredInfo(isStarred: false),
@@ -794,13 +794,13 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         throw Exception('Failed to upload audio file');
       }
 
-      // Create message with uploaded audio (treat as document since no audio type in schema)
+      // Create message with uploaded audio
       final messageData = {
         'senderId': user.id,
         'content': {
-          'type': 'document',
+          'type': 'audio',
           'url': uploadedUrl,
-          'name': fileName,
+          'duration': 0, // TODO: Calculate actual audio duration
           'size': _formatFileSize(fileSize),
         },
       };
@@ -2925,10 +2925,11 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
       if (uploadedImages.isNotEmpty) {
         // Send the message with uploaded images
-        await _sendMessageWithUploadedImages(
+        await _sendMessageWithUploadedMedia(
           tempMessageId,
           messageBody,
           uploadedImages,
+          [], // Empty videos array for now
         );
       } else {
         // Mark as failed if no images uploaded
@@ -2959,32 +2960,31 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     }
   }
 
-  Future<void> _sendMessageWithUploadedImages(
+  Future<void> _sendMessageWithUploadedMedia(
     String tempMessageId,
     String messageBody,
     List<MessageImage> uploadedImages,
+    List<String> uploadedVideos,
   ) async {
     final userProvider = context.read<UserProvider>();
     final user = userProvider.user;
     if (user == null) return;
 
     try {
-      final Map<String, dynamic> contentMap;
-      
-      if (uploadedImages.length == 1 && messageBody.trim().isEmpty) {
-        // Single image without text - use "image" type
-        contentMap = {
-          'type': 'image',
-          'body': messageBody.trim().isEmpty ? ' ' : messageBody,
-          'pictures': uploadedImages.map((img) => img.toJson()).toList(),
-        };
-      } else {
-        // Text with images or multiple images - use "text_with_images" type
-        contentMap = {
-          'type': 'text_with_images',
-          'body': messageBody.trim().isEmpty ? ' ' : messageBody,
-          'images': uploadedImages.map((img) => img.url).toList(),
-        };
+      // Updated schema now supports images and videos arrays in text messages
+      final Map<String, dynamic> contentMap = {
+        'type': 'text',
+        'body': messageBody.trim().isEmpty ? ' ' : messageBody,
+      };
+
+      // Add images array if there are images
+      if (uploadedImages.isNotEmpty) {
+        contentMap['images'] = uploadedImages.map((img) => img.url).toList();
+      }
+
+      // Add videos array if there are videos
+      if (uploadedVideos.isNotEmpty) {
+        contentMap['videos'] = uploadedVideos;
       }
 
       final requestData = {'senderId': user.id, 'content': contentMap};
@@ -2994,7 +2994,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         requestData,
       );
 
-      print('✅ Message with images sent successfully');
+      print('✅ Message with media sent successfully');
       print('📡 Server response: $response');
 
       // Remove temporary message and reload all messages to get the server version
@@ -3014,13 +3014,13 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         _messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
       });
     } catch (e) {
-      print('❌ Error sending message with images: $e');
+      print('❌ Error sending message with media: $e');
       setState(() {
         final messageIndex = _messages.indexWhere((m) => m.id == tempMessageId);
         if (messageIndex != -1) {
           _messages[messageIndex] = _messages[messageIndex].copyWith(
             status: MessageStatus.failed,
-            errorMessage: 'Failed to send message with images',
+            errorMessage: 'Failed to send message with media',
           );
         }
       });
