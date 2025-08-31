@@ -741,7 +741,39 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       return;
     }
 
-    final tempMessageId = DateTime.now().millisecondsSinceEpoch.toString();
+    final tempMessageId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
+
+    // Create optimistic message
+    final optimisticMessage = ClubMessage(
+      id: tempMessageId,
+      clubId: widget.club.id,
+      senderId: user.id,
+      senderName: user.name,
+      senderProfilePicture: user.profilePicture,
+      senderRole: 'MEMBER',
+      content: 'Audio message',
+      messageType: 'document', // Since we're treating audio as document
+      createdAt: DateTime.now(),
+      status: MessageStatus.sending,
+      starred: StarredInfo(isStarred: false),
+      pin: PinInfo(isPinned: false),
+    );
+
+    // Add message to list immediately
+    setState(() {
+      _messages.add(optimisticMessage);
+    });
+
+    // Scroll to bottom
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
 
     try {
       // Create temporary audio file info
@@ -762,13 +794,14 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         throw Exception('Failed to upload audio file');
       }
 
-      // Create message with uploaded audio
+      // Create message with uploaded audio (treat as document since no audio type in schema)
       final messageData = {
+        'senderId': user.id,
         'content': {
-          'type': 'audio',
+          'type': 'document',
           'url': uploadedUrl,
           'name': fileName,
-          'size': fileSize,
+          'size': _formatFileSize(fileSize),
         },
       };
 
@@ -800,6 +833,17 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       }
     } catch (e) {
       debugPrint('❌ Error sending audio message: $e');
+
+      // Mark optimistic message as failed
+      setState(() {
+        final messageIndex = _messages.indexWhere((m) => m.id == tempMessageId);
+        if (messageIndex != -1) {
+          _messages[messageIndex] = _messages[messageIndex].copyWith(
+            status: MessageStatus.failed,
+            errorMessage: 'Failed to send audio message',
+          );
+        }
+      });
 
       // Show error to user
       if (context.mounted) {
@@ -2986,15 +3030,20 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   Future<void> _sendMessageWithDocuments(
     List<MessageDocument> uploadedDocs,
   ) async {
+    final userProvider = context.read<UserProvider>();
+    final user = userProvider.user;
+    if (user == null) return;
+
     try {
       final response = await ApiService.post(
-        '/clubs/${widget.club.id}/messages',
+        '/conversations/${widget.club.id}/messages',
         {
+          'senderId': user.id,
           'content': {
             'type': 'document',
-            'body':
-                '${uploadedDocs.length} document${uploadedDocs.length > 1 ? 's' : ''} shared',
-            'documents': uploadedDocs.map((doc) => doc.toJson()).toList(),
+            'url': uploadedDocs.first.url,
+            'name': uploadedDocs.first.filename,
+            'size': uploadedDocs.first.size,
           },
         },
       );
