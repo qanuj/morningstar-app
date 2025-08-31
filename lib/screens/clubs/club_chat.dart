@@ -68,6 +68,10 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   // Message status tracking
   Set<String> _deliveredMessages = <String>{};
   Set<String> _seenMessages = <String>{};
+  
+  // Highlighted message state
+  String? _highlightedMessageId;
+  Timer? _highlightTimer;
 
   @override
   void initState() {
@@ -4870,34 +4874,22 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   }
 
   Set<String>? _lastKnownPinnedIds;
-  int _currentPinnedIndex = 0; // Track current pinned message being displayed
 
   Widget _buildPinnedMessagesSection(List<ClubMessage> pinnedMessages) {
     if (pinnedMessages.isEmpty) return SizedBox.shrink();
 
-    // Ensure current index is within bounds
-    if (_currentPinnedIndex >= pinnedMessages.length) {
-      _currentPinnedIndex = 0;
-    }
-
-    final currentMessage = pinnedMessages[_currentPinnedIndex];
-    final hasMultiple = pinnedMessages.length > 1;
+    // Always show the first pinned message
+    final currentMessage = pinnedMessages.first;
 
     return Container(
       decoration: BoxDecoration(
         color: Color(0xFFF8F9FA),
         border: Border(bottom: BorderSide(color: Color(0xFFDEE2E6), width: 1)),
       ),
-      child: Column(
-        children: [
-          _buildPinnedMessageItem(
-            currentMessage,
-            pinnedMessages.length,
-            _currentPinnedIndex + 1,
-          ),
-          if (hasMultiple)
-            _buildPinnedIndicator(pinnedMessages.length, _currentPinnedIndex),
-        ],
+      child: _buildPinnedMessageItem(
+        currentMessage,
+        pinnedMessages.length,
+        1,
       ),
     );
   }
@@ -4912,7 +4904,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     final String firstLine = displayText.split('\n').first;
 
     return GestureDetector(
-      onTap: () => _cycleToPinnedMessage(message.id),
+      onTap: () => _scrollToPinnedMessage(message.id),
       onLongPress: () => _showPinnedMessageOptions(message),
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -5093,24 +5085,24 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     );
   }
 
-  void _cycleToPinnedMessage(String currentMessageId) {
-    final pinnedMessages = _messages
-        .where((m) => _isCurrentlyPinned(m))
-        .toList();
-    if (pinnedMessages.length <= 1) {
-      // If only one pinned message, just scroll to it
-      _scrollToMessage(currentMessageId);
-      return;
-    }
-
-    // Cycle to next pinned message
+  void _scrollToPinnedMessage(String messageId) {
+    // Highlight the message temporarily
     setState(() {
-      _currentPinnedIndex = (_currentPinnedIndex + 1) % pinnedMessages.length;
+      _highlightedMessageId = messageId;
     });
 
-    // Scroll to the new current pinned message
-    final nextMessage = pinnedMessages[_currentPinnedIndex];
-    _scrollToMessage(nextMessage.id);
+    // Clear highlight after 2 seconds
+    _highlightTimer?.cancel();
+    _highlightTimer = Timer(Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          _highlightedMessageId = null;
+        });
+      }
+    });
+
+    // Scroll to the message
+    _scrollToMessage(messageId);
   }
 
   void _scrollToMessage(String messageId) {
