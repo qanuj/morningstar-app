@@ -1688,10 +1688,10 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                                       ],
                                     ),
                                   ),
-                                  // Timestamp/Status overlay at bottom right for all messages
-                                  Positioned(
-                                      bottom: 4,
-                                      right: 8,
+                                      // Timestamp/Status overlay at bottom right for all messages
+                                      Positioned(
+                                        bottom: 4,
+                                        right: 8,
                                       child: Container(
                                         padding: EdgeInsets.symmetric(
                                           horizontal: 6,
@@ -5150,31 +5150,15 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      // Sender name
-                      Text(
-                        message.senderName,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF003f9b),
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      // Message preview
-                      Expanded(
-                        child: Text(
-                          firstLine,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF6C757D),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
+                  // Message preview (sender name removed)
+                  Text(
+                    firstLine,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF6C757D),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
