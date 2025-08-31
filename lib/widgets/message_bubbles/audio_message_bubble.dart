@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:audioplayers/audioplayers.dart';
 import '../../models/club_message.dart';
 import '../../models/message_status.dart';
 import 'base_message_bubble.dart';
@@ -27,16 +28,99 @@ class AudioMessageBubble extends StatefulWidget {
 }
 
 class _AudioMessageBubbleState extends State<AudioMessageBubble> {
+  AudioPlayer? _audioPlayer;
   bool isPlaying = false;
   double playbackSpeed = 1.0;
   double currentPosition = 0.0; // 0.0 to 1.0
-  Timer? _progressTimer;
-  int _currentSeconds = 0;
+  Duration _currentDuration = Duration.zero;
+  Duration _totalDuration = Duration.zero;
+  StreamSubscription<PlayerState>? _playerStateSubscription;
+  StreamSubscription<Duration>? _positionSubscription;
+  StreamSubscription<Duration?>? _durationSubscription;
+  bool _isInitialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    print('AudioMessageBubble initState called');
+    _initializeAudioPlayer();
+    print('After _initializeAudioPlayer call, _isInitialized: $_isInitialized');
+  }
 
   @override
   void dispose() {
-    _progressTimer?.cancel();
+    _playerStateSubscription?.cancel();
+    _positionSubscription?.cancel();
+    _durationSubscription?.cancel();
+    _audioPlayer?.dispose();
     super.dispose();
+  }
+
+  void _initializeAudioPlayer() {
+    print('_initializeAudioPlayer called');
+    try {
+      print('Creating AudioPlayer instance...');
+      _audioPlayer = AudioPlayer();
+      print('AudioPlayer instance created successfully');
+      
+      // Listen to player state changes
+      _playerStateSubscription = _audioPlayer!.onPlayerStateChanged.listen((state) {
+        if (mounted) {
+          setState(() {
+            isPlaying = state == PlayerState.playing;
+            // Reset position when playback completes
+            if (state == PlayerState.completed) {
+              currentPosition = 0.0;
+              _currentDuration = Duration.zero;
+            }
+          });
+        }
+      });
+
+      // Listen to position changes
+      _positionSubscription = _audioPlayer!.onPositionChanged.listen((position) {
+        if (mounted) {
+          setState(() {
+            _currentDuration = position;
+            if (_totalDuration.inMilliseconds > 0) {
+              currentPosition = position.inMilliseconds / _totalDuration.inMilliseconds;
+            }
+          });
+        }
+      });
+
+      // Listen to duration changes
+      _durationSubscription = _audioPlayer!.onDurationChanged.listen((duration) {
+        if (mounted) {
+          setState(() {
+            _totalDuration = duration;
+          });
+        }
+      });
+
+      _isInitialized = true;
+      print('Audio player initialized successfully');
+
+      // Load audio file if available (async)
+      if (widget.message.audio?.url.isNotEmpty == true) {
+        print('Loading audio file: ${widget.message.audio!.url}');
+        _loadAudioFile();
+      }
+    } catch (e) {
+      print('Error initializing audio player: $e');
+      _isInitialized = false;
+    }
+  }
+
+  Future<void> _loadAudioFile() async {
+    if (_audioPlayer == null || !_isInitialized) return;
+    
+    try {
+      await _audioPlayer!.setSource(UrlSource(widget.message.audio!.url));
+      await _audioPlayer!.setPlaybackRate(playbackSpeed);
+    } catch (e) {
+      print('Error loading audio file: $e');
+    }
   }
 
   Color _getIconColor(BuildContext context) {
@@ -163,8 +247,8 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
             children: [
               Text(
                 isPlaying
-                    ? _formatDuration(_currentSeconds)
-                    : _formatDuration(widget.message.audio!.duration ?? 0),
+                    ? _formatDuration(_currentDuration.inSeconds)
+                    : _formatDuration(_totalDuration.inSeconds > 0 ? _totalDuration.inSeconds : widget.message.audio?.duration ?? 0),
                 style: TextStyle(
                   fontSize: 12,
                   color: _getDurationColor(context),
@@ -178,49 +262,29 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
     );
   }
 
-  void _togglePlayPause() {
-    setState(() {
-      isPlaying = !isPlaying;
-    });
-
-    if (isPlaying) {
-      _startProgressTimer();
-    } else {
-      _stopProgressTimer();
+  Future<void> _togglePlayPause() async {
+    if (_audioPlayer == null || !_isInitialized) {
+      print('Audio player not initialized');
+      return;
+    }
+    
+    try {
+      if (isPlaying) {
+        await _audioPlayer!.pause();
+      } else {
+        await _audioPlayer!.resume();
+      }
+    } catch (e) {
+      print('Error toggling play/pause: $e');
     }
   }
 
-  void _startProgressTimer() {
-    final totalDuration = widget.message.audio?.duration ?? 60;
-
-    _progressTimer?.cancel();
-    _progressTimer = Timer.periodic(
-      Duration(milliseconds: (1000 / playbackSpeed).round()),
-      (timer) {
-        if (_currentSeconds >= totalDuration) {
-          // Audio finished
-          setState(() {
-            isPlaying = false;
-            currentPosition = 0.0;
-            _currentSeconds = 0;
-          });
-          timer.cancel();
-          return;
-        }
-
-        setState(() {
-          _currentSeconds++;
-          currentPosition = _currentSeconds / totalDuration;
-        });
-      },
-    );
-  }
-
-  void _stopProgressTimer() {
-    _progressTimer?.cancel();
-  }
-
-  void _togglePlaybackSpeed() {
+  Future<void> _togglePlaybackSpeed() async {
+    if (_audioPlayer == null || !_isInitialized) {
+      print('Audio player not initialized');
+      return;
+    }
+    
     setState(() {
       switch (playbackSpeed) {
         case 1.0:
@@ -237,13 +301,20 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
       }
     });
 
-    // Restart timer with new speed if playing
-    if (isPlaying) {
-      _startProgressTimer();
+    // Update audio player speed
+    try {
+      await _audioPlayer!.setPlaybackRate(playbackSpeed);
+    } catch (e) {
+      print('Error setting playback speed: $e');
     }
   }
 
-  void _seekToPosition(TapDownDetails details) {
+  Future<void> _seekToPosition(TapDownDetails details) async {
+    if (_audioPlayer == null || !_isInitialized) {
+      print('Audio player not initialized');
+      return;
+    }
+    
     // Get the progress bar widget's render box
     final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
@@ -260,16 +331,14 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
 
     if (progressBarX >= 0 && availableWidth > 0) {
       final newPosition = (progressBarX / availableWidth).clamp(0.0, 1.0);
-      final totalDuration = widget.message.audio?.duration ?? 60;
+      final seekDuration = Duration(
+        milliseconds: (_totalDuration.inMilliseconds * newPosition).round(),
+      );
 
-      setState(() {
-        currentPosition = newPosition;
-        _currentSeconds = (newPosition * totalDuration).round();
-      });
-
-      // Restart timer if playing to continue from new position
-      if (isPlaying) {
-        _startProgressTimer();
+      try {
+        await _audioPlayer!.seek(seekDuration);
+      } catch (e) {
+        print('Error seeking audio: $e');
       }
     }
   }
@@ -303,7 +372,7 @@ class _AvatarSpeedToggle extends StatelessWidget {
   final bool isPlaying;
   final double playbackSpeed;
   final String? senderProfilePicture;
-  final VoidCallback onSpeedTap;
+  final Future<void> Function() onSpeedTap;
   final Color Function(BuildContext) getIconColor;
   final Color Function(BuildContext) getSpeedBgColor;
 
@@ -347,7 +416,7 @@ class _AvatarSpeedToggle extends StatelessWidget {
 
     // Show speed control when playing
     return GestureDetector(
-      onTap: onSpeedTap,
+      onTap: () => onSpeedTap(),
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
@@ -371,8 +440,8 @@ class _AvatarSpeedToggle extends StatelessWidget {
 class _PlayProgressControls extends StatelessWidget {
   final bool isPlaying;
   final double currentPosition;
-  final VoidCallback onPlayPauseTap;
-  final void Function(TapDownDetails) onSeekTap;
+  final Future<void> Function() onPlayPauseTap;
+  final Future<void> Function(TapDownDetails) onSeekTap;
   final Color Function(BuildContext) getIconColor;
   final Color Function(BuildContext) getDotColor;
 
@@ -392,7 +461,7 @@ class _PlayProgressControls extends StatelessWidget {
         children: [
           // Play/Pause button
           GestureDetector(
-            onTap: onPlayPauseTap,
+            onTap: () => onPlayPauseTap(),
             child: Container(
               width: 32,
               height: 32,
@@ -413,7 +482,7 @@ class _PlayProgressControls extends StatelessWidget {
           // Progress bar with dots
           Expanded(
             child: GestureDetector(
-              onTapDown: onSeekTap,
+              onTapDown: (details) => onSeekTap(details),
               child: Container(
                 height: 20,
                 child: LayoutBuilder(
