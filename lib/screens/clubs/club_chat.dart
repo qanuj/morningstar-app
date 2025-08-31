@@ -1385,7 +1385,11 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                             child: Icon(
                               Icons.push_pin,
                               size: 12,
-                              color: Color(0xFF003f9b),
+                              color: isOwn
+                                  ? (Theme.of(context).brightness == Brightness.dark
+                                      ? Colors.white.withOpacity(0.7)
+                                      : Colors.black.withOpacity(0.65))
+                                  : Color(0xFF003f9b),
                             ),
                           ),
                         ),
@@ -1627,23 +1631,50 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                                           ? MainAxisAlignment.end
                                           : MainAxisAlignment.start,
                                       children: [
+                                        // Star icon (first)
+                                        if (isOwn && message.starred.isStarred) ...[
+                                          Icon(Icons.star, size: 10, 
+                                            color: isOwn
+                                                ? (Theme.of(context).brightness == Brightness.dark
+                                                    ? Colors.white.withOpacity(0.7)
+                                                    : Colors.black.withOpacity(0.65))
+                                                : (Theme.of(context).brightness == Brightness.dark
+                                                    ? Colors.white.withOpacity(0.7)
+                                                    : Colors.black.withOpacity(0.6))),
+                                          SizedBox(width: 4),
+                                        ],
+                                        // Pin icon (second)
+                                        if (isOwn && _isCurrentlyPinned(message)) ...[
+                                          Icon(Icons.push_pin, size: 10,
+                                            color: isOwn
+                                                ? (Theme.of(context).brightness == Brightness.dark
+                                                    ? Colors.white.withOpacity(0.7)
+                                                    : Colors.black.withOpacity(0.65))
+                                                : (Theme.of(context).brightness == Brightness.dark
+                                                    ? Colors.white.withOpacity(0.7)
+                                                    : Colors.black.withOpacity(0.6))),
+                                          SizedBox(width: 4),
+                                        ],
+                                        // Time (third)
                                         Text(
                                           _formatMessageTime(message.createdAt),
                                           style: TextStyle(
                                             fontSize: 10,
                                             color: isOwn
-                                                ? Colors.white.withOpacity(0.6)
+                                                ? (Theme.of(context).brightness == Brightness.dark
+                                                    ? Colors.white.withOpacity(0.7)
+                                                    : Colors.black.withOpacity(0.65))
                                                 : (Theme.of(
                                                             context,
                                                           ).brightness ==
                                                           Brightness.dark
                                                       ? Colors.white
-                                                            .withOpacity(0.6)
+                                                            .withOpacity(0.7)
                                                       : Colors.black
-                                                            .withOpacity(0.5)),
+                                                            .withOpacity(0.6)),
                                           ),
                                         ),
-                                        // Status icon only for own messages
+                                        // Status ticks (fourth) - only for own messages
                                         if (isOwn) ...[
                                           SizedBox(width: 4),
                                           _buildMessageStatusIcon(message),
@@ -1678,18 +1709,28 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   Widget _buildMessageStatusIcon(ClubMessage message) {
     final status = message.status;
     final List<Widget> icons = [];
+    final isOwn = message.senderId == Provider.of<UserProvider>(context, listen: false).user?.id;
+    
+    // Use exactly the same color logic as time text
+    final iconColor = isOwn
+        ? (Theme.of(context).brightness == Brightness.dark
+            ? Colors.white.withOpacity(0.7)
+            : Colors.black.withOpacity(0.65))
+        : (Theme.of(context).brightness == Brightness.dark
+            ? Colors.white.withOpacity(0.7)
+            : Colors.black.withOpacity(0.6));
 
     // Add pin icon if message is pinned
     if (_isCurrentlyPinned(message)) {
       icons.add(
-        Icon(Icons.push_pin, size: 10, color: Colors.white.withOpacity(0.7)),
+        Icon(Icons.push_pin, size: 10, color: iconColor),
       );
     }
 
     // Add star icon if message is starred
     if (message.starred.isStarred) {
       icons.add(
-        Icon(Icons.star, size: 10, color: Colors.white.withOpacity(0.7)),
+        Icon(Icons.star, size: 10, color: iconColor),
       );
     }
 
@@ -1702,7 +1743,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
             height: 12,
             child: CircularProgressIndicator(
               strokeWidth: 1.5,
-              color: Colors.white.withOpacity(0.7),
+              color: iconColor,
             ),
           ),
         );
@@ -1712,13 +1753,13 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         break;
       case MessageStatus.sent:
         icons.add(
-          Icon(Icons.check, size: 14, color: Colors.white.withOpacity(0.7)),
+          Icon(Icons.check, size: 14, color: iconColor),
         );
         break;
       case MessageStatus.delivered:
         icons.addAll([
-          Icon(Icons.check, size: 12, color: Colors.white.withOpacity(0.7)),
-          Icon(Icons.check, size: 12, color: Colors.white.withOpacity(0.7)),
+          Icon(Icons.check, size: 12, color: iconColor),
+          Icon(Icons.check, size: 12, color: iconColor),
         ]);
         break;
       case MessageStatus.read:
@@ -4388,16 +4429,18 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                 _toggleStar(message);
               },
             ),
-            _buildOptionTile(
-              icon: _isCurrentlyPinned(message)
-                  ? Icons.push_pin
-                  : Icons.push_pin_outlined,
-              title: _isCurrentlyPinned(message) ? 'Unpin' : 'Pin',
-              onTap: () {
-                Navigator.pop(context);
-                _togglePin(message);
-              },
-            ),
+            // Only show pin option if user has permission
+            if (_canPinMessages())
+              _buildOptionTile(
+                icon: _isCurrentlyPinned(message)
+                    ? Icons.push_pin
+                    : Icons.push_pin_outlined,
+                title: _isCurrentlyPinned(message) ? 'Unpin' : 'Pin',
+                onTap: () {
+                  Navigator.pop(context);
+                  _togglePin(message);
+                },
+              ),
             _buildOptionTile(
               icon: Icons.delete,
               title: 'Delete',
@@ -4799,9 +4842,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     }
   }
 
-  // Add these new fields for highlighting
-  String? _highlightedMessageId;
-  Timer? _highlightTimer;
   Timer? _pinnedRefreshTimer;
 
   // Helper method to check if a message belongs to the current user
@@ -4809,6 +4849,30 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final currentUser = userProvider.user;
     return currentUser != null && message.senderId == currentUser.id;
+  }
+
+  // Helper method to check if current user can pin messages
+  bool _canPinMessages() {
+    if (_detailedClubInfo == null) return false;
+    
+    final userProvider = context.read<UserProvider>();
+    final user = userProvider.user;
+    if (user == null) return false;
+
+    // Check if user's role is in the allowed pin permissions
+    // We need to get the user's role in this club from their messages
+    // For now, we can check if they're OWNER or ADMIN based on pinMessagePermissions
+    final allowedRoles = _detailedClubInfo!.pinMessagePermissions;
+    
+    // Get user's role from their own messages in the conversation
+    final userMessages = _messages.where((m) => m.senderId == user.id).toList();
+    if (userMessages.isNotEmpty) {
+      final userRole = userMessages.first.senderRole ?? 'MEMBER';
+      return allowedRoles.contains(userRole);
+    }
+    
+    // Default to MEMBER role if no messages found
+    return allowedRoles.contains('MEMBER');
   }
 
   // Helper method to check if two timestamps are on the same date
@@ -4874,22 +4938,34 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   }
 
   Set<String>? _lastKnownPinnedIds;
+  int _currentPinnedIndex = 0; // Track current pinned message being displayed
 
   Widget _buildPinnedMessagesSection(List<ClubMessage> pinnedMessages) {
     if (pinnedMessages.isEmpty) return SizedBox.shrink();
 
-    // Always show the first pinned message
-    final currentMessage = pinnedMessages.first;
+    // Ensure current index is within bounds
+    if (_currentPinnedIndex >= pinnedMessages.length) {
+      _currentPinnedIndex = 0;
+    }
+
+    final currentMessage = pinnedMessages[_currentPinnedIndex];
+    final hasMultiple = pinnedMessages.length > 1;
 
     return Container(
       decoration: BoxDecoration(
         color: Color(0xFFF8F9FA),
         border: Border(bottom: BorderSide(color: Color(0xFFDEE2E6), width: 1)),
       ),
-      child: _buildPinnedMessageItem(
-        currentMessage,
-        pinnedMessages.length,
-        1,
+      child: Column(
+        children: [
+          _buildPinnedMessageItem(
+            currentMessage,
+            pinnedMessages.length,
+            _currentPinnedIndex + 1,
+          ),
+          if (hasMultiple)
+            _buildPinnedIndicator(pinnedMessages.length, _currentPinnedIndex),
+        ],
       ),
     );
   }
@@ -4904,7 +4980,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     final String firstLine = displayText.split('\n').first;
 
     return GestureDetector(
-      onTap: () => _scrollToPinnedMessage(message.id),
+      onTap: () => _cycleToPinnedMessage(message.id),
       onLongPress: () => _showPinnedMessageOptions(message),
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -5085,24 +5161,24 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     );
   }
 
-  void _scrollToPinnedMessage(String messageId) {
-    // Highlight the message temporarily
+  void _cycleToPinnedMessage(String currentMessageId) {
+    final pinnedMessages = _messages
+        .where((m) => _isCurrentlyPinned(m))
+        .toList();
+    if (pinnedMessages.length <= 1) {
+      // If only one pinned message, just scroll to it
+      _scrollToMessage(currentMessageId);
+      return;
+    }
+
+    // Cycle to next pinned message
     setState(() {
-      _highlightedMessageId = messageId;
+      _currentPinnedIndex = (_currentPinnedIndex + 1) % pinnedMessages.length;
     });
 
-    // Clear highlight after 2 seconds
-    _highlightTimer?.cancel();
-    _highlightTimer = Timer(Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          _highlightedMessageId = null;
-        });
-      }
-    });
-
-    // Scroll to the message
-    _scrollToMessage(messageId);
+    // Scroll to the new current pinned message
+    final nextMessage = pinnedMessages[_currentPinnedIndex];
+    _scrollToMessage(nextMessage.id);
   }
 
   void _scrollToMessage(String messageId) {
@@ -5122,26 +5198,8 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       duration: Duration(milliseconds: 500),
       curve: Curves.easeInOut,
     );
-
-    // Highlight the message
-    _highlightMessage(messageId);
   }
 
-  void _highlightMessage(String messageId) {
-    setState(() {
-      _highlightedMessageId = messageId;
-    });
-
-    // Clear highlight after 2 seconds
-    _highlightTimer?.cancel();
-    _highlightTimer = Timer(Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          _highlightedMessageId = null;
-        });
-      }
-    });
-  }
 
   void _showPinnedMessageOptions(ClubMessage message) {
     showModalBottomSheet(
@@ -5176,14 +5234,16 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                   _scrollToMessage(message.id);
                 },
               ),
-              _buildOptionTile(
-                icon: Icons.push_pin_outlined,
-                title: 'Unpin',
-                onTap: () {
-                  Navigator.pop(context);
-                  _togglePin(message);
-                },
-              ),
+              // Only show unpin option if user has permission
+              if (_canPinMessages())
+                _buildOptionTile(
+                  icon: Icons.push_pin_outlined,
+                  title: 'Unpin',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _togglePin(message);
+                  },
+                ),
             ],
           ),
         ),
