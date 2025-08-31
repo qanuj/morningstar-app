@@ -57,8 +57,8 @@ class BaseMessageBubble extends StatelessWidget {
               // Meta overlay (pin, star, time, tick) at bottom right
               if (showMetaOverlay)
                 Positioned(
-                  bottom: 4,
-                  right: 4,
+                  bottom: 25,
+                  right: 5,
                   child: _buildMetaOverlay(context),
                 ),
             ],

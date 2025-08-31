@@ -398,17 +398,20 @@ class TextMessageBubble extends StatelessWidget {
   }
 
   Widget _buildTextContent(BuildContext context) {
-    return Text(
-      message.content,
-      style: TextStyle(
-        fontSize: 14,
-        color: isOwn
-            ? (Theme.of(context).brightness == Brightness.dark
-                  ? Colors.white
-                  : Color(0xFF003f9b)) // Dark blue for light backgrounds
-            : (Theme.of(context).brightness == Brightness.dark
-                  ? Colors.white
-                  : Colors.black87),
+    return Padding(
+      padding: EdgeInsets.only(right: 50), // Space for meta overlay
+      child: Text(
+        message.content,
+        style: TextStyle(
+          fontSize: 14,
+          color: isOwn
+              ? (Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white
+                    : Color(0xFF003f9b)) // Dark blue for light backgrounds
+              : (Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white
+                    : Colors.black87),
+        ),
       ),
     );
   }

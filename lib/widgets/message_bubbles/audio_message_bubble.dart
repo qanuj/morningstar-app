@@ -156,6 +156,7 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
       isPinned: widget.isPinned,
       isSelected: widget.isSelected,
       isTransparent: true, // Remove background, make transparent
+      showMetaOverlay: true, // Ensure meta overlay is shown
       content: _buildContent(context),
     );
   }
