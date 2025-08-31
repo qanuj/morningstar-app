@@ -1128,18 +1128,29 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Container(
-        padding: EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Send Attachment',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
+      builder: (context) => SafeArea(
+        child: Container(
+          padding: EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle bar for drag indicator
+              Container(
+                width: 40,
+                height: 4,
+                margin: EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
+              Text(
+                'Send Attachment',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -1206,7 +1217,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 ),
               ],
             ),
+            // Extra bottom padding for Android navigation bar
+            SizedBox(height: MediaQuery.of(context).padding.bottom),
           ],
+        ),
         ),
       ),
     );

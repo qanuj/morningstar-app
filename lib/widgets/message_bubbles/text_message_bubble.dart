@@ -365,38 +365,35 @@ class TextMessageBubble extends StatelessWidget {
   }
 
   Widget _buildSenderInfo(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(left: 8),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            message.senderName,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Color(0xFF06aeef)
-                  : Color(0xFF003f9b),
-            ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          message.senderName,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Color(0xFF06aeef)
+                : Color(0xFF003f9b),
           ),
-          // Role icon for Admin and Owner only
-          if (message.senderRole != null &&
-              (message.senderRole!.toUpperCase() == 'ADMIN' ||
-                  message.senderRole!.toUpperCase() == 'OWNER')) ...[
-            SizedBox(width: 4),
-            Icon(
-              message.senderRole!.toUpperCase() == 'OWNER'
-                  ? Icons.star
-                  : Icons.shield,
-              size: 12,
-              color: message.senderRole!.toUpperCase() == 'OWNER'
-                  ? Colors.orange
-                  : Colors.purple,
-            ),
-          ],
+        ),
+        // Role icon for Admin and Owner only
+        if (message.senderRole != null &&
+            (message.senderRole!.toUpperCase() == 'ADMIN' ||
+                message.senderRole!.toUpperCase() == 'OWNER')) ...[
+          SizedBox(width: 4),
+          Icon(
+            message.senderRole!.toUpperCase() == 'OWNER'
+                ? Icons.star
+                : Icons.shield,
+            size: 12,
+            color: message.senderRole!.toUpperCase() == 'OWNER'
+                ? Colors.orange
+                : Colors.purple,
+          ),
         ],
-      ),
+      ],
     );
   }
 
@@ -404,7 +401,7 @@ class TextMessageBubble extends StatelessWidget {
     return Text(
       message.content,
       style: TextStyle(
-        fontSize: 16,
+        fontSize: 14,
         color: isOwn
             ? (Theme.of(context).brightness == Brightness.dark
                   ? Colors.white

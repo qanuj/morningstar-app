@@ -28,13 +28,15 @@ class BaseMessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: isOwn ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: isOwn
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
         // Message bubble
         Container(
-          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: isTransparent 
-              ? null 
+          padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          decoration: isTransparent
+              ? null
               : BoxDecoration(
                   color: _getBubbleColor(context),
                   borderRadius: BorderRadius.circular(12),
@@ -46,7 +48,7 @@ class BaseMessageBubble extends StatelessWidget {
             children: [
               // Message content
               Padding(
-                padding: showMetaOverlay 
+                padding: showMetaOverlay
                     ? EdgeInsets.only(bottom: 20) // Space for meta overlay
                     : EdgeInsets.zero, // No extra space if no overlay
                 child: content,
@@ -54,11 +56,15 @@ class BaseMessageBubble extends StatelessWidget {
 
               // Meta overlay (pin, star, time, tick) at bottom right
               if (showMetaOverlay)
-                Positioned(bottom: 4, right: 4, child: _buildMetaOverlay(context)),
+                Positioned(
+                  bottom: 4,
+                  right: 4,
+                  child: _buildMetaOverlay(context),
+                ),
             ],
           ),
         ),
-        
+
         // Reactions display (below the bubble)
         if (message.reactions.isNotEmpty) ...[
           SizedBox(height: 4),
@@ -73,17 +79,17 @@ class BaseMessageBubble extends StatelessWidget {
     if (isTransparent) {
       return Colors.transparent;
     }
-    
+
     // Custom color overrides everything except transparent
     if (customColor != null) {
       return customColor!;
     }
-    
+
     // Selection state overrides other colors
     if (isSelected) {
       return Color(0xFF003f9b).withOpacity(0.3);
     }
-    
+
     if (message.status == MessageStatus.failed) {
       return Theme.of(context).brightness == Brightness.dark
           ? Colors.red[800]!
@@ -187,7 +193,7 @@ class BaseMessageBubble extends StatelessWidget {
         final emoji = entry.key;
         final users = entry.value;
         final count = users.length;
-        
+
         return GestureDetector(
           onTap: () {
             // TODO: Add reaction tap functionality (show users who reacted)
@@ -209,10 +215,7 @@ class BaseMessageBubble extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  emoji,
-                  style: TextStyle(fontSize: 14),
-                ),
+                Text(emoji, style: TextStyle(fontSize: 14)),
                 if (count > 1) ...[
                   SizedBox(width: 4),
                   Text(

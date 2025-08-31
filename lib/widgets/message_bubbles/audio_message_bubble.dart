@@ -59,14 +59,13 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
   }
 
   void _initializeAudioPlayer() {
-    print('_initializeAudioPlayer called');
     try {
-      print('Creating AudioPlayer instance...');
       _audioPlayer = AudioPlayer();
-      print('AudioPlayer instance created successfully');
-      
+
       // Listen to player state changes
-      _playerStateSubscription = _audioPlayer!.onPlayerStateChanged.listen((state) {
+      _playerStateSubscription = _audioPlayer!.onPlayerStateChanged.listen((
+        state,
+      ) {
         if (mounted) {
           setState(() {
             isPlaying = state == PlayerState.playing;
@@ -80,19 +79,24 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
       });
 
       // Listen to position changes
-      _positionSubscription = _audioPlayer!.onPositionChanged.listen((position) {
+      _positionSubscription = _audioPlayer!.onPositionChanged.listen((
+        position,
+      ) {
         if (mounted) {
           setState(() {
             _currentDuration = position;
             if (_totalDuration.inMilliseconds > 0) {
-              currentPosition = position.inMilliseconds / _totalDuration.inMilliseconds;
+              currentPosition =
+                  position.inMilliseconds / _totalDuration.inMilliseconds;
             }
           });
         }
       });
 
       // Listen to duration changes
-      _durationSubscription = _audioPlayer!.onDurationChanged.listen((duration) {
+      _durationSubscription = _audioPlayer!.onDurationChanged.listen((
+        duration,
+      ) {
         if (mounted) {
           setState(() {
             _totalDuration = duration;
@@ -101,22 +105,19 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
       });
 
       _isInitialized = true;
-      print('Audio player initialized successfully');
 
       // Load audio file if available (async)
       if (widget.message.audio?.url.isNotEmpty == true) {
-        print('Loading audio file: ${widget.message.audio!.url}');
         _loadAudioFile();
       }
     } catch (e) {
-      print('Error initializing audio player: $e');
       _isInitialized = false;
     }
   }
 
   Future<void> _loadAudioFile() async {
     if (_audioPlayer == null || !_isInitialized) return;
-    
+
     try {
       await _audioPlayer!.setSource(UrlSource(widget.message.audio!.url));
       await _audioPlayer!.setPlaybackRate(playbackSpeed);
@@ -192,6 +193,12 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
         minWidth: 280,
       ),
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: widget.isOwn
+            ? Theme.of(context).primaryColorLight
+            : Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Column(
         children: [
           Row(
@@ -250,7 +257,11 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
               Text(
                 isPlaying
                     ? _formatDuration(_currentDuration.inSeconds)
-                    : _formatDuration(_totalDuration.inSeconds > 0 ? _totalDuration.inSeconds : widget.message.audio?.duration ?? 0),
+                    : _formatDuration(
+                        _totalDuration.inSeconds > 0
+                            ? _totalDuration.inSeconds
+                            : widget.message.audio?.duration ?? 0,
+                      ),
                 style: TextStyle(
                   fontSize: 12,
                   color: _getDurationColor(context),
@@ -269,7 +280,7 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
       print('Audio player not initialized');
       return;
     }
-    
+
     try {
       if (isPlaying) {
         await _audioPlayer!.pause();
@@ -286,7 +297,7 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
       print('Audio player not initialized');
       return;
     }
-    
+
     setState(() {
       switch (playbackSpeed) {
         case 1.0:
@@ -316,7 +327,7 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
       print('Audio player not initialized');
       return;
     }
-    
+
     // Get the progress bar widget's render box
     final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
@@ -391,28 +402,60 @@ class _AvatarSpeedToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!isPlaying) {
       // Show avatar when not playing
-      return Container(
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Theme.of(context).brightness == Brightness.dark
-              ? Colors.grey[700]
-              : Colors.grey[300],
-          image: senderProfilePicture != null
-              ? DecorationImage(
-                  image: NetworkImage(senderProfilePicture!),
-                  fit: BoxFit.cover,
-                )
-              : null,
-        ),
-        child: senderProfilePicture == null
-            ? Icon(
-                Icons.person,
-                size: 20,
-                color: getIconColor(context).withOpacity(0.6),
-              )
-            : null,
+      return Stack(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.grey[700]
+                  : Colors.grey[300],
+              image: senderProfilePicture != null
+                  ? DecorationImage(
+                      image: NetworkImage(senderProfilePicture!),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+            ),
+            child: senderProfilePicture == null
+                ? Icon(
+                    Icons.person,
+                    size: 20,
+                    color: getIconColor(context).withOpacity(0.6),
+                  )
+                : null,
+          ),
+          // Microphone badge
+          Positioned(
+            right: -2,
+            bottom: -2,
+            child: Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white
+                    : Theme.of(context).primaryColor,
+                border: Border.all(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey[800]!
+                      : Colors.white,
+                  width: 1.5,
+                ),
+              ),
+              child: Icon(
+                Icons.mic,
+                size: 8,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Theme.of(context).primaryColor
+                    : Colors.white,
+              ),
+            ),
+          ),
+        ],
       );
     }
 
@@ -423,7 +466,7 @@ class _AvatarSpeedToggle extends StatelessWidget {
         padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           color: getSpeedBgColor(context),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(4),
         ),
         child: Text(
           '${playbackSpeed}x',
