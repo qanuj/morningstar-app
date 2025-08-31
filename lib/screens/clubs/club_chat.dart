@@ -1598,77 +1598,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                                       SizedBox(height: 2),
                                     ],
 
-                                    // Message content
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        if (message.gifUrl != null)
-                                          _buildGifMessage(
-                                            message.gifUrl!,
-                                            isOwn,
-                                          )
-                                        else if (message.content.isNotEmpty)
-                                          _buildMessageContent(message, isOwn),
-                                        if (message.pictures.isNotEmpty) ...[
-                                          Stack(
-                                            children: [
-                                              _buildImageGallery(
-                                                message.pictures,
-                                              ),
-                                              // Show upload progress overlay if message is sending
-                                              if (message.status ==
-                                                  MessageStatus.sending)
-                                                Positioned.fill(
-                                                  child: Container(
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.black
-                                                          .withOpacity(0.5),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            12,
-                                                          ),
-                                                    ),
-                                                    child: Center(
-                                                      child: Column(
-                                                        mainAxisSize:
-                                                            MainAxisSize.min,
-                                                        children: [
-                                                          SizedBox(
-                                                            width: 24,
-                                                            height: 24,
-                                                            child:
-                                                                CircularProgressIndicator(
-                                                                  color: Colors
-                                                                      .white,
-                                                                  strokeWidth:
-                                                                      2,
-                                                                ),
-                                                          ),
-                                                          SizedBox(height: 8),
-                                                          Text(
-                                                            'Uploading...',
-                                                            style: TextStyle(
-                                                              color:
-                                                                  Colors.white,
-                                                              fontSize: 12,
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                            ],
-                                          ),
-                                        ],
-                                        if (message.documents.isNotEmpty)
-                                          _buildDocumentList(message.documents),
-                                        if (message.linkMeta.isNotEmpty)
-                                          _buildLinkPreviews(message.linkMeta),
-                                      ],
-                                    ),
-                                    // Time and status (time + tick for own, just time for others)
+                                    // Message content - type-aware rendering with proper layout
+                                    _buildMessageContentByType(message, isOwn),
+                                    // Time and status overlay with correct order: pin, star, time, tick
                                     SizedBox(height: 4),
                                     Row(
                                       mainAxisSize: MainAxisSize.min,
@@ -1676,11 +1608,11 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                                           ? MainAxisAlignment.end
                                           : MainAxisAlignment.start,
                                       children: [
-                                        // Star icon (first)
+                                        // Pin icon (first)
                                         if (isOwn &&
-                                            message.starred.isStarred) ...[
+                                            _isCurrentlyPinned(message)) ...[
                                           Icon(
-                                            Icons.star,
+                                            Icons.push_pin,
                                             size: 10,
                                             color: isOwn
                                                 ? (Theme.of(
@@ -1702,11 +1634,11 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                                           ),
                                           SizedBox(width: 4),
                                         ],
-                                        // Pin icon (second)
+                                        // Star icon (second)
                                         if (isOwn &&
-                                            _isCurrentlyPinned(message)) ...[
+                                            message.starred.isStarred) ...[
                                           Icon(
-                                            Icons.push_pin,
+                                            Icons.star,
                                             size: 10,
                                             color: isOwn
                                                 ? (Theme.of(
@@ -2044,6 +1976,155 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
             ? Colors.grey[400]!
             : Colors.grey[600]!;
     }
+  }
+
+  /// Type-aware message content builder that renders based on content type
+  Widget _buildMessageContentByType(ClubMessage message, bool isOwn) {
+    // Handle deleted messages first
+    if (message.deleted) {
+      return _buildDeletedMessage(message);
+    }
+
+    // Determine message type and render accordingly
+    if (message.messageType == 'audio' && message.audio != null) {
+      // AUDIO MESSAGE: Just audio player
+      return _buildAudioMessageContent(message, isOwn);
+    } else if (message.linkMeta.isNotEmpty) {
+      // LINK MESSAGE: Thumbnail, title, full link
+      return _buildLinkMessageContent(message, isOwn);
+    } else if (message.gifUrl != null) {
+      // GIF MESSAGE: GIF with optional text below
+      return _buildGifMessageContent(message, isOwn);
+    } else {
+      // TEXT MESSAGE: Images/videos first, then body below
+      return _buildTextMessageContent(message, isOwn);
+    }
+  }
+
+  /// Build audio message content (audio player only)
+  Widget _buildAudioMessageContent(ClubMessage message, bool isOwn) {
+    return Container(
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width * 0.75,
+        minWidth: 200,
+      ),
+      child: AudioPlayerWidget(
+        audioPath: message.audio!.url,
+        isFromCurrentUser: isOwn,
+      ),
+    );
+  }
+
+  /// Build link message content (thumbnail, title, full link)
+  Widget _buildLinkMessageContent(ClubMessage message, bool isOwn) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Link previews first
+        _buildLinkPreviews(message.linkMeta),
+        // Optional text content below links
+        if (message.content.isNotEmpty) ...[
+          SizedBox(height: 8),
+          _buildTextContent(message.content, isOwn),
+        ],
+      ],
+    );
+  }
+
+  /// Build GIF message content (GIF with optional text)
+  Widget _buildGifMessageContent(ClubMessage message, bool isOwn) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // GIF first
+        _buildGifMessage(message.gifUrl!, isOwn),
+        // Optional text content below GIF
+        if (message.content.isNotEmpty) ...[
+          SizedBox(height: 8),
+          _buildTextContent(message.content, isOwn),
+        ],
+      ],
+    );
+  }
+
+  /// Build text message content (images/videos first, then text body)
+  Widget _buildTextMessageContent(ClubMessage message, bool isOwn) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Images first (if any)
+        if (message.pictures.isNotEmpty) ...[
+          Stack(
+            children: [
+              _buildImageGallery(message.pictures),
+              // Show upload progress overlay if message is sending
+              if (message.status == MessageStatus.sending)
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'Uploading...',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+        
+        // Documents (if any)
+        if (message.documents.isNotEmpty) ...[
+          if (message.pictures.isNotEmpty) SizedBox(height: 8),
+          _buildDocumentList(message.documents),
+        ],
+        
+        // Text content below media (if any)
+        if (message.content.isNotEmpty) ...[
+          if (message.pictures.isNotEmpty || message.documents.isNotEmpty) 
+            SizedBox(height: 8),
+          _buildTextContent(message.content, isOwn),
+        ],
+      ],
+    );
+  }
+
+  /// Build text content with proper styling
+  Widget _buildTextContent(String content, bool isOwn) {
+    return Text(
+      content,
+      style: TextStyle(
+        fontSize: 16,
+        color: isOwn
+            ? (Theme.of(context).brightness == Brightness.dark
+                ? Colors.white
+                : Colors.white)
+            : (Theme.of(context).brightness == Brightness.dark
+                ? Colors.white
+                : Colors.black87),
+      ),
+    );
   }
 
   Widget _buildMessageContent(ClubMessage message, bool isOwn) {
