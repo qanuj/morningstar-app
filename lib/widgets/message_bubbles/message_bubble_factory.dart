@@ -11,12 +11,14 @@ class MessageBubbleFactory extends StatelessWidget {
   final ClubMessage message;
   final bool isOwn;
   final bool isPinned;
+  final bool isSelected;
 
   const MessageBubbleFactory({
     Key? key,
     required this.message,
     required this.isOwn,
     required this.isPinned,
+    this.isSelected = false,
   }) : super(key: key);
 
   @override
@@ -33,6 +35,7 @@ class MessageBubbleFactory extends StatelessWidget {
         message: message,
         isOwn: isOwn,
         isPinned: isPinned,
+        isSelected: isSelected,
       );
     } else if (message.linkMeta.isNotEmpty) {
       // LINK MESSAGE: Thumbnail, title, full link
@@ -40,6 +43,7 @@ class MessageBubbleFactory extends StatelessWidget {
         message: message,
         isOwn: isOwn,
         isPinned: isPinned,
+        isSelected: isSelected,
       );
     } else if (message.gifUrl != null && message.gifUrl!.isNotEmpty) {
       // GIF MESSAGE: GIF with optional text below
@@ -47,6 +51,7 @@ class MessageBubbleFactory extends StatelessWidget {
         message: message,
         isOwn: isOwn,
         isPinned: isPinned,
+        isSelected: isSelected,
       );
     } else {
       // TEXT MESSAGE: Images/videos first, then body below
@@ -54,6 +59,7 @@ class MessageBubbleFactory extends StatelessWidget {
         message: message,
         isOwn: isOwn,
         isPinned: isPinned,
+        isSelected: isSelected,
       );
     }
   }
@@ -63,6 +69,7 @@ class MessageBubbleFactory extends StatelessWidget {
       message: message,
       isOwn: isOwn,
       isPinned: isPinned,
+      isSelected: isSelected,
       content: Container(
         padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
         child: Row(

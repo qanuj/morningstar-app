@@ -9,12 +9,14 @@ class LinkMessageBubble extends StatelessWidget {
   final ClubMessage message;
   final bool isOwn;
   final bool isPinned;
+  final bool isSelected;
 
   const LinkMessageBubble({
     Key? key,
     required this.message,
     required this.isOwn,
     required this.isPinned,
+    this.isSelected = false,
   }) : super(key: key);
 
   @override
@@ -23,6 +25,7 @@ class LinkMessageBubble extends StatelessWidget {
       message: message,
       isOwn: isOwn,
       isPinned: isPinned,
+      isSelected: isSelected,
       content: _buildContent(context),
     );
   }

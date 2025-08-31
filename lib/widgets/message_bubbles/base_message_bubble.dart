@@ -8,6 +8,7 @@ class BaseMessageBubble extends StatelessWidget {
   final bool isOwn;
   final Widget content;
   final bool isPinned;
+  final bool isSelected;
 
   const BaseMessageBubble({
     super.key,
@@ -15,6 +16,7 @@ class BaseMessageBubble extends StatelessWidget {
     required this.isOwn,
     required this.content,
     required this.isPinned,
+    this.isSelected = false,
   });
 
   @override
@@ -44,6 +46,11 @@ class BaseMessageBubble extends StatelessWidget {
   }
 
   Color _getBubbleColor(BuildContext context) {
+    // Selection state overrides other colors
+    if (isSelected) {
+      return Color(0xFF003f9b).withOpacity(0.3);
+    }
+    
     if (message.status == MessageStatus.failed) {
       return Theme.of(context).brightness == Brightness.dark
           ? Colors.red[800]!

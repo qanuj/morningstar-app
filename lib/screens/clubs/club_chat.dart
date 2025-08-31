@@ -1599,11 +1599,12 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                                       SizedBox(height: 2),
                                     ],
 
-                                    // Message content with built-in meta overlay
+                                    // Message content with built-in container and meta overlay
                                     MessageBubbleFactory(
                                       message: message,
                                       isOwn: isOwn,
                                       isPinned: _isCurrentlyPinned(message),
+                                      isSelected: _selectedMessageIds.contains(message.id),
                                     ),
                                   ],
                                 ),
