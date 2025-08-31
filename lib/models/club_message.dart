@@ -5,6 +5,26 @@ import 'message_audio.dart';
 import 'link_metadata.dart';
 import 'message_reaction.dart';
 import 'message_reply.dart';
+import 'pinned_by_user.dart';
+import 'starred_info.dart';
+
+class PinInfo {
+  final bool isPinned;
+  final DateTime? pinStart;
+  final DateTime? pinEnd;
+  final String? pinnedBy;
+
+  PinInfo({this.isPinned = false, this.pinStart, this.pinEnd, this.pinnedBy});
+
+  Map<String, dynamic> toJson() {
+    return {
+      'isPinned': isPinned,
+      'pinStart': pinStart?.toIso8601String(),
+      'pinEnd': pinEnd?.toIso8601String(),
+      'pinnedBy': pinnedBy,
+    };
+  }
+}
 
 class ClubMessage {
   final String id;
@@ -19,7 +39,8 @@ class ClubMessage {
   final MessageAudio? audio;
   final List<LinkMetadata> linkMeta;
   final String? gifUrl; // For GIF messages
-  final String? messageType; // 'text', 'image', 'link', 'emoji', 'gif', 'document', 'audio'
+  final String?
+  messageType; // 'text', 'image', 'link', 'emoji', 'gif', 'document', 'audio'
   final DateTime createdAt;
   final MessageStatus status;
   final String? errorMessage;
@@ -27,10 +48,8 @@ class ClubMessage {
   final MessageReply? replyTo;
   final bool deleted;
   final String? deletedBy;
-  final bool starred;
-  final bool pinned;
-  final DateTime? pinStart;
-  final DateTime? pinEnd;
+  final StarredInfo starred;
+  final PinInfo pin;
   // Local-only fields for read/delivered tracking
   final DateTime? deliveredAt;
   final DateTime? readAt;
@@ -56,12 +75,10 @@ class ClubMessage {
     this.replyTo,
     this.deleted = false,
     this.deletedBy,
-    this.starred = false,
-    this.pinned = false,
-    this.pinStart,
-    this.pinEnd,
+    required this.starred,
     this.deliveredAt,
     this.readAt,
+    required this.pin,
   });
 
   ClubMessage copyWith({
@@ -77,10 +94,8 @@ class ClubMessage {
     MessageReply? replyTo,
     bool? deleted,
     String? deletedBy,
-    bool? starred,
-    bool? pinned,
-    DateTime? pinStart,
-    DateTime? pinEnd,
+    StarredInfo? starred,
+    PinInfo? pin,
     DateTime? deliveredAt,
     DateTime? readAt,
   }) {
@@ -106,9 +121,7 @@ class ClubMessage {
       deleted: deleted ?? this.deleted,
       deletedBy: deletedBy ?? this.deletedBy,
       starred: starred ?? this.starred,
-      pinned: pinned ?? this.pinned,
-      pinStart: pinStart ?? this.pinStart,
-      pinEnd: pinEnd ?? this.pinEnd,
+      pin: pin ?? this.pin,
       deliveredAt: deliveredAt ?? this.deliveredAt,
       readAt: readAt ?? this.readAt,
     );
@@ -123,11 +136,11 @@ class ClubMessage {
     List<MessageDocument> documents = [];
     MessageAudio? audio;
     List<LinkMetadata> linkMeta = [];
-    
+
     // Check for deleted message
     bool isDeleted = false;
     String? deletedByName;
-    
+
     final content = json['content'];
     if (content is String) {
       messageContent = content;
@@ -143,72 +156,78 @@ class ClubMessage {
         messageType = content['type'] ?? 'text';
         messageContent = content['body'] ?? content['text'] ?? '';
       }
-      
+
       // Handle different message types (only if not deleted)
       if (!isDeleted) {
         switch (messageType) {
-        case 'gif':
-          gifUrl = content['url'];
-          break;
-        case 'image':
-          if (content['url'] != null) {
-            pictures = [MessageImage(url: content['url'], caption: content['caption'])];
-          }
-          break;
-        case 'text_with_images':
-          if (content['images'] is List) {
-            pictures = (content['images'] as List)
-                .map((url) => MessageImage(url: url as String))
-                .toList();
-          }
-          break;
-        case 'link':
-          if (content['url'] != null) {
-            linkMeta = [LinkMetadata(
-              url: content['url'],
-              title: content['title'],
-              description: content['description'],
-              image: content['thumbnail'],
-            )];
-          }
-          break;
-        case 'document':
-          if (content['url'] != null) {
-            documents = [MessageDocument(
-              url: content['url'],
-              filename: content['name'] ?? 'document',
-              type: content['name']?.split('.').last ?? 'file',
-              size: content['size'],
-            )];
-          }
-          break;
-        case 'audio':
-          if (content['url'] != null) {
-            audio = MessageAudio(
-              url: content['url'],
-              filename: content['name'] ?? 'audio',
-              duration: content['duration'],
-              size: content['size'],
-            );
-          }
-          break;
+          case 'gif':
+            gifUrl = content['url'];
+            break;
+          case 'image':
+            if (content['url'] != null) {
+              pictures = [
+                MessageImage(url: content['url'], caption: content['caption']),
+              ];
+            }
+            break;
+          case 'text_with_images':
+            if (content['images'] is List) {
+              pictures = (content['images'] as List)
+                  .map((url) => MessageImage(url: url as String))
+                  .toList();
+            }
+            break;
+          case 'link':
+            if (content['url'] != null) {
+              linkMeta = [
+                LinkMetadata(
+                  url: content['url'],
+                  title: content['title'],
+                  description: content['description'],
+                  image: content['thumbnail'],
+                ),
+              ];
+            }
+            break;
+          case 'document':
+            if (content['url'] != null) {
+              documents = [
+                MessageDocument(
+                  url: content['url'],
+                  filename: content['name'] ?? 'document',
+                  type: content['name']?.split('.').last ?? 'file',
+                  size: content['size'],
+                ),
+              ];
+            }
+            break;
+          case 'audio':
+            if (content['url'] != null) {
+              audio = MessageAudio(
+                url: content['url'],
+                filename: content['name'] ?? 'audio',
+                duration: content['duration'],
+                size: content['size'],
+              );
+            }
+            break;
         }
       }
-      
+
       // Parse pictures array (for existing format compatibility)
       if (content['pictures'] is List) {
         pictures = (content['pictures'] as List)
             .map((pic) => MessageImage.fromJson(pic as Map<String, dynamic>))
             .toList();
       }
-      
+
       // Parse documents array (for existing format compatibility)
       if (content['documents'] is List) {
         documents = (content['documents'] as List)
             .map((doc) => MessageDocument.fromJson(doc as Map<String, dynamic>))
             .toList();
       }
-      
+
       // Parse link metadata array (for existing format compatibility)
       if (content['meta'] is List) {
         linkMeta = (content['meta'] as List)
@@ -216,12 +235,12 @@ class ClubMessage {
             .toList();
       }
     }
-    
+
     // Extract sender info from nested objects if available
     String senderName = 'Unknown';
     String? senderProfilePicture;
     String? senderRole;
-    
+
     if (json.containsKey('sender') && json['sender'] is Map) {
       final senderData = json['sender'] as Map<String, dynamic>;
       senderName = senderData['name'] ?? senderName;
@@ -232,21 +251,75 @@ class ClubMessage {
       senderProfilePicture = json['senderProfilePicture'];
       senderRole = json['senderRole'] ?? json['clubRole'];
     }
-    
+
     // Parse reactions
     List<MessageReaction> reactions = [];
     if (json['reactions'] is List) {
       reactions = (json['reactions'] as List)
-          .map((reaction) => MessageReaction.fromJson(reaction as Map<String, dynamic>))
+          .map(
+            (reaction) =>
+                MessageReaction.fromJson(reaction as Map<String, dynamic>),
+          )
           .toList();
     }
-    
+
     // Parse reply
     MessageReply? replyTo;
     if (json['replyTo'] is Map<String, dynamic>) {
       replyTo = MessageReply.fromJson(json['replyTo'] as Map<String, dynamic>);
     }
-    
+
+    // Parse pin information
+    bool isPinned = false;
+    DateTime? pinStart;
+    DateTime? pinEnd;
+    String? pinnedBy;
+    PinnedByUser? pinnedByUser;
+
+    if (json['pin'] is Map<String, dynamic>) {
+      final pinData = json['pin'] as Map<String, dynamic>;
+      isPinned = pinData['isPinned'] ?? false;
+
+      if (pinData['pinStart'] != null) {
+        pinStart = DateTime.parse(pinData['pinStart']);
+      }
+      if (pinData['pinEnd'] != null) {
+        pinEnd = DateTime.parse(pinData['pinEnd']);
+      }
+
+      pinnedBy = pinData['pinnedBy'];
+
+      if (pinData['pinnedByUser'] is Map<String, dynamic>) {
+        pinnedByUser = PinnedByUser.fromJson(
+          pinData['pinnedByUser'] as Map<String, dynamic>,
+        );
+      }
+    } else {
+      // Fallback to old format
+      isPinned = _calculatePinnedStatus(json['pinStart'], json['pinEnd']);
+      if (json['pinStart'] != null) {
+        pinStart = DateTime.parse(json['pinStart']);
+      }
+      if (json['pinEnd'] != null) {
+        pinEnd = DateTime.parse(json['pinEnd']);
+      }
+      pinnedBy = json['pinnedBy'];
+    }
+
+    // Parse starred information
+    StarredInfo starredInfo;
+    if (json['starred'] is Map<String, dynamic>) {
+      starredInfo = StarredInfo.fromJson(
+        json['starred'] as Map<String, dynamic>,
+      );
+    } else {
+      // Fallback to old format
+      starredInfo = StarredInfo(
+        isStarred: json['starred'] ?? false,
+        starredAt: null,
+      );
+    }
+
     return ClubMessage(
       id: json['messageId'] ?? json['id'] ?? '',
       clubId: json['clubId'] ?? '',
@@ -261,29 +334,36 @@ class ClubMessage {
       linkMeta: linkMeta,
       gifUrl: gifUrl,
       messageType: messageType,
-      createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
+      createdAt: DateTime.parse(
+        json['createdAt'] ?? DateTime.now().toIso8601String(),
+      ),
       reactions: reactions,
       replyTo: replyTo,
       deleted: isDeleted,
       deletedBy: deletedByName,
-      starred: json['starred'] ?? false,
-      pinned: _calculatePinnedStatus(json['pinStart'], json['pinEnd']),
-      pinStart: json['pinStart'] != null ? DateTime.parse(json['pinStart']) : null,
-      pinEnd: json['pinEnd'] != null ? DateTime.parse(json['pinEnd']) : null,
+      starred: starredInfo,
+      pin: PinInfo(
+        isPinned: isPinned,
+        pinStart: pinStart,
+        pinEnd: pinEnd,
+        pinnedBy: pinnedBy,
+      ),
       // Local-only fields - not from server JSON
-      deliveredAt: json['deliveredAt'] != null ? DateTime.parse(json['deliveredAt']) : null,
+      deliveredAt: json['deliveredAt'] != null
+          ? DateTime.parse(json['deliveredAt'])
+          : null,
       readAt: json['readAt'] != null ? DateTime.parse(json['readAt']) : null,
     );
   }
 
   static bool _calculatePinnedStatus(dynamic pinStart, dynamic pinEnd) {
     if (pinStart == null || pinEnd == null) return false;
-    
+
     try {
       final startTime = DateTime.parse(pinStart);
       final endTime = DateTime.parse(pinEnd);
       final now = DateTime.now();
-      
+
       return now.isAfter(startTime) && now.isBefore(endTime);
     } catch (e) {
       return false;
@@ -311,10 +391,8 @@ class ClubMessage {
       'replyTo': replyTo?.toJson(),
       'deleted': deleted,
       'deletedBy': deletedBy,
-      'starred': starred,
-      'pinned': _calculatePinnedStatus(pinStart?.toIso8601String(), pinEnd?.toIso8601String()),
-      'pinStart': pinStart?.toIso8601String(),
-      'pinEnd': pinEnd?.toIso8601String(),
+      'starred': starred.toJson(),
+      'pin': pin.toJson(),
       // Local-only fields for storage
       'deliveredAt': deliveredAt?.toIso8601String(),
       'readAt': readAt?.toIso8601String(),

@@ -9,6 +9,22 @@ class MessageStorageService {
   static String _getMessagesKey(String clubId) => '$_messagesKeyPrefix$clubId';
   static String _getLastSyncKey(String clubId) => '$_lastSyncKeyPrefix$clubId';
 
+  /// Clear cached messages for a specific club (useful for model migrations)
+  static Future<void> clearCachedMessages(String clubId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final messagesKey = _getMessagesKey(clubId);
+      final lastSyncKey = _getLastSyncKey(clubId);
+      
+      await prefs.remove(messagesKey);
+      await prefs.remove(lastSyncKey);
+      
+      print('🗑️ Cleared cached messages for club $clubId');
+    } catch (e) {
+      print('❌ Error clearing cached messages: $e');
+    }
+  }
+
   /// Save messages to local storage for a specific club
   static Future<void> saveMessages(String clubId, List<ClubMessage> messages) async {
     try {

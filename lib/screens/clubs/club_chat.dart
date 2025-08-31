@@ -20,6 +20,7 @@ import '../../models/message_document.dart';
 import '../../models/link_metadata.dart';
 import '../../models/message_reaction.dart';
 import '../../models/message_reply.dart';
+import '../../models/starred_info.dart';
 import '../../services/api_service.dart';
 import '../../services/message_storage_service.dart';
 // import 'package:emoji_picker_flutter/emoji_picker_flutter.dart'; // Package not available
@@ -71,6 +72,8 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   @override
   void initState() {
     super.initState();
+    // Clear cached messages to handle model migration (pin/starred structure changes)
+    MessageStorageService.clearCachedMessages(widget.club.id);
     // Remove the listener since we handle it in onChanged now
     _loadMessages();
     _startPinnedRefreshTimer();
@@ -222,10 +225,13 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         final serverMessages = messageData
             .map((json) => ClubMessage.fromJson(json as Map<String, dynamic>))
             .toList();
-            
-        // Log server sync results
-        final serverPinnedMessages = serverMessages.where((m) => m.pinned).toList();
-        print('🔄 Server sync: ${serverPinnedMessages.length} pinned messages among ${serverMessages.length} total');
+
+        final serverPinnedMessages = serverMessages
+            .where((m) => _isCurrentlyPinned(m))
+            .toList();
+        print(
+          '🔄 Server sync: ${serverPinnedMessages.length} pinned messages among ${serverMessages.length} total',
+        );
 
         // Merge with local read/delivered status
         final cachedMessages = await MessageStorageService.loadMessages(
@@ -451,6 +457,8 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       createdAt: DateTime.now(),
       status: MessageStatus.sending,
       replyTo: _replyingTo,
+      starred: StarredInfo(isStarred: false),
+      pin: PinInfo(isPinned: false),
     );
 
     // Clear input and reply state, add message to list immediately
@@ -485,9 +493,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     }
 
     try {
-      print(
-        '🔵 Sending message to club ${widget.club.id} from user ${user.id}',
-      );
+      // print(
+      //   '🔵 Sending message to club ${widget.club.id} from user ${user.id}',
+      // );
       print('🔵 Message content: $content');
 
       final Map<String, dynamic> contentMap = {
@@ -505,14 +513,14 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         if (_replyingTo != null) 'replyTo': _replyingTo!.toJson(),
       };
 
-      print('🔵 Request data: $requestData');
+      //print('🔵 Request data: $requestData');
 
       final response = await ApiService.post(
         '/conversations/${widget.club.id}/messages',
         requestData,
       );
 
-      print('🔵 Full API Response: $response');
+      //print('🔵 Full API Response: $response');
 
       // Check different possible response structures
       bool isSuccess = false;
@@ -770,7 +778,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         // Add new message to local storage
         final newMessage = ClubMessage.fromJson(response);
         await MessageStorageService.addMessage(widget.club.id, newMessage);
-        
+
         // Update UI
         setState(() {
           // Remove temp message and add real message
@@ -1195,7 +1203,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     final pinnedMessages = _messages
         .where((m) => _isCurrentlyPinned(m))
         .toList();
-    
+
     // Log pinned messages for debugging
     if (pinnedMessages.isNotEmpty) {
       print('📌 Found ${pinnedMessages.length} pinned messages');
@@ -1227,18 +1235,12 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
               final showSenderInfo =
                   previousMessage == null ||
                   previousMessage.senderId != message.senderId ||
-                  message.createdAt
-                          .difference(previousMessage.createdAt)
-                          .inMinutes >
-                      10;
+                  !_isSameDate(message.createdAt, previousMessage.createdAt);
 
               final isLastFromSender =
                   nextMessage == null ||
                   nextMessage.senderId != message.senderId ||
-                  nextMessage.createdAt
-                          .difference(message.createdAt)
-                          .inMinutes >
-                      10;
+                  !_isSameDate(message.createdAt, nextMessage.createdAt);
 
               return Container(
                 key: ValueKey('message_${message.id}'),
@@ -1329,7 +1331,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                         ),
 
                       // Star icon for starred messages (not shown for deleted messages)
-                      if (message.starred && !message.deleted)
+                      if (message.starred.isStarred && !message.deleted)
                         Positioned(
                           right: isOwn ? 4 : null,
                           left: isOwn ? null : 4,
@@ -1359,8 +1361,12 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                       // Pin icon for pinned messages (not shown for deleted messages)
                       if (_isCurrentlyPinned(message) && !message.deleted)
                         Positioned(
-                          right: isOwn ? (message.starred ? 20 : 4) : null,
-                          left: isOwn ? null : (message.starred ? 20 : 4),
+                          right: isOwn
+                              ? (message.starred.isStarred ? 20 : 4)
+                              : null,
+                          left: isOwn
+                              ? null
+                              : (message.starred.isStarred ? 20 : 4),
                           top: 2,
                           child: Container(
                             padding: EdgeInsets.all(2),
@@ -1609,11 +1615,37 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                                           _buildLinkPreviews(message.linkMeta),
                                       ],
                                     ),
-                                    // Status icon below message for own messages
-                                    if (isOwn) ...[
-                                      SizedBox(height: 2),
-                                      _buildMessageStatusIcon(message.status),
-                                    ],
+                                    // Time and status (time + tick for own, just time for others)
+                                    SizedBox(height: 4),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      mainAxisAlignment: isOwn
+                                          ? MainAxisAlignment.end
+                                          : MainAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _formatMessageTime(message.createdAt),
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: isOwn
+                                                ? Colors.white.withOpacity(0.6)
+                                                : (Theme.of(
+                                                            context,
+                                                          ).brightness ==
+                                                          Brightness.dark
+                                                      ? Colors.white
+                                                            .withOpacity(0.6)
+                                                      : Colors.black
+                                                            .withOpacity(0.5)),
+                                          ),
+                                        ),
+                                        // Status icon only for own messages
+                                        if (isOwn) ...[
+                                          SizedBox(width: 4),
+                                          _buildMessageStatusIcon(message),
+                                        ],
+                                      ],
+                                    ),
                                   ],
                                 ),
                               ),
@@ -1634,68 +1666,73 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
               ),
             ],
           ),
-
-          // Timestamp display outside the main bubble
-          if (isLastFromSender) ...[
-            SizedBox(height: 2),
-            Padding(
-              padding: EdgeInsets.only(
-                left: isOwn ? 0 : 8,
-                right: isOwn ? 8 : 0,
-              ),
-              child: Text(
-                _formatMessageTime(message.createdAt),
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white.withOpacity(0.6)
-                      : Colors.black.withOpacity(0.5),
-                ),
-              ),
-            ),
-          ],
         ],
       ),
     );
   }
 
-  Widget _buildMessageStatusIcon(MessageStatus status) {
+  Widget _buildMessageStatusIcon(ClubMessage message) {
+    final status = message.status;
+    final List<Widget> icons = [];
+
+    // Add pin icon if message is pinned
+    if (_isCurrentlyPinned(message)) {
+      icons.add(
+        Icon(Icons.push_pin, size: 10, color: Colors.white.withOpacity(0.7)),
+      );
+    }
+
+    // Add star icon if message is starred
+    if (message.starred.isStarred) {
+      icons.add(
+        Icon(Icons.star, size: 10, color: Colors.white.withOpacity(0.7)),
+      );
+    }
+
+    // Add status icon
     switch (status) {
       case MessageStatus.sending:
-        return SizedBox(
-          width: 12,
-          height: 12,
-          child: CircularProgressIndicator(
-            strokeWidth: 1.5,
-            color: Colors.white.withOpacity(0.7),
+        icons.add(
+          SizedBox(
+            width: 12,
+            height: 12,
+            child: CircularProgressIndicator(
+              strokeWidth: 1.5,
+              color: Colors.white.withOpacity(0.7),
+            ),
           ),
         );
+        break;
       case MessageStatus.failed:
-        return Icon(Icons.error_outline, size: 14, color: Colors.red);
+        icons.add(Icon(Icons.error_outline, size: 14, color: Colors.red));
+        break;
       case MessageStatus.sent:
-        return Icon(
-          Icons.check,
-          size: 14,
-          color: Colors.white.withOpacity(0.7),
+        icons.add(
+          Icon(Icons.check, size: 14, color: Colors.white.withOpacity(0.7)),
         );
+        break;
       case MessageStatus.delivered:
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.check, size: 12, color: Colors.white.withOpacity(0.7)),
-            Icon(Icons.check, size: 12, color: Colors.white.withOpacity(0.7)),
-          ],
-        );
+        icons.addAll([
+          Icon(Icons.check, size: 12, color: Colors.white.withOpacity(0.7)),
+          Icon(Icons.check, size: 12, color: Colors.white.withOpacity(0.7)),
+        ]);
+        break;
       case MessageStatus.read:
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.check, size: 12, color: Colors.blue),
-            Icon(Icons.check, size: 12, color: Colors.blue),
-          ],
-        );
+        icons.addAll([
+          Icon(Icons.check, size: 12, color: Colors.blue),
+          Icon(Icons.check, size: 12, color: Colors.blue),
+        ]);
+        break;
     }
-    return SizedBox.shrink();
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: icons
+          .map(
+            (icon) => Padding(padding: EdgeInsets.only(right: 2), child: icon),
+          )
+          .toList(),
+    );
   }
 
   void _showErrorDialog(ClubMessage message) {
@@ -2716,6 +2753,8 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       messageType: files.length == 1 ? 'image' : 'text_with_images',
       createdAt: DateTime.now(),
       status: MessageStatus.sending,
+      starred: StarredInfo(isStarred: false),
+      pin: PinInfo(isPinned: false),
     );
 
     // Add message to list immediately with previews
@@ -2819,7 +2858,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       // Add new message to local storage
       final newMessage = ClubMessage.fromJson(response);
       await MessageStorageService.addMessage(widget.club.id, newMessage);
-      
+
       // Update UI
       setState(() {
         // Remove temp message and add real message
@@ -4327,25 +4366,29 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                 ).showSnackBar(SnackBar(content: Text('Message copied')));
               },
             ),
+            // Only show Info option for user's own messages
+            if (_isOwnMessage(message))
+              _buildOptionTile(
+                icon: Icons.info_outline,
+                title: 'Info',
+                onTap: () {
+                  Navigator.pop(context);
+                  _showMessageInfo(message);
+                },
+              ),
             _buildOptionTile(
-              icon: Icons.info_outline,
-              title: 'Info',
-              onTap: () {
-                Navigator.pop(context);
-                _showMessageInfo(message);
-              },
-            ),
-            _buildOptionTile(
-              icon: message.starred ? Icons.star : Icons.star_outline,
-              title: message.starred ? 'Unstar' : 'Star',
+              icon: message.starred.isStarred ? Icons.star : Icons.star_outline,
+              title: message.starred.isStarred ? 'Unstar' : 'Star',
               onTap: () {
                 Navigator.pop(context);
                 _toggleStar(message);
               },
             ),
             _buildOptionTile(
-              icon: message.pinned ? Icons.push_pin : Icons.push_pin_outlined,
-              title: message.pinned ? 'Unpin' : 'Pin',
+              icon: _isCurrentlyPinned(message)
+                  ? Icons.push_pin
+                  : Icons.push_pin_outlined,
+              title: _isCurrentlyPinned(message) ? 'Unpin' : 'Pin',
               onTap: () {
                 Navigator.pop(context);
                 _togglePin(message);
@@ -4520,7 +4563,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
   void _toggleStar(ClubMessage message) async {
     try {
-      final endpoint = message.starred ? '/unstar' : '/star';
+      final endpoint = message.starred.isStarred ? '/unstar' : '/star';
       await ApiService.post(
         '/conversations/${widget.club.id}/messages/${message.id}$endpoint',
         {},
@@ -4530,7 +4573,12 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         final index = _messages.indexWhere((m) => m.id == message.id);
         if (index != -1) {
           _messages[index] = _messages[index].copyWith(
-            starred: !message.starred,
+            starred: StarredInfo(
+              isStarred: !message.starred.isStarred,
+              starredAt: !message.starred.isStarred
+                  ? DateTime.now().toIso8601String()
+                  : null,
+            ),
           );
         }
       });
@@ -4539,7 +4587,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              message.starred ? 'Message unstarred' : 'Message starred',
+              message.starred.isStarred
+                  ? 'Message unstarred'
+                  : 'Message starred',
             ),
             backgroundColor: Color(0xFF003f9b),
           ),
@@ -4550,7 +4600,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Failed to ${message.starred ? 'unstar' : 'star'} message: $e',
+              'Failed to ${message.starred.isStarred ? 'unstar' : 'star'} message: $e',
             ),
             backgroundColor: Colors.red,
           ),
@@ -4560,7 +4610,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   }
 
   void _togglePin(ClubMessage message) async {
-    if (message.pinned) {
+    if (_isCurrentlyPinned(message)) {
       // If already pinned, just unpin
       await _unpinMessage(message);
     } else {
@@ -4681,10 +4731,12 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         'pinEnd': pinEnd.toIso8601String(),
       };
 
-      await ApiService.post(
+      final result = await ApiService.post(
         '/conversations/${widget.club.id}/messages/${message.id}/pin',
         requestData,
       );
+
+      print('🔵 Pinned message response: $result');
 
       // Sync from server to get authoritative pinned status for all users
       await _syncMessagesFromServer();
@@ -4758,15 +4810,24 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   Timer? _highlightTimer;
   Timer? _pinnedRefreshTimer;
 
-  // Helper method to check if a message is currently pinned based on time
+  // Helper method to check if a message belongs to the current user
+  bool _isOwnMessage(ClubMessage message) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final currentUser = userProvider.user;
+    return currentUser != null && message.senderId == currentUser.id;
+  }
+
+  // Helper method to check if two timestamps are on the same date
+  bool _isSameDate(DateTime date1, DateTime date2) {
+    return date1.year == date2.year &&
+        date1.month == date2.month &&
+        date1.day == date2.day;
+  }
+
+  // Helper method to check if a message is currently pinned
+  // Uses the authoritative pin status from the API (pin.isPinned)
   bool _isCurrentlyPinned(ClubMessage message) {
-    if (!message.pinned) return false;
-
-    // If pinStart and pinEnd are not set, treat as permanently pinned
-    if (message.pinStart == null || message.pinEnd == null) return true;
-
-    final now = DateTime.now();
-    return now.isAfter(message.pinStart!) && now.isBefore(message.pinEnd!);
+    return message.pin.isPinned;
   }
 
   // Start a timer to refresh pinned messages when pin periods expire and check for new pins
@@ -4823,15 +4884,15 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
   Widget _buildPinnedMessagesSection(List<ClubMessage> pinnedMessages) {
     if (pinnedMessages.isEmpty) return SizedBox.shrink();
-    
+
     // Ensure current index is within bounds
     if (_currentPinnedIndex >= pinnedMessages.length) {
       _currentPinnedIndex = 0;
     }
-    
+
     final currentMessage = pinnedMessages[_currentPinnedIndex];
     final hasMultiple = pinnedMessages.length > 1;
-    
+
     return Container(
       decoration: BoxDecoration(
         color: Color(0xFFF8F9FA),
@@ -4839,14 +4900,23 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       ),
       child: Column(
         children: [
-          _buildPinnedMessageItem(currentMessage, pinnedMessages.length, _currentPinnedIndex + 1),
-          if (hasMultiple) _buildPinnedIndicator(pinnedMessages.length, _currentPinnedIndex),
+          _buildPinnedMessageItem(
+            currentMessage,
+            pinnedMessages.length,
+            _currentPinnedIndex + 1,
+          ),
+          if (hasMultiple)
+            _buildPinnedIndicator(pinnedMessages.length, _currentPinnedIndex),
         ],
       ),
     );
   }
 
-  Widget _buildPinnedMessageItem(ClubMessage message, int totalCount, int currentIndex) {
+  Widget _buildPinnedMessageItem(
+    ClubMessage message,
+    int totalCount,
+    int currentIndex,
+  ) {
     final bool hasImages = message.pictures.isNotEmpty;
     final String displayText = hasImages ? 'Photo' : message.content.trim();
     final String firstLine = displayText.split('\n').first;
@@ -4982,7 +5052,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   Widget _buildPinnedIndicator(int totalCount, int currentIndex) {
     // Show max 4 indicators as requested
     final indicatorsToShow = totalCount > 4 ? 4 : totalCount;
-    
+
     return Container(
       padding: EdgeInsets.only(bottom: 8, left: 16, right: 16),
       child: Row(
@@ -5007,13 +5077,17 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                   isActive = index == currentIndex;
                 } else {
                   // For more than 4 items, show progress within the 4 indicators
-                  final progress = (currentIndex / (totalCount - 1)) * (indicatorsToShow - 1);
+                  final progress =
+                      (currentIndex / (totalCount - 1)) *
+                      (indicatorsToShow - 1);
                   isActive = index <= progress.round();
                 }
-                
+
                 return Expanded(
                   child: Container(
-                    margin: EdgeInsets.only(right: index < indicatorsToShow - 1 ? 2 : 0),
+                    margin: EdgeInsets.only(
+                      right: index < indicatorsToShow - 1 ? 2 : 0,
+                    ),
                     height: 2,
                     decoration: BoxDecoration(
                       color: isActive ? Color(0xFF003f9b) : Color(0xFFDEE2E6),
@@ -5030,18 +5104,20 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   }
 
   void _cycleToPinnedMessage(String currentMessageId) {
-    final pinnedMessages = _messages.where((m) => _isCurrentlyPinned(m)).toList();
+    final pinnedMessages = _messages
+        .where((m) => _isCurrentlyPinned(m))
+        .toList();
     if (pinnedMessages.length <= 1) {
       // If only one pinned message, just scroll to it
       _scrollToMessage(currentMessageId);
       return;
     }
-    
+
     // Cycle to next pinned message
     setState(() {
       _currentPinnedIndex = (_currentPinnedIndex + 1) % pinnedMessages.length;
     });
-    
+
     // Scroll to the new current pinned message
     final nextMessage = pinnedMessages[_currentPinnedIndex];
     _scrollToMessage(nextMessage.id);

@@ -48,8 +48,9 @@ class ApiService {
     Map<String, dynamic> data,
   ) async {
     print('🔵 Making POST request to: $baseUrl$endpoint');
-    print('🔵 Request data: $data');
-    print('🔵 Request headers: $headers');
+
+    //print('🔵 Request data: $data');
+    //print('🔵 Request headers: $headers');
 
     final response = await http.post(
       Uri.parse('$baseUrl$endpoint'),
@@ -57,8 +58,8 @@ class ApiService {
       body: json.encode(data),
     );
 
-    print('🔵 Response status: ${response.statusCode}');
-    print('🔵 Response body: ${response.body}');
+    //print('🔵 Response status: ${response.statusCode}');
+    //print('🔵 Response body: ${response.body}');
 
     return _handleResponse(response);
   }
@@ -87,7 +88,10 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  static Future<Map<String, dynamic>> delete(String endpoint, [dynamic data]) async {
+  static Future<Map<String, dynamic>> delete(
+    String endpoint, [
+    dynamic data,
+  ]) async {
     final response = await http.delete(
       Uri.parse('$baseUrl$endpoint'),
       headers: headers,
@@ -97,14 +101,14 @@ class ApiService {
   }
 
   static Map<String, dynamic> _handleResponse(http.Response response) {
-    print('🔵 Handling response with status: ${response.statusCode}');
+    //print('🔵 Handling response with status: ${response.statusCode}');
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      print('✅ Success Response Body: ${response.body}');
+      //print('✅ Success Response Body: ${response.body}');
 
       try {
         final decoded = json.decode(response.body);
-        print('🔵 Decoded response: $decoded');
+        //print('🔵 Decoded response: $decoded');
 
         // Handle both Map and List responses
         if (decoded is List) {
