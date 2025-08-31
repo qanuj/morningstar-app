@@ -68,7 +68,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   // Message status tracking
   Set<String> _deliveredMessages = <String>{};
   Set<String> _seenMessages = <String>{};
-  
+
   // Highlighted message state
   String? _highlightedMessageId;
   Timer? _highlightTimer;
@@ -511,11 +511,12 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         contentMap['meta'] = linkMeta.map((meta) => meta.toJson()).toList();
       }
 
-      final requestData = {
-        'senderId': user.id,
-        'content': contentMap,
-        if (_replyingTo != null) 'replyTo': _replyingTo!.toJson(),
-      };
+      final Map<String, dynamic> requestData = {'content': contentMap};
+
+      // Add reply info if replying to a message
+      if (_replyingTo != null) {
+        requestData['replyToId'] = _replyingTo!.messageId;
+      }
 
       //print('🔵 Request data: $requestData');
 
@@ -1277,7 +1278,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
     return AnimatedContainer(
       duration: Duration(milliseconds: 300),
-      margin: EdgeInsets.only(bottom: isLastFromSender ? 2 : 0.5),
+      margin: EdgeInsets.only(bottom: isLastFromSender ? 8 : 4),
       decoration: _highlightedMessageId == message.id
           ? BoxDecoration(
               color: Color(0xFF06aeef).withOpacity(0.2),
@@ -1386,9 +1387,10 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                               Icons.push_pin,
                               size: 12,
                               color: isOwn
-                                  ? (Theme.of(context).brightness == Brightness.dark
-                                      ? Colors.white.withOpacity(0.7)
-                                      : Colors.black.withOpacity(0.65))
+                                  ? (Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? Colors.white.withOpacity(0.7)
+                                        : Colors.black.withOpacity(0.65))
                                   : Color(0xFF003f9b),
                             ),
                           ),
@@ -1438,8 +1440,8 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                                     ),
                               child: Container(
                                 padding: EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
+                                  horizontal: 2,
+                                  vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
                                   color:
@@ -1500,17 +1502,25 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                                         )
                                       : null,
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: isOwn
-                                      ? CrossAxisAlignment.end
-                                      : CrossAxisAlignment.start,
-                                  children: [
-                                    // Sender name inside bubble for received messages
-                                    if (!isOwn && showSenderInfo) ...[
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    minWidth: 80, // Minimum width for timestamp overlay
+                                  ),
+                                  child: Stack(
+                                    children: [
+                                      Padding(
+                                        padding: EdgeInsets.only(bottom: 18), // Space for timestamp overlay
+                                        child: Column(
+                                          crossAxisAlignment: isOwn
+                                              ? CrossAxisAlignment.end
+                                              : CrossAxisAlignment.start,
                                         children: [
-                                          Text(
+                                          // Sender name inside bubble for received messages
+                                          if (!isOwn && showSenderInfo) ...[
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
                                             message.senderName,
                                             style: TextStyle(
                                               fontSize: 12,
@@ -1563,7 +1573,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                                             message.gifUrl!,
                                             isOwn,
                                           )
-                                        else if (message.content.isNotEmpty)
+                                        else if (message.content.isNotEmpty && message.pictures.isEmpty)
                                           _buildMessageContent(message, isOwn),
                                         if (message.pictures.isNotEmpty) ...[
                                           Stack(
@@ -1614,8 +1624,62 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                                                     ),
                                                   ),
                                                 ),
+                                              // Timestamp/Status overlay at bottom right
+                                              Positioned(
+                                                bottom: 8,
+                                                right: 8,
+                                                child: Container(
+                                                  padding: EdgeInsets.symmetric(
+                                                    horizontal: 6,
+                                                    vertical: 3,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.black.withOpacity(0.6),
+                                                    borderRadius: BorderRadius.circular(12),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      // Star icon (first)
+                                                      if (isOwn && message.starred.isStarred) ...[
+                                                        Icon(
+                                                          Icons.star,
+                                                          size: 10,
+                                                          color: Colors.white.withOpacity(0.9),
+                                                        ),
+                                                        SizedBox(width: 3),
+                                                      ],
+                                                      // Pin icon (second)
+                                                      if (isOwn && _isCurrentlyPinned(message)) ...[
+                                                        Icon(
+                                                          Icons.push_pin,
+                                                          size: 10,
+                                                          color: Colors.white.withOpacity(0.9),
+                                                        ),
+                                                        SizedBox(width: 3),
+                                                      ],
+                                                      // Time (third)
+                                                      Text(
+                                                        _formatMessageTime(message.createdAt),
+                                                        style: TextStyle(
+                                                          fontSize: 10,
+                                                          color: Colors.white.withOpacity(0.9),
+                                                          fontWeight: FontWeight.w500,
+                                                        ),
+                                                      ),
+                                                      // Status ticks (fourth) - only for own messages
+                                                      if (isOwn) ...[
+                                                        SizedBox(width: 3),
+                                                        _buildMessageStatusIcon(message, Colors.white.withOpacity(0.9)),
+                                                      ],
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
                                             ],
                                           ),
+                                          // Show captions below images in chat bubble
+                                          ..._buildImageCaptions(message.pictures, message),
                                         ],
                                         if (message.documents.isNotEmpty)
                                           _buildDocumentList(message.documents),
@@ -1623,63 +1687,58 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                                           _buildLinkPreviews(message.linkMeta),
                                       ],
                                     ),
-                                    // Time and status (time + tick for own, just time for others)
-                                    SizedBox(height: 4),
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      mainAxisAlignment: isOwn
-                                          ? MainAxisAlignment.end
-                                          : MainAxisAlignment.start,
-                                      children: [
-                                        // Star icon (first)
-                                        if (isOwn && message.starred.isStarred) ...[
-                                          Icon(Icons.star, size: 10, 
-                                            color: isOwn
-                                                ? (Theme.of(context).brightness == Brightness.dark
-                                                    ? Colors.white.withOpacity(0.7)
-                                                    : Colors.black.withOpacity(0.65))
-                                                : (Theme.of(context).brightness == Brightness.dark
-                                                    ? Colors.white.withOpacity(0.7)
-                                                    : Colors.black.withOpacity(0.6))),
-                                          SizedBox(width: 4),
-                                        ],
-                                        // Pin icon (second)
-                                        if (isOwn && _isCurrentlyPinned(message)) ...[
-                                          Icon(Icons.push_pin, size: 10,
-                                            color: isOwn
-                                                ? (Theme.of(context).brightness == Brightness.dark
-                                                    ? Colors.white.withOpacity(0.7)
-                                                    : Colors.black.withOpacity(0.65))
-                                                : (Theme.of(context).brightness == Brightness.dark
-                                                    ? Colors.white.withOpacity(0.7)
-                                                    : Colors.black.withOpacity(0.6))),
-                                          SizedBox(width: 4),
-                                        ],
-                                        // Time (third)
-                                        Text(
-                                          _formatMessageTime(message.createdAt),
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            color: isOwn
-                                                ? (Theme.of(context).brightness == Brightness.dark
-                                                    ? Colors.white.withOpacity(0.7)
-                                                    : Colors.black.withOpacity(0.65))
-                                                : (Theme.of(
-                                                            context,
-                                                          ).brightness ==
-                                                          Brightness.dark
-                                                      ? Colors.white
-                                                            .withOpacity(0.7)
-                                                      : Colors.black
-                                                            .withOpacity(0.6)),
-                                          ),
+                                  ),
+                                  // Timestamp/Status overlay at bottom right for all messages
+                                  Positioned(
+                                      bottom: 4,
+                                      right: 8,
+                                      child: Container(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 3,
                                         ),
-                                        // Status ticks (fourth) - only for own messages
-                                        if (isOwn) ...[
-                                          SizedBox(width: 4),
-                                          _buildMessageStatusIcon(message),
-                                        ],
-                                      ],
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withOpacity(0.6),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            // Star icon (first)
+                                            if (isOwn && message.starred.isStarred) ...[
+                                              Icon(
+                                                Icons.star,
+                                                size: 10,
+                                                color: Colors.white.withOpacity(0.9),
+                                              ),
+                                              SizedBox(width: 3),
+                                            ],
+                                            // Pin icon (second)
+                                            if (isOwn && _isCurrentlyPinned(message)) ...[
+                                              Icon(
+                                                Icons.push_pin,
+                                                size: 10,
+                                                color: Colors.white.withOpacity(0.9),
+                                              ),
+                                              SizedBox(width: 3),
+                                            ],
+                                            // Time (third)
+                                            Text(
+                                              _formatMessageTime(message.createdAt),
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: Colors.white.withOpacity(0.9),
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                            // Status ticks (fourth) - only for own messages
+                                            if (isOwn) ...[
+                                              SizedBox(width: 3),
+                                              _buildMessageStatusIcon(message, Colors.white.withOpacity(0.9)),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -1706,19 +1765,21 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     );
   }
 
-  Widget _buildMessageStatusIcon(ClubMessage message) {
+  Widget _buildMessageStatusIcon(ClubMessage message, [Color? overrideColor]) {
     final status = message.status;
     final List<Widget> icons = [];
-    final isOwn = message.senderId == Provider.of<UserProvider>(context, listen: false).user?.id;
-    
-    // Use exactly the same color logic as time text
-    final iconColor = isOwn
+    final isOwn =
+        message.senderId ==
+        Provider.of<UserProvider>(context, listen: false).user?.id;
+
+    // Use override color if provided, otherwise use default color logic
+    final iconColor = overrideColor ?? (isOwn
         ? (Theme.of(context).brightness == Brightness.dark
-            ? Colors.white.withOpacity(0.7)
-            : Colors.black.withOpacity(0.65))
+              ? Colors.white.withOpacity(0.7)
+              : Colors.black.withOpacity(0.65))
         : (Theme.of(context).brightness == Brightness.dark
-            ? Colors.white.withOpacity(0.7)
-            : Colors.black.withOpacity(0.6));
+              ? Colors.white.withOpacity(0.7)
+              : Colors.black.withOpacity(0.6)));
 
     // Only add status ticks (pin and star are now handled in main row)
     switch (status) {
@@ -1738,9 +1799,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         icons.add(Icon(Icons.error_outline, size: 14, color: Colors.red));
         break;
       case MessageStatus.sent:
-        icons.add(
-          Icon(Icons.check, size: 14, color: iconColor),
-        );
+        icons.add(Icon(Icons.check, size: 14, color: iconColor));
         break;
       case MessageStatus.delivered:
         icons.addAll([
@@ -2754,20 +2813,20 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     // Generate temporary message ID
     final tempMessageId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
 
-    // Get the caption (message body) - use first non-empty caption or empty string
+    // Get the general message text (if any caption is meant to be a general message)
+    // For now, we'll keep message body empty since captions are per-image
     String messageBody = '';
-    for (String caption in captions.values) {
-      if (caption.isNotEmpty) {
-        messageBody = caption;
-        break;
-      }
-    }
 
     // Create optimistic message with image previews
-    final List<MessageImage> tempImages = files.map((file) {
+    final List<MessageImage> tempImages = files.asMap().entries.map((entry) {
+      final index = entry.key;
+      final file = entry.value;
+      final fileName = file.name ?? index.toString();
+      final caption = captions[fileName] ?? captions[index.toString()] ?? '';
+
       return MessageImage(
         url: file.path ?? '', // Use local path for preview
-        caption: null, // Caption becomes the message body
+        caption: caption.trim().isEmpty ? null : caption.trim(),
       );
     }).toList();
 
@@ -2805,15 +2864,20 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     });
 
     try {
-      // Upload images one by one
+      // Upload images one by one with captions
       List<MessageImage> uploadedImages = [];
-      for (PlatformFile file in files) {
+      for (int index = 0; index < files.length; index++) {
+        final file = files[index];
         final uploadedUrl = await _uploadFile(file);
         if (uploadedUrl != null) {
+          final fileName = file.name ?? index.toString();
+          final caption =
+              captions[fileName] ?? captions[index.toString()] ?? '';
+
           uploadedImages.add(
             MessageImage(
               url: uploadedUrl,
-              caption: null, // Caption is now the message body
+              caption: caption.trim().isEmpty ? null : caption.trim(),
             ),
           );
         }
@@ -2865,13 +2929,47 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     if (user == null) return;
 
     try {
-      final Map<String, dynamic> contentMap = {
-        'type': 'text',
-        'body': messageBody.trim().isEmpty ? ' ' : messageBody,
-        'pictures': uploadedImages.map((img) => img.toJson()).toList(),
-      };
+      // Determine message type and format based on server schema
+      Map<String, dynamic> contentMap;
 
-      final requestData = {'senderId': user.id, 'content': contentMap};
+      if (messageBody.trim().isEmpty || messageBody.trim() == ' ') {
+        // Pure image message - use 'image' type with pictures array
+        // Check if there's a single image with caption for backward compatibility
+        if (uploadedImages.length == 1 && uploadedImages[0].caption != null) {
+          contentMap = {
+            'type': 'image',
+            'url': uploadedImages[0].url,
+            'caption': uploadedImages[0].caption,
+            'body': '', // For backward compatibility
+          };
+        } else {
+          contentMap = {
+            'type': 'image',
+            'pictures': uploadedImages.map((img) => img.toJson()).toList(),
+          };
+        }
+      } else {
+        // Text with images - use 'text_with_images' type
+        contentMap = {
+          'type': 'text_with_images',
+          'body': messageBody.trim(),
+          'images': uploadedImages.map((img) => img.url).toList(),
+        };
+      }
+
+      // Use correct API schema format (no senderId in body)
+      final Map<String, dynamic> requestData = {'content': contentMap};
+
+      // Add reply info if replying to a message
+      if (_replyingTo != null) {
+        requestData['replyToId'] = _replyingTo!.messageId;
+      }
+
+      print('🔵 Sending image message with content: $contentMap');
+      print('🔵 Full request data: $requestData');
+      print(
+        '🔵 Pictures URLs: ${uploadedImages.map((img) => img.url).toList()}',
+      );
 
       final response = await ApiService.post(
         '/conversations/${widget.club.id}/messages',
@@ -2881,20 +2979,29 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       print('✅ Message with images sent successfully');
       print('📡 Server response: $response');
 
-      // Remove temporary message and reload all messages to get the server version
-      setState(() {
-        _messages.removeWhere((m) => m.id == tempMessageId);
-      });
-
       // Add new message to local storage
       final newMessage = ClubMessage.fromJson(response);
-      await MessageStorageService.addMessage(widget.club.id, newMessage);
 
-      // Update UI
+      // WORKAROUND: If server didn't return pictures, preserve the uploaded images
+      ClubMessage finalMessage = newMessage;
+      if (newMessage.pictures.isEmpty && uploadedImages.isNotEmpty) {
+        print(
+          '⚠️ Server response missing pictures, preserving uploaded images',
+        );
+        finalMessage = newMessage.copyWith(
+          pictures: uploadedImages,
+          messageType: uploadedImages.length == 1
+              ? 'image'
+              : 'text_with_images',
+        );
+      }
+
+      await MessageStorageService.addMessage(widget.club.id, finalMessage);
+
+      // Update UI - remove temp message and add real message
       setState(() {
-        // Remove temp message and add real message
         _messages.removeWhere((m) => m.id == tempMessageId);
-        _messages.add(newMessage);
+        _messages.add(finalMessage);
         _messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
       });
     } catch (e) {
@@ -2915,14 +3022,18 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     List<MessageDocument> uploadedDocs,
   ) async {
     try {
+      final userProvider = context.read<UserProvider>();
+      final user = userProvider.user;
+      if (user == null) return;
+
       final response = await ApiService.post(
-        '/clubs/${widget.club.id}/messages',
+        '/conversations/${widget.club.id}/messages',
         {
           'content': {
             'type': 'document',
-            'body':
-                '${uploadedDocs.length} document${uploadedDocs.length > 1 ? 's' : ''} shared',
-            'documents': uploadedDocs.map((doc) => doc.toJson()).toList(),
+            'url': uploadedDocs[0].url, // First document URL
+            'name': uploadedDocs[0].filename,
+            'size': uploadedDocs[0].size?.toString(),
           },
         },
       );
@@ -3293,29 +3404,32 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     return spans;
   }
 
-  Widget _buildImageWidget(MessageImage image, {double height = 200}) {
+  Widget _buildImageWidget(MessageImage image, {double? height, bool fitToWidth = true}) {
     // Check if it's a local file path (during upload) or network URL
     final isLocalFile =
         image.url.startsWith('/') ||
         image.url.startsWith('file://') ||
         !image.url.startsWith('http');
 
+    // Use different fit modes based on usage
+    final BoxFit fitMode = fitToWidth ? BoxFit.fitWidth : BoxFit.cover;
+    
     if (isLocalFile && File(image.url).existsSync()) {
       return Image.file(
         File(image.url),
-        fit: BoxFit.cover,
+        fit: fitMode,
         height: height,
         width: double.infinity,
         errorBuilder: (context, error, stackTrace) {
           return Container(
-            height: height,
+            height: height ?? 200,
             color: Theme.of(context).brightness == Brightness.dark
                 ? Colors.grey[800]
                 : Colors.grey[300],
             child: Center(
               child: Icon(
                 Icons.broken_image,
-                size: height > 150 ? 48 : 24,
+                size: (height ?? 200) > 150 ? 48 : 24,
                 color: Theme.of(context).brightness == Brightness.dark
                     ? Colors.white.withOpacity(0.5)
                     : Colors.grey[600],
@@ -3327,19 +3441,19 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     } else {
       return Image.network(
         image.url,
-        fit: BoxFit.cover,
+        fit: fitMode,
         height: height,
         width: double.infinity,
         errorBuilder: (context, error, stackTrace) {
           return Container(
-            height: height,
+            height: height ?? 200,
             color: Theme.of(context).brightness == Brightness.dark
                 ? Colors.grey[800]
                 : Colors.grey[300],
             child: Center(
               child: Icon(
                 Icons.broken_image,
-                size: height > 150 ? 48 : 24,
+                size: (height ?? 200) > 150 ? 48 : 24,
                 color: Theme.of(context).brightness == Brightness.dark
                     ? Colors.white.withOpacity(0.5)
                     : Colors.grey[600],
@@ -3349,6 +3463,56 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         },
       );
     }
+  }
+
+  List<Widget> _buildImageCaptions(List<MessageImage> images, ClubMessage message) {
+    List<Widget> captions = [];
+    
+    // Show message content as general caption if it exists
+    if (message.content.isNotEmpty) {
+      captions.add(Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Text(
+          message.content,
+          style: TextStyle(
+            fontSize: 13,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white.withOpacity(0.8)
+                : Colors.grey[800],
+          ),
+        ),
+      ));
+    }
+    
+    // Show individual image captions if they exist
+    final captionsWithImages = images
+        .where((img) => img.caption != null && img.caption!.isNotEmpty)
+        .toList();
+    
+    if (captionsWithImages.isNotEmpty) {
+      captions.addAll(captionsWithImages.map((image) => Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        child: Text(
+          image.caption!,
+          style: TextStyle(
+            fontSize: 13,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white.withOpacity(0.7)
+                : Colors.grey[700],
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      )).toList());
+    }
+    
+    if (captions.isEmpty) return [];
+    
+    return [
+      SizedBox(height: 6),
+      ...captions,
+    ];
   }
 
   Widget _buildImageGallery(List<MessageImage> images) {
@@ -3368,40 +3532,45 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
               .asMap()
               .entries
               .map(
-                (entry) => Padding(
-                  padding: EdgeInsets.only(bottom: 8),
-                  child: GestureDetector(
-                    onTap: () => _openImageGallery(images, entry.key),
-                    child: Hero(
-                      tag: 'image_${entry.value.url}',
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: _buildImageWidget(entry.value),
+                (entry) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.only(bottom: 4),
+                      child: GestureDetector(
+                        onTap: () => _openImageGallery(images, entry.key),
+                        child: Hero(
+                          tag: 'image_${entry.value.url}',
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: _buildImageWidget(entry.value, fitToWidth: true),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                    // Show caption directly below this specific image
+                    if (entry.value.caption != null && entry.value.caption!.isNotEmpty) ...[
+                      SizedBox(height: 4),
+                      Padding(
+                        padding: EdgeInsets.only(left: 8, right: 8, bottom: 8),
+                        child: Text(
+                          entry.value.caption!,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white.withOpacity(0.7)
+                                : Colors.grey[700],
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                    ] else ...[
+                      SizedBox(height: 8), // Spacing when no caption
+                    ],
+                  ],
                 ),
               )
               .toList(),
-          // Show all captions below images
-          if (allCaptions.isNotEmpty) ...[
-            SizedBox(height: 4),
-            ...allCaptions.map(
-              (caption) => Padding(
-                padding: EdgeInsets.only(bottom: 4),
-                child: Text(
-                  caption,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.white.withOpacity(0.6)
-                        : Colors.grey[600],
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ),
-            ),
-          ],
         ],
       );
     }
@@ -3425,7 +3594,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                           tag: 'image_${images[i].url}',
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: _buildImageWidget(images[i], height: 120),
+                            child: _buildImageWidget(images[i], height: 120, fitToWidth: false),
                           ),
                         ),
                         // Show +n more on 4th image if there are more
@@ -4840,7 +5009,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   // Helper method to check if current user can pin messages
   bool _canPinMessages() {
     if (_detailedClubInfo == null) return false;
-    
+
     final userProvider = context.read<UserProvider>();
     final user = userProvider.user;
     if (user == null) return false;
@@ -4849,14 +5018,14 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     // We need to get the user's role in this club from their messages
     // For now, we can check if they're OWNER or ADMIN based on pinMessagePermissions
     final allowedRoles = _detailedClubInfo!.pinMessagePermissions;
-    
+
     // Get user's role from their own messages in the conversation
     final userMessages = _messages.where((m) => m.senderId == user.id).toList();
     if (userMessages.isNotEmpty) {
       final userRole = userMessages.first.senderRole ?? 'MEMBER';
       return allowedRoles.contains(userRole);
     }
-    
+
     // Default to MEMBER role if no messages found
     return allowedRoles.contains('MEMBER');
   }
@@ -5185,7 +5354,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       curve: Curves.easeInOut,
     );
   }
-
 
   void _showPinnedMessageOptions(ClubMessage message) {
     showModalBottomSheet(
