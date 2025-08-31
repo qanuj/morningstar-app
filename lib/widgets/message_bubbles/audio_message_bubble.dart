@@ -12,6 +12,7 @@ class AudioMessageBubble extends StatefulWidget {
   final bool isOwn;
   final bool isPinned;
   final bool isSelected;
+  final bool showSenderInfo;
   final VoidCallback? onRetryUpload;
 
   const AudioMessageBubble({
@@ -20,6 +21,7 @@ class AudioMessageBubble extends StatefulWidget {
     required this.isOwn,
     required this.isPinned,
     this.isSelected = false,
+    this.showSenderInfo = false,
     this.onRetryUpload,
   }) : super(key: key);
 

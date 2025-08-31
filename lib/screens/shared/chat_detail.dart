@@ -7,6 +7,7 @@ import '../../providers/conversation_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../models/conversation.dart';
 import '../../models/message_status.dart';
+import '../../models/reaction_data.dart';
 import '../../utils/theme.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/image_picker_widget.dart';
@@ -205,7 +206,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                         children: [
                           _buildMessageContent(message, isOwn),
                           if (message.reactions != null && message.reactions!.isNotEmpty) ...[
-                            SizedBox(height: 8),
+                            SizedBox(height: 4),
                             _buildMessageReactions(message.reactions!, isOwn),
                           ],
                         ],
@@ -1615,56 +1616,45 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
   }
 
-  Widget _buildMessageReactions(List<MessageReaction> reactions, bool isOwn) {
-    final groupedReactions = <String, List<MessageReaction>>{};
-    for (final reaction in reactions) {
-      if (!groupedReactions.containsKey(reaction.emoji)) {
-        groupedReactions[reaction.emoji] = [];
-      }
-      groupedReactions[reaction.emoji]!.add(reaction);
-    }
-    
+  Widget _buildMessageReactions(List<ReactionData> reactions, bool isOwn) {
     return Wrap(
       spacing: 4,
       runSpacing: 4,
-      children: groupedReactions.entries.map((entry) {
-        final emoji = entry.key;
-        final reactionList = entry.value;
-        final count = reactionList.length;
-        
-        return Container(
-          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: isOwn 
-                ? Colors.white.withOpacity(0.2)
-                : Theme.of(context).primaryColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
+      children: reactions.map((reaction) {
+        return GestureDetector(
+          onTap: () => _showReactionDetails(reaction.emoji, reaction.users),
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
               color: isOwn 
-                  ? Colors.white.withOpacity(0.3)
-                  : Theme.of(context).primaryColor.withOpacity(0.3),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                emoji,
-                style: TextStyle(fontSize: 12),
+                  ? Colors.black.withOpacity(0.4)
+                  : Colors.black.withOpacity(0.6),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.2),
+                width: 0.5,
               ),
-              if (count > 1) ...[
-                SizedBox(width: 2),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 Text(
-                  count.toString(),
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: isOwn 
-                        ? Colors.white.withOpacity(0.8)
-                        : Theme.of(context).textTheme.bodySmall?.color,
-                  ),
+                  reaction.emoji,
+                  style: TextStyle(fontSize: 12),
                 ),
+                if (reaction.count > 1) ...[
+                  SizedBox(width: 2),
+                  Text(
+                    reaction.count.toString(),
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.white.withOpacity(0.9),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         );
       }).toList(),
@@ -1813,10 +1803,30 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Container(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: actions,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: Container(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle bar for drag indicator
+              Container(
+                width: 40,
+                height: 4,
+                margin: EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              ...actions,
+              // Extra bottom padding for Android navigation bar
+              SizedBox(height: MediaQuery.of(context).padding.bottom),
+            ],
+          ),
         ),
       ),
     );
@@ -1938,45 +1948,59 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Container(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'React to Message',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
+      builder: (context) => SafeArea(
+        child: Container(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle bar for drag indicator
+              Container(
+                width: 40,
+                height: 4,
+                margin: EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
-            SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: quickReactions.map((emoji) {
-                return GestureDetector(
-                  onTap: () {
-                    Navigator.pop(context);
-                    _addReaction(message, emoji);
-                  },
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).primaryColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: Center(
-                      child: Text(
-                        emoji,
-                        style: TextStyle(fontSize: 24),
+              Text(
+                'React to Message',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: quickReactions.map((emoji) {
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      _addReaction(message, emoji);
+                    },
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: Center(
+                        child: Text(
+                          emoji,
+                          style: TextStyle(fontSize: 24),
+                        ),
                       ),
                     ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ],
+                  );
+                }).toList(),
+              ),
+              // Extra bottom padding for Android navigation bar
+              SizedBox(height: MediaQuery.of(context).padding.bottom),
+            ],
+          ),
         ),
       ),
     );
@@ -1987,6 +2011,171 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Reacted with $emoji'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+  }
+
+  void _showReactionDetails(String emoji, List<ReactionUser> users) {
+    final userProvider = context.read<UserProvider>();
+    final currentUserId = userProvider.user?.id;
+    
+    // Sort users to show current user first
+    final sortedUsers = [...users];
+    sortedUsers.sort((a, b) {
+      if (a.userId == currentUserId) return -1;
+      if (b.userId == currentUserId) return 1;
+      return 0;
+    });
+    
+    showModalBottomSheet(
+      context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: Container(
+          padding: EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.6,
+          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with emoji and count
+            Row(
+              children: [
+                Text(
+                  emoji,
+                  style: TextStyle(fontSize: 32),
+                ),
+                SizedBox(width: 12),
+                Text(
+                  '${users.length} ${users.length == 1 ? 'reaction' : 'reactions'}',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).textTheme.titleLarge?.color,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 16),
+            Divider(height: 1),
+            SizedBox(height: 16),
+            
+            // List of users who reacted
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: sortedUsers.length,
+                itemBuilder: (context, index) {
+                  final user = sortedUsers[index];
+                  final isCurrentUser = user.userId == currentUserId;
+                  return _buildReactionUserItem(user, emoji, isCurrentUser);
+                },
+              ),
+            ),
+          ],
+        ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReactionUserItem(ReactionUser user, String emoji, bool isCurrentUser) {
+    return GestureDetector(
+      onTap: isCurrentUser ? () => _removeReaction(user, emoji) : null,
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        decoration: BoxDecoration(
+          color: isCurrentUser ? Theme.of(context).primaryColor.withOpacity(0.1) : null,
+          borderRadius: isCurrentUser ? BorderRadius.circular(8) : null,
+        ),
+        child: Row(
+          children: [
+            // User avatar
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isCurrentUser 
+                    ? Theme.of(context).primaryColor.withOpacity(0.2)
+                    : Theme.of(context).primaryColor.withOpacity(0.1),
+                border: isCurrentUser 
+                    ? Border.all(color: Theme.of(context).primaryColor, width: 2)
+                    : null,
+              ),
+              child: user.profilePicture != null && user.profilePicture!.isNotEmpty
+                  ? ClipOval(
+                      child: Image.network(
+                        user.profilePicture!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => _buildReactionUserDefaultAvatar(),
+                      ),
+                    )
+                  : _buildReactionUserDefaultAvatar(),
+            ),
+            SizedBox(width: 12),
+            
+            // User name with indicator for current user
+            Expanded(
+              child: Row(
+                children: [
+                  Text(
+                    isCurrentUser ? 'You' : user.name,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: isCurrentUser ? FontWeight.w600 : FontWeight.w500,
+                      color: isCurrentUser 
+                          ? Theme.of(context).primaryColor
+                          : Theme.of(context).textTheme.bodyLarge?.color,
+                    ),
+                  ),
+                  if (isCurrentUser) ...[
+                    SizedBox(width: 8),
+                    Text(
+                      '(Tap to remove)',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).textTheme.bodySmall?.color,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            
+            // Emoji
+            Text(
+              emoji,
+              style: TextStyle(fontSize: 20),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReactionUserDefaultAvatar() {
+    return Icon(
+      Icons.person,
+      size: 24,
+      color: Theme.of(context).primaryColor,
+    );
+  }
+
+  void _removeReaction(ReactionUser user, String emoji) {
+    Navigator.pop(context); // Close the reaction details modal
+    
+    // TODO: Implement actual reaction removal
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Removed your $emoji reaction'),
         duration: Duration(seconds: 1),
       ),
     );

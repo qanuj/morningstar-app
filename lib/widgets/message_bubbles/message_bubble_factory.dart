@@ -4,6 +4,7 @@ import 'text_message_bubble.dart';
 import 'audio_message_bubble.dart';
 import 'link_message_bubble.dart';
 import 'gif_message_bubble.dart';
+import 'emoji_message_bubble.dart';
 import 'base_message_bubble.dart';
 
 /// Factory widget that creates the appropriate message bubble based on content type
@@ -11,22 +12,26 @@ class MessageBubbleFactory extends StatelessWidget {
   final ClubMessage message;
   final bool isOwn;
   final bool isPinned;
+  final bool isDeleted;
   final bool isSelected;
+  final bool showSenderInfo;
   final VoidCallback? onRetryUpload;
 
   const MessageBubbleFactory({
-    Key? key,
+    super.key,
     required this.message,
     required this.isOwn,
     required this.isPinned,
+    required this.isDeleted,
     this.isSelected = false,
+    this.showSenderInfo = false,
     this.onRetryUpload,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     // Handle deleted messages first
-    if (message.deleted) {
+    if (isDeleted) {
       return _buildDeletedMessage(context);
     }
 
@@ -56,6 +61,15 @@ class MessageBubbleFactory extends StatelessWidget {
         isPinned: isPinned,
         isSelected: isSelected,
       );
+    } else if (message.messageType == 'emoji') {
+      // EMOJI MESSAGE: Large emoji without background
+      return EmojiMessageBubble(
+        message: message,
+        isOwn: isOwn,
+        isPinned: isPinned,
+        isSelected: isSelected,
+        showSenderInfo: showSenderInfo,
+      );
     } else {
       // TEXT MESSAGE: Images/videos first, then body below
       return TextMessageBubble(
@@ -63,6 +77,7 @@ class MessageBubbleFactory extends StatelessWidget {
         isOwn: isOwn,
         isPinned: isPinned,
         isSelected: isSelected,
+        showSenderInfo: showSenderInfo,
       );
     }
   }
@@ -73,6 +88,8 @@ class MessageBubbleFactory extends StatelessWidget {
       isOwn: isOwn,
       isPinned: isPinned,
       isSelected: isSelected,
+      customColor: Colors.grey[300],
+      showMetaOverlay: false,
       content: Container(
         padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
         child: Row(
@@ -81,9 +98,7 @@ class MessageBubbleFactory extends StatelessWidget {
             Icon(
               Icons.do_not_disturb_on_outlined,
               size: 16,
-              color: isOwn
-                  ? Colors.white.withOpacity(0.7)
-                  : Colors.grey[600],
+              color: Colors.black87,
             ),
             SizedBox(width: 8),
             Text(
@@ -91,9 +106,7 @@ class MessageBubbleFactory extends StatelessWidget {
               style: TextStyle(
                 fontSize: 14,
                 fontStyle: FontStyle.italic,
-                color: isOwn
-                    ? Colors.white.withOpacity(0.7)
-                    : Colors.grey[600],
+                color: Colors.black87,
               ),
             ),
           ],

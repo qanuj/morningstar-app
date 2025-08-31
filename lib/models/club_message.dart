@@ -5,7 +5,6 @@ import 'message_audio.dart';
 import 'link_metadata.dart';
 import 'message_reaction.dart';
 import 'message_reply.dart';
-import 'pinned_by_user.dart';
 import 'starred_info.dart';
 
 class PinInfo {
@@ -147,14 +146,16 @@ class ClubMessage {
       messageType = 'text';
     } else if (content is Map<String, dynamic>) {
       // Check if message is deleted
-      if (content['deleted'] == true) {
+      if (json['isDeleted'] == true) {
         isDeleted = true;
         deletedByName = content['deletedBy'] ?? content['deletedByName'];
         messageContent = '';
         messageType = 'deleted';
       } else {
         messageType = content['type'] ?? 'text';
-        messageContent = (content['body'] ?? content['text'] ?? '').toString().trim();
+        messageContent = (content['body'] ?? content['text'] ?? '')
+            .toString()
+            .trim();
       }
 
       // Handle different message types (only if not deleted)
@@ -282,7 +283,6 @@ class ClubMessage {
     DateTime? pinStart;
     DateTime? pinEnd;
     String? pinnedBy;
-    PinnedByUser? pinnedByUser;
 
     if (json['pin'] is Map<String, dynamic>) {
       final pinData = json['pin'] as Map<String, dynamic>;
@@ -296,12 +296,6 @@ class ClubMessage {
       }
 
       pinnedBy = pinData['pinnedBy'];
-
-      if (pinData['pinnedByUser'] is Map<String, dynamic>) {
-        pinnedByUser = PinnedByUser.fromJson(
-          pinData['pinnedByUser'] as Map<String, dynamic>,
-        );
-      }
     } else {
       // Fallback to old format
       isPinned = _calculatePinnedStatus(json['pinStart'], json['pinEnd']);

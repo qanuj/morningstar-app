@@ -12,6 +12,7 @@ class TextMessageBubble extends StatelessWidget {
   final bool isOwn;
   final bool isPinned;
   final bool isSelected;
+  final bool showSenderInfo;
 
   const TextMessageBubble({
     Key? key,
@@ -19,6 +20,7 @@ class TextMessageBubble extends StatelessWidget {
     required this.isOwn,
     required this.isPinned,
     this.isSelected = false,
+    this.showSenderInfo = false,
   }) : super(key: key);
 
   @override
@@ -36,6 +38,12 @@ class TextMessageBubble extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Sender name and role for received messages
+        if (!isOwn && showSenderInfo) ...[
+          _buildSenderInfo(context),
+          SizedBox(height: 4),
+        ],
+
         // Images first (if any)
         if (message.pictures.isNotEmpty) ...[
           _buildImageGallery(context),
@@ -222,7 +230,7 @@ class TextMessageBubble extends StatelessWidget {
 
   Widget _buildMultipleImages(BuildContext context, List<MessageImage> images) {
     return Container(
-      height: 200,
+      height: 280,
       child: GridView.builder(
         shrinkWrap: true,
         physics: NeverScrollableScrollPhysics(),
@@ -240,7 +248,7 @@ class TextMessageBubble extends StatelessWidget {
               child: Stack(
                 children: [
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(4),
                     child: Image.network(
                       images[index].url,
                       fit: BoxFit.cover,
@@ -251,7 +259,7 @@ class TextMessageBubble extends StatelessWidget {
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.black.withOpacity(0.6),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(4),
                     ),
                     child: Center(
                       child: Text(
@@ -353,6 +361,42 @@ class TextMessageBubble extends StatelessWidget {
             ),
           )
           .toList(),
+    );
+  }
+
+  Widget _buildSenderInfo(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(left: 8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            message.senderName,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Color(0xFF06aeef)
+                  : Color(0xFF003f9b),
+            ),
+          ),
+          // Role icon for Admin and Owner only
+          if (message.senderRole != null &&
+              (message.senderRole!.toUpperCase() == 'ADMIN' ||
+                  message.senderRole!.toUpperCase() == 'OWNER')) ...[
+            SizedBox(width: 4),
+            Icon(
+              message.senderRole!.toUpperCase() == 'OWNER'
+                  ? Icons.star
+                  : Icons.shield,
+              size: 12,
+              color: message.senderRole!.toUpperCase() == 'OWNER'
+                  ? Colors.orange
+                  : Colors.purple,
+            ),
+          ],
+        ],
+      ),
     );
   }
 

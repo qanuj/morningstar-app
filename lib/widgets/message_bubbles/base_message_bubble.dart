@@ -11,6 +11,7 @@ class BaseMessageBubble extends StatelessWidget {
   final bool isSelected;
   final bool isTransparent;
   final Color? customColor;
+  final bool showMetaOverlay;
 
   const BaseMessageBubble({
     super.key,
@@ -21,33 +22,49 @@ class BaseMessageBubble extends StatelessWidget {
     this.isSelected = false,
     this.isTransparent = false,
     this.customColor,
+    this.showMetaOverlay = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: isTransparent 
-          ? null 
-          : BoxDecoration(
-              color: _getBubbleColor(context),
-              borderRadius: BorderRadius.circular(12),
-              border: message.status == MessageStatus.failed
-                  ? Border.all(color: Colors.red, width: 1)
-                  : null,
-            ),
-      child: Stack(
-        children: [
-          // Message content
-          Padding(
-            padding: EdgeInsets.only(bottom: 20), // Space for meta overlay
-            child: content,
-          ),
+    return Column(
+      crossAxisAlignment: isOwn ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        // Message bubble
+        Container(
+          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: isTransparent 
+              ? null 
+              : BoxDecoration(
+                  color: _getBubbleColor(context),
+                  borderRadius: BorderRadius.circular(12),
+                  border: message.status == MessageStatus.failed
+                      ? Border.all(color: Colors.red, width: 1)
+                      : null,
+                ),
+          child: Stack(
+            children: [
+              // Message content
+              Padding(
+                padding: showMetaOverlay 
+                    ? EdgeInsets.only(bottom: 20) // Space for meta overlay
+                    : EdgeInsets.zero, // No extra space if no overlay
+                child: content,
+              ),
 
-          // Meta overlay (pin, star, time, tick) at bottom right
-          Positioned(bottom: 4, right: 4, child: _buildMetaOverlay(context)),
+              // Meta overlay (pin, star, time, tick) at bottom right
+              if (showMetaOverlay)
+                Positioned(bottom: 4, right: 4, child: _buildMetaOverlay(context)),
+            ],
+          ),
+        ),
+        
+        // Reactions display (below the bubble)
+        if (message.reactions.isNotEmpty) ...[
+          SizedBox(height: 4),
+          _buildReactionsDisplay(context),
         ],
-      ),
+      ],
     );
   }
 
@@ -148,6 +165,73 @@ class BaseMessageBubble extends StatelessWidget {
     }
 
     return Icon(icon, size: 10, color: iconColor);
+  }
+
+  Widget _buildReactionsDisplay(BuildContext context) {
+    if (message.reactions.isEmpty) return SizedBox.shrink();
+
+    // Group reactions by emoji
+    Map<String, List<String>> groupedReactions = {};
+    for (var reaction in message.reactions) {
+      if (groupedReactions.containsKey(reaction.emoji)) {
+        groupedReactions[reaction.emoji]!.add(reaction.userName);
+      } else {
+        groupedReactions[reaction.emoji] = [reaction.userName];
+      }
+    }
+
+    return Wrap(
+      spacing: 4,
+      runSpacing: 4,
+      children: groupedReactions.entries.map((entry) {
+        final emoji = entry.key;
+        final users = entry.value;
+        final count = users.length;
+        
+        return GestureDetector(
+          onTap: () {
+            // TODO: Add reaction tap functionality (show users who reacted)
+          },
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.grey[700]
+                  : Colors.grey[200],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey[600]!
+                    : Colors.grey[300]!,
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  emoji,
+                  style: TextStyle(fontSize: 14),
+                ),
+                if (count > 1) ...[
+                  SizedBox(width: 4),
+                  Text(
+                    count.toString(),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white.withOpacity(0.8)
+                          : Colors.black.withOpacity(0.7),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
   }
 
   String _formatMessageTime(DateTime dateTime) {

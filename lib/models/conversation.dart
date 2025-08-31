@@ -1,4 +1,5 @@
 import 'message_status.dart';
+import 'reaction_data.dart';
 
 class ConversationModel {
   final String id;
@@ -108,7 +109,7 @@ class MessageModel {
   final DateTime createdAt;
   final DateTime updatedAt;
   final MessageModel? replyTo;
-  final List<MessageReaction>? reactions;
+  final List<ReactionData>? reactions;
 
   MessageModel({
     required this.id,
@@ -150,7 +151,7 @@ class MessageModel {
           : null,
       reactions: json['reactions'] != null
           ? (json['reactions'] as List)
-              .map((r) => MessageReaction.fromJson(r))
+              .map((r) => ReactionData.fromJson(r))
               .toList()
           : null,
     );
@@ -253,7 +254,7 @@ class MessageModel {
     DateTime? createdAt,
     DateTime? updatedAt,
     MessageModel? replyTo,
-    List<MessageReaction>? reactions,
+    List<ReactionData>? reactions,
   }) {
     return MessageModel(
       id: id ?? this.id,
