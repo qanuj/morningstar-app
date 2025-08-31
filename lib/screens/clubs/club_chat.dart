@@ -1720,21 +1720,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
             ? Colors.white.withOpacity(0.7)
             : Colors.black.withOpacity(0.6));
 
-    // Add pin icon if message is pinned
-    if (_isCurrentlyPinned(message)) {
-      icons.add(
-        Icon(Icons.push_pin, size: 10, color: iconColor),
-      );
-    }
-
-    // Add star icon if message is starred
-    if (message.starred.isStarred) {
-      icons.add(
-        Icon(Icons.star, size: 10, color: iconColor),
-      );
-    }
-
-    // Add status icon
+    // Only add status ticks (pin and star are now handled in main row)
     switch (status) {
       case MessageStatus.sending:
         icons.add(
