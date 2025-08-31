@@ -30,6 +30,18 @@ import '../../widgets/audio_player_widget.dart';
 import '../../widgets/image_caption_dialog.dart';
 import '../../widgets/image_gallery_screen.dart';
 import '../shared/audio_recording_screen.dart';
+// Widget imports
+import 'widgets/message_bubble_widget.dart';
+import 'widgets/message_status_widget.dart';
+import 'widgets/message_content_widget.dart';
+import 'widgets/message_image_gallery_widget.dart';
+import 'widgets/message_document_list_widget.dart';
+import 'widgets/message_link_preview_widget.dart';
+import 'widgets/message_reactions_widget.dart';
+import 'widgets/message_input_widget.dart';
+import 'widgets/chat_app_bar.dart';
+import 'widgets/chat_state_widgets.dart';
+import 'widgets/pinned_messages_widget.dart';
 
 class ClubChatScreen extends StatefulWidget {
   final Club club;
@@ -1181,11 +1193,11 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                     },
                     behavior: HitTestBehavior.opaque,
                     child: _isLoading
-                        ? _buildLoadingState()
+                        ? ChatLoadingWidget()
                         : _error != null
-                        ? _buildErrorState(_error!)
+                        ? ChatErrorWidget(error: _error!, onRetry: _loadMessages)
                         : _messages.isEmpty
-                        ? _buildEmptyState()
+                        ? ChatEmptyWidget(clubName: widget.club.name)
                         : _buildMessagesList(),
                   ),
                 ),
@@ -1521,236 +1533,244 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
                                                 Text(
-                                            message.senderName,
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                              color:
-                                                  Theme.of(
-                                                        context,
-                                                      ).brightness ==
-                                                      Brightness.dark
-                                                  ? Color(0xFF06aeef)
-                                                  : Color(0xFF003f9b),
+                                                  message.senderName,
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                    color:
+                                                        Theme.of(
+                                                              context,
+                                                            ).brightness ==
+                                                            Brightness.dark
+                                                        ? Color(0xFF06aeef)
+                                                        : Color(0xFF003f9b),
+                                                  ),
+                                                ),
+                                                // Role icon for Admin and Owner only
+                                                if (message.senderRole != null &&
+                                                    (message.senderRole!
+                                                                .toUpperCase() ==
+                                                            'ADMIN' ||
+                                                        message.senderRole!
+                                                                .toUpperCase() ==
+                                                            'OWNER')) ...[
+                                                  SizedBox(width: 4),
+                                                  Icon(
+                                                    message.senderRole!
+                                                                .toUpperCase() ==
+                                                            'OWNER'
+                                                        ? Icons.star
+                                                        : Icons.shield,
+                                                    size: 12,
+                                                    color:
+                                                        message.senderRole!
+                                                                .toUpperCase() ==
+                                                            'OWNER'
+                                                        ? Colors.orange
+                                                        : Colors.purple,
+                                                  ),
+                                                ],
+                                              ],
                                             ),
-                                          ),
-                                          // Role icon for Admin and Owner only
-                                          if (message.senderRole != null &&
-                                              (message.senderRole!
-                                                          .toUpperCase() ==
-                                                      'ADMIN' ||
-                                                  message.senderRole!
-                                                          .toUpperCase() ==
-                                                      'OWNER')) ...[
-                                            SizedBox(width: 4),
-                                            Icon(
-                                              message.senderRole!
-                                                          .toUpperCase() ==
-                                                      'OWNER'
-                                                  ? Icons.star
-                                                  : Icons.shield,
-                                              size: 12,
-                                              color:
-                                                  message.senderRole!
-                                                          .toUpperCase() ==
-                                                      'OWNER'
-                                                  ? Colors.orange
-                                                  : Colors.purple,
-                                            ),
+                                            SizedBox(height: 2),
                                           ],
-                                        ],
-                                      ),
-                                      SizedBox(height: 2),
-                                    ],
 
-                                    // Message content
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        if (message.gifUrl != null)
-                                          _buildGifMessage(
-                                            message.gifUrl!,
-                                            isOwn,
-                                          )
-                                        else if (message.content.isNotEmpty && message.pictures.isEmpty)
-                                          _buildMessageContent(message, isOwn),
-                                        if (message.pictures.isNotEmpty) ...[
-                                          Stack(
+                                          // Message content
+                                          Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: [
-                                              _buildImageGallery(
-                                                message.pictures,
-                                              ),
-                                              // Show upload progress overlay if message is sending
-                                              if (message.status ==
-                                                  MessageStatus.sending)
-                                                Positioned.fill(
-                                                  child: Container(
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.black
-                                                          .withOpacity(0.5),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            12,
-                                                          ),
+                                              if (message.gifUrl != null)
+                                                _buildGifMessage(
+                                                  message.gifUrl!,
+                                                  isOwn,
+                                                )
+                                              else if (message.content.isNotEmpty && message.pictures.isEmpty)
+                                                _buildMessageContent(message, isOwn),
+                                              if (message.pictures.isNotEmpty) ...[
+                                                Stack(
+                                                  children: [
+                                                    MessageImageGalleryWidget(
+                                                      images: message.pictures,
+                                                      message: message,
                                                     ),
-                                                    child: Center(
-                                                      child: Column(
-                                                        mainAxisSize:
-                                                            MainAxisSize.min,
-                                                        children: [
-                                                          SizedBox(
-                                                            width: 24,
-                                                            height: 24,
-                                                            child:
-                                                                CircularProgressIndicator(
-                                                                  color: Colors
-                                                                      .white,
-                                                                  strokeWidth:
-                                                                      2,
-                                                                ),
-                                                          ),
-                                                          SizedBox(height: 8),
-                                                          Text(
-                                                            'Uploading...',
-                                                            style: TextStyle(
-                                                              color:
-                                                                  Colors.white,
-                                                              fontSize: 12,
+                                                    // Show upload progress overlay if message is sending
+                                                    if (message.status ==
+                                                        MessageStatus.sending)
+                                                      Positioned.fill(
+                                                        child: Container(
+                                                          decoration: BoxDecoration(
+                                                            color: Colors.black
+                                                                .withOpacity(0.5),
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                              12,
                                                             ),
                                                           ),
-                                                        ],
+                                                          child: Center(
+                                                            child: Column(
+                                                              mainAxisSize:
+                                                                  MainAxisSize.min,
+                                                              children: [
+                                                                SizedBox(
+                                                                  width: 24,
+                                                                  height: 24,
+                                                                  child:
+                                                                      CircularProgressIndicator(
+                                                                    color: Colors
+                                                                        .white,
+                                                                    strokeWidth:
+                                                                        2,
+                                                                  ),
+                                                                ),
+                                                                SizedBox(height: 8),
+                                                                Text(
+                                                                  'Uploading...',
+                                                                  style: TextStyle(
+                                                                    color:
+                                                                        Colors.white,
+                                                                    fontSize: 12,
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    // Timestamp/Status overlay at bottom right
+                                                    Positioned(
+                                                      bottom: 8,
+                                                      right: 8,
+                                                      child: Container(
+                                                        padding: EdgeInsets.symmetric(
+                                                          horizontal: 6,
+                                                          vertical: 3,
+                                                        ),
+                                                        decoration: BoxDecoration(
+                                                          color: Colors.black.withOpacity(0.6),
+                                                          borderRadius: BorderRadius.circular(12),
+                                                        ),
+                                                        child: Row(
+                                                          mainAxisSize: MainAxisSize.min,
+                                                          children: [
+                                                            // Star icon (first)
+                                                            if (isOwn && message.starred.isStarred) ...[
+                                                              Icon(
+                                                                Icons.star,
+                                                                size: 10,
+                                                                color: Colors.white.withOpacity(0.9),
+                                                              ),
+                                                              SizedBox(width: 3),
+                                                            ],
+                                                            // Pin icon (second)
+                                                            if (isOwn && _isCurrentlyPinned(message)) ...[
+                                                              Icon(
+                                                                Icons.push_pin,
+                                                                size: 10,
+                                                                color: Colors.white.withOpacity(0.9),
+                                                              ),
+                                                              SizedBox(width: 3),
+                                                            ],
+                                                            // Time (third)
+                                                            Text(
+                                                              _formatMessageTime(message.createdAt),
+                                                              style: TextStyle(
+                                                                fontSize: 10,
+                                                                color: Colors.white.withOpacity(0.9),
+                                                                fontWeight: FontWeight.w500,
+                                                              ),
+                                                            ),
+                                                            // Status ticks (fourth) - only for own messages
+                                                            if (isOwn) ...[
+                                                              SizedBox(width: 3),
+                                                              MessageStatusWidget(
+                                                                message: message,
+                                                                overrideColor: Colors.white.withOpacity(0.9),
+                                                              ),
+                                                            ],
+                                                          ],
+                                                        ),
                                                       ),
                                                     ),
-                                                  ),
+                                                  ],
                                                 ),
-                                              // Timestamp/Status overlay at bottom right
-                                              Positioned(
-                                                bottom: 8,
-                                                right: 8,
-                                                child: Container(
-                                                  padding: EdgeInsets.symmetric(
-                                                    horizontal: 6,
-                                                    vertical: 3,
-                                                  ),
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.black.withOpacity(0.6),
-                                                    borderRadius: BorderRadius.circular(12),
-                                                  ),
-                                                  child: Row(
-                                                    mainAxisSize: MainAxisSize.min,
-                                                    children: [
-                                                      // Star icon (first)
-                                                      if (isOwn && message.starred.isStarred) ...[
-                                                        Icon(
-                                                          Icons.star,
-                                                          size: 10,
-                                                          color: Colors.white.withOpacity(0.9),
-                                                        ),
-                                                        SizedBox(width: 3),
-                                                      ],
-                                                      // Pin icon (second)
-                                                      if (isOwn && _isCurrentlyPinned(message)) ...[
-                                                        Icon(
-                                                          Icons.push_pin,
-                                                          size: 10,
-                                                          color: Colors.white.withOpacity(0.9),
-                                                        ),
-                                                        SizedBox(width: 3),
-                                                      ],
-                                                      // Time (third)
-                                                      Text(
-                                                        _formatMessageTime(message.createdAt),
-                                                        style: TextStyle(
-                                                          fontSize: 10,
-                                                          color: Colors.white.withOpacity(0.9),
-                                                          fontWeight: FontWeight.w500,
-                                                        ),
-                                                      ),
-                                                      // Status ticks (fourth) - only for own messages
-                                                      if (isOwn) ...[
-                                                        SizedBox(width: 3),
-                                                        _buildMessageStatusIcon(message, Colors.white.withOpacity(0.9)),
-                                                      ],
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
+                                                // Show captions below images in chat bubble
+                                                ..._buildImageCaptions(message.pictures, message),
+                                              ],
+                                              if (message.documents.isNotEmpty)
+                                                MessageDocumentListWidget(documents: message.documents),
+                                              if (message.linkMeta.isNotEmpty)
+                                                MessageLinkPreviewWidget(linkMeta: message.linkMeta),
                                             ],
                                           ),
-                                          // Show captions below images in chat bubble
-                                          ..._buildImageCaptions(message.pictures, message),
                                         ],
-                                        if (message.documents.isNotEmpty)
-                                          _buildDocumentList(message.documents),
-                                        if (message.linkMeta.isNotEmpty)
-                                          _buildLinkPreviews(message.linkMeta),
-                                      ],
-                                    ),
-                                  ),
+                                      ),
                                       // Timestamp/Status overlay at bottom right for all messages
                                       Positioned(
                                         bottom: 4,
                                         right: 8,
-                                      child: Container(
-                                        padding: EdgeInsets.symmetric(
-                                          horizontal: 6,
-                                          vertical: 3,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.black.withOpacity(0.6),
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            // Star icon (first)
-                                            if (isOwn && message.starred.isStarred) ...[
-                                              Icon(
-                                                Icons.star,
-                                                size: 10,
-                                                color: Colors.white.withOpacity(0.9),
+                                        child: Container(
+                                          padding: EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 3,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withOpacity(0.6),
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              // Star icon (first)
+                                              if (isOwn && message.starred.isStarred) ...[
+                                                Icon(
+                                                  Icons.star,
+                                                  size: 10,
+                                                  color: Colors.white.withOpacity(0.9),
+                                                ),
+                                                SizedBox(width: 3),
+                                              ],
+                                              // Pin icon (second)
+                                              if (isOwn && _isCurrentlyPinned(message)) ...[
+                                                Icon(
+                                                  Icons.push_pin,
+                                                  size: 10,
+                                                  color: Colors.white.withOpacity(0.9),
+                                                ),
+                                                SizedBox(width: 3),
+                                              ],
+                                              // Time (third)
+                                              Text(
+                                                _formatMessageTime(message.createdAt),
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  color: Colors.white.withOpacity(0.9),
+                                                  fontWeight: FontWeight.w500,
+                                                ),
                                               ),
-                                              SizedBox(width: 3),
+                                              // Status ticks (fourth) - only for own messages
+                                              if (isOwn) ...[
+                                                SizedBox(width: 3),
+                                                MessageStatusWidget(
+                                                  message: message,
+                                                  overrideColor: Colors.white.withOpacity(0.9),
+                                                ),
+                                              ],
                                             ],
-                                            // Pin icon (second)
-                                            if (isOwn && _isCurrentlyPinned(message)) ...[
-                                              Icon(
-                                                Icons.push_pin,
-                                                size: 10,
-                                                color: Colors.white.withOpacity(0.9),
-                                              ),
-                                              SizedBox(width: 3),
-                                            ],
-                                            // Time (third)
-                                            Text(
-                                              _formatMessageTime(message.createdAt),
-                                              style: TextStyle(
-                                                fontSize: 10,
-                                                color: Colors.white.withOpacity(0.9),
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                            // Status ticks (fourth) - only for own messages
-                                            if (isOwn) ...[
-                                              SizedBox(width: 3),
-                                              _buildMessageStatusIcon(message, Colors.white.withOpacity(0.9)),
-                                            ],
-                                          ],
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ),
 
-                            // Reactions display (not shown for deleted messages)
-                            if (message.reactions.isNotEmpty &&
-                                !message.deleted) ...[
-                              SizedBox(height: 4),
-                              _buildReactionsDisplay(message),
-                            ],
+                              // Reactions display (not shown for deleted messages)
+                              if (message.reactions.isNotEmpty &&
+                                  !message.deleted) ...[
+                                SizedBox(height: 4),
+                                MessageReactionsWidget(message: message),
+                              ],
                           ],
                         ),
                       ),
@@ -1765,65 +1785,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     );
   }
 
-  Widget _buildMessageStatusIcon(ClubMessage message, [Color? overrideColor]) {
-    final status = message.status;
-    final List<Widget> icons = [];
-    final isOwn =
-        message.senderId ==
-        Provider.of<UserProvider>(context, listen: false).user?.id;
-
-    // Use override color if provided, otherwise use default color logic
-    final iconColor = overrideColor ?? (isOwn
-        ? (Theme.of(context).brightness == Brightness.dark
-              ? Colors.white.withOpacity(0.7)
-              : Colors.black.withOpacity(0.65))
-        : (Theme.of(context).brightness == Brightness.dark
-              ? Colors.white.withOpacity(0.7)
-              : Colors.black.withOpacity(0.6)));
-
-    // Only add status ticks (pin and star are now handled in main row)
-    switch (status) {
-      case MessageStatus.sending:
-        icons.add(
-          SizedBox(
-            width: 12,
-            height: 12,
-            child: CircularProgressIndicator(
-              strokeWidth: 1.5,
-              color: iconColor,
-            ),
-          ),
-        );
-        break;
-      case MessageStatus.failed:
-        icons.add(Icon(Icons.error_outline, size: 14, color: Colors.red));
-        break;
-      case MessageStatus.sent:
-        icons.add(Icon(Icons.check, size: 14, color: iconColor));
-        break;
-      case MessageStatus.delivered:
-        icons.addAll([
-          Icon(Icons.check, size: 12, color: iconColor),
-          Icon(Icons.check, size: 12, color: iconColor),
-        ]);
-        break;
-      case MessageStatus.read:
-        icons.addAll([
-          Icon(Icons.check, size: 12, color: Colors.blue),
-          Icon(Icons.check, size: 12, color: Colors.blue),
-        ]);
-        break;
-    }
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: icons
-          .map(
-            (icon) => Padding(padding: EdgeInsets.only(right: 2), child: icon),
-          )
-          .toList(),
-    );
-  }
 
   void _showErrorDialog(ClubMessage message) {
     showDialog(
@@ -3515,147 +3476,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     ];
   }
 
-  Widget _buildImageGallery(List<MessageImage> images) {
-    // Collect all captions to display below images
-    final allCaptions = images
-        .where((img) => img.caption != null && img.caption!.isNotEmpty)
-        .map((img) => img.caption!)
-        .toList();
-
-    // If only 1-2 images, show them without borders/background
-    if (images.length <= 2) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(height: 8),
-          ...images
-              .asMap()
-              .entries
-              .map(
-                (entry) => Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: EdgeInsets.only(bottom: 4),
-                      child: GestureDetector(
-                        onTap: () => _openImageGallery(images, entry.key),
-                        child: Hero(
-                          tag: 'image_${entry.value.url}',
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: _buildImageWidget(entry.value, fitToWidth: true),
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Show caption directly below this specific image
-                    if (entry.value.caption != null && entry.value.caption!.isNotEmpty) ...[
-                      SizedBox(height: 4),
-                      Padding(
-                        padding: EdgeInsets.only(left: 8, right: 8, bottom: 8),
-                        child: Text(
-                          entry.value.caption!,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Theme.of(context).brightness == Brightness.dark
-                                ? Colors.white.withOpacity(0.7)
-                                : Colors.grey[700],
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ),
-                    ] else ...[
-                      SizedBox(height: 8), // Spacing when no caption
-                    ],
-                  ],
-                ),
-              )
-              .toList(),
-        ],
-      );
-    }
-
-    // For 3+ images, show gallery grid with +n more
-    return Column(
-      children: [
-        SizedBox(height: 8),
-        Container(
-          height: 120,
-          child: Row(
-            children: [
-              // Show up to 4 images
-              for (int i = 0; i < (images.length > 4 ? 4 : images.length); i++)
-                Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.only(right: i < 3 ? 4 : 0),
-                    child: Stack(
-                      children: [
-                        Hero(
-                          tag: 'image_${images[i].url}',
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: _buildImageWidget(images[i], height: 120, fitToWidth: false),
-                          ),
-                        ),
-                        // Show +n more on 4th image if there are more
-                        if (i == 3 && images.length > 4)
-                          Positioned.fill(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.6),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  '+${images.length - 4}',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        // Tap to view all images
-                        Positioned.fill(
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(8),
-                              onTap: () => _openImageGallery(images, i),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        // Show all captions below the grid
-        if (allCaptions.isNotEmpty) ...[
-          SizedBox(height: 8),
-          ...allCaptions.map(
-            (caption) => Padding(
-              padding: EdgeInsets.only(bottom: 4),
-              child: Text(
-                caption,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white.withOpacity(0.6)
-                      : Colors.grey[600],
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
 
   void _openImageGallery(List<MessageImage> images, int initialIndex) {
     Navigator.of(context).push(
@@ -3669,259 +3489,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     );
   }
 
-  Widget _buildDocumentList(List<MessageDocument> documents) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(height: 8),
-        ...documents
-            .map(
-              (doc) => Padding(
-                padding: EdgeInsets.only(bottom: 8),
-                child: Container(
-                  padding: EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.grey[800]
-                        : Colors.grey[100],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.grey[600]!
-                          : Colors.grey[300]!,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        doc.type == 'pdf'
-                            ? Icons.picture_as_pdf
-                            : Icons.description,
-                        color: doc.type == 'pdf' ? Colors.red : Colors.blue,
-                      ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              doc.filename,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w500,
-                                fontSize: 14,
-                              ),
-                            ),
-                            Row(
-                              children: [
-                                Text(
-                                  doc.type.toUpperCase(),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color:
-                                        Theme.of(context).brightness ==
-                                            Brightness.dark
-                                        ? Colors.white.withOpacity(0.6)
-                                        : Colors.grey[600],
-                                  ),
-                                ),
-                                if (doc.size != null) ...[
-                                  Text(
-                                    ' • ${doc.size}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color:
-                                          Theme.of(context).brightness ==
-                                              Brightness.dark
-                                          ? Colors.white.withOpacity(0.6)
-                                          : Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(
-                        Icons.download,
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.white.withOpacity(0.6)
-                            : Colors.grey[600],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            )
-            .toList(),
-      ],
-    );
-  }
 
-  Widget _buildLinkPreviews(List<LinkMetadata> linkMeta) {
-    return Column(
-      children: [
-        SizedBox(height: 8),
-        ...linkMeta
-            .map(
-              (link) => Padding(
-                padding: EdgeInsets.only(bottom: 8),
-                child: InkWell(
-                  onTap: () => _launchUrl(link.url),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.grey[700]!
-                            : Colors.grey[300]!,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Image preview if available
-                        if (link.image != null && link.image!.isNotEmpty)
-                          ClipRRect(
-                            borderRadius: BorderRadius.vertical(
-                              top: Radius.circular(12),
-                            ),
-                            child: Image.network(
-                              link.image!,
-                              width: double.infinity,
-                              height: 150,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return SizedBox.shrink(); // Hide if image fails to load
-                              },
-                            ),
-                          ),
-
-                        // Content
-                        Padding(
-                          padding: EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Title
-                              if (link.title != null && link.title!.isNotEmpty)
-                                Text(
-                                  link.title!,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color:
-                                        Theme.of(context).brightness ==
-                                            Brightness.dark
-                                        ? Colors.white.withOpacity(0.9)
-                                        : Colors.black.withOpacity(0.8),
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-
-                              // Description
-                              if (link.description != null &&
-                                  link.description!.isNotEmpty) ...[
-                                SizedBox(height: 4),
-                                Text(
-                                  link.description!,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color:
-                                        Theme.of(context).brightness ==
-                                            Brightness.dark
-                                        ? Colors.white.withOpacity(0.7)
-                                        : Colors.black.withOpacity(0.6),
-                                  ),
-                                  maxLines: 3,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-
-                              // Site info
-                              SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  // Favicon if available
-                                  if (link.favicon != null &&
-                                      link.favicon!.isNotEmpty) ...[
-                                    Image.network(
-                                      link.favicon!,
-                                      width: 16,
-                                      height: 16,
-                                      errorBuilder:
-                                          (context, error, stackTrace) {
-                                            return Icon(
-                                              Icons.language,
-                                              size: 16,
-                                              color:
-                                                  Theme.of(
-                                                        context,
-                                                      ).brightness ==
-                                                      Brightness.dark
-                                                  ? Colors.white.withOpacity(
-                                                      0.6,
-                                                    )
-                                                  : Colors.grey[600],
-                                            );
-                                          },
-                                    ),
-                                    SizedBox(width: 8),
-                                  ] else ...[
-                                    Icon(
-                                      Icons.language,
-                                      size: 16,
-                                      color:
-                                          Theme.of(context).brightness ==
-                                              Brightness.dark
-                                          ? Colors.white.withOpacity(0.6)
-                                          : Colors.grey[600],
-                                    ),
-                                    SizedBox(width: 8),
-                                  ],
-
-                                  Expanded(
-                                    child: Text(
-                                      link.siteName ?? Uri.parse(link.url).host,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color:
-                                            Theme.of(context).brightness ==
-                                                Brightness.dark
-                                            ? Colors.white.withOpacity(0.6)
-                                            : Colors.grey[600],
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-
-                                  Icon(
-                                    Icons.open_in_new,
-                                    size: 16,
-                                    color:
-                                        Theme.of(context).brightness ==
-                                            Brightness.dark
-                                        ? Colors.white.withOpacity(0.6)
-                                        : Colors.grey[600],
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            )
-            .toList(),
-      ],
-    );
-  }
 
   void _launchUrl(String url) async {
     try {
@@ -4267,25 +3835,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)}MB';
   }
 
-  Widget _buildLoadingState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 16),
-          Text(
-            'Loading messages...',
-            style: TextStyle(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.white.withOpacity(0.7)
-                  : Colors.black.withOpacity(0.6),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildErrorState(String error) {
     return Center(
@@ -4423,74 +3972,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     );
   }
 
-  Widget _buildReactionsDisplay(ClubMessage message) {
-    // Group reactions by emoji
-    Map<String, List<MessageReaction>> reactionGroups = {};
-    for (var reaction in message.reactions) {
-      reactionGroups.putIfAbsent(reaction.emoji, () => []).add(reaction);
-    }
-
-    final userProvider = context.read<UserProvider>();
-    final currentUserId = userProvider.user?.id;
-
-    return Wrap(
-      spacing: 6,
-      runSpacing: 4,
-      children: reactionGroups.entries.map((entry) {
-        final emoji = entry.key;
-        final reactions = entry.value;
-        final hasUserReacted = reactions.any((r) => r.userId == currentUserId);
-
-        return GestureDetector(
-          onTap: () {
-            if (hasUserReacted) {
-              final userReaction = reactions.firstWhere(
-                (r) => r.userId == currentUserId,
-              );
-              _removeReaction(message, userReaction);
-            } else {
-              _addReaction(emoji);
-            }
-          },
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: hasUserReacted
-                  ? Color(0xFF06aeef).withOpacity(0.2)
-                  : (Theme.of(context).brightness == Brightness.dark
-                        ? Colors.white.withOpacity(0.1)
-                        : Colors.black.withOpacity(0.1)),
-              borderRadius: BorderRadius.circular(12),
-              border: hasUserReacted
-                  ? Border.all(color: Color(0xFF06aeef), width: 1)
-                  : null,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(emoji, style: TextStyle(fontSize: 14)),
-                if (reactions.length > 1) ...[
-                  SizedBox(width: 4),
-                  Text(
-                    reactions.length.toString(),
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: hasUserReacted
-                          ? Color(0xFF06aeef)
-                          : (Theme.of(context).brightness == Brightness.dark
-                                ? Colors.white.withOpacity(0.8)
-                                : Colors.black.withOpacity(0.6)),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
 
   void _showMessageOptions(ClubMessage message) {
     HapticFeedback.lightImpact(); // Add haptic feedback for better UX
