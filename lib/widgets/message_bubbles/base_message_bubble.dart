@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../models/club_message.dart';
 import '../../models/message_status.dart';
 import '../../models/message_reaction.dart';
+import '../../services/api_service.dart';
+import '../../providers/user_provider.dart';
 
 /// Base message bubble that provides the container and meta overlay for all message types
 class BaseMessageBubble extends StatelessWidget {
@@ -15,6 +18,7 @@ class BaseMessageBubble extends StatelessWidget {
   final bool showMetaOverlay;
   final bool showShadow;
   final double? overlayBottomPosition;
+  final Function(String messageId, String emoji, String userId)? onReactionRemoved;
 
   const BaseMessageBubble({
     super.key,
@@ -28,6 +32,7 @@ class BaseMessageBubble extends StatelessWidget {
     this.showMetaOverlay = true,
     this.showShadow = false,
     this.overlayBottomPosition,
+    this.onReactionRemoved,
   });
 
   @override
@@ -218,7 +223,7 @@ class BaseMessageBubble extends StatelessWidget {
   Widget _buildReactionsDisplay(BuildContext context) {
     if (message.reactions.isEmpty) return SizedBox.shrink();
 
-    // Group reactions by emoji and collect user information
+    // Group reactions by emoji and collect user information with emoji data
     Map<String, List<Map<String, String>>> groupedReactions = {};
     int totalCount = 0;
     
@@ -228,32 +233,34 @@ class BaseMessageBubble extends StatelessWidget {
         totalCount += reaction.users.length;
         List<Map<String, String>> userList = [];
         for (var user in reaction.users) {
-          userList.add({
+          final userInfo = {
             'userId': user.userId,
             'name': user.name,
             'profilePicture': user.profilePicture ?? '',
-          });
+            'emoji': reaction.emoji,
+          };
+          userList.add(userInfo);
         }
         groupedReactions[reaction.emoji] = userList;
       } else {
         // Handle old format for backward compatibility
         totalCount += 1;
         final userName = reaction.userName.isNotEmpty ? reaction.userName : 'Unknown User';
+        final userInfo = {
+          'userId': reaction.userId,
+          'name': userName,
+          'profilePicture': '',
+          'emoji': reaction.emoji,
+        };
+        
         if (groupedReactions.containsKey(reaction.emoji)) {
-          groupedReactions[reaction.emoji]!.add({
-            'userId': reaction.userId,
-            'name': userName,
-            'profilePicture': '',
-          });
+          groupedReactions[reaction.emoji]!.add(userInfo);
         } else {
-          groupedReactions[reaction.emoji] = [{
-            'userId': reaction.userId,
-            'name': userName,
-            'profilePicture': '',
-          }];
+          groupedReactions[reaction.emoji] = [userInfo];
         }
       }
     }
+    
 
     // Get all unique emojis
     final uniqueEmojis = groupedReactions.keys.toList();
@@ -328,7 +335,7 @@ class BaseMessageBubble extends StatelessWidget {
   void _showReactionDetails(BuildContext context) {
     if (message.reactions.isEmpty) return;
 
-    // Group reactions by emoji and collect user information  
+    // Group reactions by emoji and collect user information with emoji data  
     Map<String, List<Map<String, String>>> groupedReactions = {};
     int totalReactions = 0;
     
@@ -338,32 +345,34 @@ class BaseMessageBubble extends StatelessWidget {
         totalReactions += reaction.users.length;
         List<Map<String, String>> userList = [];
         for (var user in reaction.users) {
-          userList.add({
+          final userInfo = {
             'userId': user.userId,
             'name': user.name,
             'profilePicture': user.profilePicture ?? '',
-          });
+            'emoji': reaction.emoji,
+          };
+          userList.add(userInfo);
         }
         groupedReactions[reaction.emoji] = userList;
       } else {
         // Handle old format for backward compatibility
         totalReactions += 1;
         final userName = reaction.userName.isNotEmpty ? reaction.userName : 'Unknown User';
+        final userInfo = {
+          'userId': reaction.userId,
+          'name': userName,
+          'profilePicture': '',
+          'emoji': reaction.emoji,
+        };
+        
         if (groupedReactions.containsKey(reaction.emoji)) {
-          groupedReactions[reaction.emoji]!.add({
-            'userId': reaction.userId,
-            'name': userName,
-            'profilePicture': '',
-          });
+          groupedReactions[reaction.emoji]!.add(userInfo);
         } else {
-          groupedReactions[reaction.emoji] = [{
-            'userId': reaction.userId,
-            'name': userName,
-            'profilePicture': '',
-          }];
+          groupedReactions[reaction.emoji] = [userInfo];
         }
       }
     }
+    
 
     showModalBottomSheet(
       context: context,
@@ -372,21 +381,27 @@ class BaseMessageBubble extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => ReactionDetailsSheet(
+        message: message,
         groupedReactions: groupedReactions,
         totalReactions: totalReactions,
+        onReactionRemoved: onReactionRemoved,
       ),
     );
   }
 }
 
 class ReactionDetailsSheet extends StatefulWidget {
+  final ClubMessage message;
   final Map<String, List<Map<String, String>>> groupedReactions;
   final int totalReactions;
+  final Function(String messageId, String emoji, String userId)? onReactionRemoved;
 
   const ReactionDetailsSheet({
     Key? key,
+    required this.message,
     required this.groupedReactions,
     required this.totalReactions,
+    this.onReactionRemoved,
   }) : super(key: key);
 
   @override
@@ -401,7 +416,9 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
   @override
   void initState() {
     super.initState();
-    _tabs = ['All', ...widget.groupedReactions.keys];
+    // Create tabs: All first, then emoji tabs (excluding All to avoid duplicates)
+    final emojiTabs = widget.groupedReactions.keys.where((key) => key != 'All').toList();
+    _tabs = ['All', ...emojiTabs];
     _tabController = TabController(length: _tabs.length, vsync: this);
   }
 
@@ -411,33 +428,60 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
     super.dispose();
   }
 
-  void _removeReaction(BuildContext context, String? emoji, String userId) {
-    // TODO: Implement API call to remove reaction
-    print('Removing reaction: $emoji for user: $userId');
+  void _removeReactionAndUpdateUI(BuildContext context, String? emoji, String userId) async {
+    if (emoji == null) return;
     
-    // Show confirmation snackbar
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(emoji != null 
-            ? 'Removed $emoji reaction' 
-            : 'Reaction removed'),
-        duration: Duration(seconds: 2),
-        backgroundColor: Colors.red,
-      ),
-    );
+    // Verify user permission
+    final userProvider = context.read<UserProvider>();
+    final currentUser = userProvider.user;
     
-    // Here you would typically:
-    // 1. Call API to remove the reaction for specific user and emoji
-    // 2. Update the message state to remove the reaction
-    // 3. Refresh the UI to reflect the changes
-    // 
-    // Example API call:
-    // await reactionService.removeReaction(
-    //   messageId: widget.message.id,
-    //   userId: userId,
-    //   emoji: emoji,
-    // );
+    if (currentUser == null || userId != currentUser.id) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('You can only remove your own reactions'),
+          duration: Duration(seconds: 2),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
+    try {
+      // Make API call to remove the reaction
+      await ApiService.delete(
+        '/conversations/${widget.message.clubId}/messages/${widget.message.id}/reactions/$emoji',
+      );
+      
+      // Show success snackbar
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Removed $emoji reaction'),
+            duration: Duration(seconds: 1),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+      
+      // Update UI by calling a callback if provided
+      if (widget.onReactionRemoved != null) {
+        widget.onReactionRemoved!(widget.message.id, emoji, userId);
+      }
+      
+    } catch (e) {
+      print('Error removing reaction: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to remove reaction'),
+            duration: Duration(seconds: 2),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -465,12 +509,14 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
             labelColor: Color(0xFF003f9b),
             unselectedLabelColor: Colors.grey[600],
             indicatorColor: Color(0xFF003f9b),
+            labelStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            unselectedLabelStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
             tabs: _tabs.map((tab) {
               if (tab == 'All') {
-                return Tab(text: widget.totalReactions > 1 ? '$tab ${widget.totalReactions}' : tab);
+                return Tab(text: 'All ${widget.totalReactions}');
               } else {
                 final count = widget.groupedReactions[tab]?.length ?? 0;
-                return Tab(text: count > 1 ? '$tab $count' : tab);
+                return Tab(text: '$tab $count');
               }
             }).toList(),
           ),
@@ -482,11 +528,55 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
               children: _tabs.map((tab) {
                 List<Map<String, String>> users;
                 if (tab == 'All') {
-                  users = widget.groupedReactions.values
-                      .expand((userList) => userList)
-                      .toList();
+                  // For All tab, collect all users from all emoji tabs
+                  users = [];
+                  widget.groupedReactions.forEach((emoji, userList) {
+                    if (emoji != 'All') {
+                      for (var user in userList) {
+                        // Add emoji info to each user for All tab
+                        final userWithEmoji = Map<String, String>.from(user);
+                        userWithEmoji['emoji'] = emoji;
+                        users.add(userWithEmoji);
+                      }
+                    }
+                  });
                 } else {
                   users = widget.groupedReactions[tab] ?? [];
+                }
+                
+                // Sort users to put current user first
+                final userProvider = context.watch<UserProvider>();
+                final currentUser = userProvider.user;
+                users.sort((a, b) {
+                  final aUserId = a['userId'] ?? '';
+                  final bUserId = b['userId'] ?? '';
+                  final aUserName = a['name'] ?? '';
+                  final bUserName = b['name'] ?? '';
+                  
+                  final aIsCurrentUser = currentUser != null && 
+                      (aUserId == currentUser.id || aUserName == currentUser.name);
+                  final bIsCurrentUser = currentUser != null && 
+                      (bUserId == currentUser.id || bUserName == currentUser.name);
+                  
+                  if (aIsCurrentUser && !bIsCurrentUser) return -1;
+                  if (!aIsCurrentUser && bIsCurrentUser) return 1;
+                  return 0;
+                });
+                
+                // Show empty state if no users
+                if (users.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(32),
+                      child: Text(
+                        'No reactions found',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  );
                 }
                 
                 return ListView.builder(
@@ -497,29 +587,29 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
                     final userName = userInfo['name'] ?? 'Unknown User';
                     final profilePicture = userInfo['profilePicture'] ?? '';
                     final userId = userInfo['userId'] ?? '';
+                    final userEmoji = userInfo['emoji'] ?? '';
                     
-                    // TODO: Replace with actual current user ID check
-                    // For now, checking by userId or userName as fallback
-                    final currentUserId = 'cmbova8yn00015bxp4060pjy1'; // TODO: Get from user provider/auth
-                    final isCurrentUser = userId == currentUserId || userName == 'Anuj Pandey';
+                    // Get current user from provider
+                    final userProvider = context.watch<UserProvider>();
+                    final currentUser = userProvider.user;
+                    final isCurrentUser = currentUser != null && 
+                        (userId == currentUser.id || userName == currentUser.name);
                     
                     return GestureDetector(
                       onTap: isCurrentUser ? () {
                         Navigator.pop(context); // Close the drawer
-                        _removeReaction(context, tab == 'All' ? null : tab, userId);
+                        // Use the user's specific emoji for All tab, or current tab emoji
+                        final emojiToRemove = tab == 'All' ? userEmoji : tab;
+                        _removeReactionAndUpdateUI(context, emojiToRemove, userId);
                       } : null,
                       child: Container(
-                        margin: EdgeInsets.only(bottom: 12),
-                        decoration: isCurrentUser ? BoxDecoration(
-                          color: Colors.red.withOpacity(0.05),
-                          borderRadius: BorderRadius.circular(8),
-                        ) : null,
-                        padding: isCurrentUser ? EdgeInsets.all(8) : EdgeInsets.zero,
+                        margin: EdgeInsets.only(bottom: 8),
+                        padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                         child: Row(
                           children: [
                             // Avatar with profile picture or letter fallback
                             CircleAvatar(
-                              radius: 20,
+                              radius: 22,
                               backgroundColor: Color(0xFF003f9b),
                               backgroundImage: profilePicture.isNotEmpty 
                                   ? NetworkImage(profilePicture) 
@@ -529,22 +619,22 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
                                       userName.isNotEmpty ? userName[0].toUpperCase() : '?',
                                       style: TextStyle(
                                         color: Colors.white,
-                                        fontSize: 16,
+                                        fontSize: 18,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     )
                                   : null,
                             ),
                             
-                            SizedBox(width: 12),
+                            SizedBox(width: 16),
                             
-                            // User name
+                            // User info
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    userName.isNotEmpty ? userName : 'Unknown User',
+                                    isCurrentUser ? 'You' : (userName.isNotEmpty ? userName : 'Unknown User'),
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w500,
@@ -553,38 +643,29 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
                                   ),
                                   if (isCurrentUser)
                                     Text(
-                                      'Tap to remove',
+                                      'Click to remove',
                                       style: TextStyle(
                                         fontSize: 14,
-                                        color: Colors.red[400],
-                                        fontWeight: FontWeight.w500,
+                                        color: Colors.grey[600],
+                                      ),
+                                    )
+                                  else
+                                    Text(
+                                      'Member',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[600],
                                       ),
                                     ),
                                 ],
                               ),
                             ),
                             
-                            // Remove icon for current user
-                            if (isCurrentUser)
-                              Container(
-                                padding: EdgeInsets.all(4),
-                                decoration: BoxDecoration(
-                                  color: Colors.red.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Icon(
-                                  Icons.remove_circle_outline,
-                                  color: Colors.red[400],
-                                  size: 16,
-                                ),
-                              ),
-                            
-                            // Reaction emoji for individual tabs (when not current user)
-                            if (tab != 'All' && !isCurrentUser)
-                              Text(
-                                tab,
-                                style: TextStyle(fontSize: 24),
-                              ),
+                            // Reaction emoji on the right
+                            Text(
+                              tab == 'All' ? userEmoji : tab,
+                              style: TextStyle(fontSize: 28),
+                            ),
                           ],
                         ),
                       ),
