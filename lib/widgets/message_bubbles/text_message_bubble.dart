@@ -59,6 +59,10 @@ class TextMessageBubble extends StatelessWidget {
 
         // Text content below media (if any)
         if (message.content.trim().isNotEmpty) _buildTextContent(context),
+
+        // Add bottom padding for images when no text content (for meta overlay space)
+        if (message.pictures.isNotEmpty && message.content.trim().isEmpty)
+          SizedBox(height: 16),
       ],
     );
   }
@@ -155,7 +159,7 @@ class TextMessageBubble extends StatelessWidget {
 
   Widget _buildTwoImages(BuildContext context, List<MessageImage> images) {
     return Container(
-      height: 200,
+      height: 150,
       child: Row(
         children: [
           Expanded(

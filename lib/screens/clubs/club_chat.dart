@@ -4405,8 +4405,10 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       onTap: () => _cycleToPinnedMessage(message.id),
       onLongPress: () => _showPinnedMessageOptions(message),
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        height: 56, // Fixed height to prevent changes
+        padding: EdgeInsets.symmetric(horizontal: 16),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             // Pin icon
             Icon(Icons.push_pin, size: 16, color: Color(0xFF6C757D)),
@@ -4416,6 +4418,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // Message preview
                   Text(
@@ -4443,7 +4446,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     final imagesToShow = pictures.take(3).toList();
 
     return Container(
-      height: 40,
+      height: 32,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: imagesToShow.asMap().entries.map((entry) {
@@ -4460,27 +4463,27 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                   borderRadius: BorderRadius.circular(6),
                   child: CachedNetworkImage(
                     imageUrl: image.url,
-                    width: 40,
-                    height: 40,
+                    width: 32,
+                    height: 32,
                     fit: BoxFit.cover,
                     placeholder: (context, url) => Container(
-                      width: 40,
-                      height: 40,
+                      width: 32,
+                      height: 32,
                       color: Colors.grey[300],
                       child: Icon(
                         Icons.image,
                         color: Colors.grey[600],
-                        size: 16,
+                        size: 14,
                       ),
                     ),
                     errorWidget: (context, url, error) => Container(
-                      width: 40,
-                      height: 40,
+                      width: 32,
+                      height: 32,
                       color: Colors.grey[300],
                       child: Icon(
                         Icons.broken_image,
                         color: Colors.grey[600],
-                        size: 16,
+                        size: 14,
                       ),
                     ),
                   ),

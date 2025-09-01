@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/club_message.dart';
 import '../../models/message_status.dart';
+import '../../models/message_reaction.dart';
 
 /// Base message bubble that provides the container and meta overlay for all message types
 class BaseMessageBubble extends StatelessWidget {
@@ -13,6 +14,7 @@ class BaseMessageBubble extends StatelessWidget {
   final Color? customColor;
   final bool showMetaOverlay;
   final bool showShadow;
+  final double? overlayBottomPosition;
 
   const BaseMessageBubble({
     super.key,
@@ -24,7 +26,8 @@ class BaseMessageBubble extends StatelessWidget {
     this.isTransparent = false,
     this.customColor,
     this.showMetaOverlay = true,
-    this.showShadow = true,
+    this.showShadow = false,
+    this.overlayBottomPosition,
   });
 
   @override
@@ -34,7 +37,7 @@ class BaseMessageBubble extends StatelessWidget {
           ? CrossAxisAlignment.end
           : CrossAxisAlignment.start,
       children: [
-        // Message bubble
+        // Main message bubble
         Container(
           padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
           decoration: isTransparent
@@ -60,27 +63,44 @@ class BaseMessageBubble extends StatelessWidget {
               // Message content
               Padding(
                 padding: showMetaOverlay
-                    ? EdgeInsets.only(bottom: 20) // Space for meta overlay
+                    ? EdgeInsets.only(
+                        bottom: 12,
+                      ) // Reduced space for meta overlay
                     : EdgeInsets.zero, // No extra space if no overlay
                 child: content,
               ),
 
               // Meta overlay (pin, star, time, tick) at bottom right
               if (showMetaOverlay)
-                Positioned(
-                  bottom: 25,
-                  right: 5,
-                  child: _buildMetaOverlay(context),
-                ),
+                _shouldUseColumnLayout()
+                    ? Positioned(
+                        bottom: overlayBottomPosition ?? 2,
+                        right: 0, // Align to right edge for small text
+                        child: _buildMetaOverlay(context),
+                      )
+                    : Positioned(
+                        bottom: overlayBottomPosition ?? 2,
+                        right: 5, // Normal inline position
+                        child: _buildMetaOverlay(context),
+                      ),
             ],
           ),
         ),
 
-        // Reactions display (below the bubble)
-        if (message.reactions.isNotEmpty) ...[
-          SizedBox(height: 4),
-          _buildReactionsDisplay(context),
-        ],
+        // Reactions display (below the bubble with overlap using transform)
+        if (message.reactions.isNotEmpty)
+          Transform.translate(
+            offset: Offset(0, -12), // Move up to overlap the bubble
+            child: Container(
+              margin: EdgeInsets.only(
+                right: isOwn ? 12 : 0,
+                left: isOwn ? 0 : 12,
+                bottom: 8, // Add some space below
+              ),
+              alignment: isOwn ? Alignment.centerRight : Alignment.centerLeft,
+              child: _buildReactionsDisplay(context),
+            ),
+          ),
       ],
     );
   }
@@ -129,7 +149,7 @@ class BaseMessageBubble extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -184,67 +204,113 @@ class BaseMessageBubble extends StatelessWidget {
     return Icon(icon, size: 10, color: iconColor);
   }
 
+  bool _shouldUseColumnLayout() {
+    // Check if text is small (for text messages)
+    if (message.content.isNotEmpty) {
+      // Use different positioning for very short text (single word or emoji-like)
+      return message.content.trim().length <= 10 &&
+          !message.content.contains('\n');
+    }
+
+    return false;
+  }
+
   Widget _buildReactionsDisplay(BuildContext context) {
     if (message.reactions.isEmpty) return SizedBox.shrink();
 
-    // Group reactions by emoji
-    Map<String, List<String>> groupedReactions = {};
+    // Group reactions by emoji and collect user information
+    Map<String, List<Map<String, String>>> groupedReactions = {};
+    int totalCount = 0;
+    
     for (var reaction in message.reactions) {
-      if (groupedReactions.containsKey(reaction.emoji)) {
-        groupedReactions[reaction.emoji]!.add(reaction.userName);
+      // Handle new format with users array
+      if (reaction.users.isNotEmpty) {
+        totalCount += reaction.users.length;
+        List<Map<String, String>> userList = [];
+        for (var user in reaction.users) {
+          userList.add({
+            'userId': user.userId,
+            'name': user.name,
+            'profilePicture': user.profilePicture ?? '',
+          });
+        }
+        groupedReactions[reaction.emoji] = userList;
       } else {
-        groupedReactions[reaction.emoji] = [reaction.userName];
+        // Handle old format for backward compatibility
+        totalCount += 1;
+        final userName = reaction.userName.isNotEmpty ? reaction.userName : 'Unknown User';
+        if (groupedReactions.containsKey(reaction.emoji)) {
+          groupedReactions[reaction.emoji]!.add({
+            'userId': reaction.userId,
+            'name': userName,
+            'profilePicture': '',
+          });
+        } else {
+          groupedReactions[reaction.emoji] = [{
+            'userId': reaction.userId,
+            'name': userName,
+            'profilePicture': '',
+          }];
+        }
       }
     }
 
-    return Wrap(
-      spacing: 4,
-      runSpacing: 4,
-      children: groupedReactions.entries.map((entry) {
-        final emoji = entry.key;
-        final users = entry.value;
-        final count = users.length;
+    // Get all unique emojis
+    final uniqueEmojis = groupedReactions.keys.toList();
 
-        return GestureDetector(
-          onTap: () {
-            // TODO: Add reaction tap functionality (show users who reacted)
-          },
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.grey[700]
-                  : Colors.grey[200],
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.grey[600]!
-                    : Colors.grey[300]!,
-                width: 1,
-              ),
+    return GestureDetector(
+      onTap: () {
+        print('Reaction tapped! Total reactions: $totalCount');
+        _showReactionDetails(context);
+      },
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.8), // Slightly more opaque for visibility
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.black.withOpacity(0.2), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 2,
+              offset: Offset(0, 1),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(emoji, style: TextStyle(fontSize: 14)),
-                if (count > 1) ...[
-                  SizedBox(width: 4),
-                  Text(
-                    count.toString(),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white.withOpacity(0.8)
-                          : Colors.black.withOpacity(0.7),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Display emojis with individual counts if needed
+            ...uniqueEmojis.asMap().entries.map((entry) {
+              final emoji = entry.value;
+              final emojiUserCount = groupedReactions[emoji]!.length;
+              
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(emoji, style: TextStyle(fontSize: 14)),
+                  // Show count for this emoji if it has more than 1 reaction
+                  if (emojiUserCount > 1) ...[
+                    Text(
+                      emojiUserCount.toString(),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white.withOpacity(0.8)
+                            : Colors.black.withOpacity(0.7),
+                      ),
                     ),
-                  ),
+                  ],
+                  // Add spacing between different emojis (except for the last one)
+                  if (entry.key < uniqueEmojis.length - 1) SizedBox(width: 2),
                 ],
-              ],
-            ),
-          ),
-        );
-      }).toList(),
+              );
+            }),
+          ],
+        ),
+      ),
     );
   }
 
@@ -257,5 +323,279 @@ class BaseMessageBubble extends StatelessWidget {
     } else {
       return '${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
     }
+  }
+
+  void _showReactionDetails(BuildContext context) {
+    if (message.reactions.isEmpty) return;
+
+    // Group reactions by emoji and collect user information  
+    Map<String, List<Map<String, String>>> groupedReactions = {};
+    int totalReactions = 0;
+    
+    for (var reaction in message.reactions) {
+      // Handle new format with users array
+      if (reaction.users.isNotEmpty) {
+        totalReactions += reaction.users.length;
+        List<Map<String, String>> userList = [];
+        for (var user in reaction.users) {
+          userList.add({
+            'userId': user.userId,
+            'name': user.name,
+            'profilePicture': user.profilePicture ?? '',
+          });
+        }
+        groupedReactions[reaction.emoji] = userList;
+      } else {
+        // Handle old format for backward compatibility
+        totalReactions += 1;
+        final userName = reaction.userName.isNotEmpty ? reaction.userName : 'Unknown User';
+        if (groupedReactions.containsKey(reaction.emoji)) {
+          groupedReactions[reaction.emoji]!.add({
+            'userId': reaction.userId,
+            'name': userName,
+            'profilePicture': '',
+          });
+        } else {
+          groupedReactions[reaction.emoji] = [{
+            'userId': reaction.userId,
+            'name': userName,
+            'profilePicture': '',
+          }];
+        }
+      }
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => ReactionDetailsSheet(
+        groupedReactions: groupedReactions,
+        totalReactions: totalReactions,
+      ),
+    );
+  }
+}
+
+class ReactionDetailsSheet extends StatefulWidget {
+  final Map<String, List<Map<String, String>>> groupedReactions;
+  final int totalReactions;
+
+  const ReactionDetailsSheet({
+    Key? key,
+    required this.groupedReactions,
+    required this.totalReactions,
+  }) : super(key: key);
+
+  @override
+  State<ReactionDetailsSheet> createState() => _ReactionDetailsSheetState();
+}
+
+class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  late List<String> _tabs;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabs = ['All', ...widget.groupedReactions.keys];
+    _tabController = TabController(length: _tabs.length, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  void _removeReaction(BuildContext context, String? emoji, String userId) {
+    // TODO: Implement API call to remove reaction
+    print('Removing reaction: $emoji for user: $userId');
+    
+    // Show confirmation snackbar
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(emoji != null 
+            ? 'Removed $emoji reaction' 
+            : 'Reaction removed'),
+        duration: Duration(seconds: 2),
+        backgroundColor: Colors.red,
+      ),
+    );
+    
+    // Here you would typically:
+    // 1. Call API to remove the reaction for specific user and emoji
+    // 2. Update the message state to remove the reaction
+    // 3. Refresh the UI to reflect the changes
+    // 
+    // Example API call:
+    // await reactionService.removeReaction(
+    //   messageId: widget.message.id,
+    //   userId: userId,
+    //   emoji: emoji,
+    // );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.6,
+      child: Column(
+        children: [
+          // Handle bar
+          Container(
+            margin: EdgeInsets.only(top: 8),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          
+          SizedBox(height: 16),
+          
+          // Tab bar
+          TabBar(
+            controller: _tabController,
+            isScrollable: true,
+            labelColor: Color(0xFF003f9b),
+            unselectedLabelColor: Colors.grey[600],
+            indicatorColor: Color(0xFF003f9b),
+            tabs: _tabs.map((tab) {
+              if (tab == 'All') {
+                return Tab(text: widget.totalReactions > 1 ? '$tab ${widget.totalReactions}' : tab);
+              } else {
+                final count = widget.groupedReactions[tab]?.length ?? 0;
+                return Tab(text: count > 1 ? '$tab $count' : tab);
+              }
+            }).toList(),
+          ),
+          
+          // Tab content
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: _tabs.map((tab) {
+                List<Map<String, String>> users;
+                if (tab == 'All') {
+                  users = widget.groupedReactions.values
+                      .expand((userList) => userList)
+                      .toList();
+                } else {
+                  users = widget.groupedReactions[tab] ?? [];
+                }
+                
+                return ListView.builder(
+                  padding: EdgeInsets.all(16),
+                  itemCount: users.length,
+                  itemBuilder: (context, index) {
+                    final userInfo = users[index];
+                    final userName = userInfo['name'] ?? 'Unknown User';
+                    final profilePicture = userInfo['profilePicture'] ?? '';
+                    final userId = userInfo['userId'] ?? '';
+                    
+                    // TODO: Replace with actual current user ID check
+                    // For now, checking by userId or userName as fallback
+                    final currentUserId = 'cmbova8yn00015bxp4060pjy1'; // TODO: Get from user provider/auth
+                    final isCurrentUser = userId == currentUserId || userName == 'Anuj Pandey';
+                    
+                    return GestureDetector(
+                      onTap: isCurrentUser ? () {
+                        Navigator.pop(context); // Close the drawer
+                        _removeReaction(context, tab == 'All' ? null : tab, userId);
+                      } : null,
+                      child: Container(
+                        margin: EdgeInsets.only(bottom: 12),
+                        decoration: isCurrentUser ? BoxDecoration(
+                          color: Colors.red.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(8),
+                        ) : null,
+                        padding: isCurrentUser ? EdgeInsets.all(8) : EdgeInsets.zero,
+                        child: Row(
+                          children: [
+                            // Avatar with profile picture or letter fallback
+                            CircleAvatar(
+                              radius: 20,
+                              backgroundColor: Color(0xFF003f9b),
+                              backgroundImage: profilePicture.isNotEmpty 
+                                  ? NetworkImage(profilePicture) 
+                                  : null,
+                              child: profilePicture.isEmpty
+                                  ? Text(
+                                      userName.isNotEmpty ? userName[0].toUpperCase() : '?',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    )
+                                  : null,
+                            ),
+                            
+                            SizedBox(width: 12),
+                            
+                            // User name
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    userName.isNotEmpty ? userName : 'Unknown User',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                  if (isCurrentUser)
+                                    Text(
+                                      'Tap to remove',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.red[400],
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            
+                            // Remove icon for current user
+                            if (isCurrentUser)
+                              Container(
+                                padding: EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  Icons.remove_circle_outline,
+                                  color: Colors.red[400],
+                                  size: 16,
+                                ),
+                              ),
+                            
+                            // Reaction emoji for individual tabs (when not current user)
+                            if (tab != 'All' && !isCurrentUser)
+                              Text(
+                                tab,
+                                style: TextStyle(fontSize: 24),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

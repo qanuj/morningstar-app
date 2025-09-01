@@ -157,6 +157,7 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
       isSelected: widget.isSelected,
       isTransparent: true, // Remove background, make transparent
       showMetaOverlay: true, // Ensure meta overlay is shown
+      overlayBottomPosition: 18, // Position overlay higher up inside container
       content: _buildContent(context),
     );
   }
@@ -193,7 +194,7 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
         maxWidth: MediaQuery.of(context).size.width * 0.8,
         minWidth: 280,
       ),
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
         color: widget.isOwn
             ? Theme.of(context).primaryColorLight
@@ -203,38 +204,62 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
       child: Column(
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: widget.isOwn
                 ? [
                     // For own messages: Avatar/Speed first, then Play/Progress
-                    _AvatarSpeedToggle(
-                      isPlaying: isPlaying,
-                      playbackSpeed: playbackSpeed,
-                      senderProfilePicture: widget.message.senderProfilePicture,
-                      onSpeedTap: _togglePlaybackSpeed,
-                      getIconColor: _getIconColor,
-                      getSpeedBgColor: _getSpeedBgColor,
+                    Column(
+                      children: [
+                        _AvatarSpeedToggle(
+                          isPlaying: isPlaying,
+                          playbackSpeed: playbackSpeed,
+                          senderProfilePicture: widget.message.senderProfilePicture,
+                          onSpeedTap: _togglePlaybackSpeed,
+                          getIconColor: _getIconColor,
+                          getSpeedBgColor: _getSpeedBgColor,
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          isPlaying
+                              ? _formatDuration(_currentDuration.inSeconds)
+                              : _formatDuration(
+                                  _totalDuration.inSeconds > 0
+                                      ? _totalDuration.inSeconds
+                                      : widget.message.audio?.duration ?? 0,
+                                ),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: _getDurationColor(context),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
 
                     SizedBox(width: 12),
 
-                    _PlayProgressControls(
-                      isPlaying: isPlaying,
-                      currentPosition: currentPosition,
-                      onPlayPauseTap: _togglePlayPause,
-                      onSeekTap: _seekToPosition,
-                      getIconColor: _getIconColor,
-                      getDotColor: _getDotColor,
+                    Expanded(
+                      child: _PlayProgressControls(
+                        isPlaying: isPlaying,
+                        currentPosition: currentPosition,
+                        onPlayPauseTap: _togglePlayPause,
+                        onSeekTap: _seekToPosition,
+                        getIconColor: _getIconColor,
+                        getDotColor: _getDotColor,
+                      ),
                     ),
                   ]
                 : [
                     // For received messages: Play/Progress first, then Avatar/Speed
-                    _PlayProgressControls(
-                      isPlaying: isPlaying,
-                      currentPosition: currentPosition,
-                      onPlayPauseTap: _togglePlayPause,
-                      onSeekTap: _seekToPosition,
-                      getIconColor: _getIconColor,
-                      getDotColor: _getDotColor,
+                    Expanded(
+                      child: _PlayProgressControls(
+                        isPlaying: isPlaying,
+                        currentPosition: currentPosition,
+                        onPlayPauseTap: _togglePlayPause,
+                        onSeekTap: _seekToPosition,
+                        getIconColor: _getIconColor,
+                        getDotColor: _getDotColor,
+                      ),
                     ),
 
                     SizedBox(width: 12),
@@ -250,27 +275,30 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
                   ],
           ),
 
-          SizedBox(height: 8),
-
-          // Duration
-          Row(
-            children: [
-              Text(
-                isPlaying
-                    ? _formatDuration(_currentDuration.inSeconds)
-                    : _formatDuration(
-                        _totalDuration.inSeconds > 0
-                            ? _totalDuration.inSeconds
-                            : widget.message.audio?.duration ?? 0,
-                      ),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: _getDurationColor(context),
-                  fontWeight: FontWeight.w500,
+          // Duration for received messages (below play controls)
+          if (!widget.isOwn) ...[
+            SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: EdgeInsets.only(left: 16), // Align with center of play button
+                child: Text(
+                  isPlaying
+                      ? _formatDuration(_currentDuration.inSeconds)
+                      : _formatDuration(
+                          _totalDuration.inSeconds > 0
+                              ? _totalDuration.inSeconds
+                              : widget.message.audio?.duration ?? 0,
+                        ),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _getDurationColor(context),
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ],
       ),
     );
@@ -518,7 +546,7 @@ class _PlayProgressControls extends StatelessWidget {
               child: Icon(
                 isPlaying ? Icons.pause : Icons.play_arrow,
                 color: getIconColor(context),
-                size: 24,
+                size: 28,
               ),
             ),
           ),
