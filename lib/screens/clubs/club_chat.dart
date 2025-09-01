@@ -4475,13 +4475,35 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     );
   }
 
+  /// Helper function to get appropriate display text for pinned messages
+  String _getPinnedMessageDisplayText(ClubMessage message) {
+    // Handle different message types
+    if (message.messageType == 'audio' && message.audio != null) {
+      return 'Audio';
+    } else if (message.documents.isNotEmpty) {
+      return message.documents.length == 1 ? 'Document' : '${message.documents.length} Documents';
+    } else if (message.pictures.isNotEmpty) {
+      return message.pictures.length == 1 ? 'Photo' : '${message.pictures.length} Photos';
+    } else if (message.gifUrl != null && message.gifUrl!.isNotEmpty) {
+      return 'GIF';
+    } else if (message.linkMeta.isNotEmpty) {
+      return 'Link';
+    } else if (message.messageType == 'emoji') {
+      // For emoji messages, show the actual emoji if content is available
+      return message.content.trim().isNotEmpty ? message.content.trim() : 'Emoji';
+    } else {
+      // For text messages, return the content if available
+      final content = message.content.trim();
+      return content.isNotEmpty ? content : 'Message';
+    }
+  }
+
   Widget _buildPinnedMessageItem(
     ClubMessage message,
     int totalCount,
     int currentIndex,
   ) {
-    final bool hasImages = message.pictures.isNotEmpty;
-    final String displayText = hasImages ? 'Photo' : message.content.trim();
+    final String displayText = _getPinnedMessageDisplayText(message);
     final String firstLine = displayText.split('\n').first;
 
     return GestureDetector(
@@ -4517,8 +4539,8 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
               ),
             ),
 
-            // Images (if any)
-            if (hasImages) _buildPinnedMessageImages(message.pictures),
+            // Visual indicator for different message types
+            _buildPinnedMessageIndicator(message),
           ],
         ),
       ),
@@ -4597,6 +4619,47 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         }).toList(),
       ),
     );
+  }
+
+  /// Builds visual indicator for different message types in pinned messages
+  Widget _buildPinnedMessageIndicator(ClubMessage message) {
+    // Show images if available
+    if (message.pictures.isNotEmpty) {
+      return _buildPinnedMessageImages(message.pictures);
+    }
+    
+    // Show icon indicators for other message types
+    Widget? iconWidget;
+    Color iconColor = Color(0xFF6C757D);
+    
+    if (message.messageType == 'audio' && message.audio != null) {
+      iconWidget = Icon(Icons.audiotrack, size: 20, color: iconColor);
+    } else if (message.documents.isNotEmpty) {
+      iconWidget = Icon(Icons.description, size: 20, color: iconColor);
+    } else if (message.gifUrl != null && message.gifUrl!.isNotEmpty) {
+      iconWidget = Icon(Icons.gif_box, size: 20, color: iconColor);
+    } else if (message.linkMeta.isNotEmpty) {
+      iconWidget = Icon(Icons.link, size: 20, color: iconColor);
+    } else if (message.messageType == 'emoji') {
+      iconWidget = Icon(Icons.emoji_emotions, size: 20, color: iconColor);
+    }
+    
+    // Return icon container if we have an icon to show
+    if (iconWidget != null) {
+      return Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: Color(0xFFF8F9FA),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: Color(0xFFDEE2E6), width: 1),
+        ),
+        child: Center(child: iconWidget),
+      );
+    }
+    
+    // For regular text messages, don't show any indicator
+    return SizedBox.shrink();
   }
 
   Widget _buildPinnedIndicator(int totalCount, int currentIndex) {
