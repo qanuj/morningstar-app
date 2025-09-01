@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/club_message.dart';
+import '../models/message_status.dart';
 import 'media_storage_service.dart';
 
 class MessageStorageService {
@@ -290,10 +291,23 @@ class MessageStorageService {
       final localMsg = localMap[serverMsg.id];
       
       if (localMsg != null) {
-        // Preserve local read/delivered status
+        // Merge local and server status information
+        // Server status takes precedence, but preserve local if server doesn't have it
+        final mergedDeliveredAt = serverMsg.deliveredAt ?? localMsg.deliveredAt;
+        final mergedReadAt = serverMsg.readAt ?? localMsg.readAt;
+        
+        // Determine the correct status based on timestamps
+        MessageStatus finalStatus = serverMsg.status;
+        if (mergedReadAt != null && finalStatus != MessageStatus.read) {
+          finalStatus = MessageStatus.read;
+        } else if (mergedDeliveredAt != null && finalStatus == MessageStatus.sent) {
+          finalStatus = MessageStatus.delivered;
+        }
+        
         final merged = serverMsg.copyWith(
-          deliveredAt: localMsg.deliveredAt,
-          readAt: localMsg.readAt,
+          status: finalStatus,
+          deliveredAt: mergedDeliveredAt,
+          readAt: mergedReadAt,
         );
         mergedMessages.add(merged);
       } else {

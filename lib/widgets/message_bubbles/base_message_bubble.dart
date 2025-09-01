@@ -209,7 +209,7 @@ class BaseMessageBubble extends StatelessWidget {
     }
     
     // Debug logging for status icon display
-    print('🎨 Message ${message.id}: status=${message.status}, deliveredAt=${message.deliveredAt}, readAt=${message.readAt}, isOwn=$isOwn, showing icon: $icon');
+    debugPrint('🎨 Message ${message.id}: status=${message.status}, deliveredAt=${message.deliveredAt}, readAt=${message.readAt}, isOwn=$isOwn, showing icon: $icon');
 
     return Icon(icon, size: 10, color: finalIconColor);
   }

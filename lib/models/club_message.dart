@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'message_status.dart';
 import 'message_image.dart';
 import 'message_document.dart';
@@ -335,7 +336,7 @@ class ClubMessage {
         try {
           deliveredAt = DateTime.parse(statusData['deliveredAt']).toLocal();
         } catch (e) {
-          print('⚠️ Error parsing deliveredAt: $e');
+          debugPrint('⚠️ Error parsing deliveredAt: $e');
         }
       }
       
@@ -343,7 +344,7 @@ class ClubMessage {
         try {
           readAt = DateTime.parse(statusData['readAt']).toLocal();
         } catch (e) {
-          print('⚠️ Error parsing readAt: $e');
+          debugPrint('⚠️ Error parsing readAt: $e');
         }
       }
       
@@ -356,7 +357,7 @@ class ClubMessage {
         messageStatus = MessageStatus.sent;
       }
       
-      print('🔍 Status parsing: delivered=${statusData['delivered']}, read=${statusData['read']}, deliveredAt=$deliveredAt, readAt=$readAt, final status=$messageStatus');
+      debugPrint('🔍 Status parsing: delivered=${statusData['delivered']}, read=${statusData['read']}, deliveredAt=$deliveredAt, readAt=$readAt, final status=$messageStatus');
     } else if (json['status'] is String) {
       // Handle string status format
       final statusStr = json['status'] as String;
@@ -394,7 +395,7 @@ class ClubMessage {
     }
     
     // Debug logging for status parsing
-    print('🔍 Message ${json['id'] ?? 'unknown'}: status=${json['status']}, parsed=${messageStatus.toString()}');
+    debugPrint('🔍 Message ${json['id'] ?? 'unknown'}: status=${json['status']}, parsed=${messageStatus.toString()}');
 
     return ClubMessage(
       id: json['messageId'] ?? json['id'] ?? '',

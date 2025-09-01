@@ -680,11 +680,23 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     return serverMessages.map((serverMessage) {
       final cached = cachedMap[serverMessage.id];
       if (cached != null) {
-        // Preserve ONLY local read/delivered status
-        // Server pinned status is authoritative and should NOT be overridden
+        // Merge local and server status information
+        // Server status takes precedence, but preserve local if server doesn't have it
+        final mergedDeliveredAt = serverMessage.deliveredAt ?? cached.deliveredAt;
+        final mergedReadAt = serverMessage.readAt ?? cached.readAt;
+        
+        // Determine the correct status based on timestamps
+        MessageStatus finalStatus = serverMessage.status;
+        if (mergedReadAt != null && finalStatus != MessageStatus.read) {
+          finalStatus = MessageStatus.read;
+        } else if (mergedDeliveredAt != null && finalStatus == MessageStatus.sent) {
+          finalStatus = MessageStatus.delivered;
+        }
+        
         return serverMessage.copyWith(
-          deliveredAt: cached.deliveredAt,
-          readAt: cached.readAt,
+          status: finalStatus,
+          deliveredAt: mergedDeliveredAt,
+          readAt: mergedReadAt,
           // DO NOT preserve cached pinned status - server is authoritative
         );
       }
