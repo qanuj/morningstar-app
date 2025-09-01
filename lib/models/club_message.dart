@@ -322,6 +322,55 @@ class ClubMessage {
       );
     }
 
+    // Parse message status from server response
+    MessageStatus messageStatus = MessageStatus.sent; // Default
+    if (json['status'] is Map<String, dynamic>) {
+      final statusData = json['status'] as Map<String, dynamic>;
+      
+      // Check for read status first (highest priority)
+      if (statusData['read'] == true) {
+        messageStatus = MessageStatus.read;
+      } else if (statusData['delivered'] == true) {
+        messageStatus = MessageStatus.delivered;
+      } else {
+        messageStatus = MessageStatus.sent;
+      }
+    } else if (json['status'] is String) {
+      // Handle string status format
+      final statusStr = json['status'] as String;
+      switch (statusStr) {
+        case 'sending':
+          messageStatus = MessageStatus.sending;
+          break;
+        case 'sent':
+          messageStatus = MessageStatus.sent;
+          break;
+        case 'delivered':
+          messageStatus = MessageStatus.delivered;
+          break;
+        case 'read':
+          messageStatus = MessageStatus.read;
+          break;
+        case 'failed':
+          messageStatus = MessageStatus.failed;
+          break;
+        default:
+          messageStatus = MessageStatus.sent;
+      }
+    }
+    
+    // Also check readBy and deliveredTo arrays for status determination
+    // This provides additional validation beyond the status object
+    if (json['readBy'] is List && (json['readBy'] as List).isNotEmpty) {
+      // If there are any read receipts, prioritize read status
+      messageStatus = MessageStatus.read;
+    } else if (json['deliveredTo'] is List && (json['deliveredTo'] as List).isNotEmpty) {
+      // If there are delivery receipts but no read receipts, use delivered status
+      if (messageStatus == MessageStatus.sent) {
+        messageStatus = MessageStatus.delivered;
+      }
+    }
+
     return ClubMessage(
       id: json['messageId'] ?? json['id'] ?? '',
       clubId: json['clubId'] ?? '',
@@ -339,6 +388,7 @@ class ClubMessage {
       createdAt: DateTime.parse(
         json['createdAt'] ?? DateTime.now().toIso8601String(),
       ),
+      status: messageStatus, // Use the parsed status
       reactions: reactions,
       replyTo: replyTo,
       deleted: isDeleted,

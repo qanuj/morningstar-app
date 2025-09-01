@@ -198,7 +198,7 @@ class BaseMessageBubble extends StatelessWidget {
         break;
       case MessageStatus.read:
         icon = Icons.done_all;
-        iconColor = Colors.blue;
+        iconColor = Colors.green;
         break;
       case MessageStatus.failed:
         icon = Icons.error_outline;
