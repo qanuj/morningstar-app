@@ -12,7 +12,8 @@ class TextMessageBubble extends StatelessWidget {
   final bool isPinned;
   final bool isSelected;
   final bool showSenderInfo;
-  final Function(String messageId, String emoji, String userId)? onReactionRemoved;
+  final Function(String messageId, String emoji, String userId)?
+  onReactionRemoved;
 
   const TextMessageBubble({
     super.key,
@@ -407,6 +408,7 @@ class TextMessageBubble extends StatelessWidget {
   Widget _buildTextContent(BuildContext context) {
     return Container(
       constraints: BoxConstraints(minWidth: 170),
+      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       child: Text(
         message.content,
         style: TextStyle(

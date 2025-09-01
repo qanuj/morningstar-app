@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/club_message.dart';
+import 'media_storage_service.dart';
 
 class MessageStorageService {
   static const String _messagesKeyPrefix = 'club_messages_';
@@ -159,26 +160,346 @@ class MessageStorageService {
     }
   }
 
+  /// Save messages with media download
+  static Future<void> saveMessagesWithMedia(String clubId, List<ClubMessage> messages) async {
+    try {
+      print('💾 Saving ${messages.length} messages with media for club $clubId');
+      
+      // Save messages first
+      await saveMessages(clubId, messages);
+      
+      // Extract and download media in background
+      _downloadMediaInBackground(clubId, messages);
+    } catch (e) {
+      print('❌ Error saving messages with media: $e');
+    }
+  }
+
+  /// Download media files in background
+  static Future<void> _downloadMediaInBackground(String clubId, List<ClubMessage> messages) async {
+    try {
+      final mediaUrls = <Map<String, dynamic>>[];
+      
+      for (final message in messages) {
+        // Extract images
+        for (final picture in message.pictures) {
+          mediaUrls.add({
+            'url': picture.url,
+            'type': 'image',
+            'messageId': message.id,
+          });
+        }
+        
+        // Extract documents
+        for (final document in message.documents) {
+          mediaUrls.add({
+            'url': document.url,
+            'type': 'document',
+            'messageId': message.id,
+            'filename': document.filename,
+          });
+        }
+        
+        // Extract audio
+        if (message.audio != null) {
+          mediaUrls.add({
+            'url': message.audio!.url,
+            'type': 'audio',
+            'messageId': message.id,
+            'duration': message.audio!.duration,
+          });
+        }
+        
+        // Extract GIFs
+        if (message.gifUrl != null && message.gifUrl!.isNotEmpty) {
+          mediaUrls.add({
+            'url': message.gifUrl!,
+            'type': 'gif',
+            'messageId': message.id,
+          });
+        }
+      }
+      
+      if (mediaUrls.isNotEmpty) {
+        // Download media asynchronously
+        MediaStorageService.downloadAllMediaForClub(clubId, mediaUrls);
+      }
+    } catch (e) {
+      print('❌ Error downloading media in background: $e');
+    }
+  }
+
+  /// Compare local and server messages to find differences
+  static Map<String, dynamic> compareMessages(
+    List<ClubMessage> localMessages, 
+    List<ClubMessage> serverMessages
+  ) {
+    final localMap = {for (var msg in localMessages) msg.id: msg};
+    final serverMap = {for (var msg in serverMessages) msg.id: msg};
+    
+    // Find new messages on server
+    final newMessages = serverMessages
+        .where((msg) => !localMap.containsKey(msg.id))
+        .toList();
+    
+    // Find updated messages (compare timestamps or content)
+    final updatedMessages = <ClubMessage>[];
+    for (final serverMsg in serverMessages) {
+      final localMsg = localMap[serverMsg.id];
+      if (localMsg != null && _hasMessageChanged(localMsg, serverMsg)) {
+        updatedMessages.add(serverMsg);
+      }
+    }
+    
+    // Find deleted messages (in local but not on server)
+    final deletedMessageIds = localMessages
+        .where((msg) => !serverMap.containsKey(msg.id))
+        .map((msg) => msg.id)
+        .toList();
+    
+    return {
+      'new': newMessages,
+      'updated': updatedMessages,
+      'deleted': deletedMessageIds,
+      'needsUpdate': newMessages.isNotEmpty || 
+                     updatedMessages.isNotEmpty || 
+                     deletedMessageIds.isNotEmpty,
+    };
+  }
+
+  /// Check if a message has changed
+  static bool _hasMessageChanged(ClubMessage local, ClubMessage server) {
+    // Compare key fields that might change
+    return local.content != server.content ||
+           local.pin.isPinned != server.pin.isPinned ||
+           local.pin.pinStart != server.pin.pinStart ||
+           local.starred.isStarred != server.starred.isStarred ||
+           local.deleted != server.deleted ||
+           local.reactions.length != server.reactions.length;
+  }
+
+  /// Merge server messages with local data (preserving read/delivered status)
+  static List<ClubMessage> mergeMessagesWithLocalData(
+    List<ClubMessage> serverMessages,
+    List<ClubMessage> localMessages,
+  ) {
+    final localMap = {for (var msg in localMessages) msg.id: msg};
+    final mergedMessages = <ClubMessage>[];
+    
+    for (final serverMsg in serverMessages) {
+      final localMsg = localMap[serverMsg.id];
+      
+      if (localMsg != null) {
+        // Preserve local read/delivered status
+        final merged = serverMsg.copyWith(
+          deliveredAt: localMsg.deliveredAt,
+          readAt: localMsg.readAt,
+        );
+        mergedMessages.add(merged);
+      } else {
+        // New message from server
+        mergedMessages.add(serverMsg);
+      }
+    }
+    
+    return mergedMessages;
+  }
+
+  /// Get last message timestamp for efficient sync
+  static Future<DateTime?> getLastMessageTimestamp(String clubId) async {
+    try {
+      final messages = await loadMessages(clubId);
+      if (messages.isEmpty) return null;
+      
+      // Sort messages by creation time and get the latest
+      messages.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return messages.first.createdAt;
+    } catch (e) {
+      print('❌ Error getting last message timestamp: $e');
+      return null;
+    }
+  }
+
+  /// Set offline mode flag
+  static Future<void> setOfflineMode(String clubId, bool isOffline) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('offline_mode_$clubId', isOffline);
+    } catch (e) {
+      print('❌ Error setting offline mode: $e');
+    }
+  }
+
+  /// Check if in offline mode
+  static Future<bool> isOfflineMode(String clubId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool('offline_mode_$clubId') ?? false;
+    } catch (e) {
+      print('❌ Error checking offline mode: $e');
+      return false;
+    }
+  }
+
   /// Get storage info for debugging
   static Future<Map<String, dynamic>> getStorageInfo(String clubId) async {
     try {
       final messages = await loadMessages(clubId);
       final lastSync = await getLastSyncTime(clubId);
       final needsSync = await MessageStorageService.needsSync(clubId);
+      final lastMessage = await getLastMessageTimestamp(clubId);
+      final isOffline = await isOfflineMode(clubId);
+      final mediaStats = await MediaStorageService.getStorageStats(clubId);
+      final deliveredIds = await getDeliveredMessageIds(clubId);
+      final readIds = await getReadMessageIds(clubId);
       
       return {
         'messageCount': messages.length,
         'lastSync': lastSync?.toLocal().toString(),
         'needsSync': needsSync,
+        'isOfflineMode': isOffline,
+        'lastMessageAt': lastMessage?.toLocal().toString(),
         'oldestMessage': messages.isNotEmpty 
             ? messages.first.createdAt.toLocal().toString() 
             : null,
         'newestMessage': messages.isNotEmpty 
             ? messages.last.createdAt.toLocal().toString() 
             : null,
+        'deliveredCount': deliveredIds.length,
+        'readCount': readIds.length,
+        'media': mediaStats,
       };
     } catch (e) {
       return {'error': e.toString()};
+    }
+  }
+
+  /// Mark a message as delivered (persistent)
+  static Future<void> markAsDelivered(String clubId, String messageId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = 'delivered_${clubId}_$messageId';
+      await prefs.setBool(key, true);
+      print('📧 Marked message $messageId as delivered');
+    } catch (e) {
+      print('❌ Error marking message as delivered: $e');
+    }
+  }
+
+  /// Mark a message as read (persistent)
+  static Future<void> markAsRead(String clubId, String messageId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = 'read_${clubId}_$messageId';
+      await prefs.setBool(key, true);
+      print('👁️ Marked message $messageId as read');
+    } catch (e) {
+      print('❌ Error marking message as read: $e');
+    }
+  }
+
+  /// Check if a message has been marked as delivered
+  static Future<bool> isMarkedAsDelivered(String clubId, String messageId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = 'delivered_${clubId}_$messageId';
+      return prefs.getBool(key) ?? false;
+    } catch (e) {
+      print('❌ Error checking delivered status: $e');
+      return false;
+    }
+  }
+
+  /// Check if a message has been marked as read
+  static Future<bool> isMarkedAsRead(String clubId, String messageId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = 'read_${clubId}_$messageId';
+      return prefs.getBool(key) ?? false;
+    } catch (e) {
+      print('❌ Error checking read status: $e');
+      return false;
+    }
+  }
+
+  /// Get all delivered message IDs for a club
+  static Future<Set<String>> getDeliveredMessageIds(String clubId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final keys = prefs.getKeys();
+      final prefix = 'delivered_${clubId}_';
+      
+      return keys
+          .where((key) => key.startsWith(prefix) && prefs.getBool(key) == true)
+          .map((key) => key.substring(prefix.length))
+          .toSet();
+    } catch (e) {
+      print('❌ Error getting delivered message IDs: $e');
+      return <String>{};
+    }
+  }
+
+  /// Get all read message IDs for a club
+  static Future<Set<String>> getReadMessageIds(String clubId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final keys = prefs.getKeys();
+      final prefix = 'read_${clubId}_';
+      
+      return keys
+          .where((key) => key.startsWith(prefix) && prefs.getBool(key) == true)
+          .map((key) => key.substring(prefix.length))
+          .toSet();
+    } catch (e) {
+      print('❌ Error getting read message IDs: $e');
+      return <String>{};
+    }
+  }
+
+  /// Clear delivered/read status for a specific club
+  static Future<void> clearStatusFlags(String clubId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final keys = prefs.getKeys();
+      
+      // Remove all delivered and read flags for this club
+      final keysToRemove = keys
+          .where((key) => 
+              key.startsWith('delivered_${clubId}_') || 
+              key.startsWith('read_${clubId}_'))
+          .toList();
+      
+      for (final key in keysToRemove) {
+        await prefs.remove(key);
+      }
+      
+      print('🗑️ Cleared ${keysToRemove.length} status flags for club $clubId');
+    } catch (e) {
+      print('❌ Error clearing status flags: $e');
+    }
+  }
+
+  /// Clear all club data including media and status flags
+  static Future<void> clearClubData(String clubId) async {
+    try {
+      print('🗑️ Clearing all data for club $clubId');
+      
+      // Clear messages
+      await clearMessages(clubId);
+      
+      // Clear media
+      await MediaStorageService.clearClubMedia(clubId);
+      
+      // Clear status flags
+      await clearStatusFlags(clubId);
+      
+      // Clear offline mode flag
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('offline_mode_$clubId');
+      
+      print('✅ All data cleared for club $clubId');
+    } catch (e) {
+      print('❌ Error clearing club data: $e');
     }
   }
 }

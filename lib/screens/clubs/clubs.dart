@@ -98,7 +98,7 @@ class ClubsScreenState extends State<ClubsScreen> {
                     ),
                   )
                 : ListView.builder(
-                    padding: EdgeInsets.all(16),
+                    padding: EdgeInsets.zero,
                     itemCount: clubProvider.clubs.length,
                     itemBuilder: (context, index) {
                       final membership = clubProvider.clubs[index];
@@ -114,246 +114,200 @@ class ClubsScreenState extends State<ClubsScreen> {
   Widget _buildClubCard(ClubMembership membership, ClubProvider clubProvider) {
     final club = membership.club;
 
-    return Container(
-      margin: EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: Theme.of(context).dividerColor.withOpacity(0.3),
-          width: 0.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: Offset(0, 2),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _openClubChat(membership),
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: Theme.of(context).dividerColor.withOpacity(0.1),
+                width: 0.5,
+              ),
+            ),
           ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _openClubChat(membership),
-          borderRadius: BorderRadius.circular(8),
-          child: Padding(
-            padding: EdgeInsets.all(12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Club Icon with Verified Badge
-                Stack(
-                  children: [
-                    // Club Icon
-                    SizedBox(
-                      width: 40,
-                      height: 40,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: club.logo != null
-                            ? Image.network(
-                                club.logo!,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return DuggyLogoVariant.medium();
-                                },
-                              )
-                            : DuggyLogoVariant.medium(),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Club Profile Image
+              Stack(
+                children: [
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Theme.of(context).primaryColor.withOpacity(0.1),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(25),
+                      child: club.logo != null
+                          ? Image.network(
+                              club.logo!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return DuggyLogoVariant.medium();
+                              },
+                            )
+                          : DuggyLogoVariant.medium(),
+                    ),
+                  ),
+                  // Verified Badge
+                  if (club.isVerified)
+                    Positioned(
+                      right: 2,
+                      bottom: 2,
+                      child: Container(
+                        width: 16,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: Colors.blue,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Theme.of(context).scaffoldBackgroundColor,
+                            width: 2,
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.verified,
+                          color: Colors.white,
+                          size: 8,
+                        ),
                       ),
                     ),
-                    // Verified Badge
-                    if (club.isVerified)
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: Container(
-                          width: 18,
-                          height: 18,
-                          decoration: BoxDecoration(
-                            color: Colors.blue,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? Color(0xFF1e1e1e)
-                                  : Theme.of(context).cardColor,
-                              width: 2,
-                            ),
-                          ),
-                          child: Icon(
-                            Icons.verified,
-                            color: Colors.white,
-                            size: 10,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                SizedBox(width: 12),
+                ],
+              ),
+              
+              SizedBox(width: 12),
 
-                // Club Info (Center)
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        club.name,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
-                          fontSize: 14,
-                          color: Theme.of(context).textTheme.titleLarge?.color,
-                          height: 1.2,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        [
-                          club.city,
-                          club.state,
-                          club.country,
-                        ].where((e) => e != null).join(', '),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w400,
-                          fontSize: 12,
-                          color: Theme.of(context).textTheme.bodySmall?.color,
-                          height: 1.1,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          // Role Badge
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? Colors.white.withOpacity(0.1)
-                                  : Theme.of(
-                                      context,
-                                    ).primaryColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              membership.role,
-                              style: TextStyle(
-                                color:
-                                    Theme.of(context).brightness ==
-                                        Brightness.dark
-                                    ? Colors.white.withOpacity(0.9)
-                                    : Theme.of(context).primaryColor,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-
-                          // Approval Status
-                          if (!membership.approved) ...[
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.orange.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.hourglass_empty,
-                                    size: 10,
-                                    color: Colors.orange,
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    'PENDING',
-                                    style: TextStyle(
-                                      color: Colors.orange,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-
-                          // Chat Icon to indicate it's clickable
-                          Spacer(),
-                          Icon(
-                            Icons.chat_bubble_outline,
-                            size: 16,
-                            color: Theme.of(
-                              context,
-                            ).primaryColor.withOpacity(0.7),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Club Stats (Right)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+              // Club Info (Expanded)
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Container(
-                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '₹${membership.balance.toStringAsFixed(0)}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: Theme.of(context).primaryColor,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
+                    // Club Name
                     Text(
-                      'balance',
+                      club.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: Theme.of(context).textTheme.bodySmall?.color,
-                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                        color: Theme.of(context).textTheme.titleLarge?.color,
+                        height: 1.2,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    
+                    SizedBox(height: 4),
+                    
+                    // Club Details Row
                     Row(
-                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.star, size: 12, color: Colors.amber),
-                        const SizedBox(width: 2),
-                        Text(
-                          '${membership.points}',
-                          style: TextStyle(
-                            color: Theme.of(context).textTheme.bodySmall?.color,
-                            fontSize: 10,
+                        // Role Badge
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: membership.role.toLowerCase() == 'owner'
+                                ? Colors.green.withOpacity(0.1)
+                                : Theme.of(context).primaryColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
                           ),
+                          child: Text(
+                            membership.role,
+                            style: TextStyle(
+                              color: membership.role.toLowerCase() == 'owner'
+                                  ? Colors.green[700]
+                                  : Theme.of(context).primaryColor,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        
+                        // Location
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            [club.city, club.state, club.country]
+                                .where((e) => e != null && e.isNotEmpty)
+                                .join(', '),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                            ),
+                          ),
+                        ),
+                        
+                        // Balance & Points
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              '₹${membership.balance.toStringAsFixed(0)}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.green[700],
+                              ),
+                            ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.star, size: 12, color: Colors.amber),
+                                SizedBox(width: 2),
+                                Text(
+                                  '${membership.points}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Theme.of(context).textTheme.bodySmall?.color,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ],
                     ),
+                    
+                    // Approval Status (if pending)
+                    if (!membership.approved) ...[
+                      SizedBox(height: 6),
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.hourglass_empty,
+                              size: 12,
+                              color: Colors.orange[700],
+                            ),
+                            SizedBox(width: 4),
+                            Text(
+                              'Approval Pending',
+                              style: TextStyle(
+                                color: Colors.orange[700],
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
