@@ -513,7 +513,6 @@ class MessageStorageService {
         // Update the message to mark it as deleted
         final updatedMessage = messages[messageIndex].copyWith(
           deleted: true,
-          content: 'This message was deleted', // Set deleted message content
         );
         
         messages[messageIndex] = updatedMessage;
