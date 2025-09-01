@@ -1114,6 +1114,34 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
             _messages.add(newMessage);
             _messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
           });
+          
+          // Mark the newly sent message as delivered
+          try {
+            print(
+              '🔵 Making POST request to: https://duggy.app/api/conversations/${widget.club.id}/messages/${newMessage.id}/delivered',
+            );
+            await ApiService.post(
+              '/conversations/${widget.club.id}/messages/${newMessage.id}/delivered',
+              {},
+            );
+            await MessageStorageService.markAsDelivered(
+              widget.club.id,
+              newMessage.id,
+            );
+            
+            // Update UI to show delivered status
+            setState(() {
+              final messageIndex = _messages.indexWhere((m) => m.id == newMessage.id);
+              if (messageIndex != -1) {
+                _messages[messageIndex] = _messages[messageIndex].copyWith(
+                  status: MessageStatus.delivered,
+                  deliveredAt: DateTime.now(),
+                );
+              }
+            });
+          } catch (e) {
+            print('⚠️ Failed to mark message as delivered: $e');
+          }
         } else {
           // Fallback: just update the status if we can't get message data
           setState(() {

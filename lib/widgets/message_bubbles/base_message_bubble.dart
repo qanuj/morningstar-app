@@ -186,6 +186,8 @@ class BaseMessageBubble extends StatelessWidget {
 
   Widget _buildStatusIcon(Color iconColor) {
     IconData icon;
+    Color finalIconColor = iconColor;
+    
     switch (message.status) {
       case MessageStatus.sending:
         icon = Icons.access_time;
@@ -198,15 +200,18 @@ class BaseMessageBubble extends StatelessWidget {
         break;
       case MessageStatus.read:
         icon = Icons.done_all;
-        iconColor = Colors.green;
+        finalIconColor = Colors.green;
         break;
       case MessageStatus.failed:
         icon = Icons.error_outline;
-        iconColor = Colors.red;
+        finalIconColor = Colors.red;
         break;
     }
+    
+    // Debug logging for status icon display
+    print('🎨 Message ${message.id}: status=${message.status}, deliveredAt=${message.deliveredAt}, readAt=${message.readAt}, isOwn=$isOwn, showing icon: $icon');
 
-    return Icon(icon, size: 10, color: iconColor);
+    return Icon(icon, size: 10, color: finalIconColor);
   }
 
   bool _shouldUseColumnLayout() {

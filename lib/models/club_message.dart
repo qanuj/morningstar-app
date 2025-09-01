@@ -324,8 +324,28 @@ class ClubMessage {
 
     // Parse message status from server response
     MessageStatus messageStatus = MessageStatus.sent; // Default
+    DateTime? deliveredAt;
+    DateTime? readAt;
+    
     if (json['status'] is Map<String, dynamic>) {
       final statusData = json['status'] as Map<String, dynamic>;
+      
+      // Parse timestamps from status object
+      if (statusData['deliveredAt'] != null) {
+        try {
+          deliveredAt = DateTime.parse(statusData['deliveredAt']).toLocal();
+        } catch (e) {
+          print('⚠️ Error parsing deliveredAt: $e');
+        }
+      }
+      
+      if (statusData['readAt'] != null) {
+        try {
+          readAt = DateTime.parse(statusData['readAt']).toLocal();
+        } catch (e) {
+          print('⚠️ Error parsing readAt: $e');
+        }
+      }
       
       // Check for read status first (highest priority)
       if (statusData['read'] == true) {
@@ -335,6 +355,8 @@ class ClubMessage {
       } else {
         messageStatus = MessageStatus.sent;
       }
+      
+      print('🔍 Status parsing: delivered=${statusData['delivered']}, read=${statusData['read']}, deliveredAt=$deliveredAt, readAt=$readAt, final status=$messageStatus');
     } else if (json['status'] is String) {
       // Handle string status format
       final statusStr = json['status'] as String;
@@ -370,6 +392,9 @@ class ClubMessage {
         messageStatus = MessageStatus.delivered;
       }
     }
+    
+    // Debug logging for status parsing
+    print('🔍 Message ${json['id'] ?? 'unknown'}: status=${json['status']}, parsed=${messageStatus.toString()}');
 
     return ClubMessage(
       id: json['messageId'] ?? json['id'] ?? '',
@@ -400,11 +425,11 @@ class ClubMessage {
         pinEnd: pinEnd,
         pinnedBy: pinnedBy,
       ),
-      // Local-only fields - not from server JSON
-      deliveredAt: json['deliveredAt'] != null
+      // Use parsed timestamps from status object or fallback to direct fields
+      deliveredAt: deliveredAt ?? (json['deliveredAt'] != null
           ? DateTime.parse(json['deliveredAt']).toLocal()
-          : null,
-      readAt: json['readAt'] != null ? DateTime.parse(json['readAt']).toLocal() : null,
+          : null),
+      readAt: readAt ?? (json['readAt'] != null ? DateTime.parse(json['readAt']).toLocal() : null),
     );
   }
 
