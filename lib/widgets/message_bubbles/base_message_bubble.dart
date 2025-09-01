@@ -12,6 +12,7 @@ class BaseMessageBubble extends StatelessWidget {
   final bool isTransparent;
   final Color? customColor;
   final bool showMetaOverlay;
+  final bool showShadow;
 
   const BaseMessageBubble({
     super.key,
@@ -23,6 +24,7 @@ class BaseMessageBubble extends StatelessWidget {
     this.isTransparent = false,
     this.customColor,
     this.showMetaOverlay = true,
+    this.showShadow = true,
   });
 
   @override
@@ -42,6 +44,15 @@ class BaseMessageBubble extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                   border: message.status == MessageStatus.failed
                       ? Border.all(color: Colors.red, width: 1)
+                      : null,
+                  boxShadow: showShadow
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.08),
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
+                          ),
+                        ]
                       : null,
                 ),
           child: Stack(

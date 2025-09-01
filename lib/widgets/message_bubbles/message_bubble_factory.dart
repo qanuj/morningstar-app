@@ -90,8 +90,9 @@ class MessageBubbleFactory extends StatelessWidget {
       isSelected: isSelected,
       customColor: Colors.grey[300],
       showMetaOverlay: false,
+      showShadow: true,
       content: Container(
-        padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        padding: EdgeInsets.symmetric(vertical: 2, horizontal: 4),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

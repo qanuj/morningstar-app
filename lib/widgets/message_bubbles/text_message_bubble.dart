@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../models/club_message.dart';
 import '../../models/message_status.dart';
 import '../../models/message_image.dart';
-import '../../models/message_document.dart';
 import 'base_message_bubble.dart';
 import '../image_gallery_screen.dart';
 
@@ -15,13 +14,13 @@ class TextMessageBubble extends StatelessWidget {
   final bool showSenderInfo;
 
   const TextMessageBubble({
-    Key? key,
+    super.key,
     required this.message,
     required this.isOwn,
     required this.isPinned,
     this.isSelected = false,
     this.showSenderInfo = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -30,6 +29,7 @@ class TextMessageBubble extends StatelessWidget {
       isOwn: isOwn,
       isPinned: isPinned,
       isSelected: isSelected,
+      showShadow: true,
       content: _buildContent(context),
     );
   }
@@ -398,8 +398,8 @@ class TextMessageBubble extends StatelessWidget {
   }
 
   Widget _buildTextContent(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(right: 50), // Space for meta overlay
+    return Container(
+      constraints: BoxConstraints(minWidth: 170),
       child: Text(
         message.content,
         style: TextStyle(

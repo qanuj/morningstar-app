@@ -1373,67 +1373,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                           ),
                         ),
 
-                      // Star icon for starred messages (not shown for deleted messages)
-                      if (message.starred.isStarred && !message.deleted)
-                        Positioned(
-                          right: isOwn ? 4 : null,
-                          left: isOwn ? null : 4,
-                          top: 2,
-                          child: Container(
-                            padding: EdgeInsets.all(2),
-                            decoration: BoxDecoration(
-                              color:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? Colors.black.withOpacity(0.3)
-                                  : Colors.white.withOpacity(0.8),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.star,
-                              size: 12,
-                              color:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? Colors.grey[400]
-                                  : Colors.grey[600],
-                            ),
-                          ),
-                        ),
-
-                      // Pin icon for pinned messages (not shown for deleted messages)
-                      if (_isCurrentlyPinned(message) && !message.deleted)
-                        Positioned(
-                          right: isOwn
-                              ? (message.starred.isStarred ? 20 : 4)
-                              : null,
-                          left: isOwn
-                              ? null
-                              : (message.starred.isStarred ? 20 : 4),
-                          top: 2,
-                          child: Container(
-                            padding: EdgeInsets.all(2),
-                            decoration: BoxDecoration(
-                              color:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? Colors.black.withOpacity(0.3)
-                                  : Colors.white.withOpacity(0.8),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.push_pin,
-                              size: 12,
-                              color: isOwn
-                                  ? (Theme.of(context).brightness ==
-                                            Brightness.dark
-                                        ? Colors.white.withOpacity(0.7)
-                                        : Colors.black.withOpacity(0.65))
-                                  : Color(0xFF003f9b),
-                            ),
-                          ),
-                        ),
-
                       // Message content with slide animation
                       Transform.translate(
                         offset: Offset(
@@ -4478,31 +4417,15 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      // Sender name
-                      Text(
-                        message.senderName,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF003f9b),
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      // Message preview
-                      Expanded(
-                        child: Text(
-                          firstLine,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF6C757D),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
+                  // Message preview
+                  Text(
+                    firstLine,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF6C757D),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
