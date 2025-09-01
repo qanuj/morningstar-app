@@ -159,6 +159,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
         print('✅ Loaded ${cachedMessages.length} messages from local storage');
 
+        // Mark new messages as delivered if not already in cache
+        _markNewMessagesAsDelivered();
+
         // Only sync if explicitly requested or if not in offline mode
         final isOfflineMode = await MessageStorageService.isOfflineMode(
           widget.club.id,
@@ -324,6 +327,14 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     // Only mark messages from other users as seen
     if (message.senderId == currentUserId) return;
 
+    // Check if message already has readAt timestamp (from server status)
+    if (message.status == MessageStatus.read || message.readAt != null) {
+      // Message is already marked as read, just update local state
+      _seenMessages.add(messageId);
+      _updateMessageStatus(messageId, MessageStatus.read);
+      return;
+    }
+
     // Double-check with persistent storage to ensure API is called only once
     final alreadyMarked = await MessageStorageService.isMarkedAsRead(
       widget.club.id,
@@ -364,6 +375,82 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         );
       }
     });
+  }
+
+  // Mark messages as delivered when loaded and not already in cache
+  Future<void> _markNewMessagesAsDelivered() async {
+    final userProvider = context.read<UserProvider>();
+    final currentUserId = userProvider.user?.id;
+    if (currentUserId == null) return;
+
+    final messagesToMarkAsDelivered = <ClubMessage>[];
+
+    // Find messages from other users that don't have deliveredAt set and aren't from current user
+    for (final message in _messages) {
+      if (message.senderId != currentUserId && // Not own message
+          message.deliveredAt == null && // No deliveredAt timestamp
+          !_deliveredMessages.contains(message.id) && // Not in memory cache
+          !_processingDelivery.contains(message.id)) { // Not currently being processed
+        
+        // Check if message status indicates it needs delivery marking
+        if (message.status == MessageStatus.sent) {
+          messagesToMarkAsDelivered.add(message);
+        }
+      }
+    }
+
+    if (messagesToMarkAsDelivered.isNotEmpty) {
+      debugPrint('📝 Found ${messagesToMarkAsDelivered.length} new messages to mark as delivered');
+      
+      // Mark messages as delivered with delivery timestamp
+      for (final message in messagesToMarkAsDelivered) {
+        await _markSingleMessageAsDelivered(message);
+      }
+    }
+  }
+
+  // Helper method to mark a single message as delivered
+  Future<void> _markSingleMessageAsDelivered(ClubMessage message) async {
+    if (_processingDelivery.contains(message.id)) {
+      debugPrint('⏸️ Message ${message.id} already being processed for delivery');
+      return;
+    }
+
+    _processingDelivery.add(message.id);
+    
+    try {
+      debugPrint('📡 Marking message ${message.id} as delivered...');
+      
+      final response = await ApiService.post(
+        '/conversations/${widget.club.id}/messages/${message.id}/delivered',
+        {},
+      );
+      
+      if (response['success'] == true) {
+        // Update local state with current timestamp
+        final now = DateTime.now();
+        
+        _deliveredMessages.add(message.id);
+        await MessageStorageService.markAsDelivered(widget.club.id, message.id);
+        
+        // Update message with delivered status and timestamp
+        setState(() {
+          final messageIndex = _messages.indexWhere((msg) => msg.id == message.id);
+          if (messageIndex != -1) {
+            _messages[messageIndex] = _messages[messageIndex].copyWith(
+              status: MessageStatus.delivered,
+              deliveredAt: now,
+            );
+          }
+        });
+        
+        debugPrint('✅ Successfully marked message ${message.id} as delivered');
+      }
+    } catch (e) {
+      debugPrint('❌ Error marking message ${message.id} as delivered: $e');
+    } finally {
+      _processingDelivery.remove(message.id);
+    }
   }
 
   // Note: Old scroll-based detection replaced with widget-based visibility detection
@@ -437,6 +524,11 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       }
 
       print('✅ Applied incremental changes successfully');
+
+      // Mark new messages as delivered after sync
+      if (newMessages.isNotEmpty) {
+        _markNewMessagesAsDelivered();
+      }
 
     } else {
       setState(() => _isLoading = false);
