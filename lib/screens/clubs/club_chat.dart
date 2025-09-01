@@ -619,15 +619,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         } else {
           setState(() => _isLoading = false);
           // Show user that refresh completed but no new changes (only for explicit refresh)
-          if (mounted && forceSync) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('✅ No new updates'),
-                duration: Duration(seconds: 1),
-                backgroundColor: Colors.grey[600],
-              ),
-            );
-          }
+          // No new updates
         }
 
         // Merge server messages with local read/delivered status for storage
@@ -1245,7 +1237,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       // Download the image first
       final response = await http.get(Uri.parse(imageUrl));
       if (response.statusCode != 200) {
-        _showErrorSnackBar('Failed to download image');
         return;
       }
 
@@ -1285,15 +1276,10 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         // Ignore cleanup errors
       }
     } catch (e) {
-      _showErrorSnackBar('Failed to process image: $e');
+      // Failed to process image
     }
   }
 
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
-    );
-  }
 
   Future<void> _sendAudioMessage(String audioPath) async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
@@ -1549,19 +1535,10 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         final message =
             response['message'] ??
             '${messageIdsToDelete.length} message(s) deleted';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message), backgroundColor: Color(0xFF003f9b)),
-        );
+        // Messages deleted successfully
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to delete messages: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      // Failed to delete messages
     }
   }
 
@@ -1632,11 +1609,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       _hideReactionPicker();
     } catch (e) {
       print('Error adding reaction: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to add reaction')));
-      }
+      // Failed to add reaction
     }
   }
 
@@ -2678,23 +2651,23 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   }
 
   void _showCreatePoll() {
-    _showErrorSnackBar('Poll creation coming soon!');
+    // Poll creation coming soon
   }
 
   void _showCreateMatch() {
-    _showErrorSnackBar('Match creation coming soon!');
+    // Match creation coming soon
   }
 
   void _showCreateTournament() {
-    _showErrorSnackBar('Tournament creation coming soon!');
+    // Tournament creation coming soon
   }
 
   void _showCreateEvent() {
-    _showErrorSnackBar('Event creation coming soon!');
+    // Event creation coming soon
   }
 
   void _shareLocation() {
-    _showErrorSnackBar('Location sharing coming soon!');
+    // Location sharing coming soon
   }
 
   bool _canShareUPIQR() {
@@ -2758,11 +2731,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         _startImageUpload(result.files);
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error picking images: $e')));
-      }
+      // Error picking images
     }
   }
 
@@ -2794,11 +2763,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         _startImageUpload([platformFile]);
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error capturing photo: $e')));
-      }
+      // Error capturing photo
     }
   }
 
@@ -2814,9 +2779,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         _uploadDocuments(result.files);
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error picking documents: $e')));
+      // Error picking documents
     }
   }
 
@@ -3167,14 +3130,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       print('✅ Message with documents sent successfully');
     } catch (e) {
       print('❌ Error sending message with documents: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to send documents: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      // Error sending documents
     }
   }
 
@@ -3202,9 +3158,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         await _sendMessageWithDocuments(uploadedDocs);
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error uploading documents: $e')));
+      // Error uploading documents
     }
   }
 
@@ -3991,14 +3945,10 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Could not launch $url')));
+        // Could not launch URL
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error opening link: $e')));
+      // Error opening link
     }
   }
 
@@ -4571,9 +4521,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
               onTap: () {
                 Navigator.pop(context);
                 Clipboard.setData(ClipboardData(text: message.content));
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text('Message copied')));
               },
             ),
             // Only show Info option for user's own messages
@@ -4923,23 +4870,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       // Sync from server to get authoritative pinned status for all users
       await _syncMessagesFromServer(forceSync: false);
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Message pinned for ${_formatDuration(hours)}'),
-            backgroundColor: Color(0xFF003f9b),
-          ),
-        );
-      }
+      // Message pinned successfully
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to pin message: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      // Error pinning message
     }
   }
 
@@ -4952,14 +4885,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       // Sync from server to get authoritative pinned status for all users
       await _syncMessagesFromServer(forceSync: false);
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Message unpinned'),
-            backgroundColor: Color(0xFF003f9b),
-          ),
-        );
-      }
+      // Message unpinned successfully
     } catch (e) {
       // Error unpinning message
     }
