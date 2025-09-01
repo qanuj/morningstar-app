@@ -1256,6 +1256,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     final allMessages = List<ClubMessage>.from(_messages);
     allMessages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
+    // Build list items including date headers
+    final List<dynamic> listItems = _buildListItemsWithDateHeaders(allMessages);
+
     return Column(
       children: [
         // Top section: Derived set of pinned messages (tap to navigate to actual message)
@@ -1267,12 +1270,21 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
           child: ListView.builder(
             controller: _scrollController,
             padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-            itemCount: allMessages.length,
+            itemCount: listItems.length,
             itemBuilder: (context, index) {
-              final message = allMessages[index];
-              final previousMessage = index > 0 ? allMessages[index - 1] : null;
-              final nextMessage = index < allMessages.length - 1
-                  ? allMessages[index + 1]
+              final item = listItems[index];
+              
+              // Check if item is a date header
+              if (item is DateTime) {
+                return _buildDateHeader(item);
+              }
+              
+              // Otherwise it's a message
+              final message = item as ClubMessage;
+              final messageIndex = allMessages.indexOf(message);
+              final previousMessage = messageIndex > 0 ? allMessages[messageIndex - 1] : null;
+              final nextMessage = messageIndex < allMessages.length - 1
+                  ? allMessages[messageIndex + 1]
                   : null;
 
               final showSenderInfo =
@@ -1303,6 +1315,77 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  // Helper method to build list items with date headers
+  List<dynamic> _buildListItemsWithDateHeaders(List<ClubMessage> messages) {
+    final List<dynamic> items = [];
+    DateTime? lastDate;
+
+    for (final message in messages) {
+      final messageDate = DateTime(
+        message.createdAt.year,
+        message.createdAt.month,
+        message.createdAt.day,
+      );
+
+      // Add date header if this is a new date
+      if (lastDate == null || !_isSameDate(messageDate, lastDate)) {
+        items.add(messageDate);
+        lastDate = messageDate;
+      }
+
+      // Add the message
+      items.add(message);
+    }
+
+    return items;
+  }
+
+  // Helper method to build date header widget
+  Widget _buildDateHeader(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(Duration(days: 1));
+    
+    String dateText;
+    if (_isSameDate(date, today)) {
+      dateText = 'Today';
+    } else if (_isSameDate(date, yesterday)) {
+      dateText = 'Yesterday';
+    } else {
+      // Format as "Mon, Jan 15, 2024"
+      final weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      final months = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ];
+      
+      final weekday = weekdays[date.weekday % 7];
+      final month = months[date.month - 1];
+      
+      dateText = '$weekday, $month ${date.day}, ${date.year}';
+    }
+
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: 16.0),
+      alignment: Alignment.center,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(16.0),
+        ),
+        child: Text(
+          dateText,
+          style: TextStyle(
+            fontSize: 12.0,
+            fontWeight: FontWeight.w500,
+            color: Colors.grey.shade600,
+          ),
+        ),
+      ),
     );
   }
 

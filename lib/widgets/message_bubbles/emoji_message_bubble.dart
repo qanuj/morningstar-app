@@ -9,6 +9,7 @@ class EmojiMessageBubble extends StatelessWidget {
   final bool isPinned;
   final bool isSelected;
   final bool showSenderInfo;
+  final Function(String messageId, String emoji, String userId)? onReactionRemoved;
 
   const EmojiMessageBubble({
     Key? key,
@@ -17,6 +18,7 @@ class EmojiMessageBubble extends StatelessWidget {
     required this.isPinned,
     this.isSelected = false,
     this.showSenderInfo = false,
+    this.onReactionRemoved,
   }) : super(key: key);
 
   @override
@@ -29,6 +31,7 @@ class EmojiMessageBubble extends StatelessWidget {
       isTransparent: true,
       showMetaOverlay: false,
       content: _buildContent(context),
+      onReactionRemoved: onReactionRemoved,
     );
   }
 

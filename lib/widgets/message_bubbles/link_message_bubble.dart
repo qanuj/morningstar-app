@@ -10,6 +10,7 @@ class LinkMessageBubble extends StatelessWidget {
   final bool isOwn;
   final bool isPinned;
   final bool isSelected;
+  final Function(String messageId, String emoji, String userId)? onReactionRemoved;
 
   const LinkMessageBubble({
     Key? key,
@@ -17,6 +18,7 @@ class LinkMessageBubble extends StatelessWidget {
     required this.isOwn,
     required this.isPinned,
     this.isSelected = false,
+    this.onReactionRemoved,
   }) : super(key: key);
 
   @override
@@ -27,6 +29,7 @@ class LinkMessageBubble extends StatelessWidget {
       isPinned: isPinned,
       isSelected: isSelected,
       content: _buildContent(context),
+      onReactionRemoved: onReactionRemoved,
     );
   }
 

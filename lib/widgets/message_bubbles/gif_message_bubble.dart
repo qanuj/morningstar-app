@@ -8,6 +8,7 @@ class GifMessageBubble extends StatelessWidget {
   final bool isOwn;
   final bool isPinned;
   final bool isSelected;
+  final Function(String messageId, String emoji, String userId)? onReactionRemoved;
 
   const GifMessageBubble({
     Key? key,
@@ -15,6 +16,7 @@ class GifMessageBubble extends StatelessWidget {
     required this.isOwn,
     required this.isPinned,
     this.isSelected = false,
+    this.onReactionRemoved,
   }) : super(key: key);
 
   @override
@@ -25,6 +27,7 @@ class GifMessageBubble extends StatelessWidget {
       isPinned: isPinned,
       isSelected: isSelected,
       content: _buildContent(context),
+      onReactionRemoved: onReactionRemoved,
     );
   }
 

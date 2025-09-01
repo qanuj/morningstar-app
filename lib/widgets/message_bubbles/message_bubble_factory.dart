@@ -16,6 +16,7 @@ class MessageBubbleFactory extends StatelessWidget {
   final bool isSelected;
   final bool showSenderInfo;
   final VoidCallback? onRetryUpload;
+  final Function(String messageId, String emoji, String userId)? onReactionRemoved;
 
   const MessageBubbleFactory({
     super.key,
@@ -26,6 +27,7 @@ class MessageBubbleFactory extends StatelessWidget {
     this.isSelected = false,
     this.showSenderInfo = false,
     this.onRetryUpload,
+    this.onReactionRemoved,
   });
 
   @override
@@ -44,6 +46,7 @@ class MessageBubbleFactory extends StatelessWidget {
         isPinned: isPinned,
         isSelected: isSelected,
         onRetryUpload: onRetryUpload,
+        onReactionRemoved: onReactionRemoved,
       );
     } else if (message.linkMeta.isNotEmpty) {
       // LINK MESSAGE: Thumbnail, title, full link
@@ -52,6 +55,7 @@ class MessageBubbleFactory extends StatelessWidget {
         isOwn: isOwn,
         isPinned: isPinned,
         isSelected: isSelected,
+        onReactionRemoved: onReactionRemoved,
       );
     } else if (message.gifUrl != null && message.gifUrl!.isNotEmpty) {
       // GIF MESSAGE: GIF with optional text below
@@ -60,6 +64,7 @@ class MessageBubbleFactory extends StatelessWidget {
         isOwn: isOwn,
         isPinned: isPinned,
         isSelected: isSelected,
+        onReactionRemoved: onReactionRemoved,
       );
     } else if (message.messageType == 'emoji') {
       // EMOJI MESSAGE: Large emoji without background
@@ -69,6 +74,7 @@ class MessageBubbleFactory extends StatelessWidget {
         isPinned: isPinned,
         isSelected: isSelected,
         showSenderInfo: showSenderInfo,
+        onReactionRemoved: onReactionRemoved,
       );
     } else {
       // TEXT MESSAGE: Images/videos first, then body below
@@ -78,6 +84,7 @@ class MessageBubbleFactory extends StatelessWidget {
         isPinned: isPinned,
         isSelected: isSelected,
         showSenderInfo: showSenderInfo,
+        onReactionRemoved: onReactionRemoved,
       );
     }
   }
@@ -91,6 +98,7 @@ class MessageBubbleFactory extends StatelessWidget {
       customColor: Colors.grey[300],
       showMetaOverlay: false,
       showShadow: true,
+      onReactionRemoved: onReactionRemoved,
       content: Container(
         padding: EdgeInsets.symmetric(vertical: 2, horizontal: 4),
         child: Row(
