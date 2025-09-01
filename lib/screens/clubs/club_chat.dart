@@ -80,6 +80,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   String? _highlightedMessageId;
   Timer? _highlightTimer;
 
+  // Bottom refresh debounce timer
+  Timer? _bottomRefreshTimer;
+
   @override
   void initState() {
     super.initState();
@@ -126,6 +129,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     _highlightTimer?.cancel();
     _pinnedRefreshTimer?.cancel();
     _messagePollingTimer?.cancel();
+    _bottomRefreshTimer?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     _textFieldFocusNode.dispose();
@@ -193,21 +197,24 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       debugPrint('⏸️ Already marking messages as delivered, skipping');
       return;
     }
-    
+
     final userProvider = context.read<UserProvider>();
     final currentUserId = userProvider.user?.id;
     if (currentUserId == null) return;
 
     _isMarkingDelivered = true;
-    
+
     try {
       // Get messages that need to be marked as delivered
-      final messagesToMark = _messages.where((message) =>
-        message.senderId != currentUserId &&
-        !_deliveredMessages.contains(message.id) &&
-        message.status != MessageStatus.delivered &&
-        message.status != MessageStatus.read
-      ).toList();
+      final messagesToMark = _messages
+          .where(
+            (message) =>
+                message.senderId != currentUserId &&
+                !_deliveredMessages.contains(message.id) &&
+                message.status != MessageStatus.delivered &&
+                message.status != MessageStatus.read,
+          )
+          .toList();
 
       if (messagesToMark.isEmpty) {
         debugPrint('📱 No messages need delivery marking');
@@ -216,61 +223,72 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
       debugPrint('📧 Marking ${messagesToMark.length} messages as delivered');
 
-    for (final message in messagesToMark) {
-      // Skip if already in memory cache or currently being processed
-      if (_deliveredMessages.contains(message.id) || _processingDelivery.contains(message.id)) {
-        debugPrint('⏭️ Skipping message ${message.id} - already processed or in progress');
-        continue;
-      }
-
-      // Add to processing set immediately to prevent duplicates
-      _processingDelivery.add(message.id);
-
-      try {
-        // Check persistent storage to ensure API is called only once
-        final alreadyMarked = await MessageStorageService.isMarkedAsDelivered(
-          widget.club.id,
-          message.id,
-        );
-        
-        if (alreadyMarked) {
-          // Already marked in persistent storage but not in memory - sync memory state
-          _deliveredMessages.add(message.id);
-          _updateMessageStatus(message.id, MessageStatus.delivered);
-          debugPrint('📝 Synced message ${message.id} from storage to memory cache');
+      for (final message in messagesToMark) {
+        // Skip if already in memory cache or currently being processed
+        if (_deliveredMessages.contains(message.id) ||
+            _processingDelivery.contains(message.id)) {
+          debugPrint(
+            '⏭️ Skipping message ${message.id} - already processed or in progress',
+          );
           continue;
         }
 
-        // Final check before API call
-        if (_deliveredMessages.contains(message.id)) {
-          debugPrint('⏭️ Message ${message.id} was marked during processing, skipping API call');
-          continue;
-        }
+        // Add to processing set immediately to prevent duplicates
+        _processingDelivery.add(message.id);
 
-        debugPrint('🔵 Making POST request to: https://duggy.app/api/conversations/${widget.club.id}/messages/${message.id}/delivered');
-        final response = await ApiService.post(
-          '/conversations/${widget.club.id}/messages/${message.id}/delivered',
-          {},
-        );
-
-        if (response['success'] == true) {
-          // Mark in both memory and persistent storage immediately
-          _deliveredMessages.add(message.id);
-          await MessageStorageService.markAsDelivered(
+        try {
+          // Check persistent storage to ensure API is called only once
+          final alreadyMarked = await MessageStorageService.isMarkedAsDelivered(
             widget.club.id,
             message.id,
           );
-          // Update message status locally
-          _updateMessageStatus(message.id, MessageStatus.delivered);
-          debugPrint('✅ Successfully marked message ${message.id} as delivered');
+
+          if (alreadyMarked) {
+            // Already marked in persistent storage but not in memory - sync memory state
+            _deliveredMessages.add(message.id);
+            _updateMessageStatus(message.id, MessageStatus.delivered);
+            debugPrint(
+              '📝 Synced message ${message.id} from storage to memory cache',
+            );
+            continue;
+          }
+
+          // Final check before API call
+          if (_deliveredMessages.contains(message.id)) {
+            debugPrint(
+              '⏭️ Message ${message.id} was marked during processing, skipping API call',
+            );
+            continue;
+          }
+
+          debugPrint(
+            '🔵 Making POST request to: https://duggy.app/api/conversations/${widget.club.id}/messages/${message.id}/delivered',
+          );
+          final response = await ApiService.post(
+            '/conversations/${widget.club.id}/messages/${message.id}/delivered',
+            {},
+          );
+
+          if (response['success'] == true) {
+            // Mark in both memory and persistent storage immediately
+            _deliveredMessages.add(message.id);
+            await MessageStorageService.markAsDelivered(
+              widget.club.id,
+              message.id,
+            );
+            // Update message status locally
+            _updateMessageStatus(message.id, MessageStatus.delivered);
+            debugPrint(
+              '✅ Successfully marked message ${message.id} as delivered',
+            );
+          }
+        } catch (e) {
+          debugPrint('❌ Error marking message ${message.id} as delivered: $e');
+        } finally {
+          // Always remove from processing set
+          _processingDelivery.remove(message.id);
         }
-      } catch (e) {
-        debugPrint('❌ Error marking message ${message.id} as delivered: $e');
-      } finally {
-        // Always remove from processing set
-        _processingDelivery.remove(message.id);
       }
-    }
     } finally {
       _isMarkingDelivered = false;
     }
@@ -283,20 +301,21 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     if (currentUserId == null) return;
 
     int syncedCount = 0;
-    
+
     for (final message in serverMessages) {
       // Skip messages sent by current user
       if (message.senderId == currentUserId) continue;
-      
+
       // Check if message has delivery information for current user
       // This relies on the updated backend API that includes status.delivered
-      if (message.status == MessageStatus.delivered || message.deliveredAt != null) {
+      if (message.status == MessageStatus.delivered ||
+          message.deliveredAt != null) {
         if (!_deliveredMessages.contains(message.id)) {
           _deliveredMessages.add(message.id);
           syncedCount++;
         }
       }
-      
+
       // Also sync read status
       if (message.status == MessageStatus.read || message.readAt != null) {
         if (!_seenMessages.contains(message.id)) {
@@ -304,9 +323,11 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         }
       }
     }
-    
+
     if (syncedCount > 0) {
-      debugPrint('📝 Synced delivery status for $syncedCount messages from server');
+      debugPrint(
+        '📝 Synced delivery status for $syncedCount messages from server',
+      );
     }
   }
 
@@ -390,8 +411,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       if (message.senderId != currentUserId && // Not own message
           message.deliveredAt == null && // No deliveredAt timestamp
           !_deliveredMessages.contains(message.id) && // Not in memory cache
-          !_processingDelivery.contains(message.id)) { // Not currently being processed
-        
+          !_processingDelivery.contains(message.id)) {
+        // Not currently being processed
+
         // Check if message status indicates it needs delivery marking
         if (message.status == MessageStatus.sent) {
           messagesToMarkAsDelivered.add(message);
@@ -400,8 +422,10 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     }
 
     if (messagesToMarkAsDelivered.isNotEmpty) {
-      debugPrint('📝 Found ${messagesToMarkAsDelivered.length} new messages to mark as delivered');
-      
+      debugPrint(
+        '📝 Found ${messagesToMarkAsDelivered.length} new messages to mark as delivered',
+      );
+
       // Mark messages as delivered with delivery timestamp
       for (final message in messagesToMarkAsDelivered) {
         await _markSingleMessageAsDelivered(message);
@@ -412,30 +436,34 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   // Helper method to mark a single message as delivered
   Future<void> _markSingleMessageAsDelivered(ClubMessage message) async {
     if (_processingDelivery.contains(message.id)) {
-      debugPrint('⏸️ Message ${message.id} already being processed for delivery');
+      debugPrint(
+        '⏸️ Message ${message.id} already being processed for delivery',
+      );
       return;
     }
 
     _processingDelivery.add(message.id);
-    
+
     try {
       debugPrint('📡 Marking message ${message.id} as delivered...');
-      
+
       final response = await ApiService.post(
         '/conversations/${widget.club.id}/messages/${message.id}/delivered',
         {},
       );
-      
+
       if (response['success'] == true) {
         // Update local state with current timestamp
         final now = DateTime.now();
-        
+
         _deliveredMessages.add(message.id);
         await MessageStorageService.markAsDelivered(widget.club.id, message.id);
-        
+
         // Update message with delivered status and timestamp
         setState(() {
-          final messageIndex = _messages.indexWhere((msg) => msg.id == message.id);
+          final messageIndex = _messages.indexWhere(
+            (msg) => msg.id == message.id,
+          );
           if (messageIndex != -1) {
             _messages[messageIndex] = _messages[messageIndex].copyWith(
               status: MessageStatus.delivered,
@@ -443,7 +471,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
             );
           }
         });
-        
+
         debugPrint('✅ Successfully marked message ${message.id} as delivered');
       }
     } catch (e) {
@@ -529,7 +557,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       if (newMessages.isNotEmpty) {
         _markNewMessagesAsDelivered();
       }
-
     } else {
       setState(() => _isLoading = false);
     }
@@ -1840,57 +1867,102 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
         // Chat flow: ALL messages including pinned ones in chronological order
         Expanded(
-          child: ListView.builder(
-            controller: _scrollController,
-            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-            itemCount: listItems.length,
-            itemBuilder: (context, index) {
-              final item = listItems[index];
+          child: RefreshIndicator(
+            onRefresh: _handleRefresh,
+            child: NotificationListener<ScrollNotification>(
+              onNotification: _handleScrollNotification,
+              child: ListView.builder(
+                controller: _scrollController,
+                padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                itemCount: listItems.length,
+                itemBuilder: (context, index) {
+                  final item = listItems[index];
 
-              // Check if item is a date header
-              if (item is DateTime) {
-                return _buildDateHeader(item);
-              }
+                  // Check if item is a date header
+                  if (item is DateTime) {
+                    return _buildDateHeader(item);
+                  }
 
-              // Otherwise it's a message
-              final message = item as ClubMessage;
-              final messageIndex = allMessages.indexOf(message);
-              final previousMessage = messageIndex > 0
-                  ? allMessages[messageIndex - 1]
-                  : null;
-              final nextMessage = messageIndex < allMessages.length - 1
-                  ? allMessages[messageIndex + 1]
-                  : null;
+                  // Otherwise it's a message
+                  final message = item as ClubMessage;
+                  final messageIndex = allMessages.indexOf(message);
+                  final previousMessage = messageIndex > 0
+                      ? allMessages[messageIndex - 1]
+                      : null;
+                  final nextMessage = messageIndex < allMessages.length - 1
+                      ? allMessages[messageIndex + 1]
+                      : null;
 
-              final showSenderInfo =
-                  previousMessage == null ||
-                  previousMessage.senderId != message.senderId ||
-                  !_isSameDate(message.createdAt, previousMessage.createdAt);
+                  final showSenderInfo =
+                      previousMessage == null ||
+                      previousMessage.senderId != message.senderId ||
+                      !_isSameDate(
+                        message.createdAt,
+                        previousMessage.createdAt,
+                      );
 
-              final isLastFromSender =
-                  nextMessage == null ||
-                  nextMessage.senderId != message.senderId ||
-                  !_isSameDate(message.createdAt, nextMessage.createdAt);
+                  final isLastFromSender =
+                      nextMessage == null ||
+                      nextMessage.senderId != message.senderId ||
+                      !_isSameDate(message.createdAt, nextMessage.createdAt);
 
-              return Container(
-                key: ValueKey('message_${message.id}'),
-                child: _MessageVisibilityDetector(
-                  messageId: message.id,
-                  message: message,
-                  onVisible: _markMessageAsSeen,
-                  currentUserId: context.read<UserProvider>().user?.id,
-                  child: _buildMessageBubble(
-                    message,
-                    showSenderInfo,
-                    isLastFromSender,
-                  ),
-                ),
-              );
-            },
+                  return Container(
+                    key: ValueKey('message_${message.id}'),
+                    child: _MessageVisibilityDetector(
+                      messageId: message.id,
+                      message: message,
+                      onVisible: _markMessageAsSeen,
+                      currentUserId: context.read<UserProvider>().user?.id,
+                      child: _buildMessageBubble(
+                        message,
+                        showSenderInfo,
+                        isLastFromSender,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
           ),
         ),
       ],
     );
+  }
+
+  // Handle pull-to-refresh at top of screen
+  Future<void> _handleRefresh() async {
+    debugPrint('🔄 Pull-to-refresh triggered');
+    await _loadMessages(forceSync: true);
+  }
+
+  // Handle scroll notifications for bottom refresh detection
+  bool _handleScrollNotification(ScrollNotification notification) {
+    if (notification is ScrollEndNotification) {
+      final scrollPosition = notification.metrics.pixels;
+      final maxScroll = notification.metrics.maxScrollExtent;
+
+      // Check if user scrolled to the very bottom (with a small threshold)
+      if (scrollPosition >= maxScroll - 50) {
+        debugPrint('🔄 Bottom pull detected, refreshing messages...');
+        _handleBottomRefresh();
+      }
+    }
+
+    return false; // Allow other listeners to receive the notification
+  }
+
+  // Handle bottom pull refresh with debouncing
+  void _handleBottomRefresh() {
+    // Don't refresh if already loading
+    if (_isLoading) return;
+
+    // Debounce rapid scroll events (wait 1 second between refreshes)
+    _bottomRefreshTimer?.cancel();
+    _bottomRefreshTimer = Timer(Duration(seconds: 1), () {
+      // Trigger refresh with haptic feedback
+      HapticFeedback.lightImpact();
+      _loadMessages(forceSync: true);
+    });
   }
 
   // Helper method to build list items with date headers
@@ -4079,134 +4151,25 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         child: Container(
           width: double.infinity,
           padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(25),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 4,
-              spreadRadius: 1,
-              offset: Offset(0, -2),
-            ),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            // Check if audio recording is active - if so, show full-width recording interface
-            if (_audioRecordingKey.currentState?.isRecording == true ||
-                _audioRecordingKey.currentState?.hasRecording == true) ...[
-              // Full-width audio recording interface
-              AudioRecordingWidget(
-                key: _audioRecordingKey,
-                onAudioRecorded: _sendAudioMessage,
-                isComposing: _isComposing,
-                onRecordingStateChanged: () {
-                  setState(() {
-                    // This will trigger a rebuild with the new recording state
-                  });
-                },
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(25),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 4,
+                spreadRadius: 1,
+                offset: Offset(0, -2),
               ),
-            ] else ...[
-              // Normal input interface
-              // Attachment button (+)
-              IconButton(
-                onPressed: _showUploadOptions,
-                icon: Icon(
-                  Icons.add,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.grey[400]
-                      : Colors.grey[600],
-                ),
-                iconSize: 28,
-              ),
-
-              // Expanded message input area
-              Expanded(
-                child: AnimatedContainer(
-                  duration: Duration(milliseconds: 200),
-                  decoration: BoxDecoration(
-                    color: _textFieldFocusNode.hasFocus
-                        ? (Theme.of(context).brightness == Brightness.dark
-                            ? Color(0xFF2a2f32)
-                            : Colors.grey.shade50)
-                        : (Theme.of(context).brightness == Brightness.dark
-                            ? Color(0xFF2a2f32)
-                            : Colors.transparent),
-                  ),
-                  child: Row(
-                    children: [
-                      // Text field
-                      Expanded(
-                        child: TextField(
-                          controller: _messageController,
-                          focusNode: _textFieldFocusNode,
-                          autofocus: false,
-                          decoration: InputDecoration(
-                            hintText: 'Type a message',
-                            hintStyle: TextStyle(
-                              color:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? Colors.grey[400]
-                                  : Colors.grey[600],
-                              fontSize: 16,
-                            ),
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 12,
-                            ),
-                          ),
-                          style: TextStyle(
-                            fontSize: 16,
-                            color:
-                                Theme.of(context).brightness == Brightness.dark
-                                ? Colors.white
-                                : Colors.black,
-                          ),
-                          maxLines: 5,
-                          minLines: 1,
-                          textCapitalization: TextCapitalization.sentences,
-                          keyboardType: TextInputType.multiline,
-                          textInputAction: TextInputAction.newline,
-                          onChanged: (value) {
-                            setState(() {
-                              _isComposing = value.trim().isNotEmpty;
-                            });
-                            _handleTextChanged(value);
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Camera button - hidden when composing
-              if (!_isComposing)
-                IconButton(
-                  onPressed: _capturePhotoWithCamera,
-                  icon: Icon(
-                    Icons.camera_alt,
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.grey[400]
-                        : Colors.grey[600],
-                  ),
-                  iconSize: 28,
-                ),
-
-              // Send button or audio recording widget
-              if (_isComposing)
-                IconButton(
-                  onPressed: _sendMessage,
-                  icon: Icon(Icons.send, color: Color(0xFF003f9b)),
-                  iconSize: 28,
-                )
-              else
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              // Check if audio recording is active - if so, show full-width recording interface
+              if (_audioRecordingKey.currentState?.isRecording == true ||
+                  _audioRecordingKey.currentState?.hasRecording == true) ...[
+                // Full-width audio recording interface
                 AudioRecordingWidget(
                   key: _audioRecordingKey,
                   onAudioRecorded: _sendAudioMessage,
@@ -4217,10 +4180,120 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                     });
                   },
                 ),
+              ] else ...[
+                // Normal input interface
+                // Attachment button (+)
+                IconButton(
+                  onPressed: _showUploadOptions,
+                  icon: Icon(
+                    Icons.add,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey[400]
+                        : Colors.grey[600],
+                  ),
+                  iconSize: 28,
+                ),
+
+                // Expanded message input area
+                Expanded(
+                  child: AnimatedContainer(
+                    duration: Duration(milliseconds: 200),
+                    decoration: BoxDecoration(
+                      color: _textFieldFocusNode.hasFocus
+                          ? (Theme.of(context).brightness == Brightness.dark
+                                ? Color(0xFF2a2f32)
+                                : Colors.grey.shade50)
+                          : (Theme.of(context).brightness == Brightness.dark
+                                ? Color(0xFF2a2f32)
+                                : Colors.transparent),
+                    ),
+                    child: Row(
+                      children: [
+                        // Text field
+                        Expanded(
+                          child: TextField(
+                            controller: _messageController,
+                            focusNode: _textFieldFocusNode,
+                            autofocus: false,
+                            decoration: InputDecoration(
+                              hintText: 'Type a message',
+                              hintStyle: TextStyle(
+                                color:
+                                    Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? Colors.grey[400]
+                                    : Colors.grey[600],
+                                fontSize: 16,
+                              ),
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 12,
+                              ),
+                            ),
+                            style: TextStyle(
+                              fontSize: 16,
+                              color:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.white
+                                  : Colors.black,
+                            ),
+                            maxLines: 5,
+                            minLines: 1,
+                            textCapitalization: TextCapitalization.sentences,
+                            keyboardType: TextInputType.multiline,
+                            textInputAction: TextInputAction.newline,
+                            onChanged: (value) {
+                              setState(() {
+                                _isComposing = value.trim().isNotEmpty;
+                              });
+                              _handleTextChanged(value);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Camera button - hidden when composing
+                if (!_isComposing)
+                  IconButton(
+                    onPressed: _capturePhotoWithCamera,
+                    icon: Icon(
+                      Icons.camera_alt,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey[400]
+                          : Colors.grey[600],
+                    ),
+                    iconSize: 28,
+                  ),
+
+                // Send button or audio recording widget
+                if (_isComposing)
+                  IconButton(
+                    onPressed: _sendMessage,
+                    icon: Icon(Icons.send, color: Color(0xFF003f9b)),
+                    iconSize: 28,
+                  )
+                else
+                  AudioRecordingWidget(
+                    key: _audioRecordingKey,
+                    onAudioRecorded: _sendAudioMessage,
+                    isComposing: _isComposing,
+                    onRecordingStateChanged: () {
+                      setState(() {
+                        // This will trigger a rebuild with the new recording state
+                      });
+                    },
+                  ),
+              ],
             ],
-          ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -4721,29 +4794,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
           );
         }
       });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              message.starred.isStarred
-                  ? 'Message unstarred'
-                  : 'Message starred',
-            ),
-            backgroundColor: Color(0xFF003f9b),
-          ),
-        );
-      }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Failed to ${message.starred.isStarred ? 'unstar' : 'star'} message: $e',
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
+        //do notning
       }
     }
   }
@@ -4908,14 +4961,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         );
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to unpin message: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      // Error unpinning message
     }
   }
 
@@ -4938,8 +4984,10 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   Timer? _messagePollingTimer;
   int _currentPollingInterval = 30; // Start with 30 seconds
   int _lastMessageCount = 0;
-  bool _isMarkingDelivered = false; // Lock to prevent concurrent delivery marking
-  Set<String> _processingDelivery = <String>{}; // Track messages currently being marked as delivered
+  bool _isMarkingDelivered =
+      false; // Lock to prevent concurrent delivery marking
+  Set<String> _processingDelivery =
+      <String>{}; // Track messages currently being marked as delivered
 
   // Helper method to check if a message belongs to the current user
   bool _isOwnMessage(ClubMessage message) {
@@ -5043,61 +5091,71 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
   void _scheduleNextPoll() {
     _messagePollingTimer?.cancel();
-    
-    _messagePollingTimer = Timer(Duration(seconds: _currentPollingInterval), () async {
-      if (mounted && !_isLoading) {
-        try {
-          // Only check for new messages if we need sync
-          final needsSync = await MessageStorageService.needsSync(widget.club.id);
-          if (needsSync) {
-            final previousMessageCount = _messages.length;
-            await _syncMessagesFromServer(forceSync: false);
-            
-            // Check if new messages were received
-            final newMessageCount = _messages.length;
-            if (newMessageCount > previousMessageCount) {
-              // Found new messages - decrease interval (more frequent polling)
-              _currentPollingInterval = 5;
-              debugPrint('📨 New messages found, increasing polling frequency to ${_currentPollingInterval}s');
+
+    _messagePollingTimer = Timer(
+      Duration(seconds: _currentPollingInterval),
+      () async {
+        if (mounted && !_isLoading) {
+          try {
+            // Only check for new messages if we need sync
+            final needsSync = await MessageStorageService.needsSync(
+              widget.club.id,
+            );
+            if (needsSync) {
+              final previousMessageCount = _messages.length;
+              await _syncMessagesFromServer(forceSync: false);
+
+              // Check if new messages were received
+              final newMessageCount = _messages.length;
+              if (newMessageCount > previousMessageCount) {
+                // Found new messages - decrease interval (more frequent polling)
+                _currentPollingInterval = 5;
+                debugPrint(
+                  '📨 New messages found, increasing polling frequency to ${_currentPollingInterval}s',
+                );
+              } else {
+                // No new messages - increase interval (less frequent polling)
+                _adjustPollingInterval();
+              }
             } else {
-              // No new messages - increase interval (less frequent polling)
+              // No sync needed - increase interval
               _adjustPollingInterval();
             }
-          } else {
-            // No sync needed - increase interval
-            _adjustPollingInterval();
-          }
-          
-          // Schedule next poll
-          if (mounted) {
-            _scheduleNextPoll();
-          }
-        } catch (e) {
-          // Silently handle errors to avoid disrupting user experience
-          debugPrint('Message polling failed: $e');
-          // Schedule next poll even on error
-          if (mounted) {
-            _scheduleNextPoll();
+
+            // Schedule next poll
+            if (mounted) {
+              _scheduleNextPoll();
+            }
+          } catch (e) {
+            // Silently handle errors to avoid disrupting user experience
+            debugPrint('Message polling failed: $e');
+            // Schedule next poll even on error
+            if (mounted) {
+              _scheduleNextPoll();
+            }
           }
         }
-      }
-    });
+      },
+    );
   }
 
   void _adjustPollingInterval() {
     // Adaptive intervals: 5s -> 10s -> 15s -> 20s -> 25s -> 30s -> 25s -> 20s -> 15s -> 10s -> 5s (cycle)
     const intervals = [5, 10, 15, 20, 25, 30, 25, 20, 15, 10];
     final currentIndex = intervals.indexOf(_currentPollingInterval);
-    
+
     if (currentIndex == -1) {
       // If current interval is not in list (e.g., first run), start from beginning
       _currentPollingInterval = intervals.first;
     } else {
       // Move to next interval in sequence
-      _currentPollingInterval = intervals[(currentIndex + 1) % intervals.length];
+      _currentPollingInterval =
+          intervals[(currentIndex + 1) % intervals.length];
     }
-    
-    debugPrint('📡 No new messages, adjusting polling interval to ${_currentPollingInterval}s');
+
+    debugPrint(
+      '📡 No new messages, adjusting polling interval to ${_currentPollingInterval}s',
+    );
   }
 
   Set<String>? _lastKnownPinnedIds;
