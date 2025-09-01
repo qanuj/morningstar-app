@@ -322,13 +322,15 @@ class BaseMessageBubble extends StatelessWidget {
   }
 
   String _formatMessageTime(DateTime dateTime) {
+    // Convert to local timezone
+    final localTime = dateTime.toLocal();
     final now = DateTime.now();
-    final difference = now.difference(dateTime);
+    final difference = now.difference(localTime);
 
     if (difference.inDays > 0) {
-      return '${dateTime.day}/${dateTime.month} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
+      return '${localTime.day}/${localTime.month} ${localTime.hour}:${localTime.minute.toString().padLeft(2, '0')}';
     } else {
-      return '${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
+      return '${localTime.hour}:${localTime.minute.toString().padLeft(2, '0')}';
     }
   }
 

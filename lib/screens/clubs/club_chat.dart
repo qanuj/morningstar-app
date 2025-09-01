@@ -759,23 +759,12 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   Future<void> _toggleOfflineMode(bool enabled) async {
     await MessageStorageService.setOfflineMode(widget.club.id, enabled);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          enabled
-              ? 'Offline mode enabled. No background sync.'
-              : 'Offline mode disabled. Background sync enabled.',
-        ),
-        backgroundColor: enabled ? Colors.orange : Colors.green,
-      ),
-    );
+    // Offline mode toggled - removed SnackBar notification
   }
 
   Future<void> _downloadAllMedia() async {
     try {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Downloading media files...')));
+      // Downloading media files - removed SnackBar notification
 
       // Extract media URLs from current messages
       final mediaUrls = <Map<String, dynamic>>[];
@@ -823,24 +812,12 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
           widget.club.id,
           mediaUrls,
         );
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Media download completed'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        // Media download completed - removed SnackBar notification
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('No media files to download')));
+        // No media files to download - removed SnackBar notification
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to download media: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      // Failed to download media - removed SnackBar notification
     }
   }
 
@@ -944,9 +921,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
     if (confirmed == true) {
       try {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Clearing local data...')));
+        // Clearing local data - removed SnackBar notification
 
         // Clear all club data including media
         await MessageStorageService.clearClubData(widget.club.id);
@@ -954,19 +929,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         // Reload from server
         await _loadMessages(forceSync: true);
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Local data cleared and reloaded'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        // Local data cleared and reloaded - removed SnackBar notification
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to clear local data: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // Failed to clear local data - removed SnackBar notification
       }
     }
   }
@@ -981,12 +946,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     final user = userProvider.user;
     if (user == null) {
       print('❌ User is null, cannot send message');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('User not found. Please login again.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      // User not found - removed SnackBar notification
       return;
     }
 
@@ -1126,18 +1086,47 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       print('🔵 Is success: $isSuccess, Message ID: $messageId');
 
       if (isSuccess) {
-        // Update the optimistic message to sent status with real ID and metadata
-        setState(() {
-          final messageIndex = _messages.indexWhere(
-            (m) => m.id == tempMessageId,
-          );
-          if (messageIndex != -1) {
-            _messages[messageIndex] = _messages[messageIndex].copyWith(
-              status: MessageStatus.sent,
-              linkMeta: linkMeta,
+        // For text messages, the response is usually the message object itself
+        // or we need to extract it from the response structure
+        Map<String, dynamic>? messageData;
+        
+        if (response.containsKey('data') && response['data'] is Map) {
+          messageData = response['data'] as Map<String, dynamic>;
+        } else if (response.containsKey('message') && response['message'] is Map) {
+          messageData = response['message'] as Map<String, dynamic>;
+        } else {
+          // The response itself might be the message data
+          messageData = response;
+        }
+        
+        if (messageData != null) {
+          // Remove temporary message and add real message from server (similar to media messages)
+          setState(() {
+            _messages.removeWhere((m) => m.id == tempMessageId);
+          });
+          
+          // Create message object from server response
+          final newMessage = ClubMessage.fromJson(messageData);
+          await MessageStorageService.addMessage(widget.club.id, newMessage);
+          
+          // Update UI
+          setState(() {
+            _messages.add(newMessage);
+            _messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+          });
+        } else {
+          // Fallback: just update the status if we can't get message data
+          setState(() {
+            final messageIndex = _messages.indexWhere(
+              (m) => m.id == tempMessageId,
             );
-          }
-        });
+            if (messageIndex != -1) {
+              _messages[messageIndex] = _messages[messageIndex].copyWith(
+                status: MessageStatus.sent,
+              );
+            }
+          });
+        }
 
         print('✅ Message sent successfully: $messageId');
       } else {
@@ -1407,12 +1396,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
       // Show error to user
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to send audio message'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // Failed to send audio message - removed SnackBar notification
       }
     }
   }

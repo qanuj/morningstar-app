@@ -387,7 +387,7 @@ class ClubMessage {
       messageType: messageType,
       createdAt: DateTime.parse(
         json['createdAt'] ?? DateTime.now().toIso8601String(),
-      ),
+      ).toLocal(),
       status: messageStatus, // Use the parsed status
       reactions: reactions,
       replyTo: replyTo,
@@ -402,9 +402,9 @@ class ClubMessage {
       ),
       // Local-only fields - not from server JSON
       deliveredAt: json['deliveredAt'] != null
-          ? DateTime.parse(json['deliveredAt'])
+          ? DateTime.parse(json['deliveredAt']).toLocal()
           : null,
-      readAt: json['readAt'] != null ? DateTime.parse(json['readAt']) : null,
+      readAt: json['readAt'] != null ? DateTime.parse(json['readAt']).toLocal() : null,
     );
   }
 
