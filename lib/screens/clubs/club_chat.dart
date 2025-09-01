@@ -90,7 +90,8 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     // Remove the listener since we handle it in onChanged now
     _loadMessages();
     _startPinnedRefreshTimer();
-    
+    _startMessagePolling();
+
     // Add focus listener to trigger UI updates
     _textFieldFocusNode.addListener(() {
       setState(() {});
@@ -100,15 +101,21 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   /// Load delivered and read message IDs from persistent storage
   Future<void> _loadPersistentStatusFlags() async {
     try {
-      final deliveredIds = await MessageStorageService.getDeliveredMessageIds(widget.club.id);
-      final readIds = await MessageStorageService.getReadMessageIds(widget.club.id);
-      
+      final deliveredIds = await MessageStorageService.getDeliveredMessageIds(
+        widget.club.id,
+      );
+      final readIds = await MessageStorageService.getReadMessageIds(
+        widget.club.id,
+      );
+
       setState(() {
         _deliveredMessages.addAll(deliveredIds);
         _seenMessages.addAll(readIds);
       });
-      
-      print('📱 Loaded ${deliveredIds.length} delivered and ${readIds.length} read message flags');
+
+      print(
+        '📱 Loaded ${deliveredIds.length} delivered and ${readIds.length} read message flags',
+      );
     } catch (e) {
       print('❌ Error loading persistent status flags: $e');
     }
@@ -118,6 +125,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   void dispose() {
     _highlightTimer?.cancel();
     _pinnedRefreshTimer?.cancel();
+    _messagePollingTimer?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     _textFieldFocusNode.dispose();
@@ -133,8 +141,10 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
       // Always load from local storage first for offline-first experience
       print('📱 Loading messages from local storage...');
-      final cachedMessages = await MessageStorageService.loadMessages(widget.club.id);
-      
+      final cachedMessages = await MessageStorageService.loadMessages(
+        widget.club.id,
+      );
+
       if (cachedMessages.isNotEmpty) {
         setState(() {
           _messages = cachedMessages;
@@ -150,18 +160,13 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         print('✅ Loaded ${cachedMessages.length} messages from local storage');
 
         // Only sync if explicitly requested or if not in offline mode
-        final isOfflineMode = await MessageStorageService.isOfflineMode(widget.club.id);
-        if (forceSync || (!isOfflineMode && await MessageStorageService.needsSync(widget.club.id))) {
+        final isOfflineMode = await MessageStorageService.isOfflineMode(
+          widget.club.id,
+        );
+        if (forceSync ||
+            (!isOfflineMode &&
+                await MessageStorageService.needsSync(widget.club.id))) {
           print('📡 Syncing with server...');
-          // For refresh (forceSync), show user this is an incremental update
-          if (forceSync) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('🔄 Checking for updates...'),
-                duration: Duration(seconds: 1),
-              ),
-            );
-          }
           _syncMessagesFromServer(forceSync: forceSync);
         } else {
           print('📱 Working in offline mode or data is current');
@@ -190,9 +195,11 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
           !_deliveredMessages.contains(message.id) &&
           message.status != MessageStatus.delivered &&
           message.status != MessageStatus.read) {
-        
         // Double-check with persistent storage to ensure API is called only once
-        final alreadyMarked = await MessageStorageService.isMarkedAsDelivered(widget.club.id, message.id);
+        final alreadyMarked = await MessageStorageService.isMarkedAsDelivered(
+          widget.club.id,
+          message.id,
+        );
         if (alreadyMarked) {
           // Already marked in persistent storage but not in memory - sync memory state
           _deliveredMessages.add(message.id);
@@ -209,7 +216,10 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
           if (response['success'] == true) {
             // Mark in both memory and persistent storage
             _deliveredMessages.add(message.id);
-            await MessageStorageService.markAsDelivered(widget.club.id, message.id);
+            await MessageStorageService.markAsDelivered(
+              widget.club.id,
+              message.id,
+            );
             // Update message status locally
             _updateMessageStatus(message.id, MessageStatus.delivered);
           }
@@ -238,7 +248,10 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     if (message.senderId == currentUserId) return;
 
     // Double-check with persistent storage to ensure API is called only once
-    final alreadyMarked = await MessageStorageService.isMarkedAsRead(widget.club.id, messageId);
+    final alreadyMarked = await MessageStorageService.isMarkedAsRead(
+      widget.club.id,
+      messageId,
+    );
     if (alreadyMarked) {
       // Already marked in persistent storage but not in memory - sync memory state
       _seenMessages.add(messageId);
@@ -295,7 +308,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     // 1. Remove deleted messages
     if (deletedMessageIds.isNotEmpty) {
       print('🗑️ Removing ${deletedMessageIds.length} deleted messages');
-      updatedMessagesList.removeWhere((msg) => deletedMessageIds.contains(msg.id));
+      updatedMessagesList.removeWhere(
+        (msg) => deletedMessageIds.contains(msg.id),
+      );
       hasChanges = true;
     }
 
@@ -303,7 +318,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     if (updatedMessages.isNotEmpty) {
       print('📝 Updating ${updatedMessages.length} existing messages');
       for (final updatedMsg in updatedMessages) {
-        final index = updatedMessagesList.indexWhere((msg) => msg.id == updatedMsg.id);
+        final index = updatedMessagesList.indexWhere(
+          (msg) => msg.id == updatedMsg.id,
+        );
         if (index != -1) {
           // Preserve local read/delivered status
           final currentMsg = updatedMessagesList[index];
@@ -321,7 +338,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       print('➕ Adding ${newMessages.length} new messages');
       updatedMessagesList.addAll(newMessages);
       hasChanges = true;
-      
+
       // Highlight new messages temporarily
       for (final newMsg in newMessages) {
         _highlightMessage(newMsg.id);
@@ -343,28 +360,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       }
 
       print('✅ Applied incremental changes successfully');
-      
-      // Show user-friendly notification about what was updated (only if requested)
-      if (mounted && showNotifications) {
-        final totalChanges = newMessages.length + updatedMessages.length + deletedMessageIds.length;
-        String message = '✅ Updated';
-        
-        if (newMessages.isNotEmpty && updatedMessages.isEmpty && deletedMessageIds.isEmpty) {
-          message = '✅ ${newMessages.length} new message${newMessages.length == 1 ? '' : 's'}';
-        } else if (totalChanges == 1) {
-          message = '✅ 1 change applied';
-        } else {
-          message = '✅ $totalChanges changes applied';
-        }
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            duration: Duration(seconds: 2),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
+
     } else {
       setState(() => _isLoading = false);
     }
@@ -373,7 +369,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   /// Highlight a message temporarily to show it's new/updated
   void _highlightMessage(String messageId) {
     setState(() => _highlightedMessageId = messageId);
-    
+
     // Remove highlight after 2 seconds
     _highlightTimer?.cancel();
     _highlightTimer = Timer(Duration(seconds: 2), () {
@@ -411,24 +407,21 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
             .map((json) => ClubMessage.fromJson(json as Map<String, dynamic>))
             .toList();
 
-        // Get current local messages for comparison
-        final localMessages = await MessageStorageService.loadMessages(widget.club.id);
-        
         // Compare messages to identify changes
-        final comparison = MessageStorageService.compareMessages(_messages, serverMessages);
-        
+        final comparison = MessageStorageService.compareMessages(
+          _messages,
+          serverMessages,
+        );
+
         if (comparison['needsUpdate'] as bool) {
-          print('📊 Sync analysis:');
-          print('   New: ${(comparison['new'] as List).length}');
-          print('   Updated: ${(comparison['updated'] as List).length}');
-          print('   Deleted: ${(comparison['deleted'] as List).length}');
-          
           // Apply incremental changes instead of full reload
-          await _applyIncrementalChanges(comparison, serverMessages, showNotifications: forceSync);
+          await _applyIncrementalChanges(
+            comparison,
+            serverMessages,
+            showNotifications: forceSync,
+          );
         } else {
-          print('✅ No changes detected - skipping UI update');
           setState(() => _isLoading = false);
-          
           // Show user that refresh completed but no new changes (only for explicit refresh)
           if (mounted && forceSync) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -468,7 +461,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
         // Mark messages as delivered/read using existing methods
         _markReceivedMessagesAsDelivered();
-        
+
         print('✅ Sync completed successfully');
       } else {
         _error = response['message'] ?? 'Failed to load messages';
@@ -509,8 +502,10 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   }
 
   void _showMoreOptions() async {
-    final isOfflineMode = await MessageStorageService.isOfflineMode(widget.club.id);
-    
+    final isOfflineMode = await MessageStorageService.isOfflineMode(
+      widget.club.id,
+    );
+
     showModalBottomSheet(
       context: context,
       builder: (context) => Container(
@@ -523,11 +518,13 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                 isOfflineMode ? Icons.wifi_off : Icons.wifi,
                 color: isOfflineMode ? Colors.orange : Colors.green,
               ),
-              title: Text(isOfflineMode ? 'Offline Mode: ON' : 'Offline Mode: OFF'),
+              title: Text(
+                isOfflineMode ? 'Offline Mode: ON' : 'Offline Mode: OFF',
+              ),
               subtitle: Text(
-                isOfflineMode 
-                  ? 'No background sync, tap refresh to update'
-                  : 'Background sync enabled',
+                isOfflineMode
+                    ? 'No background sync, tap refresh to update'
+                    : 'Background sync enabled',
               ),
               onTap: () {
                 Navigator.pop(context);
@@ -545,7 +542,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
             ListTile(
               leading: Icon(Icons.download),
               title: Text('Download All Media'),
-              subtitle: Text('Download images, audio, and documents for offline use'),
+              subtitle: Text(
+                'Download images, audio, and documents for offline use',
+              ),
               onTap: () {
                 Navigator.pop(context);
                 _downloadAllMedia();
@@ -568,13 +567,13 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
   Future<void> _toggleOfflineMode(bool enabled) async {
     await MessageStorageService.setOfflineMode(widget.club.id, enabled);
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          enabled 
-            ? 'Offline mode enabled. No background sync.' 
-            : 'Offline mode disabled. Background sync enabled.',
+          enabled
+              ? 'Offline mode enabled. No background sync.'
+              : 'Offline mode disabled. Background sync enabled.',
         ),
         backgroundColor: enabled ? Colors.orange : Colors.green,
       ),
@@ -583,10 +582,10 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
   Future<void> _downloadAllMedia() async {
     try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Downloading media files...')),
-      );
-      
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Downloading media files...')));
+
       // Extract media URLs from current messages
       final mediaUrls = <Map<String, dynamic>>[];
       for (final message in _messages) {
@@ -598,7 +597,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
             'messageId': message.id,
           });
         }
-        
+
         // Documents
         for (final document in message.documents) {
           mediaUrls.add({
@@ -608,7 +607,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
             'filename': document.filename,
           });
         }
-        
+
         // Audio
         if (message.audio != null) {
           mediaUrls.add({
@@ -617,7 +616,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
             'messageId': message.id,
           });
         }
-        
+
         // GIFs
         if (message.gifUrl != null && message.gifUrl!.isNotEmpty) {
           mediaUrls.add({
@@ -627,9 +626,12 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
           });
         }
       }
-      
+
       if (mediaUrls.isNotEmpty) {
-        await MediaStorageService.downloadAllMediaForClub(widget.club.id, mediaUrls);
+        await MediaStorageService.downloadAllMediaForClub(
+          widget.club.id,
+          mediaUrls,
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Media download completed'),
@@ -637,9 +639,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
           ),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No media files to download')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('No media files to download')));
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -667,12 +669,20 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('📱 OFFLINE STATUS', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(
+                '📱 OFFLINE STATUS',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               SizedBox(height: 8),
-              Text('Offline Mode: ${storageInfo['isOfflineMode'] ? 'ON' : 'OFF'}'),
+              Text(
+                'Offline Mode: ${storageInfo['isOfflineMode'] ? 'ON' : 'OFF'}',
+              ),
               SizedBox(height: 16),
-              
-              Text('💬 MESSAGES', style: TextStyle(fontWeight: FontWeight.bold)),
+
+              Text(
+                '💬 MESSAGES',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               SizedBox(height: 8),
               Text('Count: ${storageInfo['messageCount']}'),
               Text('Last Sync: ${storageInfo['lastSync'] ?? 'Never'}'),
@@ -680,19 +690,30 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
               if (storageInfo['lastMessageAt'] != null)
                 Text('Latest: ${storageInfo['lastMessageAt']}'),
               SizedBox(height: 8),
-              Text('📧 Delivered: ${storageInfo['deliveredCount'] ?? 0}', style: TextStyle(fontSize: 12, color: Colors.green[700])),
-              Text('👁️ Read: ${storageInfo['readCount'] ?? 0}', style: TextStyle(fontSize: 12, color: Colors.blue[700])),
+              Text(
+                '📧 Delivered: ${storageInfo['deliveredCount'] ?? 0}',
+                style: TextStyle(fontSize: 12, color: Colors.green[700]),
+              ),
+              Text(
+                '👁️ Read: ${storageInfo['readCount'] ?? 0}',
+                style: TextStyle(fontSize: 12, color: Colors.blue[700]),
+              ),
               SizedBox(height: 16),
-              
-              Text('💾 MEDIA CACHE', style: TextStyle(fontWeight: FontWeight.bold)),
+
+              Text(
+                '💾 MEDIA CACHE',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               SizedBox(height: 8),
               Text('Files: ${mediaInfo['totalFiles'] ?? 0}'),
               if (mediaInfo['totalSizeMB'] != null)
-                Text('Size: ${(mediaInfo['totalSizeMB'] as double).toStringAsFixed(1)} MB'),
+                Text(
+                  'Size: ${(mediaInfo['totalSizeMB'] as double).toStringAsFixed(1)} MB',
+                ),
               if (mediaInfo['byType'] != null) ...[
                 SizedBox(height: 8),
-                ...((mediaInfo['byType'] as Map<String, dynamic>).entries.map((e) =>
-                  Text('${e.key}: ${e.value}'),
+                ...((mediaInfo['byType'] as Map<String, dynamic>).entries.map(
+                  (e) => Text('${e.key}: ${e.value}'),
                 )),
               ],
             ],
@@ -732,16 +753,16 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
     if (confirmed == true) {
       try {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Clearing local data...')),
-        );
-        
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Clearing local data...')));
+
         // Clear all club data including media
         await MessageStorageService.clearClubData(widget.club.id);
-        
+
         // Reload from server
         await _loadMessages(forceSync: true);
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Local data cleared and reloaded'),
@@ -1561,9 +1582,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                         IconButton(
                           icon: Icon(Icons.refresh, color: Colors.white),
                           onPressed: () => _loadMessages(forceSync: true),
-                          tooltip: isOfflineMode 
-                            ? 'Refresh from server (Offline mode is ON)'
-                            : 'Refresh messages',
+                          tooltip: isOfflineMode
+                              ? 'Refresh from server (Offline mode is ON)'
+                              : 'Refresh messages',
                         ),
                         if (isOfflineMode)
                           Positioned(
@@ -1653,16 +1674,18 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
             itemCount: listItems.length,
             itemBuilder: (context, index) {
               final item = listItems[index];
-              
+
               // Check if item is a date header
               if (item is DateTime) {
                 return _buildDateHeader(item);
               }
-              
+
               // Otherwise it's a message
               final message = item as ClubMessage;
               final messageIndex = allMessages.indexOf(message);
-              final previousMessage = messageIndex > 0 ? allMessages[messageIndex - 1] : null;
+              final previousMessage = messageIndex > 0
+                  ? allMessages[messageIndex - 1]
+                  : null;
               final nextMessage = messageIndex < allMessages.length - 1
                   ? allMessages[messageIndex + 1]
                   : null;
@@ -1728,7 +1751,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(Duration(days: 1));
-    
+
     String dateText;
     if (_isSameDate(date, today)) {
       dateText = 'Today';
@@ -1738,13 +1761,23 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       // Format as "Mon, Jan 15, 2024"
       final weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       final months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
       ];
-      
+
       final weekday = weekdays[date.weekday % 7];
       final month = months[date.month - 1];
-      
+
       dateText = '$weekday, $month ${date.day}, ${date.year}';
     }
 
@@ -3869,19 +3902,22 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
   Widget _buildMessageInput() {
     return SafeArea(
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      child: Padding(
+        padding: EdgeInsets.all(12),
+        child: Container(
+          width: double.infinity,
+          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? Colors.grey[900]!
-              : Colors.grey[50],
-          border: Border(
-            top: BorderSide(
-              color: Theme.of(context).dividerColor.withOpacity(0.3),
-              width: 0.5,
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(25),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 4,
+              spreadRadius: 1,
+              offset: Offset(0, -2),
             ),
-          ),
+          ],
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
@@ -3925,22 +3961,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                             : Colors.grey.shade50)
                         : (Theme.of(context).brightness == Brightness.dark
                             ? Color(0xFF2a2f32)
-                            : Colors.white),
-                    borderRadius: BorderRadius.circular(25),
-                    border: _textFieldFocusNode.hasFocus
-                        ? Border.all(
-                            color: Colors.grey.shade400,
-                            width: 1.0,
-                          )
-                        : null,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 2,
-                        spreadRadius: 0.5,
-                        offset: Offset(0, 1),
-                      ),
-                    ],
+                            : Colors.transparent),
                   ),
                   child: Row(
                     children: [
@@ -3961,8 +3982,10 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                               fontSize: 16,
                             ),
                             border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
                             contentPadding: EdgeInsets.symmetric(
-                              horizontal: 16,
+                              horizontal: 4,
                               vertical: 12,
                             ),
                           ),
@@ -4025,6 +4048,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
             ],
           ],
         ),
+      ),
       ),
     );
   }
@@ -4739,6 +4763,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   }
 
   Timer? _pinnedRefreshTimer;
+  Timer? _messagePollingTimer;
+  int _currentPollingInterval = 30; // Start with 30 seconds
+  int _lastMessageCount = 0;
 
   // Helper method to check if a message belongs to the current user
   bool _isOwnMessage(ClubMessage message) {
@@ -4833,6 +4860,72 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         .toSet();
   }
 
+  // Start adaptive polling for new messages
+  void _startMessagePolling() {
+    _messagePollingTimer?.cancel();
+    _lastMessageCount = _messages.length;
+    _scheduleNextPoll();
+  }
+
+  void _scheduleNextPoll() {
+    _messagePollingTimer?.cancel();
+    
+    _messagePollingTimer = Timer(Duration(seconds: _currentPollingInterval), () async {
+      if (mounted && !_isLoading) {
+        try {
+          // Only check for new messages if we need sync
+          final needsSync = await MessageStorageService.needsSync(widget.club.id);
+          if (needsSync) {
+            final previousMessageCount = _messages.length;
+            await _syncMessagesFromServer(forceSync: false);
+            
+            // Check if new messages were received
+            final newMessageCount = _messages.length;
+            if (newMessageCount > previousMessageCount) {
+              // Found new messages - decrease interval (more frequent polling)
+              _currentPollingInterval = 5;
+              debugPrint('📨 New messages found, increasing polling frequency to ${_currentPollingInterval}s');
+            } else {
+              // No new messages - increase interval (less frequent polling)
+              _adjustPollingInterval();
+            }
+          } else {
+            // No sync needed - increase interval
+            _adjustPollingInterval();
+          }
+          
+          // Schedule next poll
+          if (mounted) {
+            _scheduleNextPoll();
+          }
+        } catch (e) {
+          // Silently handle errors to avoid disrupting user experience
+          debugPrint('Message polling failed: $e');
+          // Schedule next poll even on error
+          if (mounted) {
+            _scheduleNextPoll();
+          }
+        }
+      }
+    });
+  }
+
+  void _adjustPollingInterval() {
+    // Adaptive intervals: 5s -> 10s -> 15s -> 20s -> 25s -> 30s -> 25s -> 20s -> 15s -> 10s -> 5s (cycle)
+    const intervals = [5, 10, 15, 20, 25, 30, 25, 20, 15, 10];
+    final currentIndex = intervals.indexOf(_currentPollingInterval);
+    
+    if (currentIndex == -1) {
+      // If current interval is not in list (e.g., first run), start from beginning
+      _currentPollingInterval = intervals.first;
+    } else {
+      // Move to next interval in sequence
+      _currentPollingInterval = intervals[(currentIndex + 1) % intervals.length];
+    }
+    
+    debugPrint('📡 No new messages, adjusting polling interval to ${_currentPollingInterval}s');
+  }
+
   Set<String>? _lastKnownPinnedIds;
   int _currentPinnedIndex = 0; // Track current pinned message being displayed
 
@@ -4872,16 +4965,22 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     if (message.messageType == 'audio' && message.audio != null) {
       return 'Audio';
     } else if (message.documents.isNotEmpty) {
-      return message.documents.length == 1 ? 'Document' : '${message.documents.length} Documents';
+      return message.documents.length == 1
+          ? 'Document'
+          : '${message.documents.length} Documents';
     } else if (message.pictures.isNotEmpty) {
-      return message.pictures.length == 1 ? 'Photo' : '${message.pictures.length} Photos';
+      return message.pictures.length == 1
+          ? 'Photo'
+          : '${message.pictures.length} Photos';
     } else if (message.gifUrl != null && message.gifUrl!.isNotEmpty) {
       return 'GIF';
     } else if (message.linkMeta.isNotEmpty) {
       return 'Link';
     } else if (message.messageType == 'emoji') {
       // For emoji messages, show the actual emoji if content is available
-      return message.content.trim().isNotEmpty ? message.content.trim() : 'Emoji';
+      return message.content.trim().isNotEmpty
+          ? message.content.trim()
+          : 'Emoji';
     } else {
       // For text messages, return the content if available
       final content = message.content.trim();
@@ -4919,10 +5018,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                   // Message preview
                   Text(
                     firstLine,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF6C757D),
-                    ),
+                    style: TextStyle(fontSize: 14, color: Color(0xFF6C757D)),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -5018,11 +5114,11 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     if (message.pictures.isNotEmpty) {
       return _buildPinnedMessageImages(message.pictures);
     }
-    
+
     // Show icon indicators for other message types
     Widget? iconWidget;
     Color iconColor = Color(0xFF6C757D);
-    
+
     if (message.messageType == 'audio' && message.audio != null) {
       iconWidget = Icon(Icons.audiotrack, size: 20, color: iconColor);
     } else if (message.documents.isNotEmpty) {
@@ -5034,7 +5130,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     } else if (message.messageType == 'emoji') {
       iconWidget = Icon(Icons.emoji_emotions, size: 20, color: iconColor);
     }
-    
+
     // Return icon container if we have an icon to show
     if (iconWidget != null) {
       return Container(
@@ -5048,7 +5144,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         child: Center(child: iconWidget),
       );
     }
-    
+
     // For regular text messages, don't show any indicator
     return SizedBox.shrink();
   }
