@@ -502,4 +502,52 @@ class MessageStorageService {
       print('❌ Error clearing club data: $e');
     }
   }
+
+  /// Handle message deletion by updating local cache
+  static Future<void> handleDeletedMessage(String clubId, String messageId) async {
+    try {
+      final messages = await loadMessages(clubId);
+      final messageIndex = messages.indexWhere((m) => m.id == messageId);
+      
+      if (messageIndex != -1) {
+        // Update the message to mark it as deleted
+        final updatedMessage = messages[messageIndex].copyWith(
+          deleted: true,
+          content: 'This message was deleted', // Set deleted message content
+        );
+        
+        messages[messageIndex] = updatedMessage;
+        await saveMessages(clubId, messages);
+        print('🗑️ Marked message $messageId as deleted in local cache');
+      } else {
+        print('⚠️ Message $messageId not found in local cache for deletion');
+      }
+    } catch (e) {
+      print('❌ Error handling deleted message: $e');
+    }
+  }
+
+  /// Get last updated timestamp for efficient sync using updatedSince parameter
+  static Future<DateTime?> getLastUpdatedTimestamp(String clubId) async {
+    try {
+      final messages = await loadMessages(clubId);
+      if (messages.isEmpty) return null;
+      
+      // Get the latest updatedAt or createdAt timestamp
+      DateTime? latestUpdate;
+      for (final message in messages) {
+        // For now, use createdAt as updatedAt since we don't have updatedAt field in ClubMessage
+        // This can be enhanced when ClubMessage model includes updatedAt field
+        final messageTime = message.createdAt;
+        if (latestUpdate == null || messageTime.isAfter(latestUpdate)) {
+          latestUpdate = messageTime;
+        }
+      }
+      
+      return latestUpdate;
+    } catch (e) {
+      print('❌ Error getting last updated timestamp: $e');
+      return null;
+    }
+  }
 }

@@ -185,48 +185,125 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
   // Mark messages as delivered when they are received (API called only once per message)
   Future<void> _markReceivedMessagesAsDelivered() async {
+    // Prevent concurrent execution
+    if (_isMarkingDelivered) {
+      debugPrint('⏸️ Already marking messages as delivered, skipping');
+      return;
+    }
+    
     final userProvider = context.read<UserProvider>();
     final currentUserId = userProvider.user?.id;
     if (currentUserId == null) return;
 
-    for (final message in _messages) {
-      // Only mark messages from other users as delivered
-      if (message.senderId != currentUserId &&
-          !_deliveredMessages.contains(message.id) &&
-          message.status != MessageStatus.delivered &&
-          message.status != MessageStatus.read) {
-        // Double-check with persistent storage to ensure API is called only once
+    _isMarkingDelivered = true;
+    
+    try {
+      // Get messages that need to be marked as delivered
+      final messagesToMark = _messages.where((message) =>
+        message.senderId != currentUserId &&
+        !_deliveredMessages.contains(message.id) &&
+        message.status != MessageStatus.delivered &&
+        message.status != MessageStatus.read
+      ).toList();
+
+      if (messagesToMark.isEmpty) {
+        debugPrint('📱 No messages need delivery marking');
+        return;
+      }
+
+      debugPrint('📧 Marking ${messagesToMark.length} messages as delivered');
+
+    for (final message in messagesToMark) {
+      // Skip if already in memory cache or currently being processed
+      if (_deliveredMessages.contains(message.id) || _processingDelivery.contains(message.id)) {
+        debugPrint('⏭️ Skipping message ${message.id} - already processed or in progress');
+        continue;
+      }
+
+      // Add to processing set immediately to prevent duplicates
+      _processingDelivery.add(message.id);
+
+      try {
+        // Check persistent storage to ensure API is called only once
         final alreadyMarked = await MessageStorageService.isMarkedAsDelivered(
           widget.club.id,
           message.id,
         );
+        
         if (alreadyMarked) {
           // Already marked in persistent storage but not in memory - sync memory state
           _deliveredMessages.add(message.id);
           _updateMessageStatus(message.id, MessageStatus.delivered);
+          debugPrint('📝 Synced message ${message.id} from storage to memory cache');
           continue;
         }
 
-        try {
-          final response = await ApiService.post(
-            '/conversations/${widget.club.id}/messages/${message.id}/delivered',
-            {},
-          );
+        // Final check before API call
+        if (_deliveredMessages.contains(message.id)) {
+          debugPrint('⏭️ Message ${message.id} was marked during processing, skipping API call');
+          continue;
+        }
 
-          if (response['success'] == true) {
-            // Mark in both memory and persistent storage
-            _deliveredMessages.add(message.id);
-            await MessageStorageService.markAsDelivered(
-              widget.club.id,
-              message.id,
-            );
-            // Update message status locally
-            _updateMessageStatus(message.id, MessageStatus.delivered);
-          }
-        } catch (e) {
-          print('❌ Error marking message ${message.id} as delivered: $e');
+        debugPrint('🔵 Making POST request to: https://duggy.app/api/conversations/${widget.club.id}/messages/${message.id}/delivered');
+        final response = await ApiService.post(
+          '/conversations/${widget.club.id}/messages/${message.id}/delivered',
+          {},
+        );
+
+        if (response['success'] == true) {
+          // Mark in both memory and persistent storage immediately
+          _deliveredMessages.add(message.id);
+          await MessageStorageService.markAsDelivered(
+            widget.club.id,
+            message.id,
+          );
+          // Update message status locally
+          _updateMessageStatus(message.id, MessageStatus.delivered);
+          debugPrint('✅ Successfully marked message ${message.id} as delivered');
+        }
+      } catch (e) {
+        debugPrint('❌ Error marking message ${message.id} as delivered: $e');
+      } finally {
+        // Always remove from processing set
+        _processingDelivery.remove(message.id);
+      }
+    }
+    } finally {
+      _isMarkingDelivered = false;
+    }
+  }
+
+  // Sync delivery status from server messages to prevent duplicate API calls
+  void _syncDeliveryStatusFromServer(List<ClubMessage> serverMessages) {
+    final userProvider = context.read<UserProvider>();
+    final currentUserId = userProvider.user?.id;
+    if (currentUserId == null) return;
+
+    int syncedCount = 0;
+    
+    for (final message in serverMessages) {
+      // Skip messages sent by current user
+      if (message.senderId == currentUserId) continue;
+      
+      // Check if message has delivery information for current user
+      // This relies on the updated backend API that includes status.delivered
+      if (message.status == MessageStatus.delivered || message.deliveredAt != null) {
+        if (!_deliveredMessages.contains(message.id)) {
+          _deliveredMessages.add(message.id);
+          syncedCount++;
         }
       }
+      
+      // Also sync read status
+      if (message.status == MessageStatus.read || message.readAt != null) {
+        if (!_seenMessages.contains(message.id)) {
+          _seenMessages.add(message.id);
+        }
+      }
+    }
+    
+    if (syncedCount > 0) {
+      debugPrint('📝 Synced delivery status for $syncedCount messages from server');
     }
   }
 
@@ -458,6 +535,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
         // Restart the pinned refresh timer with new messages
         _startPinnedRefreshTimer();
+
+        // Sync delivery status from server before trying to mark new ones
+        _syncDeliveryStatusFromServer(serverMessages);
 
         // Mark messages as delivered/read using existing methods
         _markReceivedMessagesAsDelivered();
@@ -4766,6 +4846,8 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   Timer? _messagePollingTimer;
   int _currentPollingInterval = 30; // Start with 30 seconds
   int _lastMessageCount = 0;
+  bool _isMarkingDelivered = false; // Lock to prevent concurrent delivery marking
+  Set<String> _processingDelivery = <String>{}; // Track messages currently being marked as delivered
 
   // Helper method to check if a message belongs to the current user
   bool _isOwnMessage(ClubMessage message) {
