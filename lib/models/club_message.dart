@@ -327,10 +327,16 @@ class ClubMessage {
     MessageStatus messageStatus = MessageStatus.sent; // Default
     DateTime? deliveredAt;
     DateTime? readAt;
-    
+
+    if (json['messageId'] == 'cmezzje2t0001nwzh0x8qrcd5') {
+      debugPrint(
+        '🤡 Status parsing: delivered=${json['status']['delivered']}, read=${json['status']['read']}',
+      );
+    }
+
     if (json['status'] is Map<String, dynamic>) {
       final statusData = json['status'] as Map<String, dynamic>;
-      
+
       // Parse timestamps from status object
       if (statusData['deliveredAt'] != null) {
         try {
@@ -339,7 +345,7 @@ class ClubMessage {
           debugPrint('⚠️ Error parsing deliveredAt: $e');
         }
       }
-      
+
       if (statusData['readAt'] != null) {
         try {
           readAt = DateTime.parse(statusData['readAt']).toLocal();
@@ -347,7 +353,7 @@ class ClubMessage {
           debugPrint('⚠️ Error parsing readAt: $e');
         }
       }
-      
+
       // Check for read status first (highest priority)
       if (statusData['read'] == true) {
         messageStatus = MessageStatus.read;
@@ -356,9 +362,10 @@ class ClubMessage {
       } else {
         messageStatus = MessageStatus.sent;
       }
-      
-      debugPrint('🔍 Status parsing: delivered=${statusData['delivered']}, read=${statusData['read']}, deliveredAt=$deliveredAt, readAt=$readAt, final status=$messageStatus');
     } else if (json['status'] is String) {
+      if (json['messageId'] == 'cmezzje2t0001nwzh0x8qrcd5') {
+        debugPrint('🔍 🔍 🔍 🔍 🔍 Status parsing: $json');
+      }
       // Handle string status format
       final statusStr = json['status'] as String;
       switch (statusStr) {
@@ -381,21 +388,19 @@ class ClubMessage {
           messageStatus = MessageStatus.sent;
       }
     }
-    
+
     // Also check readBy and deliveredTo arrays for status determination
     // This provides additional validation beyond the status object
     if (json['readBy'] is List && (json['readBy'] as List).isNotEmpty) {
       // If there are any read receipts, prioritize read status
       messageStatus = MessageStatus.read;
-    } else if (json['deliveredTo'] is List && (json['deliveredTo'] as List).isNotEmpty) {
+    } else if (json['deliveredTo'] is List &&
+        (json['deliveredTo'] as List).isNotEmpty) {
       // If there are delivery receipts but no read receipts, use delivered status
       if (messageStatus == MessageStatus.sent) {
         messageStatus = MessageStatus.delivered;
       }
     }
-    
-    // Debug logging for status parsing
-    debugPrint('🔍 Message ${json['id'] ?? 'unknown'}: status=${json['status']}, parsed=${messageStatus.toString()}');
 
     return ClubMessage(
       id: json['messageId'] ?? json['id'] ?? '',
@@ -427,10 +432,16 @@ class ClubMessage {
         pinnedBy: pinnedBy,
       ),
       // Use parsed timestamps from status object or fallback to direct fields
-      deliveredAt: deliveredAt ?? (json['deliveredAt'] != null
-          ? DateTime.parse(json['deliveredAt']).toLocal()
-          : null),
-      readAt: readAt ?? (json['readAt'] != null ? DateTime.parse(json['readAt']).toLocal() : null),
+      deliveredAt:
+          deliveredAt ??
+          (json['deliveredAt'] != null
+              ? DateTime.parse(json['deliveredAt']).toLocal()
+              : null),
+      readAt:
+          readAt ??
+          (json['readAt'] != null
+              ? DateTime.parse(json['readAt']).toLocal()
+              : null),
     );
   }
 

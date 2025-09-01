@@ -333,20 +333,38 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
   // Mark messages as seen when they come into view (API called only once per message)
   Future<void> _markMessageAsSeen(String messageId) async {
-    if (_seenMessages.contains(messageId)) return;
+    debugPrint('👀 _markMessageAsSeen called for message: $messageId');
+
+    if (_seenMessages.contains(messageId)) {
+      debugPrint('⏭️ Message $messageId already marked as seen');
+      return;
+    }
 
     final userProvider = context.read<UserProvider>();
     final currentUserId = userProvider.user?.id;
-    if (currentUserId == null) return;
+    if (currentUserId == null) {
+      debugPrint('❌ No current user ID for marking message as seen');
+      return;
+    }
 
     // Find the message
     final messageIndex = _messages.indexWhere((msg) => msg.id == messageId);
-    if (messageIndex == -1) return;
+    if (messageIndex == -1) {
+      debugPrint('❌ Message $messageId not found in messages list');
+      return;
+    }
 
     final message = _messages[messageIndex];
 
     // Only mark messages from other users as seen
-    if (message.senderId == currentUserId) return;
+    if (message.senderId == currentUserId) {
+      debugPrint('⏭️ Skipping own message $messageId for read marking');
+      return;
+    }
+
+    debugPrint(
+      '📖 Processing read marking for message $messageId from ${message.senderName}',
+    );
 
     // Check if message already has readAt timestamp (from server status)
     if (message.status == MessageStatus.read || message.readAt != null) {
@@ -382,7 +400,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         _updateMessageStatus(messageId, MessageStatus.read);
       }
     } catch (e) {
-      print('❌ Error marking message $messageId as seen: $e');
+      debugPrint('❌ Error marking message $messageId as seen: $e');
     }
   }
 
@@ -623,10 +641,12 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         }
 
         // Merge server messages with local read/delivered status for storage
-        final mergedMessages = MessageStorageService.mergeMessagesWithLocalData(
-          serverMessages,
-          _messages, // Use current UI state instead of old local data
-        );
+        final mergedMessages =
+            await MessageStorageService.mergeMessagesWithLocalData(
+              widget.club.id,
+              serverMessages,
+              _messages, // Use current UI state instead of old local data
+            );
 
         // Save merged messages with media download (background operation)
         MessageStorageService.saveMessagesWithMedia(
@@ -669,40 +689,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     }
   }
 
-  List<ClubMessage> _mergeMessagesWithLocalData(
-    List<ClubMessage> serverMessages,
-    List<ClubMessage> cachedMessages,
-  ) {
-    final Map<String, ClubMessage> cachedMap = {
-      for (var msg in cachedMessages) msg.id: msg,
-    };
-
-    return serverMessages.map((serverMessage) {
-      final cached = cachedMap[serverMessage.id];
-      if (cached != null) {
-        // Merge local and server status information
-        // Server status takes precedence, but preserve local if server doesn't have it
-        final mergedDeliveredAt = serverMessage.deliveredAt ?? cached.deliveredAt;
-        final mergedReadAt = serverMessage.readAt ?? cached.readAt;
-        
-        // Determine the correct status based on timestamps
-        MessageStatus finalStatus = serverMessage.status;
-        if (mergedReadAt != null && finalStatus != MessageStatus.read) {
-          finalStatus = MessageStatus.read;
-        } else if (mergedDeliveredAt != null && finalStatus == MessageStatus.sent) {
-          finalStatus = MessageStatus.delivered;
-        }
-        
-        return serverMessage.copyWith(
-          status: finalStatus,
-          deliveredAt: mergedDeliveredAt,
-          readAt: mergedReadAt,
-          // DO NOT preserve cached pinned status - server is authoritative
-        );
-      }
-      return serverMessage;
-    }).toList();
-  }
+  // Removed duplicate _mergeMessagesWithLocalData function - now using MessageStorageService.mergeMessagesWithLocalData
 
   void _showMoreOptions() async {
     final isOfflineMode = await MessageStorageService.isOfflineMode(
@@ -1101,32 +1088,33 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         // For text messages, the response is usually the message object itself
         // or we need to extract it from the response structure
         Map<String, dynamic>? messageData;
-        
+
         if (response.containsKey('data') && response['data'] is Map) {
           messageData = response['data'] as Map<String, dynamic>;
-        } else if (response.containsKey('message') && response['message'] is Map) {
+        } else if (response.containsKey('message') &&
+            response['message'] is Map) {
           messageData = response['message'] as Map<String, dynamic>;
         } else {
           // The response itself might be the message data
           messageData = response;
         }
-        
+
         if (messageData != null) {
           // Remove temporary message and add real message from server (similar to media messages)
           setState(() {
             _messages.removeWhere((m) => m.id == tempMessageId);
           });
-          
+
           // Create message object from server response
           final newMessage = ClubMessage.fromJson(messageData);
           await MessageStorageService.addMessage(widget.club.id, newMessage);
-          
+
           // Update UI
           setState(() {
             _messages.add(newMessage);
             _messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
           });
-          
+
           // Mark the newly sent message as delivered
           try {
             print(
@@ -1140,10 +1128,12 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
               widget.club.id,
               newMessage.id,
             );
-            
+
             // Update UI to show delivered status
             setState(() {
-              final messageIndex = _messages.indexWhere((m) => m.id == newMessage.id);
+              final messageIndex = _messages.indexWhere(
+                (m) => m.id == newMessage.id,
+              );
               if (messageIndex != -1) {
                 _messages[messageIndex] = _messages[messageIndex].copyWith(
                   status: MessageStatus.delivered,
@@ -1308,7 +1298,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       // Failed to process image
     }
   }
-
 
   Future<void> _sendAudioMessage(String audioPath) async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
@@ -5502,6 +5491,15 @@ class _MessageVisibilityDetectorState
   bool _hasBeenSeen = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Check visibility after the widget is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkVisibility();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     // Don't track visibility for own messages
     if (widget.message.senderId == widget.currentUserId) {
@@ -5510,8 +5508,8 @@ class _MessageVisibilityDetectorState
 
     return NotificationListener<ScrollNotification>(
       onNotification: (notification) {
-        if (!_hasBeenSeen && notification is ScrollUpdateNotification) {
-          // Check if this widget is visible
+        if (!_hasBeenSeen) {
+          // Check visibility on any scroll notification, not just updates
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _checkVisibility();
           });
@@ -5526,7 +5524,10 @@ class _MessageVisibilityDetectorState
     if (_hasBeenSeen || !mounted) return;
 
     final renderBox = context.findRenderObject() as RenderBox?;
-    if (renderBox == null) return;
+    if (renderBox == null) {
+      debugPrint('👁️ No render box for message ${widget.messageId}');
+      return;
+    }
 
     try {
       final position = renderBox.localToGlobal(Offset.zero);
@@ -5551,13 +5552,16 @@ class _MessageVisibilityDetectorState
           messageTop.clamp(visibleTop, visibleBottom));
       final visibilityRatio = visibleHeight / size.height;
 
+      //debugPrint('👁️ Message ${widget.messageId}: top=$messageTop, bottom=$messageBottom, visibleTop=$visibleTop, visibleBottom=$visibleBottom, ratio=$visibilityRatio');
+
       if (visibilityRatio >= 0.5) {
+        //debugPrint('✅ Message ${widget.messageId} is visible! Marking as seen.');
         _hasBeenSeen = true;
         widget.onVisible(widget.messageId);
       }
     } catch (e) {
       // Handle any errors in visibility calculation
-      print('❌ Error checking message visibility: $e');
+      debugPrint('❌ Error checking message visibility: $e');
     }
   }
 }

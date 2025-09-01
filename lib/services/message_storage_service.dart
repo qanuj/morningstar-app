@@ -280,28 +280,48 @@ class MessageStorageService {
   }
 
   /// Merge server messages with local data (preserving read/delivered status)
-  static List<ClubMessage> mergeMessagesWithLocalData(
+  static Future<List<ClubMessage>> mergeMessagesWithLocalData(
+    String clubId,
     List<ClubMessage> serverMessages,
     List<ClubMessage> localMessages,
-  ) {
+  ) async {
     final localMap = {for (var msg in localMessages) msg.id: msg};
     final mergedMessages = <ClubMessage>[];
+    
+    // Get persistent status flags from SharedPreferences
+    final deliveredIds = await getDeliveredMessageIds(clubId);
+    final readIds = await getReadMessageIds(clubId);
     
     for (final serverMsg in serverMessages) {
       final localMsg = localMap[serverMsg.id];
       
       if (localMsg != null) {
         // Merge local and server status information
-        // Server status takes precedence, but preserve local if server doesn't have it
+        // Priority: Server timestamps > Local timestamps > Persistent flags
         final mergedDeliveredAt = serverMsg.deliveredAt ?? localMsg.deliveredAt;
         final mergedReadAt = serverMsg.readAt ?? localMsg.readAt;
         
-        // Determine the correct status based on timestamps
+        // Determine the correct status based on multiple sources
         MessageStatus finalStatus = serverMsg.status;
-        if (mergedReadAt != null && finalStatus != MessageStatus.read) {
+        
+        // Check persistent flags first (most reliable for local status)
+        if (readIds.contains(serverMsg.id)) {
+          finalStatus = MessageStatus.read;
+        } else if (deliveredIds.contains(serverMsg.id)) {
+          finalStatus = MessageStatus.delivered;
+        }
+        
+        // Override with timestamps if available (more authoritative)
+        if (mergedReadAt != null) {
           finalStatus = MessageStatus.read;
         } else if (mergedDeliveredAt != null && finalStatus == MessageStatus.sent) {
           finalStatus = MessageStatus.delivered;
+        }
+        
+        // If server has higher status but no local timestamps, preserve server status
+        if (serverMsg.status.index > finalStatus.index && 
+            mergedReadAt == null && mergedDeliveredAt == null) {
+          finalStatus = serverMsg.status;
         }
         
         final merged = serverMsg.copyWith(
@@ -311,8 +331,16 @@ class MessageStorageService {
         );
         mergedMessages.add(merged);
       } else {
-        // New message from server
-        mergedMessages.add(serverMsg);
+        // New message from server - check if we have persistent status for it
+        MessageStatus finalStatus = serverMsg.status;
+        if (readIds.contains(serverMsg.id)) {
+          finalStatus = MessageStatus.read;
+        } else if (deliveredIds.contains(serverMsg.id)) {
+          finalStatus = MessageStatus.delivered;
+        }
+        
+        final merged = serverMsg.copyWith(status: finalStatus);
+        mergedMessages.add(merged);
       }
     }
     
