@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/club_message.dart';
 import 'text_message_bubble.dart';
 import 'audio_message_bubble.dart';
+import 'document_message_bubble.dart';
 import 'link_message_bubble.dart';
 import 'gif_message_bubble.dart';
 import 'emoji_message_bubble.dart';
@@ -63,6 +64,8 @@ class MessageBubbleFactory extends StatelessWidget {
     }
 
     // Determine message type and render appropriate bubble
+    debugPrint('🏭 MessageBubbleFactory: messageId=${message.id}, messageType=${message.messageType}, document=${message.document != null ? 'present' : 'null'}, isDeleted=$isDeleted');
+    
     if (message.messageType == 'audio' && message.audio != null) {
       // AUDIO MESSAGE: Just audio player
       return AudioMessageBubble(
@@ -71,6 +74,17 @@ class MessageBubbleFactory extends StatelessWidget {
         isPinned: isPinned,
         isSelected: isSelected,
         onRetryUpload: onRetryUpload,
+      );
+    } else if (message.messageType == 'document') {
+      // DOCUMENT MESSAGE: Document cards with download capability
+      return DocumentMessageBubble(
+        message: message,
+        isOwn: isOwn,
+        isPinned: isPinned,
+        isSelected: isSelected,
+        showSenderInfo: showSenderInfo,
+        onRetryUpload: onRetryUpload,
+        onReactionRemoved: onReactionRemoved,
       );
     } else if (message.linkMeta.isNotEmpty) {
       // LINK MESSAGE: Thumbnail, title, full link

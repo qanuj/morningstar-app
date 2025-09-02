@@ -34,7 +34,7 @@ class ClubMessage {
   final String? senderRole;
   final String content;
   final List<String> images;
-  final List<MessageDocument> documents;
+  final MessageDocument? document;
   final MessageAudio? audio;
   final List<LinkMetadata> linkMeta;
   final String? gifUrl; // For GIF messages
@@ -63,7 +63,7 @@ class ClubMessage {
     this.senderRole,
     required this.content,
     this.images = const [],
-    this.documents = const [],
+    this.document,
     this.audio,
     this.linkMeta = const [],
     this.gifUrl,
@@ -110,7 +110,7 @@ class ClubMessage {
       senderRole: senderRole,
       content: content,
       images: images ?? this.images,
-      documents: documents ?? this.documents,
+      document: document ?? this.document,
       audio: audio ?? this.audio,
       linkMeta: linkMeta ?? this.linkMeta,
       gifUrl: gifUrl ?? this.gifUrl,
@@ -136,7 +136,7 @@ class ClubMessage {
     String? messageType;
     String? gifUrl;
     List<String> images = [];
-    List<MessageDocument> documents = [];
+    MessageDocument? document;
     MessageAudio? audio;
     List<LinkMetadata> linkMeta = [];
 
@@ -224,25 +224,26 @@ class ClubMessage {
             break;
           case 'document':
             if (content['url'] != null) {
-              documents = [
-                MessageDocument(
-                  url: content['url'],
-                  filename: content['name'] ?? 'document',
-                  type: content['name']?.split('.').last ?? 'file',
-                  size: content['size'],
-                ),
-              ];
+              document = MessageDocument(
+                url: content['url'],
+                filename: content['name'] ?? 'document',
+                type: content['name']?.split('.').last ?? 'file',
+                size: content['size'],
+              );
             }
             break;
           case 'audio':
             if (content['url'] != null) {
               audio = MessageAudio.fromJson({
                 'url': content['url'],
-                'filename': content['name'] ?? content['filename'] ?? 'audio.m4a',
+                'filename':
+                    content['name'] ?? content['filename'] ?? 'audio.m4a',
                 'duration': content['duration'],
                 'size': content['size'],
               });
-              print('🔍 ClubMessage.fromJson: Parsed audio from server: ${audio.filename}, duration: ${audio.duration}s');
+              print(
+                '🔍 ClubMessage.fromJson: Parsed audio from server: ${audio.filename}, duration: ${audio.duration}s',
+              );
             }
             break;
         }
@@ -271,13 +272,6 @@ class ClubMessage {
             .toList();
       }
 
-      // Parse documents array (for existing format compatibility)
-      if (content['documents'] is List) {
-        documents = (content['documents'] as List)
-            .map((doc) => MessageDocument.fromJson(doc as Map<String, dynamic>))
-            .toList();
-      }
-
       // Parse link metadata array (for existing format compatibility)
       if (content['meta'] is List) {
         linkMeta = (content['meta'] as List)
@@ -285,29 +279,34 @@ class ClubMessage {
             .toList();
       }
     }
-    
+
     // Parse top-level images array (for cache compatibility)
     if (json['images'] is List && images.isEmpty) {
-      images = (json['images'] as List)
-          .map((url) => url as String)
-          .toList();
-      print('🔍 ClubMessage.fromJson: Parsed ${images.length} images from cache level');
+      images = (json['images'] as List).map((url) => url as String).toList();
+      print(
+        '🔍 ClubMessage.fromJson: Parsed ${images.length} images from cache level',
+      );
     }
-    
+
     // Parse top-level audio object (for cache compatibility)
     if (json['audio'] is Map<String, dynamic> && audio == null) {
       audio = MessageAudio.fromJson(json['audio'] as Map<String, dynamic>);
-      print('🔍 ClubMessage.fromJson: Parsed audio from cache level: ${audio.filename}');
+      print(
+        '🔍 ClubMessage.fromJson: Parsed audio from cache level: ${audio.filename}',
+      );
       // Override messageType to audio if we found audio data
       messageType = 'audio';
     }
-    
-    // Parse top-level documents array (for cache compatibility)
-    if (json['documents'] is List && documents.isEmpty) {
-      documents = (json['documents'] as List)
-          .map((doc) => MessageDocument.fromJson(doc as Map<String, dynamic>))
-          .toList();
-      print('🔍 ClubMessage.fromJson: Parsed ${documents.length} documents from cache level');
+    // Parse top-level document object (for cache compatibility)
+    if (json['document'] is Map<String, dynamic> && document == null) {
+      document = MessageDocument.fromJson(
+        json['document'] as Map<String, dynamic>,
+      );
+      print(
+        '🔍 ClubMessage.fromJson: Parsed document from cache level: ${document.filename}',
+      );
+      // Override messageType to document if we found document data
+      messageType = 'document';
     }
 
     // Extract sender info from nested objects if available
@@ -468,7 +467,7 @@ class ClubMessage {
       senderRole: senderRole,
       content: messageContent,
       images: images,
-      documents: documents,
+      document: document,
       audio: audio,
       linkMeta: linkMeta,
       gifUrl: gifUrl,
@@ -529,7 +528,7 @@ class ClubMessage {
       'senderRole': senderRole,
       'content': content,
       'images': images,
-      'documents': documents.map((d) => d.toJson()).toList(),
+      'document': document?.toJson(),
       'audio': audio?.toJson(),
       'linkMeta': linkMeta.map((l) => l.toJson()).toList(),
       'gifUrl': gifUrl,

@@ -50,13 +50,13 @@ class TextMessageBubble extends StatelessWidget {
         // Images first (if any)
         if (message.images.isNotEmpty) ...[
           _buildImageGallery(context),
-          if (message.content.trim().isNotEmpty || message.documents.isNotEmpty)
+          if (message.content.trim().isNotEmpty || message.document != null)
             SizedBox(height: 8),
         ],
 
-        // Documents (if any)
-        if (message.documents.isNotEmpty) ...[
-          _buildDocumentList(context),
+        // Document (if any)
+        if (message.document != null) ...[
+          _buildDocumentCard(context),
           if (message.content.trim().isNotEmpty) SizedBox(height: 8),
         ],
 
@@ -303,71 +303,66 @@ class TextMessageBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildDocumentList(BuildContext context) {
-    return Column(
-      children: message.documents
-          .map(
-            (doc) => Container(
-              margin: EdgeInsets.only(bottom: 4),
-              padding: EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: isOwn
-                    ? Colors.white.withOpacity(0.1)
-                    : Colors.grey.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    _getDocumentIcon(doc.filename),
-                    color: isOwn
-                        ? Colors.white
-                        : Theme.of(context).primaryColor,
-                    size: 20,
+  Widget _buildDocumentCard(BuildContext context) {
+    final doc = message.document!;
+    return Container(
+      margin: EdgeInsets.only(bottom: 4),
+      padding: EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: isOwn
+            ? Colors.white.withOpacity(0.1)
+            : Colors.grey.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            _getDocumentIcon(doc.filename),
+            color: isOwn
+                ? Colors.white
+                : Theme.of(context).primaryColor,
+            size: 20,
+          ),
+          SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  doc.filename,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: isOwn ? Colors.white : Colors.black87,
                   ),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          doc.filename,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: isOwn ? Colors.white : Colors.black87,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (doc.size != null)
-                          Text(
-                            doc.size!,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isOwn
-                                  ? (Theme.of(context).brightness ==
-                                            Brightness.dark
-                                        ? Colors.white70
-                                        : Color(0xFF003f9b).withOpacity(0.7))
-                                  : Colors.grey[600],
-                            ),
-                          ),
-                      ],
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (doc.size != null)
+                  Text(
+                    doc.size!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isOwn
+                          ? (Theme.of(context).brightness ==
+                                    Brightness.dark
+                                ? Colors.white70
+                                : Color(0xFF003f9b).withOpacity(0.7))
+                          : Colors.grey[600],
                     ),
                   ),
-                  Icon(
-                    Icons.download,
-                    color: isOwn
-                        ? Colors.white
-                        : Theme.of(context).primaryColor,
-                    size: 16,
-                  ),
-                ],
-              ),
+              ],
             ),
-          )
-          .toList(),
+          ),
+          Icon(
+            Icons.download,
+            color: isOwn
+                ? Colors.white
+                : Theme.of(context).primaryColor,
+            size: 16,
+          ),
+        ],
+      ),
     );
   }
 

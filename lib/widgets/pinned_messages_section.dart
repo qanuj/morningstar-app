@@ -134,10 +134,8 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
     // Handle different message types
     if (message.messageType == 'audio' && message.audio != null) {
       return 'Audio';
-    } else if (message.documents.isNotEmpty) {
-      return message.documents.length == 1
-          ? 'Document'
-          : '${message.documents.length} Documents';
+    } else if (message.document != null) {
+      return 'Document';
     } else if (message.images.isNotEmpty) {
       return message.images.length == 1
           ? 'Photo'
@@ -291,7 +289,7 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
 
     if (message.messageType == 'audio' && message.audio != null) {
       iconWidget = Icon(Icons.audiotrack, size: 20, color: iconColor);
-    } else if (message.documents.isNotEmpty) {
+    } else if (message.document != null) {
       iconWidget = Icon(Icons.description, size: 20, color: iconColor);
     } else if (message.gifUrl != null && message.gifUrl!.isNotEmpty) {
       iconWidget = Icon(Icons.gif_box, size: 20, color: iconColor);

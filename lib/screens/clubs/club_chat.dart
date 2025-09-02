@@ -782,15 +782,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
           });
         }
 
-        // Documents
-        for (final document in message.documents) {
-          mediaUrls.add({
-            'url': document.url,
-            'type': 'document',
-            'messageId': message.id,
-            'filename': document.filename,
-          });
-        }
+        // Document: don't download automatically.
 
         // Audio
         if (message.audio != null) {
@@ -1001,8 +993,10 @@ class ClubChatScreenState extends State<ClubChatScreen>
     String emoji,
     String userId,
   ) async {
-    debugPrint('🚀 _handleReactionRemoved called: messageId=$messageId, emoji=$emoji, userId=$userId');
-    
+    debugPrint(
+      '🚀 _handleReactionRemoved called: messageId=$messageId, emoji=$emoji, userId=$userId',
+    );
+
     final userProvider = context.read<UserProvider>();
     final currentUser = userProvider.user;
 
@@ -1049,7 +1043,9 @@ class ClubChatScreenState extends State<ClubChatScreen>
 
         // Update the message with new reactions
         _messages[messageIndex] = message.copyWith(reactions: updatedReactions);
-        debugPrint('✅ Updated message reactions: ${updatedReactions.length} reactions remaining');
+        debugPrint(
+          '✅ Updated message reactions: ${updatedReactions.length} reactions remaining',
+        );
       }
     });
 
@@ -1223,7 +1219,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
       pin: tempMessage.pin,
       // ✅ MEDIA FIELDS - Critical for video/audio/document uploads
       images: tempMessage.images,
-      documents: tempMessage.documents,
+      document: tempMessage.document,
       audio: tempMessage.audio,
       linkMeta: tempMessage.linkMeta,
       gifUrl: tempMessage.gifUrl,

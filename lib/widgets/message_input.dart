@@ -224,14 +224,12 @@ class _MessageInputState extends State<MessageInput> {
         starred: StarredInfo(isStarred: false),
         pin: PinInfo(isPinned: false),
         // Store temp file info for upload
-        documents: [
-          MessageDocument(
-            url: doc.path ?? '',
-            filename: doc.name,
-            type: doc.extension ?? 'file',
-            size: doc.size.toString(),
-          ),
-        ],
+        document: MessageDocument(
+          url: doc.path ?? '',
+          filename: doc.name,
+          type: doc.extension ?? 'file',
+          size: doc.size.toString(),
+        ),
       );
 
       widget.onSendMessage(tempMessage);
