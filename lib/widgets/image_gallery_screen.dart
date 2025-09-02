@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/club_message.dart';
-import '../models/message_image.dart';
 
 class ImageGalleryScreen extends StatefulWidget {
   final List<ClubMessage> messages;
@@ -35,15 +34,12 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
 
   void _extractAllImages() {
     _allImages = [];
-    
+
     // Extract all images from all messages
     for (final message in widget.messages) {
-      if (message.pictures.isNotEmpty) {
-        for (final image in message.pictures) {
-          _allImages.add(ImageWithMessage(
-            image: image,
-            message: message,
-          ));
+      if (message.images.isNotEmpty) {
+        for (final image in message.images) {
+          _allImages.add(ImageWithMessage(image: image, message: message));
         }
       }
     }
@@ -52,7 +48,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   void _findInitialIndex() {
     // Find the index of the initially tapped image
     for (int i = 0; i < _allImages.length; i++) {
-      if (_allImages[i].image.url == widget.initialImageUrl) {
+      if (_allImages[i].image == widget.initialImageUrl) {
         _currentIndex = i;
         break;
       }
@@ -68,7 +64,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   String _formatDateTime(DateTime dateTime) {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
-    
+
     if (difference.inDays == 0) {
       // Today - show time
       final hour = dateTime.hour;
@@ -116,51 +112,54 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       extendBodyBehindAppBar: true,
-      appBar: _showAppBar ? AppBar(
-        backgroundColor: Colors.black54,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              _allImages[_currentIndex].message.senderName,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
+      appBar: _showAppBar
+          ? AppBar(
+              backgroundColor: Colors.black54,
+              elevation: 0,
+              leading: IconButton(
+                icon: Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => Navigator.of(context).pop(),
               ),
-            ),
-            Text(
-              _formatDateTime(_allImages[_currentIndex].message.createdAt),
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 12,
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _allImages[_currentIndex].message.senderName,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    _formatDateTime(
+                      _allImages[_currentIndex].message.createdAt,
+                    ),
+                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.share, color: Colors.white),
-            onPressed: () {
-              // TODO: Implement share functionality
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Share functionality coming soon')),
-              );
-            },
-          ),
-          IconButton(
-            icon: Icon(Icons.more_vert, color: Colors.white),
-            onPressed: () {
-              // TODO: Show more options
-            },
-          ),
-        ],
-      ) : null,
+              actions: [
+                IconButton(
+                  icon: Icon(Icons.share, color: Colors.white),
+                  onPressed: () {
+                    // TODO: Implement share functionality
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Share functionality coming soon'),
+                      ),
+                    );
+                  },
+                ),
+                IconButton(
+                  icon: Icon(Icons.more_vert, color: Colors.white),
+                  onPressed: () {
+                    // TODO: Show more options
+                  },
+                ),
+              ],
+            )
+          : null,
       body: Stack(
         children: [
           // Image PageView
@@ -178,12 +177,12 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                 onTap: _toggleAppBarVisibility,
                 child: Center(
                   child: Hero(
-                    tag: 'image_${imageWithMessage.image.url}',
+                    tag: 'image_${imageWithMessage.image}',
                     child: InteractiveViewer(
                       minScale: 0.8,
                       maxScale: 4.0,
                       child: CachedNetworkImage(
-                        imageUrl: imageWithMessage.image.url,
+                        imageUrl: imageWithMessage.image,
                         fit: BoxFit.contain,
                         placeholder: (context, url) => Container(
                           color: Colors.black,
@@ -225,7 +224,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
           ),
 
           // Bottom caption overlay
-          if (_showAppBar && _allImages[_currentIndex].image.caption != null)
+          if (_showAppBar)
             Positioned(
               bottom: 0,
               left: 0,
@@ -246,7 +245,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                 child: SafeArea(
                   top: false,
                   child: Text(
-                    _allImages[_currentIndex].image.caption!,
+                    'Pictures',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 16,
@@ -286,11 +285,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
 }
 
 class ImageWithMessage {
-  final MessageImage image;
+  final String image;
   final ClubMessage message;
 
-  ImageWithMessage({
-    required this.image,
-    required this.message,
-  });
+  ImageWithMessage({required this.image, required this.message});
 }

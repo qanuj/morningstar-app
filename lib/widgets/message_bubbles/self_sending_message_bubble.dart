@@ -4,7 +4,6 @@ import 'dart:io';
 import '../../models/club_message.dart';
 import '../../models/message_status.dart';
 import '../../models/link_metadata.dart';
-import '../../models/message_image.dart';
 import '../../models/message_document.dart';
 import '../../models/message_audio.dart';
 import '../../services/api_service.dart';
@@ -24,7 +23,7 @@ class SelfSendingMessageBubble extends StatefulWidget {
   final String clubId;
   final List<PlatformFile>? pendingUploads; // Files waiting to be uploaded
   final Function(ClubMessage oldMessage, ClubMessage newMessage)?
-      onMessageUpdated;
+  onMessageUpdated;
   final Function(String messageId)? onMessageFailed;
 
   const SelfSendingMessageBubble({
@@ -56,11 +55,11 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
   int _totalUploads = 0;
 
   // Upload results
-  List<MessageImage> _uploadedImages = [];
+  List<String> _uploadedImages = [];
   List<String> _uploadedVideos = [];
   List<MessageDocument> _uploadedDocuments = [];
   MessageAudio? _uploadedAudio;
-  
+
   // Track individual file upload progress
   Map<String, double> _fileUploadProgress = {};
 
@@ -68,7 +67,6 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
   void initState() {
     super.initState();
     currentMessage = widget.message;
-
     // If this is a sending message, start the send process
     if (currentMessage.status == MessageStatus.sending && !_isSending) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -104,7 +102,10 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
         await _handleFileUploads(widget.pendingUploads!);
       }
 
-      // Step 2: Handle regular message sending
+      // Step 2: Handle existing media in the message (from image cropping, etc.)
+      await _handleExistingMedia();
+
+      // Step 3: Handle regular message sending
       await _sendMessage();
     } catch (e) {
       await _handleSendFailure('Send failed: $e');
@@ -135,7 +136,7 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
 
     for (int i = 0; i < files.length; i++) {
       final file = files[i];
-      
+
       if (mounted) {
         setState(() {
           _currentUploadFile = file.name;
@@ -171,22 +172,169 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
     }
   }
 
+  Future<void> _handleExistingMedia() async {
+    print(
+      '🔍 _handleExistingMedia: currentMessage.images.length = ${currentMessage.images.length}',
+    );
+    // Handle images that are already in the message (from cropping, etc.)
+    if (currentMessage.images.isNotEmpty) {
+      if (mounted) {
+        setState(() {
+          _isUploading = true;
+          _totalUploads = currentMessage.images.length;
+          _completedUploads = 0;
+        });
+      }
+
+      for (int i = 0; i < currentMessage.images.length; i++) {
+        final image = currentMessage.images[i];
+        final imagePath = image;
+
+        // Skip if it's already a remote URL (already uploaded)
+        if (imagePath.startsWith('http')) {
+          _uploadedImages.add(image);
+          continue;
+        }
+
+        if (mounted) {
+          setState(() {
+            _currentUploadFile = imagePath.split('/').last;
+            _uploadProgress = i / currentMessage.images.length;
+          });
+        }
+
+        try {
+          // Create a temporary PlatformFile for the image
+          final file = File(imagePath);
+          if (await file.exists()) {
+            final fileName = imagePath.split('/').last;
+            final fileSize = await file.length();
+
+            final platformFile = PlatformFile(
+              name: fileName,
+              path: imagePath,
+              size: fileSize,
+              bytes: null,
+            );
+            final uploadUrl = await ApiService.uploadFile(platformFile);
+            if (uploadUrl != null) {
+              _uploadedImages.add(uploadUrl);
+            } else {
+              throw Exception('Upload failed for $fileName');
+            }
+          }
+        } catch (e) {
+          throw Exception('Failed to upload ${imagePath.split('/').last}: $e');
+        }
+
+        if (mounted) {
+          setState(() {
+            _completedUploads = i + 1;
+            _uploadProgress = (i + 1) / currentMessage.images.length;
+          });
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+        });
+      }
+    }
+
+    // Handle audio that's already in the message
+    if (currentMessage.audio != null) {
+      final audio = currentMessage.audio!;
+      final audioPath = audio.url;
+
+      // Skip if it's already a remote URL
+      if (!audioPath.startsWith('http')) {
+        try {
+          final file = File(audioPath);
+          if (await file.exists()) {
+            final fileName = audioPath.split('/').last;
+            final fileSize = await file.length();
+
+            final platformFile = PlatformFile(
+              name: fileName,
+              path: audioPath,
+              size: fileSize,
+              bytes: null,
+            );
+
+            final uploadUrl = await ApiService.uploadFile(platformFile);
+            if (uploadUrl != null) {
+              _uploadedAudio = MessageAudio(
+                url: uploadUrl,
+                filename: audio.filename,
+                duration: audio.duration,
+                size: audio.size,
+              );
+            }
+          }
+        } catch (e) {
+          print('Failed to upload audio: $e');
+        }
+      } else {
+        _uploadedAudio = audio;
+      }
+    }
+
+    // Handle documents that are already in the message
+    if (currentMessage.documents.isNotEmpty) {
+      for (final document in currentMessage.documents) {
+        final docPath = document.url;
+
+        // Skip if it's already a remote URL
+        if (!docPath.startsWith('http')) {
+          try {
+            final file = File(docPath);
+            if (await file.exists()) {
+              final fileName = docPath.split('/').last;
+              final fileSize = await file.length();
+
+              final platformFile = PlatformFile(
+                name: fileName,
+                path: docPath,
+                size: fileSize,
+                bytes: null,
+              );
+
+              final uploadUrl = await ApiService.uploadFile(platformFile);
+              if (uploadUrl != null) {
+                _uploadedDocuments.add(
+                  MessageDocument(
+                    url: uploadUrl,
+                    filename: document.filename,
+                    type: document.type,
+                    size: document.size,
+                  ),
+                );
+              }
+            }
+          } catch (e) {
+            print('Failed to upload document: $e');
+          }
+        } else {
+          _uploadedDocuments.add(document);
+        }
+      }
+    }
+  }
+
   Future<void> _processUploadedFile(PlatformFile file, String uploadUrl) async {
     final fileType = _getFileType(file);
     final fileSize = file.size;
 
     switch (fileType) {
       case 'image':
-        _uploadedImages.add(MessageImage(
-          url: uploadUrl,
-          caption: file.name,
-        ));
+        _uploadedImages.add(uploadUrl);
         break;
-      
+
       case 'video':
         _uploadedVideos.add(uploadUrl);
         break;
-      
+
       case 'audio':
         _uploadedAudio = MessageAudio(
           url: uploadUrl,
@@ -195,15 +343,17 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
           size: fileSize,
         );
         break;
-      
+
       case 'document':
       default:
-        _uploadedDocuments.add(MessageDocument(
-          url: uploadUrl,
-          filename: file.name,
-          type: file.extension ?? 'unknown',
-          size: fileSize.toString(),
-        ));
+        _uploadedDocuments.add(
+          MessageDocument(
+            url: uploadUrl,
+            filename: file.name,
+            type: file.extension ?? 'unknown',
+            size: fileSize.toString(),
+          ),
+        );
         break;
     }
   }
@@ -216,17 +366,33 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
     if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].contains(extension)) {
       return 'image';
     }
-    
+
     // Video types
-    if (['mp4', 'mov', 'avi', 'mkv', 'wmv', 'flv', 'webm'].contains(extension)) {
+    if ([
+      'mp4',
+      'mov',
+      'avi',
+      'mkv',
+      'wmv',
+      'flv',
+      'webm',
+    ].contains(extension)) {
       return 'video';
     }
-    
+
     // Audio types
-    if (['mp3', 'wav', 'aac', 'flac', 'ogg', 'm4a', 'wma'].contains(extension)) {
+    if ([
+      'mp3',
+      'wav',
+      'aac',
+      'flac',
+      'ogg',
+      'm4a',
+      'wma',
+    ].contains(extension)) {
       return 'audio';
     }
-    
+
     return 'document';
   }
 
@@ -255,47 +421,61 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
         linkMeta,
       );
 
-      // Prepare API request
-      final Map<String, dynamic> contentMap = {
-        'type': messageType,
-        'body': currentMessage.content.trim().isEmpty ? ' ' : currentMessage.content,
-      };
+      // Prepare API request - all images/videos use 'text' type with arrays
+      Map<String, dynamic> contentMap;
 
-      // Add uploaded content to message
-      if (_uploadedImages.isNotEmpty) {
-        contentMap['images'] = _uploadedImages.map((img) => img.url).toList();
-      }
-      
-      if (_uploadedVideos.isNotEmpty) {
-        contentMap['videos'] = _uploadedVideos;
-      }
-      
-      if (_uploadedDocuments.isNotEmpty) {
-        contentMap['documents'] = _uploadedDocuments.map((doc) => {
+      if (messageType == 'document' &&
+          _uploadedDocuments.length == 1 &&
+          currentMessage.content.trim().isEmpty) {
+        // Single document without text
+        final doc = _uploadedDocuments.first;
+        contentMap = {
+          'type': 'document',
           'url': doc.url,
-          'filename': doc.filename,
-          'type': doc.type,
+          'name': doc.filename,
           'size': doc.size,
-        }).toList();
-      }
-      
-      if (_uploadedAudio != null) {
-        contentMap['audio'] = {
+        };
+      } else if (messageType == 'audio' &&
+          _uploadedAudio != null &&
+          currentMessage.content.trim().isEmpty) {
+        // Single audio without text
+        contentMap = {
+          'type': 'audio',
           'url': _uploadedAudio!.url,
           'duration': _uploadedAudio!.duration,
           'size': _uploadedAudio!.size,
         };
-      }
+      } else {
+        // All other cases: text, emoji, link, and ALL images/videos (single or multiple)
+        contentMap = {
+          'type': messageType,
+          'body': currentMessage.content.trim().isEmpty
+              ? ' '
+              : currentMessage.content,
+        };
 
-      if (linkMeta.isNotEmpty) {
-        contentMap['meta'] = linkMeta.map((meta) => meta.toJson()).toList();
+        // Add media arrays for text messages with media
+        print(
+          '🔍 Building contentMap. _uploadedImages.length = ${_uploadedImages.length}',
+        );
+        if (_uploadedImages.isNotEmpty) {
+          contentMap['images'] = _uploadedImages;
+          print('🔍 Added images to contentMap: $_uploadedImages');
+        }
+
+        if (_uploadedVideos.isNotEmpty) {
+          contentMap['videos'] = _uploadedVideos;
+        }
+
+        if (linkMeta.isNotEmpty) {
+          contentMap['meta'] = linkMeta.map((meta) => meta.toJson()).toList();
+        }
       }
 
       final requestData = {
-        'senderId': currentMessage.senderId,
         'content': contentMap,
         if (currentMessage.replyTo != null)
-          'replyTo': currentMessage.replyTo!.toJson(),
+          'replyToId': currentMessage.replyTo!.messageId,
       };
 
       // Send to API using the appropriate method based on content type
@@ -306,10 +486,7 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
           requestData,
         );
       } else {
-        response = await ChatApiService.sendMessage(
-          widget.clubId,
-          requestData,
-        );
+        response = await ChatApiService.sendMessage(widget.clubId, requestData);
       }
 
       if (response == null) {
@@ -325,9 +502,9 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
 
   bool _hasUploads() {
     return _uploadedImages.isNotEmpty ||
-           _uploadedVideos.isNotEmpty ||
-           _uploadedDocuments.isNotEmpty ||
-           _uploadedAudio != null;
+        _uploadedVideos.isNotEmpty ||
+        _uploadedDocuments.isNotEmpty ||
+        _uploadedAudio != null;
   }
 
   Future<void> _handleSuccessResponse(
@@ -335,6 +512,8 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
     List<LinkMetadata> linkMeta,
   ) async {
     try {
+      print('🔍 _handleSuccessResponse: Full response = $response');
+
       // Extract message data from response
       Map<String, dynamic>? messageData;
 
@@ -347,8 +526,19 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
         messageData = response;
       }
 
+      print('🔍 _handleSuccessResponse: Extracted messageData = $messageData');
+
       // Create new message from server response
       final newMessage = ClubMessage.fromJson(messageData);
+      print(
+        '🔍 _handleSuccessResponse: Created newMessage with images.length = ${newMessage.images.length}',
+      );
+      print(
+        '🔍 _handleSuccessResponse: newMessage.content = "${newMessage.content}"',
+      );
+      print(
+        '🔍 _handleSuccessResponse: newMessage.messageType = "${newMessage.messageType}"',
+      );
 
       // Save to storage
       await MessageStorageService.addMessage(widget.clubId, newMessage);
@@ -422,25 +612,40 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
   }
 
   String _determineMessageType(String content, List<LinkMetadata> linkMeta) {
-    // Check for uploaded content first
-    if (_uploadedAudio != null) return 'audio';
-    if (_uploadedImages.isNotEmpty) return 'image';
-    if (_uploadedVideos.isNotEmpty) return 'video';
-    if (_uploadedDocuments.isNotEmpty) return 'document';
+    // PRIORITY 1: Check for uploaded media first (highest priority)
+    // For standalone media files without meaningful text content, use specific media types
+    if (_uploadedAudio != null && content.trim().isEmpty) return 'audio';
+    if (_uploadedDocuments.isNotEmpty && content.trim().isEmpty)
+      return 'document';
 
-    // Check if message is emoji-only
+    // IMPORTANT: According to API schema, there is NO 'image' or 'video' type!
+    // Images and videos should be sent as 'text' type with images/videos arrays
+
+    // PRIORITY 2: If we have ANY uploaded media, always use 'text' type
+    // This includes images, videos, and mixed media
+    if (_uploadedImages.isNotEmpty ||
+        _uploadedVideos.isNotEmpty ||
+        _uploadedAudio != null ||
+        _uploadedDocuments.isNotEmpty) {
+      return 'text';
+    }
+
+    // PRIORITY 3: Check if message is emoji-only (only if no media)
     final emojiOnlyPattern = RegExp(
       r'^(\s*[\p{Emoji}\p{Emoji_Modifier}\p{Emoji_Component}\p{Emoji_Modifier_Base}\p{Emoji_Presentation}\u200d]*\s*)+$',
       unicode: true,
     );
     final isEmojiOnly =
-        emojiOnlyPattern.hasMatch(content) && content.trim().length <= 12;
+        emojiOnlyPattern.hasMatch(content) &&
+        content.trim().length <= 12 &&
+        content.trim().isNotEmpty;
 
     if (isEmojiOnly) {
       return 'emoji';
-    } else if (linkMeta.isNotEmpty) {
+    } else if (linkMeta.isNotEmpty && content.trim().isEmpty) {
       return 'link';
     } else {
+      // For all other cases (pure text messages), use 'text'
       return 'text';
     }
   }
@@ -469,10 +674,10 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
     if (widget.pendingUploads == null || widget.pendingUploads!.isEmpty) {
       return SizedBox.shrink();
     }
-    
+
     final imageFiles = widget.pendingUploads!.where(_isImageFile).toList();
     if (imageFiles.isEmpty) return SizedBox.shrink();
-    
+
     return Container(
       margin: EdgeInsets.only(bottom: 8),
       child: imageFiles.length == 1
@@ -494,17 +699,18 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
             ),
     );
   }
-  
+
   bool _isImageFile(PlatformFile file) {
     final extension = file.extension?.toLowerCase() ?? '';
     return ['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(extension);
   }
-  
+
   Widget _buildImageWithProgress(String imagePath, String fileName) {
     final progress = _fileUploadProgress[fileName] ?? 0.0;
     final isUploading = progress > 0.0 && progress < 1.0;
-    final isLocal = imagePath.startsWith('/') || imagePath.startsWith('file://');
-    
+    final isLocal =
+        imagePath.startsWith('/') || imagePath.startsWith('file://');
+
     return Container(
       height: 200,
       decoration: BoxDecoration(
@@ -525,7 +731,11 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
                         color: Colors.grey[300],
-                        child: Icon(Icons.image, size: 48, color: Colors.grey[600]),
+                        child: Icon(
+                          Icons.image,
+                          size: 48,
+                          color: Colors.grey[600],
+                        ),
                       );
                     },
                   )
@@ -537,12 +747,16 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
                         color: Colors.grey[300],
-                        child: Icon(Icons.image, size: 48, color: Colors.grey[600]),
+                        child: Icon(
+                          Icons.image,
+                          size: 48,
+                          color: Colors.grey[600],
+                        ),
                       );
                     },
                   ),
           ),
-          
+
           // Upload progress overlay
           if (isUploading)
             Container(
@@ -618,10 +832,7 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
                 ),
                 Text(
                   '$_completedUploads/$_totalUploads',
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: Colors.blue,
-                  ),
+                  style: const TextStyle(fontSize: 10, color: Colors.blue),
                 ),
               ],
             ),
@@ -664,22 +875,24 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
     // Show upload progress if uploading or sending
     if (_isUploading || (_isSending && !_hasUploads())) {
       return Column(
-        crossAxisAlignment: widget.isOwn 
-            ? CrossAxisAlignment.end 
+        crossAxisAlignment: widget.isOwn
+            ? CrossAxisAlignment.end
             : CrossAxisAlignment.start,
         children: [
           // Show image upload preview with progress
           _buildImageUploadPreview(),
-          
+
           // Show basic progress info for text/other uploads
           _buildUploadProgressWidget(),
-          
+
           // Show text content if any
           if (currentMessage.content.trim().isNotEmpty)
             Opacity(
               opacity: 0.7,
               child: MessageBubbleFactory(
-                message: currentMessage.copyWith(pictures: []), // Remove pictures to avoid duplication
+                message: currentMessage.copyWith(
+                  images: [],
+                ), // Remove pictures to avoid duplication
                 isOwn: widget.isOwn,
                 isPinned: widget.isPinned,
                 isDeleted: widget.isDeleted,
@@ -698,8 +911,8 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
           ? _handleRetry
           : null,
       child: Column(
-        crossAxisAlignment: widget.isOwn 
-            ? CrossAxisAlignment.end 
+        crossAxisAlignment: widget.isOwn
+            ? CrossAxisAlignment.end
             : CrossAxisAlignment.start,
         children: [
           MessageBubbleFactory(
@@ -714,7 +927,7 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
                 : null,
           ),
           // Show error message for failed sends
-          if (currentMessage.status == MessageStatus.failed && 
+          if (currentMessage.status == MessageStatus.failed &&
               currentMessage.errorMessage != null)
             Container(
               margin: EdgeInsets.only(
@@ -723,14 +936,14 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
                 right: widget.isOwn ? 40 : 60,
               ),
               child: Row(
-                mainAxisAlignment: widget.isOwn 
-                    ? MainAxisAlignment.end 
+                mainAxisAlignment: widget.isOwn
+                    ? MainAxisAlignment.end
                     : MainAxisAlignment.start,
                 children: [
                   Icon(
-                    Icons.info_outline, 
-                    size: 16, 
-                    color: Colors.red.withOpacity(0.7)
+                    Icons.info_outline,
+                    size: 16,
+                    color: Colors.red.withOpacity(0.7),
                   ),
                   const SizedBox(width: 4),
                   Flexible(

@@ -6,7 +6,6 @@ import '../widgets/audio_recording_widget.dart';
 import '../widgets/image_caption_dialog.dart';
 import '../models/club_message.dart';
 import '../models/message_status.dart';
-import '../models/message_image.dart';
 import '../models/message_document.dart';
 import '../models/starred_info.dart';
 import '../models/message_audio.dart';
@@ -18,7 +17,7 @@ class MessageInput extends StatefulWidget {
   final FocusNode textFieldFocusNode;
   final String clubId;
   final GlobalKey<AudioRecordingWidgetState> audioRecordingKey;
-  
+
   // Simplified callbacks - only what's needed
   final Function(ClubMessage) onSendMessage;
 
@@ -82,7 +81,7 @@ class _MessageInputState extends State<MessageInput> {
         source: ImageSource.camera,
         imageQuality: 80,
       );
-      
+
       if (photo != null) {
         _showImageCaptionDialog(photo);
       }
@@ -96,12 +95,12 @@ class _MessageInputState extends State<MessageInput> {
       final List<XFile> images = await _imagePicker.pickMultiImage(
         imageQuality: 80,
       );
-      
+
       if (images.isNotEmpty) {
         // For now, handle first image through caption dialog
         // Multiple image support can be added later by extending ImageCaptionDialog
         _showImageCaptionDialog(images.first);
-        
+
         // If user selected multiple images, show the rest without caption dialog
         if (images.length > 1) {
           _sendImageMessage(images.skip(1).toList());
@@ -117,9 +116,18 @@ class _MessageInputState extends State<MessageInput> {
       final result = await FilePicker.platform.pickFiles(
         allowMultiple: true,
         type: FileType.custom,
-        allowedExtensions: ['pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx', 'ppt', 'pptx'],
+        allowedExtensions: [
+          'pdf',
+          'doc',
+          'docx',
+          'txt',
+          'xls',
+          'xlsx',
+          'ppt',
+          'pptx',
+        ],
       );
-      
+
       if (result != null && result.files.isNotEmpty) {
         _sendDocumentMessage(result.files);
       }
@@ -144,7 +152,10 @@ class _MessageInputState extends State<MessageInput> {
             imageFile: platformFile,
             title: 'Send Image',
             onSend: (caption, croppedImagePath) {
-              _sendImageMessageWithCaption(caption, croppedImagePath ?? image.path);
+              _sendImageMessageWithCaption(
+                caption,
+                croppedImagePath ?? image.path,
+              );
             },
           ),
           fullscreenDialog: true,
@@ -154,6 +165,7 @@ class _MessageInputState extends State<MessageInput> {
   }
 
   void _sendImageMessageWithCaption(String caption, String imagePath) {
+    print('🔍 MessageInput: Creating message with imagePath: $imagePath');
     final tempMessage = ClubMessage(
       id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
       clubId: widget.clubId,
@@ -168,9 +180,8 @@ class _MessageInputState extends State<MessageInput> {
       starred: StarredInfo(isStarred: false),
       pin: PinInfo(isPinned: false),
       // Store temp file path for upload
-      pictures: [MessageImage(url: imagePath, caption: null)],
+      images: [imagePath],
     );
-
     widget.onSendMessage(tempMessage);
   }
 
@@ -190,7 +201,7 @@ class _MessageInputState extends State<MessageInput> {
         starred: StarredInfo(isStarred: false),
         pin: PinInfo(isPinned: false),
         // Store temp file path for upload
-        pictures: [MessageImage(url: image.path, caption: null)],
+        images: [image.path],
       );
 
       widget.onSendMessage(tempMessage);
@@ -213,12 +224,14 @@ class _MessageInputState extends State<MessageInput> {
         starred: StarredInfo(isStarred: false),
         pin: PinInfo(isPinned: false),
         // Store temp file info for upload
-        documents: [MessageDocument(
-          url: doc.path ?? '',
-          filename: doc.name,
-          type: doc.extension ?? 'file',
-          size: doc.size.toString(),
-        )],
+        documents: [
+          MessageDocument(
+            url: doc.path ?? '',
+            filename: doc.name,
+            type: doc.extension ?? 'file',
+            size: doc.size.toString(),
+          ),
+        ],
       );
 
       widget.onSendMessage(tempMessage);
@@ -245,11 +258,7 @@ class _MessageInputState extends State<MessageInput> {
       starred: StarredInfo(isStarred: false),
       pin: PinInfo(isPinned: false),
       // Store temp audio info for upload
-      audio: MessageAudio(
-        url: audioPath,
-        filename: fileName,
-        size: fileSize,
-      ),
+      audio: MessageAudio(url: audioPath, filename: fileName, size: fileSize),
     );
 
     widget.onSendMessage(tempMessage);
@@ -418,10 +427,7 @@ class _MessageInputState extends State<MessageInput> {
   void _showError(String message) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
       );
     }
   }
@@ -451,7 +457,8 @@ class _MessageInputState extends State<MessageInput> {
             children: [
               // Check if audio recording is active - if so, show full-width recording interface
               if (widget.audioRecordingKey.currentState?.isRecording == true ||
-                  widget.audioRecordingKey.currentState?.hasRecording == true) ...[
+                  widget.audioRecordingKey.currentState?.hasRecording ==
+                      true) ...[
                 // Full-width audio recording interface
                 AudioRecordingWidget(
                   key: widget.audioRecordingKey,

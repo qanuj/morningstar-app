@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'message_status.dart';
-import 'message_image.dart';
 import 'message_document.dart';
 import 'message_audio.dart';
 import 'link_metadata.dart';
@@ -34,7 +33,7 @@ class ClubMessage {
   final String? senderProfilePicture;
   final String? senderRole;
   final String content;
-  final List<MessageImage> pictures;
+  final List<String> images;
   final List<MessageDocument> documents;
   final MessageAudio? audio;
   final List<LinkMetadata> linkMeta;
@@ -62,7 +61,7 @@ class ClubMessage {
     this.senderProfilePicture,
     this.senderRole,
     required this.content,
-    this.pictures = const [],
+    this.images = const [],
     this.documents = const [],
     this.audio,
     this.linkMeta = const [],
@@ -84,7 +83,7 @@ class ClubMessage {
   ClubMessage copyWith({
     MessageStatus? status,
     String? errorMessage,
-    List<MessageImage>? pictures,
+    List<String>? images,
     List<MessageDocument>? documents,
     MessageAudio? audio,
     List<LinkMetadata>? linkMeta,
@@ -107,7 +106,7 @@ class ClubMessage {
       senderProfilePicture: senderProfilePicture,
       senderRole: senderRole,
       content: content,
-      pictures: pictures ?? this.pictures,
+      images: images ?? this.images,
       documents: documents ?? this.documents,
       audio: audio ?? this.audio,
       linkMeta: linkMeta ?? this.linkMeta,
@@ -132,7 +131,7 @@ class ClubMessage {
     String messageContent = '';
     String? messageType;
     String? gifUrl;
-    List<MessageImage> pictures = [];
+    List<String> images = [];
     List<MessageDocument> documents = [];
     MessageAudio? audio;
     List<LinkMetadata> linkMeta = [];
@@ -142,7 +141,7 @@ class ClubMessage {
     String? deletedByName;
 
     final content = json['content'];
-    
+
     // Check if message is deleted at top level first
     if (json['isDeleted'] == true) {
       isDeleted = true;
@@ -150,7 +149,8 @@ class ClubMessage {
       if (content is Map<String, dynamic>) {
         deletedByName = content['deletedBy'] ?? content['deletedByName'];
       }
-      deletedByName = deletedByName ?? json['deletedBy'] ?? json['deletedByName'];
+      deletedByName =
+          deletedByName ?? json['deletedBy'] ?? json['deletedByName'];
       messageContent = '';
       messageType = 'deleted';
     } else if (content is String) {
@@ -178,24 +178,32 @@ class ClubMessage {
             break;
           case 'image':
             if (content['url'] != null) {
-              pictures = [
-                MessageImage(url: content['url'], caption: content['caption']),
-              ];
+              images = [content['url'] as String];
             }
             break;
           case 'text_with_images':
             if (content['images'] is List) {
-              pictures = (content['images'] as List)
-                  .map((url) => MessageImage(url: url as String))
+              images = (content['images'] as List)
+                  .map((url) => url as String)
                   .toList();
             }
             break;
           case 'text':
             // Handle text messages with images array
+            print(
+              '🔍 ClubMessage.fromJson: Parsing text message with content = $content',
+            );
             if (content['images'] is List) {
-              pictures = (content['images'] as List)
-                  .map((url) => MessageImage(url: url as String))
-                  .toList();
+              final imagesList = content['images'] as List;
+              images = imagesList.map((url) => url as String).toList();
+              print(
+                '🔍 ClubMessage.fromJson: Found ${images.length} images in text message',
+              );
+              print('🔍 ClubMessage.fromJson: Image URLs = $images');
+            } else {
+              print(
+                '🔍 ClubMessage.fromJson: No images array found in text content',
+              );
             }
             break;
           case 'link':
@@ -235,10 +243,26 @@ class ClubMessage {
         }
       }
 
-      // Parse pictures array (for existing format compatibility)
+      // Parse images array (as URLs)
+      if (content['images'] is List) {
+        images = (content['images'] as List)
+            .map((url) => url as String)
+            .toList();
+      }
+
+      // Parse pictures array (for backward compatibility)
       if (content['pictures'] is List) {
-        pictures = (content['pictures'] as List)
-            .map((pic) => MessageImage.fromJson(pic as Map<String, dynamic>))
+        final picturesList = content['pictures'] as List;
+        images = picturesList
+            .map((pic) {
+              if (pic is String) {
+                return pic;
+              } else if (pic is Map<String, dynamic> && pic['url'] != null) {
+                return pic['url'] as String;
+              }
+              return '';
+            })
+            .where((url) => url.isNotEmpty)
             .toList();
       }
 
@@ -421,7 +445,7 @@ class ClubMessage {
       senderProfilePicture: senderProfilePicture,
       senderRole: senderRole,
       content: messageContent,
-      pictures: pictures,
+      images: images,
       documents: documents,
       audio: audio,
       linkMeta: linkMeta,
@@ -480,7 +504,7 @@ class ClubMessage {
       'senderProfilePicture': senderProfilePicture,
       'senderRole': senderRole,
       'content': content,
-      'pictures': pictures.map((p) => p.toJson()).toList(),
+      'images': images,
       'documents': documents.map((d) => d.toJson()).toList(),
       'audio': audio?.toJson(),
       'linkMeta': linkMeta.map((l) => l.toJson()).toList(),

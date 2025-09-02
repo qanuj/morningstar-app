@@ -739,9 +739,9 @@ class ClubChatScreenState extends State<ClubChatScreen>
       final mediaUrls = <Map<String, dynamic>>[];
       for (final message in _messages) {
         // Images
-        for (final picture in message.pictures) {
+        for (final image in message.images) {
           mediaUrls.add({
-            'url': picture.url,
+            'url': image,
             'type': 'image',
             'messageId': message.id,
           });
@@ -1101,10 +1101,21 @@ class ClubChatScreenState extends State<ClubChatScreen>
       messageType: tempMessage.messageType,
       createdAt: tempMessage.createdAt,
       status: tempMessage.status,
+      errorMessage: tempMessage.errorMessage,
       starred: tempMessage.starred,
       pin: tempMessage.pin,
+      // ✅ MEDIA FIELDS - Critical for video/audio/document uploads
+      images: tempMessage.images,
       documents: tempMessage.documents,
       audio: tempMessage.audio,
+      linkMeta: tempMessage.linkMeta,
+      gifUrl: tempMessage.gifUrl,
+      // ✅ OTHER FIELDS
+      reactions: tempMessage.reactions,
+      deleted: tempMessage.deleted,
+      deletedBy: tempMessage.deletedBy,
+      deliveredAt: tempMessage.deliveredAt,
+      readAt: tempMessage.readAt,
       replyTo: _replyingTo, // Add reply if replying
     );
 

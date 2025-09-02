@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/club_message.dart';
-import '../models/message_image.dart';
 
 class PinnedMessagesSection extends StatefulWidget {
   final List<ClubMessage> messages;
@@ -139,10 +138,10 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
       return message.documents.length == 1
           ? 'Document'
           : '${message.documents.length} Documents';
-    } else if (message.pictures.isNotEmpty) {
-      return message.pictures.length == 1
+    } else if (message.images.isNotEmpty) {
+      return message.images.length == 1
           ? 'Photo'
-          : '${message.pictures.length} Photos';
+          : '${message.images.length} Photos';
     } else if (message.gifUrl != null && message.gifUrl!.isNotEmpty) {
       return 'GIF';
     } else if (message.linkMeta.isNotEmpty) {
@@ -205,7 +204,7 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
     );
   }
 
-  Widget _buildPinnedMessageImages(List<MessageImage> pictures) {
+  Widget _buildPinnedMessageImages(List<String> pictures) {
     final imagesToShow = pictures.take(3).toList();
 
     return Container(
@@ -225,7 +224,7 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(6),
                   child: CachedNetworkImage(
-                    imageUrl: image.url,
+                    imageUrl: image,
                     width: 32,
                     height: 32,
                     fit: BoxFit.cover,
@@ -282,8 +281,8 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
   /// Builds visual indicator for different message types in pinned messages
   Widget _buildPinnedMessageIndicator(ClubMessage message) {
     // Show images if available
-    if (message.pictures.isNotEmpty) {
-      return _buildPinnedMessageImages(message.pictures);
+    if (message.images.isNotEmpty) {
+      return _buildPinnedMessageImages(message.images);
     }
 
     // Show icon indicators for other message types

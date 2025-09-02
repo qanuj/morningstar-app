@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/club_message.dart';
 import '../../models/message_status.dart';
-import '../../models/message_image.dart';
 import 'base_message_bubble.dart';
 import '../image_gallery_screen.dart';
 
@@ -39,6 +38,20 @@ class TextMessageBubble extends StatelessWidget {
   }
 
   Widget _buildContent(BuildContext context) {
+    print(
+      '🔍 TextMessageBubble._buildContent: images.length = ${message.images.length}',
+    );
+    print('🔍 TextMessageBubble._buildContent: content = "${message.content}"');
+    print(
+      '🔍 TextMessageBubble._buildContent: messageType = "${message.messageType}"',
+    );
+
+    if (message.images.isNotEmpty) {
+      print(
+        '🔍 TextMessageBubble: Will build image gallery with ${message.images.length} images',
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -49,7 +62,7 @@ class TextMessageBubble extends StatelessWidget {
         ],
 
         // Images first (if any)
-        if (message.pictures.isNotEmpty) ...[
+        if (message.images.isNotEmpty) ...[
           _buildImageGallery(context),
           if (message.content.trim().isNotEmpty || message.documents.isNotEmpty)
             SizedBox(height: 8),
@@ -65,7 +78,7 @@ class TextMessageBubble extends StatelessWidget {
         if (message.content.trim().isNotEmpty) _buildTextContent(context),
 
         // Add bottom padding for images when no text content (for meta overlay space)
-        if (message.pictures.isNotEmpty && message.content.trim().isEmpty)
+        if (message.images.isNotEmpty && message.content.trim().isEmpty)
           SizedBox(height: 16),
       ],
     );
@@ -110,7 +123,7 @@ class TextMessageBubble extends StatelessWidget {
   }
 
   Widget _buildImageGrid(BuildContext context) {
-    final images = message.pictures;
+    final images = message.images;
 
     if (images.length == 1) {
       return _buildSingleImage(context, images[0]);
@@ -123,7 +136,7 @@ class TextMessageBubble extends StatelessWidget {
     }
   }
 
-  Widget _buildSingleImage(BuildContext context, MessageImage image) {
+  Widget _buildSingleImage(BuildContext context, String imageUrl) {
     return GestureDetector(
       onTap: () => _openImageGallery(context, 0),
       child: Container(
@@ -134,7 +147,7 @@ class TextMessageBubble extends StatelessWidget {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(8),
           child: Image.network(
-            image.url,
+            imageUrl,
             fit: BoxFit.cover,
             loadingBuilder: (context, child, loadingProgress) {
               if (loadingProgress == null) return child;
@@ -161,7 +174,7 @@ class TextMessageBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildTwoImages(BuildContext context, List<MessageImage> images) {
+  Widget _buildTwoImages(BuildContext context, List<String> images) {
     return Container(
       height: 150,
       child: Row(
@@ -171,7 +184,7 @@ class TextMessageBubble extends StatelessWidget {
               onTap: () => _openImageGallery(context, 0),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.network(images[0].url, fit: BoxFit.cover),
+                child: Image.network(images[0], fit: BoxFit.cover),
               ),
             ),
           ),
@@ -181,7 +194,7 @@ class TextMessageBubble extends StatelessWidget {
               onTap: () => _openImageGallery(context, 1),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.network(images[1].url, fit: BoxFit.cover),
+                child: Image.network(images[1], fit: BoxFit.cover),
               ),
             ),
           ),
@@ -190,7 +203,7 @@ class TextMessageBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildThreeImages(BuildContext context, List<MessageImage> images) {
+  Widget _buildThreeImages(BuildContext context, List<String> images) {
     return Container(
       height: 200,
       child: Row(
@@ -201,7 +214,7 @@ class TextMessageBubble extends StatelessWidget {
               onTap: () => _openImageGallery(context, 0),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.network(images[0].url, fit: BoxFit.cover),
+                child: Image.network(images[0], fit: BoxFit.cover),
               ),
             ),
           ),
@@ -214,7 +227,7 @@ class TextMessageBubble extends StatelessWidget {
                     onTap: () => _openImageGallery(context, 1),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.network(images[1].url, fit: BoxFit.cover),
+                      child: Image.network(images[1], fit: BoxFit.cover),
                     ),
                   ),
                 ),
@@ -224,7 +237,7 @@ class TextMessageBubble extends StatelessWidget {
                     onTap: () => _openImageGallery(context, 2),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.network(images[2].url, fit: BoxFit.cover),
+                      child: Image.network(images[2], fit: BoxFit.cover),
                     ),
                   ),
                 ),
@@ -236,7 +249,7 @@ class TextMessageBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildMultipleImages(BuildContext context, List<MessageImage> images) {
+  Widget _buildMultipleImages(BuildContext context, List<String> images) {
     return Container(
       height: 280,
       child: GridView.builder(
@@ -258,7 +271,7 @@ class TextMessageBubble extends StatelessWidget {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),
                     child: Image.network(
-                      images[index].url,
+                      images[index],
                       fit: BoxFit.cover,
                       width: double.infinity,
                       height: double.infinity,
@@ -290,7 +303,7 @@ class TextMessageBubble extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: Image.network(
-                images[index].url,
+                images[index],
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) => Container(
                   color: Colors.grey[300],
@@ -451,9 +464,9 @@ class TextMessageBubble extends StatelessWidget {
 
   void _openImageGallery(BuildContext context, int initialIndex) {
     // Get the URL of the initial image to display
-    final initialImageUrl = initialIndex < message.pictures.length
-        ? message.pictures[initialIndex].url
-        : message.pictures.first.url;
+    final initialImageUrl = initialIndex < message.images.length
+        ? message.images[initialIndex]
+        : message.images.first;
 
     Navigator.push(
       context,

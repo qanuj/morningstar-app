@@ -183,9 +183,9 @@ class MessageStorageService {
       
       for (final message in messages) {
         // Extract images
-        for (final picture in message.pictures) {
+        for (final picture in message.images) {
           mediaUrls.add({
-            'url': picture.url,
+            'url': picture,
             'type': 'image',
             'messageId': message.id,
           });
