@@ -186,7 +186,9 @@ class LinkMessageBubble extends StatelessWidget {
                           Icons.language,
                           size: 16,
                           color: isOwn
-                              ? Colors.white.withOpacity(0.7)
+                              ? (Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.white.withOpacity(0.7)
+                                  : Color(0xFF003f9b).withOpacity(0.7))
                               : Colors.grey[500],
                         ),
                         SizedBox(width: 6),
@@ -198,7 +200,9 @@ class LinkMessageBubble extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 12,
                             color: isOwn
-                                ? Colors.white.withOpacity(0.7)
+                                ? (Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white.withOpacity(0.7)
+                                    : Color(0xFF003f9b).withOpacity(0.7))
                                 : (Theme.of(context).brightness ==
                                           Brightness.dark
                                       ? Colors.white.withOpacity(0.7)
@@ -213,7 +217,9 @@ class LinkMessageBubble extends StatelessWidget {
                         Icons.open_in_new,
                         size: 14,
                         color: isOwn
-                            ? Colors.white.withOpacity(0.7)
+                            ? (Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white.withOpacity(0.7)
+                                : Color(0xFF003f9b).withOpacity(0.7))
                             : Colors.grey[500],
                       ),
                     ],
@@ -238,9 +244,22 @@ class LinkMessageBubble extends StatelessWidget {
 
   void _launchUrl(String url) async {
     try {
-      final uri = Uri.parse(url);
+      // Ensure URL has proper protocol scheme
+      String urlWithScheme = url;
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        urlWithScheme = 'https://$url';
+      }
+      
+      final uri = Uri.parse(urlWithScheme);
+      debugPrint('🔗 Attempting to launch URL: $urlWithScheme');
+      
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
+        debugPrint('✅ URL launched successfully');
+      } else {
+        debugPrint('❌ Cannot launch URL: $urlWithScheme');
+        // Fallback: try with different modes
+        await launchUrl(uri, mode: LaunchMode.platformDefault);
       }
     } catch (e) {
       debugPrint('Error launching URL: $e');
