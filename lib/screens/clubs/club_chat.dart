@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'dart:async';
@@ -31,6 +30,8 @@ import '../../widgets/message_bubbles/message_bubble_factory.dart';
 import '../../widgets/image_caption_dialog.dart';
 import '../../widgets/image_gallery_screen.dart';
 import '../../widgets/audio_recording_widget.dart';
+import '../../widgets/pinned_messages_section.dart';
+import '../../widgets/message_bubbles/self_sending_message_bubble.dart';
 
 class ClubChatScreen extends StatefulWidget {
   final Club club;
@@ -41,13 +42,15 @@ class ClubChatScreen extends StatefulWidget {
   _ClubChatScreenState createState() => _ClubChatScreenState();
 }
 
-class _ClubChatScreenState extends State<ClubChatScreen> {
+class _ClubChatScreenState extends State<ClubChatScreen>
+    with TickerProviderStateMixin {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   List<ClubMessage> _messages = [];
   bool _isLoading = true;
   bool _isComposing = false;
   String? _error;
+  late AnimationController _refreshAnimationController;
   DetailedClubInfo? _detailedClubInfo;
   final FocusNode _textFieldFocusNode = FocusNode();
   MessageReply? _replyingTo;
@@ -83,13 +86,18 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   @override
   void initState() {
     super.initState();
+    // Initialize refresh animation controller
+    _refreshAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+
     // Clear cached messages to handle model migration (pin/starred structure changes)
     MessageStorageService.clearCachedMessages(widget.club.id);
     // Load persistent delivered/read status flags
     _loadPersistentStatusFlags();
     // Remove the listener since we handle it in onChanged now
     _loadMessages();
-    _startPinnedRefreshTimer();
     _startMessagePolling();
 
     // Add focus listener to trigger UI updates
@@ -124,9 +132,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   @override
   void dispose() {
     _highlightTimer?.cancel();
-    _pinnedRefreshTimer?.cancel();
     _messagePollingTimer?.cancel();
     _bottomRefreshTimer?.cancel();
+    _refreshAnimationController.dispose();
     _messageController.dispose();
     _scrollController.dispose();
     _textFieldFocusNode.dispose();
@@ -140,6 +148,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         _error = null;
       });
 
+      // Start refresh animation
+      _refreshAnimationController.repeat();
+
       // Always load from local storage first for offline-first experience
       print('📱 Loading messages from local storage...');
       final cachedMessages = await MessageStorageService.loadMessages(
@@ -152,11 +163,12 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
           _isLoading = false;
         });
 
+        // Stop refresh animation and reset to 0
+        _refreshAnimationController.stop();
+        _refreshAnimationController.reset();
+
         // Sort by creation time (oldest first for chat display)
         _messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-
-        // Start pinned refresh timer
-        _startPinnedRefreshTimer();
 
         print('✅ Loaded ${cachedMessages.length} messages from local storage');
 
@@ -184,6 +196,10 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       print('❌ Error loading messages: $e');
       _error = 'Unable to load messages. Please check your connection.';
       setState(() => _isLoading = false);
+
+      // Stop refresh animation on error and reset to 0
+      _refreshAnimationController.stop();
+      _refreshAnimationController.reset();
     }
   }
 
@@ -545,11 +561,10 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       print('➕ Adding ${newMessages.length} new messages');
       updatedMessagesList.addAll(newMessages);
       hasChanges = true;
-
       // Highlight new messages temporarily
-      for (final newMsg in newMessages) {
-        _highlightMessage(newMsg.id);
-      }
+      // for (final newMsg in newMessages) {
+      //   _highlightMessage(newMsg.id);
+      // }
     }
 
     if (hasChanges) {
@@ -561,10 +576,14 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         _isLoading = false;
       });
 
+      // Stop refresh animation and reset to 0
+      _refreshAnimationController.stop();
+      _refreshAnimationController.reset();
+
       // Auto-scroll to newest message if new messages were added
-      if (newMessages.isNotEmpty) {
-        _scrollToBottom();
-      }
+      // if (newMessages.isNotEmpty) {
+      //   _scrollToBottom();
+      // }
 
       print('✅ Applied incremental changes successfully');
 
@@ -574,6 +593,10 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       }
     } else {
       setState(() => _isLoading = false);
+
+      // Stop refresh animation and reset to 0
+      _refreshAnimationController.stop();
+      _refreshAnimationController.reset();
     }
   }
 
@@ -633,6 +656,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
           );
         } else {
           setState(() => _isLoading = false);
+
+          // Stop refresh animation
+          _refreshAnimationController.stop();
           // Show user that refresh completed but no new changes (only for explicit refresh)
           // No new updates
         }
@@ -661,9 +687,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         // Sort by creation time (oldest first for chat display)
         _messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
-        // Restart the pinned refresh timer with new messages
-        _startPinnedRefreshTimer();
-
         // Sync delivery status from server before trying to mark new ones
         _syncDeliveryStatusFromServer(serverMessages);
 
@@ -682,6 +705,10 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
           _isLoading = false;
           _error = 'Failed to sync messages: $e';
         });
+
+        // Stop refresh animation on sync error and reset to 0
+        _refreshAnimationController.stop();
+        _refreshAnimationController.reset();
       }
     }
   }
@@ -754,12 +781,10 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
   Future<void> _toggleOfflineMode(bool enabled) async {
     await MessageStorageService.setOfflineMode(widget.club.id, enabled);
-
   }
 
   Future<void> _downloadAllMedia() async {
     try {
-
       // Extract media URLs from current messages
       final mediaUrls = <Map<String, dynamic>>[];
       for (final message in _messages) {
@@ -912,13 +937,11 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
     if (confirmed == true) {
       try {
-
         // Clear all club data including media
         await MessageStorageService.clearClubData(widget.club.id);
 
         // Reload from server
         await _loadMessages(forceSync: true);
-
       } catch (e) {
         // Ignore clear data errors
       }
@@ -933,38 +956,10 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
     final userProvider = context.read<UserProvider>();
     final user = userProvider.user;
-    if (user == null) {
-      print('❌ User is null, cannot send message');
-      return;
-    }
+    if (user == null) return;
 
     // Generate temporary message ID
     final tempMessageId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
-
-    // Check if message is emoji-only
-    final emojiOnlyPattern = RegExp(
-      r'^(\s*[\p{Emoji}\p{Emoji_Modifier}\p{Emoji_Component}\p{Emoji_Modifier_Base}\p{Emoji_Presentation}\u200d]*\s*)+$',
-      unicode: true,
-    );
-    final isEmojiOnly =
-        emojiOnlyPattern.hasMatch(content) &&
-        content.trim().length <= 12; // Max 4 emojis
-
-    // Detect links and fetch metadata
-    List<LinkMetadata> linkMeta = [];
-    final urlPattern = RegExp(r'https?://[^\s]+');
-    final urls = urlPattern
-        .allMatches(content)
-        .map((match) => match.group(0)!)
-        .toList();
-
-    // Determine message type
-    String messageType = 'text';
-    if (isEmojiOnly) {
-      messageType = 'emoji';
-    } else if (urls.isNotEmpty) {
-      messageType = 'link';
-    }
 
     // Create optimistic message (add immediately to list)
     final optimisticMessage = ClubMessage(
@@ -989,199 +984,25 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       _messages.add(optimisticMessage);
       _replyingTo = null; // Clear reply after sending
     });
+  }
 
-    // Scroll to bottom to show new message
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
+  void _handleMessageUpdated(ClubMessage oldMessage, ClubMessage newMessage) {
+    setState(() {
+      final messageIndex = _messages.indexWhere((m) => m.id == oldMessage.id);
+      if (messageIndex != -1) {
+        _messages[messageIndex] = newMessage;
+        // Only sort if the message ID changed (from temp to real ID)
+        if (oldMessage.id != newMessage.id) {
+          _messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        }
       }
     });
+  }
 
-    HapticFeedback.lightImpact();
-
-    // Fetch link metadata if URLs found
-    if (urls.isNotEmpty) {
-      for (String url in urls) {
-        final metadata = await _fetchLinkMetadata(url);
-        if (metadata != null) {
-          linkMeta.add(metadata);
-        }
-      }
-    }
-
-    try {
-      // print(
-      //   '🔵 Sending message to club ${widget.club.id} from user ${user.id}',
-      // );
-      print('🔵 Message content: $content');
-
-      final Map<String, dynamic> contentMap = {
-        'type': messageType,
-        'body': content,
-      };
-
-      if (linkMeta.isNotEmpty) {
-        contentMap['meta'] = linkMeta.map((meta) => meta.toJson()).toList();
-      }
-
-      final requestData = {
-        'senderId': user.id,
-        'content': contentMap,
-        if (_replyingTo != null) 'replyTo': _replyingTo!.toJson(),
-      };
-
-
-      final response = await ApiService.post(
-        '/conversations/${widget.club.id}/messages',
-        requestData,
-      );
-
-
-      // Check different possible response structures
-      bool isSuccess = false;
-      String? messageId;
-
-      if (response.containsKey('messageId') && response['messageId'] != null) {
-        isSuccess = true;
-        messageId = response['messageId'];
-      } else if (response.containsKey('success') &&
-          response['success'] == true) {
-        isSuccess = true;
-        messageId = response['messageId'];
-      } else if (response.containsKey('id')) {
-        // Sometimes the response might use 'id' instead of 'messageId'
-        isSuccess = true;
-        messageId = response['id'];
-      } else if (response.containsKey('data') && response['data'] != null) {
-        // Check if response has data wrapper
-        final data = response['data'];
-        if (data is Map && (data['messageId'] != null || data['id'] != null)) {
-          isSuccess = true;
-          messageId = data['messageId'] ?? data['id'];
-        }
-      } else {
-        // If we get here without an error being thrown, assume success
-        isSuccess = true;
-        messageId = DateTime.now().millisecondsSinceEpoch.toString();
-      }
-
-      print('🔵 Is success: $isSuccess, Message ID: $messageId');
-
-      if (isSuccess) {
-        // For text messages, the response is usually the message object itself
-        // or we need to extract it from the response structure
-        Map<String, dynamic>? messageData;
-
-        if (response.containsKey('data') && response['data'] is Map) {
-          messageData = response['data'] as Map<String, dynamic>;
-        } else if (response.containsKey('message') &&
-            response['message'] is Map) {
-          messageData = response['message'] as Map<String, dynamic>;
-        } else {
-          // The response itself might be the message data
-          messageData = response;
-        }
-
-        if (messageData != null) {
-          // Remove temporary message and add real message from server (similar to media messages)
-          setState(() {
-            _messages.removeWhere((m) => m.id == tempMessageId);
-          });
-
-          // Create message object from server response
-          final newMessage = ClubMessage.fromJson(messageData);
-          await MessageStorageService.addMessage(widget.club.id, newMessage);
-
-          // Update UI
-          setState(() {
-            _messages.add(newMessage);
-            _messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-          });
-
-          // Mark the newly sent message as delivered
-          try {
-            print(
-              '🔵 Making POST request to: https://duggy.app/api/conversations/${widget.club.id}/messages/${newMessage.id}/delivered',
-            );
-            await ApiService.post(
-              '/conversations/${widget.club.id}/messages/${newMessage.id}/delivered',
-              {},
-            );
-            await MessageStorageService.markAsDelivered(
-              widget.club.id,
-              newMessage.id,
-            );
-
-            // Update UI to show delivered status
-            setState(() {
-              final messageIndex = _messages.indexWhere(
-                (m) => m.id == newMessage.id,
-              );
-              if (messageIndex != -1) {
-                _messages[messageIndex] = _messages[messageIndex].copyWith(
-                  status: MessageStatus.delivered,
-                  deliveredAt: DateTime.now(),
-                );
-              }
-            });
-          } catch (e) {
-            print('⚠️ Failed to mark message as delivered: $e');
-          }
-        } else {
-          // Fallback: just update the status if we can't get message data
-          setState(() {
-            final messageIndex = _messages.indexWhere(
-              (m) => m.id == tempMessageId,
-            );
-            if (messageIndex != -1) {
-              _messages[messageIndex] = _messages[messageIndex].copyWith(
-                status: MessageStatus.sent,
-              );
-            }
-          });
-        }
-
-        print('✅ Message sent successfully: $messageId');
-      } else {
-        // Mark message as failed
-        setState(() {
-          final messageIndex = _messages.indexWhere(
-            (m) => m.id == tempMessageId,
-          );
-          if (messageIndex != -1) {
-            _messages[messageIndex] = _messages[messageIndex].copyWith(
-              status: MessageStatus.failed,
-              errorMessage: 'Server response unclear',
-            );
-          }
-        });
-
-        print('❌ Message send failed - no success indicator in response');
-      }
-    } catch (e) {
-      print('❌ Error sending message: $e');
-      print('❌ Error type: ${e.runtimeType}');
-
-      String errorMessage = 'Unable to send message';
-      if (e.toString().contains('Exception:')) {
-        errorMessage = e.toString().replaceFirst('Exception: ', '');
-      }
-
-      // Mark message as failed with error message
-      setState(() {
-        final messageIndex = _messages.indexWhere((m) => m.id == tempMessageId);
-        if (messageIndex != -1) {
-          _messages[messageIndex] = _messages[messageIndex].copyWith(
-            status: MessageStatus.failed,
-            errorMessage: errorMessage,
-          );
-        }
-      });
-    }
+  void _handleMessageFailed(String messageId) {
+    // Message failure is handled by the SelfSendingMessageBubble internally
+    // This callback can be used for additional UI feedback if needed
+    print('❌ Message failed: $messageId');
   }
 
   void _handleTextChanged(String value) {
@@ -1604,7 +1425,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1716,7 +1536,18 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                     return Stack(
                       children: [
                         IconButton(
-                          icon: Icon(Icons.refresh, color: Colors.white),
+                          icon: AnimatedBuilder(
+                            animation: _refreshAnimationController,
+                            builder: (context, child) {
+                              return Transform.rotate(
+                                angle:
+                                    _refreshAnimationController.value *
+                                    2.0 *
+                                    3.14159,
+                                child: Icon(Icons.refresh, color: Colors.white),
+                              );
+                            },
+                          ),
                           onPressed: () => _loadMessages(forceSync: true),
                           tooltip: isOfflineMode
                               ? 'Refresh from server (Offline mode is ON)'
@@ -1760,9 +1591,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                       FocusScope.of(context).unfocus();
                     },
                     behavior: HitTestBehavior.opaque,
-                    child: _isLoading
-                        ? _buildLoadingState()
-                        : _error != null
+                    child: _error != null
                         ? _buildErrorState(_error!)
                         : _messages.isEmpty
                         ? _buildEmptyState()
@@ -1800,7 +1629,13 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       children: [
         // Top section: Derived set of pinned messages (tap to navigate to actual message)
         if (pinnedMessages.isNotEmpty)
-          _buildPinnedMessagesSection(pinnedMessages),
+          PinnedMessagesSection(
+            messages: _messages,
+            onScrollToMessage: _scrollToMessage,
+            onTogglePin: _togglePin,
+            canPinMessages: _canPinMessages,
+            clubId: widget.club.id,
+          ),
 
         // Chat flow: ALL messages including pinned ones in chronological order
         Expanded(
@@ -2092,16 +1927,30 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                                       message,
                                       isOwn,
                                     ),
-                              child: MessageBubbleFactory(
-                                message: message,
-                                isOwn: isOwn,
-                                isDeleted: message.deleted,
-                                isPinned: _isCurrentlyPinned(message),
-                                isSelected: _selectedMessageIds.contains(
-                                  message.id,
-                                ),
-                                showSenderInfo: showSenderInfo,
-                              ),
+                              child: message.status == MessageStatus.sending
+                                  ? SelfSendingMessageBubble(
+                                      message: message,
+                                      isOwn: isOwn,
+                                      isPinned: _isCurrentlyPinned(message),
+                                      isDeleted: message.deleted,
+                                      isSelected: _selectedMessageIds.contains(
+                                        message.id,
+                                      ),
+                                      showSenderInfo: showSenderInfo,
+                                      clubId: widget.club.id,
+                                      onMessageUpdated: _handleMessageUpdated,
+                                      onMessageFailed: _handleMessageFailed,
+                                    )
+                                  : MessageBubbleFactory(
+                                      message: message,
+                                      isOwn: isOwn,
+                                      isDeleted: message.deleted,
+                                      isPinned: _isCurrentlyPinned(message),
+                                      isSelected: _selectedMessageIds.contains(
+                                        message.id,
+                                      ),
+                                      showSenderInfo: showSenderInfo,
+                                    ),
                             ),
                           ],
                         ),
@@ -2489,8 +2338,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     );
   }
 
-
-
   Widget _buildGridOption({
     required IconData icon,
     required Color iconColor,
@@ -2533,7 +2380,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       ),
     );
   }
-
 
   bool _canShareUPIQR() {
     // TODO: This should check the current user's role in the club
@@ -2656,7 +2502,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       _uploadImagesWithProgress(files, {});
     }
   }
-
 
   void _showSingleImageCaptionDialog(PlatformFile file) {
     Navigator.of(context).push(
@@ -2968,23 +2813,19 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
           html,
           r'<title[^>]*>([^<]+)</title>',
         );
-        if (title == null) {
-          title = _extractMetaContent(
-            html,
-            r'<meta[^>]*property=["\047]og:title["\047][^>]*content=["\047]([^"\047>]*)["\047][^>]*>',
-          );
-        }
+        title ??= _extractMetaContent(
+          html,
+          r'<meta[^>]*property=["\047]og:title["\047][^>]*content=["\047]([^"\047>]*)["\047][^>]*>',
+        );
 
         String? description = _extractMetaContent(
           html,
           r'<meta[^>]*name=["\047]description["\047][^>]*content=["\047]([^"\047>]*)["\047][^>]*>',
         );
-        if (description == null) {
-          description = _extractMetaContent(
-            html,
-            r'<meta[^>]*property=["\047]og:description["\047][^>]*content=["\047]([^"\047>]*)["\047][^>]*>',
-          );
-        }
+        description ??= _extractMetaContent(
+          html,
+          r'<meta[^>]*property=["\047]og:description["\047][^>]*content=["\047]([^"\047>]*)["\047][^>]*>',
+        );
 
         String? image = _extractMetaContent(
           html,
@@ -3191,7 +3032,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       return null;
     }
   }
-
 
   Widget _buildImageWidget(MessageImage image, {double height = 200}) {
     // Check if it's a local file path (during upload) or network URL
@@ -3667,7 +3507,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     }
   }
 
-
   Widget _buildReplyPreview() {
     if (_replyingTo == null) return SizedBox.shrink();
 
@@ -3890,7 +3729,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       ),
     );
   }
-
 
   String _formatFileSize(int bytes) {
     if (bytes < 1024) return '${bytes}B';
@@ -4460,7 +4298,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       );
       // Sync from server to get authoritative pinned status for all users
       await _syncMessagesFromServer(forceSync: false);
-
     } catch (e) {
       // Error pinning message
     }
@@ -4474,14 +4311,11 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
       // Sync from server to get authoritative pinned status for all users
       await _syncMessagesFromServer(forceSync: false);
-
     } catch (e) {
       // Error unpinning message
     }
   }
 
-
-  Timer? _pinnedRefreshTimer;
   Timer? _messagePollingTimer;
   int _currentPollingInterval = 30; // Start with 30 seconds
   bool _isMarkingDelivered =
@@ -4531,55 +4365,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   // Uses the authoritative pin status from the API (pin.isPinned)
   bool _isCurrentlyPinned(ClubMessage message) {
     return message.pin.isPinned;
-  }
-
-  // Start a timer to refresh pinned messages when pin periods expire and check for new pins
-  void _startPinnedRefreshTimer() {
-    _pinnedRefreshTimer?.cancel();
-
-    // Check for pin expiry every minute, sync with server every 5 minutes
-    _pinnedRefreshTimer = Timer.periodic(Duration(minutes: 1), (timer) async {
-      if (mounted) {
-        final currentPinnedIds = _messages
-            .where((m) => _isCurrentlyPinned(m))
-            .map((m) => m.id)
-            .toSet();
-        final previousPinnedIds = _lastKnownPinnedIds ?? <String>{};
-
-        // If the set of pinned messages has changed, refresh the UI
-        if (currentPinnedIds.length != previousPinnedIds.length ||
-            !currentPinnedIds.containsAll(previousPinnedIds)) {
-          setState(() {
-            _lastKnownPinnedIds = currentPinnedIds;
-            // Reset pinned index when pinned messages change
-            _currentPinnedIndex = 0;
-          });
-        }
-
-        // Periodically sync messages from server (every 5 minutes)
-        if (timer.tick % 5 == 0) {
-          // Every 5th tick (5 * 1 minute = 5 minutes)
-          final needsSync = await MessageStorageService.needsSync(
-            widget.club.id,
-          );
-          if (needsSync) {
-            try {
-              print('📡 Periodic sync: syncing messages from server...');
-              await _syncMessagesFromServer(forceSync: false);
-            } catch (e) {
-              // Silently ignore refresh errors to avoid disrupting user experience
-              debugPrint('Failed to sync messages during periodic refresh: $e');
-            }
-          }
-        }
-      }
-    });
-
-    // Store current pinned message IDs for comparison
-    _lastKnownPinnedIds = _messages
-        .where((m) => _isCurrentlyPinned(m))
-        .map((m) => m.id)
-        .toSet();
   }
 
   // Start adaptive polling for new messages
@@ -4657,303 +4442,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     );
   }
 
-  Set<String>? _lastKnownPinnedIds;
-  int _currentPinnedIndex = 0; // Track current pinned message being displayed
-
-  Widget _buildPinnedMessagesSection(List<ClubMessage> pinnedMessages) {
-    if (pinnedMessages.isEmpty) return SizedBox.shrink();
-
-    // Ensure current index is within bounds
-    if (_currentPinnedIndex >= pinnedMessages.length) {
-      _currentPinnedIndex = 0;
-    }
-
-    final currentMessage = pinnedMessages[_currentPinnedIndex];
-    final hasMultiple = pinnedMessages.length > 1;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Color(0xFFF8F9FA),
-        border: Border(bottom: BorderSide(color: Color(0xFFDEE2E6), width: 1)),
-      ),
-      child: Column(
-        children: [
-          _buildPinnedMessageItem(
-            currentMessage,
-            pinnedMessages.length,
-            _currentPinnedIndex + 1,
-          ),
-          if (hasMultiple)
-            _buildPinnedIndicator(pinnedMessages.length, _currentPinnedIndex),
-        ],
-      ),
-    );
-  }
-
-  /// Helper function to get appropriate display text for pinned messages
-  String _getPinnedMessageDisplayText(ClubMessage message) {
-    // Handle different message types
-    if (message.messageType == 'audio' && message.audio != null) {
-      return 'Audio';
-    } else if (message.documents.isNotEmpty) {
-      return message.documents.length == 1
-          ? 'Document'
-          : '${message.documents.length} Documents';
-    } else if (message.pictures.isNotEmpty) {
-      return message.pictures.length == 1
-          ? 'Photo'
-          : '${message.pictures.length} Photos';
-    } else if (message.gifUrl != null && message.gifUrl!.isNotEmpty) {
-      return 'GIF';
-    } else if (message.linkMeta.isNotEmpty) {
-      return 'Link';
-    } else if (message.messageType == 'emoji') {
-      // For emoji messages, show the actual emoji if content is available
-      return message.content.trim().isNotEmpty
-          ? message.content.trim()
-          : 'Emoji';
-    } else {
-      // For text messages, return the content if available
-      final content = message.content.trim();
-      return content.isNotEmpty ? content : 'Message';
-    }
-  }
-
-  Widget _buildPinnedMessageItem(
-    ClubMessage message,
-    int totalCount,
-    int currentIndex,
-  ) {
-    final String displayText = _getPinnedMessageDisplayText(message);
-    final String firstLine = displayText.split('\n').first;
-
-    return GestureDetector(
-      onTap: () => _cycleToPinnedMessage(message.id),
-      onLongPress: () => _showPinnedMessageOptions(message),
-      child: Container(
-        height: 56, // Fixed height to prevent changes
-        padding: EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Pin icon
-            Icon(Icons.push_pin, size: 16, color: Color(0xFF6C757D)),
-            SizedBox(width: 8),
-
-            // Message content
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Message preview
-                  Text(
-                    firstLine,
-                    style: TextStyle(fontSize: 14, color: Color(0xFF6C757D)),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-
-            // Visual indicator for different message types
-            _buildPinnedMessageIndicator(message),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPinnedMessageImages(List<MessageImage> pictures) {
-    final imagesToShow = pictures.take(3).toList();
-
-    return Container(
-      height: 32,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: imagesToShow.asMap().entries.map((entry) {
-          final index = entry.key;
-          final image = entry.value;
-          final isLast = index == imagesToShow.length - 1;
-          final remainingCount = pictures.length - 3;
-
-          return Container(
-            margin: EdgeInsets.only(left: index > 0 ? 4 : 0),
-            child: Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: CachedNetworkImage(
-                    imageUrl: image.url,
-                    width: 32,
-                    height: 32,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      width: 32,
-                      height: 32,
-                      color: Colors.grey[300],
-                      child: Icon(
-                        Icons.image,
-                        color: Colors.grey[600],
-                        size: 14,
-                      ),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      width: 32,
-                      height: 32,
-                      color: Colors.grey[300],
-                      child: Icon(
-                        Icons.broken_image,
-                        color: Colors.grey[600],
-                        size: 14,
-                      ),
-                    ),
-                  ),
-                ),
-                // Show count overlay on last image if there are more than 3
-                if (isLast && remainingCount > 0)
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Center(
-                        child: Text(
-                          '+$remainingCount',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  /// Builds visual indicator for different message types in pinned messages
-  Widget _buildPinnedMessageIndicator(ClubMessage message) {
-    // Show images if available
-    if (message.pictures.isNotEmpty) {
-      return _buildPinnedMessageImages(message.pictures);
-    }
-
-    // Show icon indicators for other message types
-    Widget? iconWidget;
-    Color iconColor = Color(0xFF6C757D);
-
-    if (message.messageType == 'audio' && message.audio != null) {
-      iconWidget = Icon(Icons.audiotrack, size: 20, color: iconColor);
-    } else if (message.documents.isNotEmpty) {
-      iconWidget = Icon(Icons.description, size: 20, color: iconColor);
-    } else if (message.gifUrl != null && message.gifUrl!.isNotEmpty) {
-      iconWidget = Icon(Icons.gif_box, size: 20, color: iconColor);
-    } else if (message.linkMeta.isNotEmpty) {
-      iconWidget = Icon(Icons.link, size: 20, color: iconColor);
-    } else if (message.messageType == 'emoji') {
-      iconWidget = Icon(Icons.emoji_emotions, size: 20, color: iconColor);
-    }
-
-    // Return icon container if we have an icon to show
-    if (iconWidget != null) {
-      return Container(
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          color: Color(0xFFF8F9FA),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: Color(0xFFDEE2E6), width: 1),
-        ),
-        child: Center(child: iconWidget),
-      );
-    }
-
-    // For regular text messages, don't show any indicator
-    return SizedBox.shrink();
-  }
-
-  Widget _buildPinnedIndicator(int totalCount, int currentIndex) {
-    // Show max 4 indicators as requested
-    final indicatorsToShow = totalCount > 4 ? 4 : totalCount;
-
-    return Container(
-      padding: EdgeInsets.only(bottom: 8, left: 16, right: 16),
-      child: Row(
-        children: [
-          // Current position text (e.g., "1 of 5")
-          Text(
-            '${currentIndex + 1} of $totalCount',
-            style: TextStyle(
-              fontSize: 12,
-              color: Color(0xFF6C757D),
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          SizedBox(width: 8),
-          // Line indicators
-          Expanded(
-            child: Row(
-              children: List.generate(indicatorsToShow, (index) {
-                bool isActive;
-                if (totalCount <= 4) {
-                  // Show normal indicators for 4 or fewer items
-                  isActive = index == currentIndex;
-                } else {
-                  // For more than 4 items, show progress within the 4 indicators
-                  final progress =
-                      (currentIndex / (totalCount - 1)) *
-                      (indicatorsToShow - 1);
-                  isActive = index <= progress.round();
-                }
-
-                return Expanded(
-                  child: Container(
-                    margin: EdgeInsets.only(
-                      right: index < indicatorsToShow - 1 ? 2 : 0,
-                    ),
-                    height: 2,
-                    decoration: BoxDecoration(
-                      color: isActive ? Color(0xFF003f9b) : Color(0xFFDEE2E6),
-                      borderRadius: BorderRadius.circular(1),
-                    ),
-                  ),
-                );
-              }),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _cycleToPinnedMessage(String currentMessageId) {
-    final pinnedMessages = _messages
-        .where((m) => _isCurrentlyPinned(m))
-        .toList();
-    if (pinnedMessages.length <= 1) {
-      // If only one pinned message, just scroll to it
-      _scrollToMessage(currentMessageId);
-      return;
-    }
-
-    // Cycle to next pinned message
-    setState(() {
-      _currentPinnedIndex = (_currentPinnedIndex + 1) % pinnedMessages.length;
-    });
-
-    // Scroll to the new current pinned message
-    final nextMessage = pinnedMessages[_currentPinnedIndex];
-    _scrollToMessage(nextMessage.id);
-  }
-
   void _scrollToMessage(String messageId) {
     // Sort messages by creation time to match the ListView order
     final allMessages = List<ClubMessage>.from(_messages);
@@ -4970,56 +4458,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       targetOffset,
       duration: Duration(milliseconds: 500),
       curve: Curves.easeInOut,
-    );
-  }
-
-  void _showPinnedMessageOptions(ClubMessage message) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? Color(0xFF2D3748)
-              : Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                margin: EdgeInsets.only(top: 12),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              SizedBox(height: 20),
-              _buildOptionTile(
-                icon: Icons.navigation,
-                title: 'Go to message',
-                onTap: () {
-                  Navigator.pop(context);
-                  _scrollToMessage(message.id);
-                },
-              ),
-              // Only show unpin option if user has permission
-              if (_canPinMessages())
-                _buildOptionTile(
-                  icon: Icons.push_pin_outlined,
-                  title: 'Unpin',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _togglePin(message);
-                  },
-                ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }
