@@ -10,13 +10,11 @@ class ChatApiService {
   ChatApiService._();
 
   // Message Operations
-  
+
   /// Fetch messages for a conversation/club
   static Future<Map<String, dynamic>?> getMessages(String clubId) async {
     try {
-      final response = await ApiService.get(
-        '/conversations/$clubId/messages',
-      );
+      final response = await ApiService.get('/conversations/$clubId/messages');
       return response;
     } catch (e) {
       print('❌ Error fetching messages: $e');
@@ -176,6 +174,61 @@ class ChatApiService {
     }
   }
 
+  /// Remove reaction from message
+  static Future<bool> removeReaction(
+    String clubId,
+    String messageId,
+    String emoji,
+  ) async {
+    try {
+      await ApiService.delete(
+        '/conversations/$clubId/messages/$messageId/reactions/$emoji',
+      );
+      return true;
+    } catch (e) {
+      print('❌ Error removing reaction: $e');
+      return false;
+    }
+  }
+
+  /// Star a message
+  static Future<bool> starMessage(String clubId, String messageId) async {
+    try {
+      await ApiService.post(
+        '/conversations/$clubId/messages/$messageId/star',
+        {},
+      );
+      return true;
+    } catch (e) {
+      print('❌ Error starring message: $e');
+      return false;
+    }
+  }
+
+  /// Unstar a message
+  static Future<bool> unstarMessage(String clubId, String messageId) async {
+    try {
+      await ApiService.delete(
+        '/conversations/$clubId/messages/$messageId/star',
+      );
+      return true;
+    } catch (e) {
+      print('❌ Error unstarring message: $e');
+      return false;
+    }
+  }
+
+  /// Delete a single message
+  static Future<bool> deleteMessage(String clubId, String messageId) async {
+    try {
+      await ApiService.delete('/conversations/$clubId/messages/$messageId');
+      return true;
+    } catch (e) {
+      print('❌ Error deleting message: $e');
+      return false;
+    }
+  }
+
   /// Pin a message
   static Future<bool> pinMessage(
     String clubId,
@@ -197,9 +250,7 @@ class ChatApiService {
   /// Unpin a message
   static Future<bool> unpinMessage(String clubId, String messageId) async {
     try {
-      await ApiService.delete(
-        '/conversations/$clubId/messages/$messageId/pin',
-      );
+      await ApiService.delete('/conversations/$clubId/messages/$messageId/pin');
       return true;
     } catch (e) {
       print('❌ Error unpinning message: $e');

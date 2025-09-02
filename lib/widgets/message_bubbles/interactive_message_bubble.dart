@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import '../../models/club_message.dart';
 import '../../models/message_status.dart';
+import '../../models/message_reaction.dart';
+import '../../services/chat_api_service.dart';
+import '../../providers/user_provider.dart';
 import 'base_message_bubble.dart';
+import 'message_bubble_factory.dart';
 
 /// A wrapper for BaseMessageBubble that adds interactive functionality
-class InteractiveMessageBubble extends StatelessWidget {
+class InteractiveMessageBubble extends StatefulWidget {
   final ClubMessage message;
+  final String clubId;
   final bool isOwn;
-  final Widget content;
   final bool isPinned;
   final bool isSelected;
+  final bool showSenderInfo;
   final bool isTransparent;
   final Color? customColor;
   final bool showMetaOverlay;
@@ -36,9 +42,10 @@ class InteractiveMessageBubble extends StatelessWidget {
   const InteractiveMessageBubble({
     super.key,
     required this.message,
+    required this.clubId,
     required this.isOwn,
-    required this.content,
     required this.isPinned,
+    required this.showSenderInfo,
     this.isSelected = false,
     this.isTransparent = false,
     this.customColor,
@@ -61,48 +68,61 @@ class InteractiveMessageBubble extends StatelessWidget {
   });
 
   @override
+  State<InteractiveMessageBubble> createState() => _InteractiveMessageBubbleState();
+}
+
+class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
+  @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => _handleMessageTap(context),
       onLongPress: () => _handleMessageLongPress(context),
       child: BaseMessageBubble(
-        message: message,
-        isOwn: isOwn,
-        content: content,
-        isPinned: isPinned,
-        isSelected: isSelected,
-        isTransparent: isTransparent,
-        customColor: customColor,
-        showMetaOverlay: showMetaOverlay,
-        showShadow: showShadow,
-        overlayBottomPosition: overlayBottomPosition,
-        onReactionRemoved: onReactionRemoved,
-        onReactionAdded: onReactionAdded,
-        onReplyToMessage: onReplyToMessage,
-        onToggleStarMessage: onToggleStarMessage,
-        onTogglePinMessage: onTogglePinMessage,
-        onDeleteMessage: onDeleteMessage,
-        onShowMessageInfo: onShowMessageInfo,
-        canPinMessages: canPinMessages,
-        canDeleteMessages: canDeleteMessages,
+        message: widget.message,
+        isOwn: widget.isOwn,
+        isPinned: widget.isPinned,
+        isSelected: widget.isSelected,
+        isTransparent: widget.isTransparent,
+        customColor: widget.customColor,
+        showMetaOverlay: widget.showMetaOverlay,
+        showShadow: widget.showShadow,
+        overlayBottomPosition: widget.overlayBottomPosition,
+        onReactionRemoved: _handleReactionRemoved,
+        onReactionAdded: _handleReactionAdded,
+        onReplyToMessage: _handleReplyToMessage,
+        onToggleStarMessage: _handleToggleStarMessage,
+        onTogglePinMessage: _handleTogglePinMessage,
+        onDeleteMessage: _handleDeleteMessage,
+        onShowMessageInfo: _handleShowMessageInfo,
+        canPinMessages: widget.canPinMessages,
+        canDeleteMessages: widget.canDeleteMessages,
+        content: MessageBubbleFactory(
+          message: widget.message,
+          isOwn: widget.isOwn,
+          isDeleted: widget.message.deleted,
+          isPinned: widget.isPinned,
+          isSelected: widget.isSelected,
+          showSenderInfo: widget.showSenderInfo,
+          onReactionRemoved: widget.onReactionRemoved,
+        ),
       ),
     );
   }
 
   void _handleMessageTap(BuildContext context) {
-    if (message.deleted) return;
+    if (widget.message.deleted) return;
 
-    if (isSelectionMode) {
+    if (widget.isSelectionMode) {
       // In selection mode, tap to select/deselect
-      if (onToggleSelection != null) {
-        onToggleSelection!(message.id);
+      if (widget.onToggleSelection != null) {
+        widget.onToggleSelection!(widget.message.id);
       }
-    } else if (message.status == MessageStatus.failed) {
+    } else if (widget.message.status == MessageStatus.failed) {
       // Failed messages show retry dialog
       _showRetryDialog(context);
-    } else if (onMessageTap != null) {
+    } else if (widget.onMessageTap != null) {
       // Custom tap handler
-      onMessageTap!(message);
+      widget.onMessageTap!(widget.message);
     } else {
       // Default behavior - show message options
       _showMessageOptions(context);
@@ -110,10 +130,10 @@ class InteractiveMessageBubble extends StatelessWidget {
   }
 
   void _handleMessageLongPress(BuildContext context) {
-    if (message.deleted || isSelectionMode) return;
+    if (widget.message.deleted || widget.isSelectionMode) return;
 
-    if (onMessageLongPress != null) {
-      onMessageLongPress!(message);
+    if (widget.onMessageLongPress != null) {
+      widget.onMessageLongPress!(widget.message);
     } else {
       // Default behavior - show message options
       _showMessageOptions(context);
@@ -143,7 +163,7 @@ class InteractiveMessageBubble extends StatelessWidget {
   }
 
   void _showMessageOptions(BuildContext context) {
-    if (message.deleted) return;
+    if (widget.message.deleted) return;
 
     HapticFeedback.lightImpact();
     showModalBottomSheet(
@@ -171,8 +191,8 @@ class InteractiveMessageBubble extends StatelessWidget {
                           Navigator.pop(context);
                           if (emoji == '+') {
                             _showReactionPicker(context);
-                          } else if (onReactionAdded != null) {
-                            onReactionAdded!(message, emoji);
+                          } else {
+                            _handleReactionAdded(widget.message, emoji);
                           }
                         },
                         child: Container(
@@ -200,9 +220,7 @@ class InteractiveMessageBubble extends StatelessWidget {
               title: 'Reply',
               onTap: () {
                 Navigator.pop(context);
-                if (onReplyToMessage != null) {
-                  onReplyToMessage!(message);
-                }
+                _handleReplyToMessage(widget.message);
               },
             ),
             _buildOptionTile(
@@ -211,7 +229,7 @@ class InteractiveMessageBubble extends StatelessWidget {
               title: 'Copy',
               onTap: () {
                 Navigator.pop(context);
-                Clipboard.setData(ClipboardData(text: message.content));
+                Clipboard.setData(ClipboardData(text: widget.message.content));
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('Message copied to clipboard'),
@@ -221,41 +239,37 @@ class InteractiveMessageBubble extends StatelessWidget {
               },
             ),
             // Only show Info option for user's own messages
-            if (isOwn && onShowMessageInfo != null)
+            if (widget.isOwn)
               _buildOptionTile(
                 context: context,
                 icon: Icons.info_outline,
                 title: 'Info',
                 onTap: () {
                   Navigator.pop(context);
-                  onShowMessageInfo!(message);
+                  _handleShowMessageInfo(widget.message);
                 },
               ),
             _buildOptionTile(
               context: context,
-              icon: message.starred.isStarred ? Icons.star : Icons.star_outline,
-              title: message.starred.isStarred ? 'Unstar' : 'Star',
+              icon: widget.message.starred.isStarred ? Icons.star : Icons.star_outline,
+              title: widget.message.starred.isStarred ? 'Unstar' : 'Star',
               onTap: () {
                 Navigator.pop(context);
-                if (onToggleStarMessage != null) {
-                  onToggleStarMessage!(message);
-                }
+                _handleToggleStarMessage(widget.message);
               },
             ),
             // Only show pin option if user has permission
-            if (canPinMessages)
+            if (widget.canPinMessages)
               _buildOptionTile(
                 context: context,
-                icon: isPinned ? Icons.push_pin : Icons.push_pin_outlined,
-                title: isPinned ? 'Unpin' : 'Pin',
+                icon: widget.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+                title: widget.isPinned ? 'Unpin' : 'Pin',
                 onTap: () {
                   Navigator.pop(context);
-                  if (onTogglePinMessage != null) {
-                    onTogglePinMessage!(message);
-                  }
+                  _handleTogglePinMessage(widget.message);
                 },
               ),
-            if (canDeleteMessages)
+            if (widget.canDeleteMessages)
               _buildOptionTile(
                 context: context,
                 icon: Icons.delete,
@@ -264,9 +278,7 @@ class InteractiveMessageBubble extends StatelessWidget {
                 iconColor: Colors.red,
                 onTap: () {
                   Navigator.pop(context);
-                  if (onDeleteMessage != null) {
-                    onDeleteMessage!(message);
-                  }
+                  _handleDeleteMessage(widget.message);
                 },
               ),
           ],
@@ -314,5 +326,294 @@ class InteractiveMessageBubble extends StatelessWidget {
       ),
       onTap: onTap,
     );
+  }
+
+  // Handler methods for self-contained interactions
+  Future<void> _handleReactionAdded(ClubMessage message, String emoji) async {
+    final userProvider = context.read<UserProvider>();
+    final user = userProvider.user;
+    if (user == null) return;
+
+    try {
+      final reaction = MessageReaction(
+        emoji: emoji,
+        users: [ReactionUser(userId: user.id, name: user.name)],
+        count: 1,
+      );
+
+      await ChatApiService.addReaction(widget.clubId, message.id, reaction);
+      
+      // Show success feedback
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Added $emoji reaction'),
+            duration: Duration(seconds: 1),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Error adding reaction: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to add reaction'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleReactionRemoved(String messageId, String emoji, String userId) async {
+    final userProvider = context.read<UserProvider>();
+    final currentUser = userProvider.user;
+    
+    if (currentUser == null || userId != currentUser.id) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('You can only remove your own reactions'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    try {
+      await ChatApiService.removeReaction(widget.clubId, messageId, emoji);
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Removed $emoji reaction'),
+            duration: Duration(seconds: 1),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Error removing reaction: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to remove reaction'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  void _handleReplyToMessage(ClubMessage message) {
+    // Show a snackbar since we don't have direct access to reply functionality
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Reply functionality requires parent widget integration'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Future<void> _handleToggleStarMessage(ClubMessage message) async {
+    try {
+      if (message.starred.isStarred) {
+        await ChatApiService.unstarMessage(widget.clubId, message.id);
+      } else {
+        await ChatApiService.starMessage(widget.clubId, message.id);
+      }
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message.starred.isStarred ? 'Message unstarred' : 'Message starred'),
+            duration: Duration(seconds: 1),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Error toggling star: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update star'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleTogglePinMessage(ClubMessage message) async {
+    try {
+      if (widget.isPinned) {
+        await ChatApiService.unpinMessage(widget.clubId, message.id);
+      } else {
+        // Show pin duration dialog
+        final duration = await _showPinDurationDialog(context);
+        if (duration != null) {
+          await ChatApiService.pinMessage(widget.clubId, message.id, {'durationHours': duration});
+        }
+      }
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(widget.isPinned ? 'Message unpinned' : 'Message pinned'),
+            duration: Duration(seconds: 1),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Error toggling pin: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update pin'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleDeleteMessage(ClubMessage message) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete Message?'),
+        content: Text('This message will be deleted for everyone. This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await ChatApiService.deleteMessage(widget.clubId, message.id);
+        
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Message deleted'),
+              duration: Duration(seconds: 1),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint('❌ Error deleting message: $e');
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete message'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  void _handleShowMessageInfo(ClubMessage message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Message Info'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Sent: ${_formatDateTime(message.createdAt)}'),
+              if (message.deliveredAt != null)
+                Text('Delivered: ${_formatDateTime(message.deliveredAt!)}'),
+              if (message.readAt != null)
+                Text('Read: ${_formatDateTime(message.readAt!)}'),
+              Text('Status: ${message.status.name}'),
+              if (message.reactions.isNotEmpty) ...[
+                SizedBox(height: 8),
+                Text('Reactions: ${message.reactions.length}'),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<int?> _showPinDurationDialog(BuildContext context) async {
+    return await showDialog<int>(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? Color(0xFF2D3748)
+            : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          padding: EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Choose pin duration',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+              ),
+              SizedBox(height: 20),
+              _buildPinDurationOption('24 hours', 24),
+              _buildPinDurationOption('7 days', 24 * 7),
+              _buildPinDurationOption('30 days', 24 * 30),
+              SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Cancel'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPinDurationOption(String label, int hours) {
+    return Container(
+      width: double.infinity,
+      margin: EdgeInsets.only(bottom: 8),
+      child: TextButton(
+        onPressed: () => Navigator.pop(context, hours),
+        child: Text(label),
+      ),
+    );
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    final local = dateTime.toLocal();
+    return '${local.day}/${local.month}/${local.year} ${local.hour}:${local.minute.toString().padLeft(2, '0')}';
   }
 }

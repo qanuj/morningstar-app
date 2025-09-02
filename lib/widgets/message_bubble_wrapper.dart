@@ -5,8 +5,8 @@ import '../models/club_message.dart';
 import '../models/message_reply.dart';
 import '../models/message_status.dart';
 import '../providers/user_provider.dart';
-import 'message_bubbles/message_bubble_factory.dart';
 import 'message_bubbles/self_sending_message_bubble.dart';
+import 'message_bubbles/interactive_message_bubble.dart';
 
 /// A complete wrapper widget for displaying message bubbles
 /// Handles animations, interactions, slide gestures, and message states
@@ -40,6 +40,11 @@ class MessageBubbleWrapper extends StatelessWidget {
   // Pending uploads for self-sending messages
   final List<PlatformFile>? pendingUploads;
   
+  // Message interaction callbacks - only keep onReactionRemoved for BaseMessageBubble compatibility
+  final Function(String messageId, String emoji, String userId)? onReactionRemoved;
+  final bool canPinMessages;
+  final bool canDeleteMessages;
+
   // Utility functions
   final Function(ClubMessage message) isCurrentlyPinned;
 
@@ -62,6 +67,9 @@ class MessageBubbleWrapper extends StatelessWidget {
     this.onMessageUpdated,
     this.onMessageFailed,
     this.pendingUploads,
+    this.onReactionRemoved,
+    this.canPinMessages = false,
+    this.canDeleteMessages = false,
     required this.isCurrentlyPinned,
   });
 
@@ -177,16 +185,7 @@ class MessageBubbleWrapper extends StatelessWidget {
                                       onMessageUpdated: onMessageUpdated,
                                       onMessageFailed: onMessageFailed,
                                     )
-                                  : MessageBubbleFactory(
-                                      message: message,
-                                      isOwn: isOwn,
-                                      isDeleted: message.deleted,
-                                      isPinned: isCurrentlyPinned(message),
-                                      isSelected: selectedMessageIds.contains(
-                                        message.id,
-                                      ),
-                                      showSenderInfo: showSenderInfo,
-                                    ),
+                                  : _buildInteractiveMessage(isOwn),
                             ),
                           ],
                         ),
@@ -232,6 +231,24 @@ class MessageBubbleWrapper extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+
+  Widget _buildInteractiveMessage(bool isOwn) {
+    return InteractiveMessageBubble(
+      message: message,
+      clubId: clubId,
+      isOwn: isOwn,
+      isPinned: isCurrentlyPinned(message),
+      isSelected: selectedMessageIds.contains(message.id),
+      canPinMessages: canPinMessages,
+      canDeleteMessages: canDeleteMessages,
+      isSelectionMode: isSelectionMode,
+      showSenderInfo: showSenderInfo,
+      onReactionRemoved: onReactionRemoved,
+      onToggleSelection: (messageId) {
+        onToggleSelection(messageId);
+      },
     );
   }
 
