@@ -179,7 +179,7 @@ class ClubsScreenState extends State<ClubsScreen> {
                     ),
                 ],
               ),
-              
+
               SizedBox(width: 12),
 
               // Club Info (Expanded)
@@ -200,19 +200,24 @@ class ClubsScreenState extends State<ClubsScreen> {
                         height: 1.2,
                       ),
                     ),
-                    
+
                     SizedBox(height: 4),
-                    
+
                     // Club Details Row
                     Row(
                       children: [
                         // Role Badge
                         Container(
-                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: membership.role.toLowerCase() == 'owner'
                                 ? Colors.green.withOpacity(0.1)
-                                : Theme.of(context).primaryColor.withOpacity(0.1),
+                                : Theme.of(
+                                    context,
+                                  ).primaryColor.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
@@ -226,7 +231,7 @@ class ClubsScreenState extends State<ClubsScreen> {
                             ),
                           ),
                         ),
-                        
+
                         // Location
                         SizedBox(width: 8),
                         Expanded(
@@ -238,11 +243,13 @@ class ClubsScreenState extends State<ClubsScreen> {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: 13,
-                              color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyMedium?.color?.withOpacity(0.7),
                             ),
                           ),
                         ),
-                        
+
                         // Balance & Points
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
@@ -264,7 +271,9 @@ class ClubsScreenState extends State<ClubsScreen> {
                                   '${membership.points}',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: Theme.of(context).textTheme.bodySmall?.color,
+                                    color: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall?.color,
                                   ),
                                 ),
                               ],
@@ -273,12 +282,15 @@ class ClubsScreenState extends State<ClubsScreen> {
                         ),
                       ],
                     ),
-                    
+
                     // Approval Status (if pending)
                     if (!membership.approved) ...[
                       SizedBox(height: 6),
                       Container(
-                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.orange.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(4),
@@ -321,42 +333,5 @@ class ClubsScreenState extends State<ClubsScreen> {
     Navigator.of(
       context,
     ).push(MaterialPageRoute(builder: (_) => ClubChatScreen(club: club)));
-  }
-
-  Widget _buildStatCard(
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Container(
-      padding: EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3), width: 0.5),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 20),
-          SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).textTheme.bodyMedium?.color,
-            ),
-          ),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Theme.of(context).textTheme.bodySmall?.color,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

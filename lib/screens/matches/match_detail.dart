@@ -7,13 +7,13 @@ import '../../utils/theme.dart';
 class MatchDetailScreen extends StatefulWidget {
   final String matchId;
 
-  MatchDetailScreen({required this.matchId});
+  const MatchDetailScreen({super.key, required this.matchId});
 
   @override
-  _MatchDetailScreenState createState() => _MatchDetailScreenState();
+  MatchDetailScreenState createState() => MatchDetailScreenState();
 }
 
-class _MatchDetailScreenState extends State<MatchDetailScreen> {
+class MatchDetailScreenState extends State<MatchDetailScreen> {
   MatchRSVPResponse? _matchData;
   bool _isLoading = false;
   String _selectedRole = 'Batsman';
@@ -25,7 +25,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
     'All-rounder',
     'Wicket Keeper',
     'Captain',
-    'Any Position'
+    'Any Position',
   ];
 
   @override
@@ -65,16 +65,16 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
             pending: [],
           ),
         );
-        
+
         if (match.userRsvp != null) {
           _selectedRole = match.userRsvp!.selectedRole ?? 'Batsman';
           _notesController.text = match.userRsvp!.notes ?? '';
         }
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load match data: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to load match data: $e')));
     }
 
     setState(() => _isLoading = false);
@@ -94,16 +94,18 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
       };
 
       final response = await ApiService.post('/rsvp', data);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(response['message'] ?? 'RSVP updated successfully')),
+        SnackBar(
+          content: Text(response['message'] ?? 'RSVP updated successfully'),
+        ),
       );
 
       await _loadMatchData(); // Reload data
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update RSVP: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to update RSVP: $e')));
     }
 
     setState(() => _isLoading = false);
@@ -137,10 +139,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
               SizedBox(height: 16),
               Text('Failed to load match details'),
               SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _loadMatchData,
-                child: Text('Retry'),
-              ),
+              ElevatedButton(onPressed: _loadMatchData, child: Text('Retry')),
             ],
           ),
         ),
@@ -149,7 +148,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
 
     final match = _matchData!.match;
     final userRsvp = _matchData!.userRsvp;
-    final isUpcoming = match.matchDate.isAfter(DateTime.now());
+    match.matchDate.isAfter(DateTime.now());
 
     return Scaffold(
       appBar: AppBar(
@@ -174,7 +173,10 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                       Row(
                         children: [
                           Container(
-                            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
                               color: _getMatchTypeColor(match.type),
                               borderRadius: BorderRadius.circular(16),
@@ -226,7 +228,10 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                           Spacer(),
                           if (match.isCancelled)
                             Container(
-                              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.red,
                                 borderRadius: BorderRadius.circular(16),
@@ -244,9 +249,9 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                       ),
                       SizedBox(height: 16),
                       Text(
-                        match.canSeeDetails 
-                          ? (match.opponent ?? 'Practice Match')
-                          : 'Match Details TBD',
+                        match.canSeeDetails
+                            ? (match.opponent ?? 'Practice Match')
+                            : 'Match Details TBD',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w400,
@@ -271,8 +276,9 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                           Icon(Icons.access_time, color: AppTheme.cricketGreen),
                           SizedBox(width: 8),
                           Text(
-                            DateFormat('EEEE, MMM dd, yyyy • hh:mm a')
-                                .format(match.matchDate),
+                            DateFormat(
+                              'EEEE, MMM dd, yyyy • hh:mm a',
+                            ).format(match.matchDate),
                             style: TextStyle(fontSize: 12),
                           ),
                         ],
@@ -413,7 +419,10 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.sports_cricket, color: AppTheme.cricketGreen),
+                            Icon(
+                              Icons.sports_cricket,
+                              color: AppTheme.cricketGreen,
+                            ),
                             SizedBox(width: 8),
                             Text(
                               'Final Squad',
@@ -426,9 +435,10 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                           ],
                         ),
                         SizedBox(height: 16),
-                        
+
                         // Captain and Wicket Keeper
-                        if (match.captain != null || match.wicketKeeper != null) ...[
+                        if (match.captain != null ||
+                            match.wicketKeeper != null) ...[
                           Row(
                             children: [
                               if (match.captain != null) ...[
@@ -453,7 +463,8 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                                         ),
                                         SizedBox(height: 4),
                                         Text(
-                                          match.captain!.user?.name ?? 'Unknown',
+                                          match.captain!.user?.name ??
+                                              'Unknown',
                                           style: TextStyle(
                                             fontSize: 12,
                                             fontWeight: FontWeight.w400,
@@ -476,7 +487,10 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                                     ),
                                     child: Column(
                                       children: [
-                                        Icon(Icons.sports_baseball, color: Colors.green),
+                                        Icon(
+                                          Icons.sports_baseball,
+                                          color: Colors.green,
+                                        ),
                                         SizedBox(height: 4),
                                         Text(
                                           'Wicket Keeper',
@@ -488,7 +502,8 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                                         ),
                                         SizedBox(height: 4),
                                         Text(
-                                          match.wicketKeeper!.user?.name ?? 'Unknown',
+                                          match.wicketKeeper!.user?.name ??
+                                              'Unknown',
                                           style: TextStyle(
                                             fontSize: 12,
                                             fontWeight: FontWeight.w400,
@@ -504,7 +519,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                           ),
                           SizedBox(height: 16),
                         ],
-                        
+
                         // Squad List
                         Text(
                           'Squad Members (${match.finalSquad!.length})',
@@ -514,7 +529,9 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                           ),
                         ),
                         SizedBox(height: 8),
-                        ...match.finalSquad!.map((player) => _buildSquadMember(player)).toList(),
+                        ...match.finalSquad!
+                            .map((player) => _buildSquadMember(player))
+                            .toList(),
                       ],
                     ),
                   ),
@@ -559,21 +576,24 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                           SizedBox(height: 8),
                           Row(
                             children: [
-                              Icon(Icons.sports_cricket, size: 16, color: Colors.grey),
+                              Icon(
+                                Icons.sports_cricket,
+                                size: 16,
+                                color: Colors.grey,
+                              ),
                               SizedBox(width: 8),
                               Text('Preferred role: ${userRsvp.selectedRole}'),
                             ],
                           ),
                         ],
-                        if (userRsvp.notes != null && userRsvp.notes!.isNotEmpty) ...[
+                        if (userRsvp.notes != null &&
+                            userRsvp.notes!.isNotEmpty) ...[
                           SizedBox(height: 8),
                           Row(
                             children: [
                               Icon(Icons.note, size: 16, color: Colors.grey),
                               SizedBox(width: 8),
-                              Expanded(
-                                child: Text('Notes: ${userRsvp.notes}'),
-                              ),
+                              Expanded(child: Text('Notes: ${userRsvp.notes}')),
                             ],
                           ),
                         ],
@@ -610,7 +630,10 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.hourglass_empty, color: Colors.orange),
+                                Icon(
+                                  Icons.hourglass_empty,
+                                  color: Colors.orange,
+                                ),
                                 SizedBox(width: 8),
                                 Text(
                                   'You are #${userRsvp.waitlistPosition} on the waitlist',
@@ -639,7 +662,9 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          userRsvp != null ? 'Update Your RSVP' : 'RSVP for this Match',
+                          userRsvp != null
+                              ? 'Update Your RSVP'
+                              : 'RSVP for this Match',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w400,
@@ -662,7 +687,8 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                               child: Text(role),
                             );
                           }).toList(),
-                          onChanged: (value) => setState(() => _selectedRole = value!),
+                          onChanged: (value) =>
+                              setState(() => _selectedRole = value!),
                           decoration: InputDecoration(
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
@@ -698,7 +724,10 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                                 child: ElevatedButton.icon(
                                   onPressed: () => _submitRSVP('YES'),
                                   icon: Icon(Icons.check, color: Colors.white),
-                                  label: Text('Yes', style: TextStyle(color: Colors.white)),
+                                  label: Text(
+                                    'Yes',
+                                    style: TextStyle(color: Colors.white),
+                                  ),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.green,
                                     padding: EdgeInsets.symmetric(vertical: 12),
@@ -710,7 +739,10 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                                 child: ElevatedButton.icon(
                                   onPressed: () => _submitRSVP('MAYBE'),
                                   icon: Icon(Icons.help, color: Colors.white),
-                                  label: Text('Maybe', style: TextStyle(color: Colors.white)),
+                                  label: Text(
+                                    'Maybe',
+                                    style: TextStyle(color: Colors.white),
+                                  ),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.orange,
                                     padding: EdgeInsets.symmetric(vertical: 12),
@@ -722,7 +754,10 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                                 child: ElevatedButton.icon(
                                   onPressed: () => _submitRSVP('NO'),
                                   icon: Icon(Icons.close, color: Colors.white),
-                                  label: Text('No', style: TextStyle(color: Colors.white)),
+                                  label: Text(
+                                    'No',
+                                    style: TextStyle(color: Colors.white),
+                                  ),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.red,
                                     padding: EdgeInsets.symmetric(vertical: 12),
@@ -740,7 +775,6 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
 
               // RSVP Lists - Remove since we're not getting them from this API
               // The /matches/[id] API doesn't return RSVP lists, only user's own RSVP
-
               SizedBox(height: 24),
             ],
           ),
@@ -775,11 +809,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                       color: AppTheme.cricketGreen,
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: Icon(
-                      Icons.person,
-                      color: Colors.white,
-                      size: 16,
-                    ),
+                    child: Icon(Icons.person, color: Colors.white, size: 16),
                   );
                 },
               ),
@@ -792,11 +822,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                 color: AppTheme.cricketGreen,
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: Icon(
-                Icons.person,
-                color: Colors.white,
-                size: 16,
-              ),
+              child: Icon(Icons.person, color: Colors.white, size: 16),
             ),
           SizedBox(width: 12),
           Expanded(
@@ -805,18 +831,13 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
               children: [
                 Text(
                   player.user?.name ?? 'Unknown User',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w400,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.w400),
                 ),
                 if (player.selectedRole != null) ...[
                   SizedBox(height: 2),
                   Text(
                     player.selectedRole!,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
                 ],
               ],
@@ -869,22 +890,18 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
         SizedBox(height: 8),
         Text(
           value,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w400,
-          ),
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
         ),
         Text(
           label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
           textAlign: TextAlign.center,
         ),
       ],
     );
-  }  Color _getMatchTypeColor(String type) {
+  }
+
+  Color _getMatchTypeColor(String type) {
     switch (type.toLowerCase()) {
       case 'game':
         return Colors.red;
