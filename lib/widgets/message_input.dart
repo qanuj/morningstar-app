@@ -754,15 +754,15 @@ class _MessageInputState extends State<MessageInput> {
                     fontSize: 14,
                   ),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(90.0)),
+                    borderRadius: BorderRadius.all(Radius.circular(24)),
                     borderSide: BorderSide.none,
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(90.0)),
+                    borderRadius: BorderRadius.all(Radius.circular(24)),
                     borderSide: BorderSide.none,
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(90.0)),
+                    borderRadius: BorderRadius.all(Radius.circular(24)),
                     borderSide: BorderSide.none,
                   ),
                   filled: true,
