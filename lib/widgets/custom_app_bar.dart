@@ -80,11 +80,15 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Check if we can actually go back
+    final canGoBack = Navigator.of(context).canPop();
+    final shouldShowBackButton = showBackButton && canGoBack;
+    
     return AppBar(
       backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
       elevation: 0,
       foregroundColor: Theme.of(context).appBarTheme.foregroundColor,
-      leading: showBackButton
+      leading: shouldShowBackButton
           ? GestureDetector(
               onTap: () {
                 HapticFeedback.lightImpact();

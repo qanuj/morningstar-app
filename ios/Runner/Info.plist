@@ -61,5 +61,25 @@
 	<array>
 		<string>audio</string>
 	</array>
+	
+	<!-- URL launcher schemes -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<!-- Web URLs -->
+		<string>https</string>
+		<string>http</string>
+		<!-- UPI schemes -->
+		<string>upi</string>
+		<string>phonepe</string>
+		<string>paytm</string>
+		<string>gpay</string>
+		<string>bhim</string>
+		<!-- Common app schemes -->
+		<string>tez</string>
+		<string>paytmmp</string>
+		<string>amazonpay</string>
+		<string>mobikwik</string>
+		<string>freecharge</string>
+	</array>
 </dict>
 </plist>

@@ -4,6 +4,8 @@ import '../../models/transaction.dart';
 import '../../services/api_service.dart';
 import '../../utils/theme.dart';
 import '../../widgets/duggy_logo.dart';
+import '../../widgets/svg_avatar.dart';
+import '../../widgets/custom_app_bar.dart';
 
 class TransactionsScreen extends StatefulWidget {
   @override
@@ -257,7 +259,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Scaffold(
+      appBar: PageAppBar(pageName: 'Transactions'),
+      body: Column(
         children: [
           // Search header
           Container(
@@ -429,30 +433,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                           MainAxisAlignment.center,
                                       children: [
                                         if (club['logo'] != null) ...[
-                                          Container(
-                                            width: 24,
-                                            height: 24,
-                                            child: ClipRRect(
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                              child:
-                                                  club['logo'].startsWith(
-                                                    'http',
-                                                  )
-                                                  ? Image.network(
-                                                      club['logo'],
-                                                      fit: BoxFit.cover,
-                                                      errorBuilder:
-                                                          (
-                                                            context,
-                                                            error,
-                                                            stackTrace,
-                                                          ) {
-                                                            return DuggyLogoVariant.small();
-                                                          },
-                                                    )
-                                                  : DuggyLogoVariant.small(),
-                                            ),
+                                          SVGAvatar.small(
+                                            imageUrl: club['logo'],
+                                            backgroundColor: Colors.white.withOpacity(0.2),
+                                            iconColor: Colors.white,
+                                            fallbackIcon: Icons.account_balance,
                                           ),
                                           SizedBox(width: 8),
                                         ],
@@ -606,7 +591,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             ),
           ),
         ],
-      );
+      ),
+    );
   }
 
   Widget _buildTransactionCard(Transaction transaction) {
@@ -638,26 +624,13 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             // Club Icon with Transaction Badge
             Stack(
               children: [
-                // Club Icon (bigger)
-                Container(
-                  width: 40,
-                  height: 40,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child:
-                        transaction.club != null &&
-                            transaction.club!.logo != null
-                        ? (transaction.club!.logo!.startsWith('http')
-                              ? Image.network(
-                                  transaction.club!.logo!,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return DuggyLogoVariant.medium();
-                                  },
-                                )
-                              : DuggyLogoVariant.medium())
-                        : DuggyLogoVariant.medium(),
-                  ),
+                // Club Avatar
+                SVGAvatar(
+                  imageUrl: transaction.club?.logo,
+                  size: 40,
+                  backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+                  fallbackIcon: Icons.account_balance,
+                  iconSize: 24,
                 ),
                 // Transaction Badge
                 Positioned(

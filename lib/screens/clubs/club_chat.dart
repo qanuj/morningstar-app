@@ -1295,6 +1295,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
               clubId: widget.club.id,
               audioRecordingKey: _audioRecordingKey,
               onSendMessage: _handleNewMessage,
+              upiId: widget.club.upiId,
             ),
           ],
         ),

@@ -21,7 +21,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
   @override
   void initState() {
     super.initState();
-    
+
     // Fetch conversations when screen loads
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ConversationProvider>().fetchConversations();
@@ -38,24 +38,29 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: _ConversationsAppBar(
-        onSearchPressed: _showSearchDialog,
-      ),
+      appBar: _ConversationsAppBar(onSearchPressed: _showSearchDialog),
       body: Consumer<ConversationProvider>(
         builder: (context, conversationProvider, child) {
-          if (conversationProvider.isLoading && conversationProvider.conversations.isEmpty) {
+          if (conversationProvider.isLoading &&
+              conversationProvider.conversations.isEmpty) {
             return _buildLoadingState();
           }
 
-          if (conversationProvider.error != null && conversationProvider.conversations.isEmpty) {
+          if (conversationProvider.error != null &&
+              conversationProvider.conversations.isEmpty) {
             return _buildErrorState(conversationProvider.error!);
           }
 
           // Show only news/announcements - no tabs
           return _buildConversationsList(
-            conversationProvider.getConversationsByType(ConversationType.announcement)
-              .where((c) => c.title.toLowerCase().contains(_searchQuery.toLowerCase()))
-              .toList(),
+            conversationProvider
+                .getConversationsByType(ConversationType.announcement)
+                .where(
+                  (c) => c.title.toLowerCase().contains(
+                    _searchQuery.toLowerCase(),
+                  ),
+                )
+                .toList(),
           );
         },
       ),
@@ -68,7 +73,8 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
     }
 
     return RefreshIndicator(
-      onRefresh: () => context.read<ConversationProvider>().refreshConversations(),
+      onRefresh: () =>
+          context.read<ConversationProvider>().refreshConversations(),
       child: ListView.builder(
         padding: EdgeInsets.all(16),
         itemCount: conversations.length,
@@ -83,7 +89,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
   Widget _buildConversationCard(ConversationModel conversation) {
     final userProvider = context.read<UserProvider>();
     final isUnread = conversation.unreadCount > 0;
-    
+
     return Container(
       margin: EdgeInsets.only(bottom: 12),
       child: Material(
@@ -100,7 +106,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                 // Conversation Avatar/Icon
                 _buildConversationAvatar(conversation),
                 SizedBox(width: 12),
-                
+
                 // Conversation Info
                 Expanded(
                   child: Column(
@@ -113,8 +119,12 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                               conversation.title,
                               style: TextStyle(
                                 fontSize: 16,
-                                fontWeight: isUnread ? FontWeight.w600 : FontWeight.w500,
-                                color: Theme.of(context).textTheme.titleLarge?.color,
+                                fontWeight: isUnread
+                                    ? FontWeight.w600
+                                    : FontWeight.w500,
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.titleLarge?.color,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -126,49 +136,64 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                               _formatTime(conversation.lastMessage!.createdAt),
                               style: TextStyle(
                                 fontSize: 12,
-                                color: isUnread 
-                                  ? Theme.of(context).primaryColor
-                                  : Theme.of(context).textTheme.bodySmall?.color,
-                                fontWeight: isUnread ? FontWeight.w500 : FontWeight.w400,
+                                color: isUnread
+                                    ? Theme.of(context).primaryColor
+                                    : Theme.of(
+                                        context,
+                                      ).textTheme.bodySmall?.color,
+                                fontWeight: isUnread
+                                    ? FontWeight.w500
+                                    : FontWeight.w400,
                               ),
                             ),
                           ],
                         ],
                       ),
-                      
+
                       SizedBox(height: 4),
-                      
+
                       // Last message or description
                       Row(
                         children: [
                           Expanded(
                             child: Text(
-                              conversation.lastMessage?.content ?? 
-                              conversation.description ?? 
-                              'No messages yet',
+                              conversation.lastMessage?.content ??
+                                  conversation.description ??
+                                  'No messages yet',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: isUnread 
-                                  ? Theme.of(context).textTheme.titleMedium?.color
-                                  : Theme.of(context).textTheme.bodyMedium?.color,
-                                fontWeight: isUnread ? FontWeight.w500 : FontWeight.w400,
+                                color: isUnread
+                                    ? Theme.of(
+                                        context,
+                                      ).textTheme.titleMedium?.color
+                                    : Theme.of(
+                                        context,
+                                      ).textTheme.bodyMedium?.color,
+                                fontWeight: isUnread
+                                    ? FontWeight.w500
+                                    : FontWeight.w400,
                               ),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          
+
                           // Unread badge
                           if (isUnread) ...[
                             SizedBox(width: 8),
                             Container(
-                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: Theme.of(context).primaryColor,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
-                                conversation.unreadCount > 99 ? '99+' : conversation.unreadCount.toString(),
+                                conversation.unreadCount > 99
+                                    ? '99+'
+                                    : conversation.unreadCount.toString(),
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 12,
@@ -179,14 +204,19 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                           ],
                         ],
                       ),
-                      
+
                       // Conversation type indicator
                       if (conversation.type != ConversationType.group) ...[
                         SizedBox(height: 6),
                         Container(
-                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
-                            color: _getTypeColor(conversation.type).withOpacity(0.1),
+                            color: _getTypeColor(
+                              conversation.type,
+                            ).withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
@@ -202,7 +232,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                     ],
                   ),
                 ),
-                
+
                 SizedBox(width: 8),
                 Icon(
                   Icons.chevron_right,
@@ -220,7 +250,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
   Widget _buildConversationAvatar(ConversationModel conversation) {
     IconData icon;
     Color color;
-    
+
     switch (conversation.type) {
       case ConversationType.announcement:
         icon = Icons.campaign_outlined;
@@ -239,23 +269,16 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
         color = AppTheme.successGreen;
         break;
     }
-    
+
     return Container(
       width: 50,
       height: 50,
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(25),
-        border: Border.all(
-          color: color.withOpacity(0.2),
-          width: 1,
-        ),
+        border: Border.all(color: color.withOpacity(0.2), width: 1),
       ),
-      child: Icon(
-        icon,
-        color: color,
-        size: 24,
-      ),
+      child: Icon(icon, color: color, size: 24),
     );
   }
 
@@ -309,7 +332,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
   void _openConversation(ConversationModel conversation) {
     HapticFeedback.lightImpact();
     context.read<ConversationProvider>().selectConversation(conversation);
-    
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -404,7 +427,8 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
             ),
             SizedBox(height: 24),
             ElevatedButton(
-              onPressed: () => context.read<ConversationProvider>().fetchConversations(),
+              onPressed: () =>
+                  context.read<ConversationProvider>().fetchConversations(),
               child: Text('Try Again'),
             ),
           ],
@@ -476,8 +500,9 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
 
   Widget _buildClubCard(ClubMembership clubMembership) {
     final club = clubMembership.club;
-    final isCurrentClub = context.read<ClubProvider>().currentClub?.club.id == club.id;
-    
+    final isCurrentClub =
+        context.read<ClubProvider>().currentClub?.club.id == club.id;
+
     return Container(
       margin: EdgeInsets.only(bottom: 12),
       child: Material(
@@ -491,19 +516,19 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
             padding: EdgeInsets.all(16),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              border: isCurrentClub 
-                ? Border.all(
-                    color: Theme.of(context).primaryColor.withOpacity(0.5),
-                    width: 2,
-                  )
-                : null,
+              border: isCurrentClub
+                  ? Border.all(
+                      color: Theme.of(context).primaryColor.withOpacity(0.5),
+                      width: 2,
+                    )
+                  : null,
             ),
             child: Row(
               children: [
                 // Club Logo
                 _buildClubLogo(club),
                 SizedBox(width: 16),
-                
+
                 // Club Info
                 Expanded(
                   child: Column(
@@ -516,8 +541,12 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                               club.name,
                               style: TextStyle(
                                 fontSize: 16,
-                                fontWeight: isCurrentClub ? FontWeight.w600 : FontWeight.w500,
-                                color: Theme.of(context).textTheme.titleLarge?.color,
+                                fontWeight: isCurrentClub
+                                    ? FontWeight.w600
+                                    : FontWeight.w500,
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.titleLarge?.color,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -526,7 +555,10 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                           if (isCurrentClub) ...[
                             SizedBox(width: 8),
                             Container(
-                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: Theme.of(context).primaryColor,
                                 borderRadius: BorderRadius.circular(12),
@@ -551,17 +583,22 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                           ],
                         ],
                       ),
-                      
+
                       SizedBox(height: 4),
-                      
+
                       // Role and location info
                       Row(
                         children: [
                           // Role badge
                           Container(
-                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
-                              color: _getRoleColor(clubMembership.role).withOpacity(0.1),
+                              color: _getRoleColor(
+                                clubMembership.role,
+                              ).withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
@@ -573,33 +610,39 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                               ),
                             ),
                           ),
-                          
+
                           if (club.city != null) ...[
                             SizedBox(width: 8),
                             Icon(
                               Icons.location_on_outlined,
                               size: 12,
-                              color: Theme.of(context).textTheme.bodySmall?.color,
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodySmall?.color,
                             ),
                             SizedBox(width: 2),
                             Text(
                               club.city!,
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Theme.of(context).textTheme.bodySmall?.color,
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.bodySmall?.color,
                               ),
                             ),
                           ],
                         ],
                       ),
-                      
+
                       if (club.description != null) ...[
                         SizedBox(height: 6),
                         Text(
                           club.description!,
                           style: TextStyle(
                             fontSize: 12,
-                            color: Theme.of(context).textTheme.bodyMedium?.color,
+                            color: Theme.of(
+                              context,
+                            ).textTheme.bodyMedium?.color,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -608,7 +651,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                     ],
                   ),
                 ),
-                
+
                 SizedBox(width: 12),
                 Icon(
                   Icons.chevron_right,
@@ -692,10 +735,10 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
 
   void _selectClub(ClubMembership clubMembership) async {
     HapticFeedback.lightImpact();
-    
+
     // Set as current club
     await context.read<ClubProvider>().setCurrentClub(clubMembership);
-    
+
     // Show confirmation
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -704,7 +747,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
         backgroundColor: Theme.of(context).primaryColor,
       ),
     );
-    
+
     // Refresh conversations for the new club
     context.read<ConversationProvider>().fetchConversations();
   }
@@ -745,13 +788,12 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
   }
 }
 
-class _ConversationsAppBar extends StatelessWidget implements PreferredSizeWidget {
+class _ConversationsAppBar extends StatelessWidget
+    implements PreferredSizeWidget {
   final VoidCallback onSearchPressed;
 
-  const _ConversationsAppBar({
-    Key? key,
-    required this.onSearchPressed,
-  }) : super(key: key);
+  const _ConversationsAppBar({Key? key, required this.onSearchPressed})
+    : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -777,18 +819,14 @@ class _ConversationsAppBar extends StatelessWidget implements PreferredSizeWidge
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(
-            Icons.chat_bubble_outline,
-            color: Colors.white,
-            size: 24,
-          ),
+          icon: Icon(Icons.chat_bubble_outline, color: Colors.white, size: 24),
           onPressed: null, // Decorative only
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'News & Announcements',
+              'Your Cricket',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 24,
@@ -834,11 +872,7 @@ class _ConversationsAppBar extends StatelessWidget implements PreferredSizeWidge
                 child: Container(
                   width: 48,
                   height: 48,
-                  child: Icon(
-                    Icons.search,
-                    color: Colors.white,
-                    size: 22,
-                  ),
+                  child: Icon(Icons.search, color: Colors.white, size: 22),
                 ),
               ),
             ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/club_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../services/auth_service.dart';
 import '../../utils/theme.dart';
 import '../../utils/dialogs.dart';
@@ -25,8 +26,8 @@ class ProfileScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: Consumer2<UserProvider, ClubProvider>(
-        builder: (context, userProvider, clubProvider, child) {
+      body: Consumer3<UserProvider, ClubProvider, ThemeProvider>(
+        builder: (context, userProvider, clubProvider, themeProvider, child) {
           final user = userProvider.user;
           final currentClub = clubProvider.currentClub;
 
@@ -347,6 +348,11 @@ class ProfileScreen extends StatelessWidget {
                   ),
                   child: Column(
                     children: [
+                      _buildThemeSettingsItem(themeProvider),
+                      Divider(
+                        height: 1,
+                        color: Theme.of(context).dividerColor.withOpacity(0.3),
+                      ),
                       _buildSettingsItem(
                         icon: Icons.notifications_outlined,
                         title: 'Notifications',
@@ -552,6 +558,65 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildThemeSettingsItem(ThemeProvider themeProvider) {
+    return Builder(
+      builder: (context) => Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _showThemeDialog(context, themeProvider),
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    themeProvider.themeModeIcon,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 20,
+                  ),
+                ),
+                SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Theme',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        themeProvider.themeModeText,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).textTheme.bodySmall?.color,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right,
+                  color: Theme.of(context).textTheme.bodySmall?.color,
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -599,6 +664,160 @@ class ProfileScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _showThemeDialog(BuildContext context, ThemeProvider themeProvider) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: Theme.of(context).dialogBackgroundColor,
+        title: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.palette_outlined,
+                color: Theme.of(context).colorScheme.primary,
+                size: 20,
+              ),
+            ),
+            SizedBox(width: 12),
+            Text(
+              'Choose Theme',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: AppThemeMode.values.map((mode) {
+            final isSelected = themeProvider.themeMode == mode;
+            return Container(
+              margin: EdgeInsets.only(bottom: 8),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    themeProvider.setThemeMode(mode);
+                    Navigator.of(context).pop();
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isSelected 
+                          ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                          : null,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected
+                            ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
+                            : Theme.of(context).dividerColor.withOpacity(0.3),
+                        width: 0.5,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? Theme.of(context).colorScheme.primary.withOpacity(0.2)
+                                : Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            _getThemeModeIcon(mode),
+                            color: isSelected
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.primary.withOpacity(0.7),
+                            size: 20,
+                          ),
+                        ),
+                        SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _getThemeModeText(mode),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w400,
+                                  color: isSelected
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context).colorScheme.onSurface,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                _getThemeModeDescription(mode),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(context).textTheme.bodySmall?.color,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (isSelected)
+                          Icon(
+                            Icons.check_circle,
+                            color: Theme.of(context).colorScheme.primary,
+                            size: 20,
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  IconData _getThemeModeIcon(AppThemeMode mode) {
+    switch (mode) {
+      case AppThemeMode.light:
+        return Icons.light_mode;
+      case AppThemeMode.dark:
+        return Icons.dark_mode;
+      case AppThemeMode.system:
+        return Icons.settings_brightness;
+    }
+  }
+
+  String _getThemeModeText(AppThemeMode mode) {
+    switch (mode) {
+      case AppThemeMode.light:
+        return 'Light';
+      case AppThemeMode.dark:
+        return 'Dark';
+      case AppThemeMode.system:
+        return 'System';
+    }
+  }
+
+  String _getThemeModeDescription(AppThemeMode mode) {
+    switch (mode) {
+      case AppThemeMode.light:
+        return 'Always use light theme';
+      case AppThemeMode.dark:
+        return 'Always use dark theme';
+      case AppThemeMode.system:
+        return 'Follow system setting';
+    }
   }
 
 }

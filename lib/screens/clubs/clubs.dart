@@ -4,6 +4,7 @@ import '../../providers/club_provider.dart';
 import '../../models/club.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/duggy_logo.dart';
+import '../../widgets/svg_avatar.dart';
 import 'club_chat.dart';
 
 class ClubsScreen extends StatefulWidget {
@@ -134,25 +135,12 @@ class ClubsScreenState extends State<ClubsScreen> {
               // Club Profile Image
               Stack(
                 children: [
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Theme.of(context).primaryColor.withOpacity(0.1),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(25),
-                      child: club.logo != null
-                          ? Image.network(
-                              club.logo!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return DuggyLogoVariant.medium();
-                              },
-                            )
-                          : DuggyLogoVariant.medium(),
-                    ),
+                  SVGAvatar(
+                    imageUrl: club.logo,
+                    size: 50,
+                    backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+                    fallbackIcon: Icons.groups,
+                    iconSize: 28,
                   ),
                   // Verified Badge
                   if (club.isVerified)

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:io';
 import '../widgets/audio_recording_widget.dart';
 import '../widgets/image_caption_dialog.dart';
@@ -17,6 +19,7 @@ class MessageInput extends StatefulWidget {
   final FocusNode textFieldFocusNode;
   final String clubId;
   final GlobalKey<AudioRecordingWidgetState> audioRecordingKey;
+  final String? upiId;
 
   // Simplified callbacks - only what's needed
   final Function(ClubMessage) onSendMessage;
@@ -28,6 +31,7 @@ class MessageInput extends StatefulWidget {
     required this.clubId,
     required this.audioRecordingKey,
     required this.onSendMessage,
+    this.upiId,
   });
 
   @override
@@ -37,6 +41,15 @@ class MessageInput extends StatefulWidget {
 class _MessageInputState extends State<MessageInput> {
   bool _isComposing = false;
   final ImagePicker _imagePicker = ImagePicker();
+  List<Map<String, dynamic>> _availableUpiApps = [];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.upiId != null && widget.upiId!.isNotEmpty) {
+      _checkAvailableUpiApps();
+    }
+  }
 
   void _handleTextChanged(String value) {
     final isComposing = value.trim().isNotEmpty;
@@ -278,9 +291,7 @@ class _MessageInputState extends State<MessageInput> {
   void _showUploadOptions() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Theme.of(context).brightness == Brightness.dark
-          ? Colors.grey[850]
-          : Colors.white,
+      backgroundColor: Theme.of(context).dialogBackgroundColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -291,9 +302,7 @@ class _MessageInputState extends State<MessageInput> {
         expand: false,
         builder: (context, scrollController) => Container(
           decoration: BoxDecoration(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.grey[850]
-                : Colors.white,
+            color: Theme.of(context).dialogBackgroundColor,
             borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
           ),
           child: Column(
@@ -412,7 +421,9 @@ class _MessageInputState extends State<MessageInput> {
               width: 60,
               height: 60,
               decoration: BoxDecoration(
-                color: Colors.grey[100],
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey[800]
+                    : Colors.grey[100],
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, size: 30, color: iconColor),
@@ -423,9 +434,7 @@ class _MessageInputState extends State<MessageInput> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white.withOpacity(0.8)
-                    : Colors.black87,
+                color: Theme.of(context).textTheme.bodyMedium?.color,
               ),
               textAlign: TextAlign.center,
             ),
@@ -443,26 +452,278 @@ class _MessageInputState extends State<MessageInput> {
     }
   }
 
+  Future<void> _checkAvailableUpiApps() async {
+    final clubUpiId = widget.upiId!;
+    final clubName = 'Club Payment';
+
+    // Define all UPI apps with their schemes and SVG assets
+    final allUpiApps = [
+      {
+        'name': 'Google Pay',
+        'scheme': 'tez://upi/pay?pa=$clubUpiId&pn=$clubName&cu=INR',
+        'fallback': 'upi://pay?pa=$clubUpiId&pn=$clubName&cu=INR',
+        'logo': 'assets/icons/upi/google_pay.svg',
+        'color': Color(0xFF4285F4),
+      },
+      {
+        'name': 'PhonePe',
+        'scheme': 'phonepe://pay?pa=$clubUpiId&pn=$clubName&cu=INR',
+        'fallback': 'upi://pay?pa=$clubUpiId&pn=$clubName&cu=INR',
+        'logo': 'assets/icons/upi/phonepe.svg',
+        'color': Color(0xFF5F259F),
+      },
+      {
+        'name': 'Paytm',
+        'scheme': 'paytmmp://pay?pa=$clubUpiId&pn=$clubName&cu=INR',
+        'fallback': 'upi://pay?pa=$clubUpiId&pn=$clubName&cu=INR',
+        'logo': 'assets/icons/upi/paytm.svg',
+        'color': Color(0xFF00BAF2),
+      },
+      {
+        'name': 'BHIM UPI',
+        'scheme': 'bhim://pay?pa=$clubUpiId&pn=$clubName&cu=INR',
+        'fallback': 'upi://pay?pa=$clubUpiId&pn=$clubName&cu=INR',
+        'logo': 'assets/icons/upi/bhim.png',
+        'color': Color(0xFF00A651),
+      },
+      {
+        'name': 'Amazon Pay',
+        'scheme': 'amazonpay://pay?pa=$clubUpiId&pn=$clubName&cu=INR',
+        'fallback': 'upi://pay?pa=$clubUpiId&pn=$clubName&cu=INR',
+        'logo': 'assets/icons/upi/amazon_pay.svg',
+        'color': Color(0xFFFF9900),
+      },
+    ];
+
+    // Check which apps are available
+    final availableApps = <Map<String, dynamic>>[];
+
+    for (final app in allUpiApps) {
+      try {
+        final primaryUri = Uri.parse(app['scheme'] as String);
+        final fallbackUri = Uri.parse(app['fallback'] as String);
+
+        if (await canLaunchUrl(primaryUri) || await canLaunchUrl(fallbackUri)) {
+          availableApps.add(app);
+        }
+      } catch (e) {
+        // Skip this app if URL parsing fails
+        continue;
+      }
+    }
+
+    // Always add the generic UPI option if any UPI app is available
+    if (availableApps.isNotEmpty) {
+      availableApps.add({
+        'name': 'Any UPI App',
+        'scheme': 'upi://pay?pa=$clubUpiId&pn=$clubName&cu=INR',
+        'fallback': 'upi://pay?pa=$clubUpiId&pn=$clubName&cu=INR',
+        'logo': 'assets/icons/upi/upi_generic.svg',
+        'color': Colors.grey[700]!,
+      });
+    }
+
+    if (mounted) {
+      setState(() {
+        _availableUpiApps = availableApps;
+      });
+    }
+  }
+
+  void _openUPIPayment() async {
+    try {
+      // Check if UPI ID is available
+      if (widget.upiId == null || widget.upiId!.isEmpty) {
+        _showError('UPI payment not available for this club.');
+        return;
+      }
+
+      // Show UPI app selection dialog
+      _showUPIAppSelection();
+    } catch (e) {
+      _showError('Failed to open UPI payment: $e');
+    }
+  }
+
+  void _showUPIAppSelection() {
+    // Use the pre-filtered available UPI apps instead of hardcoded list
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).dialogBackgroundColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle bar
+            Container(
+              width: 40,
+              height: 4,
+              margin: EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: Colors.grey[400],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+
+            // Title
+            Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.currency_rupee,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 20,
+                  ),
+                ),
+                SizedBox(width: 12),
+                Text(
+                  'Choose Payment App',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+              ],
+            ),
+
+            SizedBox(height: 20),
+
+            // UPI apps grid
+            GridView.builder(
+              shrinkWrap: true,
+              physics: NeverScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                childAspectRatio: 1.0,
+              ),
+              itemCount: _availableUpiApps.length,
+              itemBuilder: (context, index) {
+                final app = _availableUpiApps[index];
+                return Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      _launchUPIApp(
+                        app['scheme'] as String,
+                        app['fallback'] as String,
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: Theme.of(
+                            context,
+                          ).dividerColor.withOpacity(0.2),
+                          width: 0.5,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 60,
+                            height: 60,
+                            decoration: BoxDecoration(shape: BoxShape.circle),
+                            child: SvgPicture.asset(
+                              app['logo'] as String,
+                              width: 60,
+                              height: 60,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            app['name'] as String,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodySmall?.color,
+                            ),
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+
+            SizedBox(height: 10),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _launchUPIApp(String primaryScheme, String fallbackScheme) async {
+    try {
+      final primaryUri = Uri.parse(primaryScheme);
+
+      // Try primary scheme first (app-specific)
+      if (await canLaunchUrl(primaryUri)) {
+        await launchUrl(primaryUri, mode: LaunchMode.externalApplication);
+        return;
+      }
+
+      // Fallback to generic UPI scheme
+      final fallbackUri = Uri.parse(fallbackScheme);
+      if (await canLaunchUrl(fallbackUri)) {
+        await launchUrl(fallbackUri, mode: LaunchMode.externalApplication);
+        return;
+      }
+
+      // No UPI app available
+      _showError('No UPI payment app found. Please install a UPI app.');
+    } catch (e) {
+      _showError('Failed to open payment app: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(25),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 4,
-                spreadRadius: 1,
-                offset: const Offset(0, -2),
-              ),
-            ],
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Colors.black
+            : Colors.white,
+        border: Border(
+          top: BorderSide(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.grey[800]!
+                : Colors.grey[300]!,
+            width: 0.5,
           ),
+        ),
+      ),
+      child: SafeArea(
+        bottom: true,
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -550,6 +811,19 @@ class _MessageInputState extends State<MessageInput> {
                     ),
                   ),
                 ),
+
+                // UPI Payment button - hidden when composing or no UPI apps available
+                if (!_isComposing && _availableUpiApps.isNotEmpty)
+                  IconButton(
+                    onPressed: () => _openUPIPayment(),
+                    icon: Icon(
+                      Icons.currency_rupee,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey[400]
+                          : Colors.grey[600],
+                    ),
+                    iconSize: 28,
+                  ),
 
                 // Camera button - hidden when composing
                 if (!_isComposing)

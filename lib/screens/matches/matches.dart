@@ -3,6 +3,8 @@ import 'package:intl/intl.dart';
 import '../../models/match.dart';
 import '../../services/api_service.dart';
 import '../../widgets/duggy_logo.dart';
+import '../../widgets/svg_avatar.dart';
+import '../../widgets/custom_app_bar.dart';
 import 'match_detail.dart';
 
 class MatchesScreen extends StatefulWidget {
@@ -259,7 +261,9 @@ class _MatchesScreenState extends State<MatchesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Scaffold(
+      appBar: PageAppBar(pageName: 'Matches'),
+      body: Column(
         children: [
           // Search header
           Container(
@@ -418,7 +422,8 @@ class _MatchesScreenState extends State<MatchesScreen> {
             ),
           ),
         ],
-      );
+      ),
+    );
   }
 
 
@@ -460,67 +465,8 @@ class _MatchesScreenState extends State<MatchesScreen> {
                 // Club Icon with Match Badge
                 Stack(
                   children: [
-                    // Club Icon (bigger)
-                    Container(
-                      width: 40,
-                      height: 40,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: (match.type.toLowerCase() == 'practice')
-                            ? // Practice sessions: Always show club logo
-                              (match.club.logo != null
-                                  ? Image.network(
-                                      match.club.logo!,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) {
-                                        return DuggyLogoVariant.medium();
-                                      },
-                                    )
-                                  : DuggyLogoVariant.medium())
-                            : // Other matches: Show opponent logo if available, else club logo
-                              (match.opponent != null && match.canSeeDetails
-                                  ? (match.club.logo != null
-                                      ? Image.network(
-                                          match.club.logo!,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (context, error, stackTrace) {
-                                            return Container(
-                                              decoration: BoxDecoration(
-                                                color: Theme.of(context).primaryColor.withOpacity(0.1),
-                                                borderRadius: BorderRadius.circular(20),
-                                              ),
-                                              child: Center(
-                                                child: Text(
-                                                  match.opponent!.substring(0, 1).toUpperCase(),
-                                                  style: TextStyle(
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.w400,
-                                                    color: Theme.of(context).primaryColor,
-                                                  ),
-                                                ),
-                                              ),
-                                            );
-                                          },
-                                        )
-                                      : Container(
-                                          decoration: BoxDecoration(
-                                            color: Theme.of(context).primaryColor.withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(20),
-                                          ),
-                                          child: Center(
-                                            child: Text(
-                                              match.opponent!.substring(0, 1).toUpperCase(),
-                                              style: TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w400,
-                                                color: Theme.of(context).primaryColor,
-                                              ),
-                                            ),
-                                          ),
-                                        ))
-                                  : DuggyLogoVariant.medium()),
-                      ),
-                    ),
+                    // Club/Opponent Avatar
+                    _buildMatchAvatar(match),
                     // Match Type Badge
                     Positioned(
                       right: 0,
@@ -673,6 +619,61 @@ class _MatchesScreenState extends State<MatchesScreen> {
         ),
       ),
     );
+  }
+
+  /// Build match avatar using SVGAvatar widget
+  Widget _buildMatchAvatar(MatchListItem match) {
+    if (match.type.toLowerCase() == 'practice') {
+      // Practice sessions: Always show club logo
+      return SVGAvatar(
+        imageUrl: match.club.logo,
+        size: 40,
+        backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+        fallbackIcon: Icons.sports_cricket,
+        iconSize: 24,
+      );
+    } else {
+      // Other matches: Show opponent logo or create avatar from opponent name
+      if (match.opponent != null && match.canSeeDetails) {
+        // For opponents, we typically don't have logos, so create a text avatar
+        final opponentInitial = match.opponent!.isNotEmpty 
+            ? match.opponent!.substring(0, 1).toUpperCase()
+            : 'O';
+        
+        return SVGAvatar(
+          imageUrl: match.club.logo, // Try club logo first if available
+          size: 40,
+          backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+          fallbackIcon: Icons.sports_cricket,
+          iconSize: 24,
+          child: match.club.logo == null ? Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).primaryColor.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                opponentInitial,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).primaryColor,
+                ),
+              ),
+            ),
+          ) : null,
+        );
+      } else {
+        // Default to club logo/icon
+        return SVGAvatar(
+          imageUrl: match.club.logo,
+          size: 40,
+          backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+          fallbackIcon: Icons.sports_cricket,
+          iconSize: 24,
+        );
+      }
+    }
   }
 
   Color _getMatchTypeColor(String type) {
