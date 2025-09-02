@@ -1,8 +1,7 @@
-import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/material.dart';
 import '../../models/club_message.dart';
 import '../../models/message_status.dart';
-import '../../models/message_reaction.dart';
 import '../../services/api_service.dart';
 import '../../providers/user_provider.dart';
 
@@ -20,6 +19,16 @@ class BaseMessageBubble extends StatelessWidget {
   final double? overlayBottomPosition;
   final Function(String messageId, String emoji, String userId)?
   onReactionRemoved;
+  
+  // Message action callbacks
+  final Function(ClubMessage message, String emoji)? onReactionAdded;
+  final Function(ClubMessage message)? onReplyToMessage;
+  final Function(ClubMessage message)? onToggleStarMessage;
+  final Function(ClubMessage message)? onTogglePinMessage;
+  final Function(ClubMessage message)? onDeleteMessage;
+  final Function(ClubMessage message)? onShowMessageInfo;
+  final bool canPinMessages;
+  final bool canDeleteMessages;
 
   const BaseMessageBubble({
     super.key,
@@ -34,11 +43,22 @@ class BaseMessageBubble extends StatelessWidget {
     this.showShadow = false,
     this.overlayBottomPosition,
     this.onReactionRemoved,
+    this.onReactionAdded,
+    this.onReplyToMessage,
+    this.onToggleStarMessage,
+    this.onTogglePinMessage,
+    this.onDeleteMessage,
+    this.onShowMessageInfo,
+    this.canPinMessages = false,
+    this.canDeleteMessages = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return GestureDetector(
+      // onTap: () => _handleMessageTap(context),
+      // onLongPress: () => _showMessageOptions(context),
+      child: Column(
       crossAxisAlignment: isOwn
           ? CrossAxisAlignment.end
           : CrossAxisAlignment.start,

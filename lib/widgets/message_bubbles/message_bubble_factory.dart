@@ -16,7 +16,21 @@ class MessageBubbleFactory extends StatelessWidget {
   final bool isSelected;
   final bool showSenderInfo;
   final VoidCallback? onRetryUpload;
-  final Function(String messageId, String emoji, String userId)? onReactionRemoved;
+  final Function(String messageId, String emoji, String userId)?
+  onReactionRemoved;
+
+  // Message interaction callbacks
+  final Function(ClubMessage message)? onMessageTap;
+  final Function(ClubMessage message)? onMessageLongPress;
+  final Function(ClubMessage message, String emoji)? onReactionAdded;
+  final Function(ClubMessage message)? onReplyToMessage;
+  final Function(ClubMessage message)? onToggleStarMessage;
+  final Function(ClubMessage message)? onTogglePinMessage;
+  final Function(ClubMessage message)? onDeleteMessage;
+  final Function(ClubMessage message)? onShowMessageInfo;
+  final bool canPinMessages;
+  final bool canDeleteMessages;
+  final bool isSelectionMode;
 
   const MessageBubbleFactory({
     super.key,
@@ -28,6 +42,17 @@ class MessageBubbleFactory extends StatelessWidget {
     this.showSenderInfo = false,
     this.onRetryUpload,
     this.onReactionRemoved,
+    this.onMessageTap,
+    this.onMessageLongPress,
+    this.onReactionAdded,
+    this.onReplyToMessage,
+    this.onToggleStarMessage,
+    this.onTogglePinMessage,
+    this.onDeleteMessage,
+    this.onShowMessageInfo,
+    this.canPinMessages = false,
+    this.canDeleteMessages = false,
+    this.isSelectionMode = false,
   });
 
   @override
@@ -46,7 +71,6 @@ class MessageBubbleFactory extends StatelessWidget {
         isPinned: isPinned,
         isSelected: isSelected,
         onRetryUpload: onRetryUpload,
-        onReactionRemoved: onReactionRemoved,
       );
     } else if (message.linkMeta.isNotEmpty) {
       // LINK MESSAGE: Thumbnail, title, full link
@@ -55,7 +79,6 @@ class MessageBubbleFactory extends StatelessWidget {
         isOwn: isOwn,
         isPinned: isPinned,
         isSelected: isSelected,
-        onReactionRemoved: onReactionRemoved,
       );
     } else if (message.gifUrl != null && message.gifUrl!.isNotEmpty) {
       // GIF MESSAGE: GIF with optional text below
@@ -64,7 +87,6 @@ class MessageBubbleFactory extends StatelessWidget {
         isOwn: isOwn,
         isPinned: isPinned,
         isSelected: isSelected,
-        onReactionRemoved: onReactionRemoved,
       );
     } else if (message.messageType == 'emoji') {
       // EMOJI MESSAGE: Large emoji without background
@@ -74,7 +96,6 @@ class MessageBubbleFactory extends StatelessWidget {
         isPinned: isPinned,
         isSelected: isSelected,
         showSenderInfo: showSenderInfo,
-        onReactionRemoved: onReactionRemoved,
       );
     } else {
       // TEXT MESSAGE: Images/videos first, then body below

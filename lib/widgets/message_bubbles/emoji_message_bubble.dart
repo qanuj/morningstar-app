@@ -9,17 +9,15 @@ class EmojiMessageBubble extends StatelessWidget {
   final bool isPinned;
   final bool isSelected;
   final bool showSenderInfo;
-  final Function(String messageId, String emoji, String userId)? onReactionRemoved;
 
   const EmojiMessageBubble({
-    Key? key,
+    super.key,
     required this.message,
     required this.isOwn,
     required this.isPinned,
     this.isSelected = false,
     this.showSenderInfo = false,
-    this.onReactionRemoved,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +29,6 @@ class EmojiMessageBubble extends StatelessWidget {
       isTransparent: true,
       showMetaOverlay: false,
       content: _buildContent(context),
-      onReactionRemoved: onReactionRemoved,
     );
   }
 
@@ -44,15 +41,9 @@ class EmojiMessageBubble extends StatelessWidget {
           _buildSenderInfo(context),
           SizedBox(height: 4),
         ],
-        
+
         // Large emoji display
-        Text(
-          message.content,
-          style: TextStyle(
-            fontSize: 48,
-            height: 1.0,
-          ),
-        ),
+        Text(message.content, style: TextStyle(fontSize: 48, height: 1.0)),
       ],
     );
   }
@@ -76,7 +67,7 @@ class EmojiMessageBubble extends StatelessWidget {
           // Role icon for Admin and Owner only
           if (message.senderRole != null &&
               (message.senderRole!.toUpperCase() == 'ADMIN' ||
-               message.senderRole!.toUpperCase() == 'OWNER')) ...[
+                  message.senderRole!.toUpperCase() == 'OWNER')) ...[
             SizedBox(width: 4),
             Icon(
               message.senderRole!.toUpperCase() == 'OWNER'

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:file_picker/file_picker.dart';
 import '../models/club_message.dart';
 import '../models/message_reply.dart';
 import '../models/message_status.dart';
@@ -30,13 +31,14 @@ class MessageBubbleWrapper extends StatelessWidget {
   final Function(DragUpdateDetails details, ClubMessage message, bool isOwn) onSlideUpdate;
   final Function(DragEndDetails details, ClubMessage message, bool isOwn) onSlideEnd;
   
-  // Message actions
-  final Function(ClubMessage message) onShowMessageOptions;
-  final Function(ClubMessage message) onShowErrorDialog;
+  // Message actions - removed, handled by bubbles themselves
   
   // Self-sending message callbacks
   final Function(ClubMessage oldMessage, ClubMessage newMessage)? onMessageUpdated;
   final Function(String messageId)? onMessageFailed;
+  
+  // Pending uploads for self-sending messages
+  final List<PlatformFile>? pendingUploads;
   
   // Utility functions
   final Function(ClubMessage message) isCurrentlyPinned;
@@ -56,10 +58,10 @@ class MessageBubbleWrapper extends StatelessWidget {
     required this.slideOffset,
     required this.onSlideUpdate,
     required this.onSlideEnd,
-    required this.onShowMessageOptions,
-    required this.onShowErrorDialog,
+    // Removed message option callbacks
     this.onMessageUpdated,
     this.onMessageFailed,
+    this.pendingUploads,
     required this.isCurrentlyPinned,
   });
 
@@ -145,16 +147,7 @@ class MessageBubbleWrapper extends StatelessWidget {
                               _buildReplyInfo(context, message.replyTo!, isOwn),
 
                             GestureDetector(
-                              onTap: message.deleted
-                                  ? null
-                                  : isSelectionMode
-                                  ? () => onToggleSelection(message.id)
-                                  : message.status == MessageStatus.failed
-                                  ? () => onShowErrorDialog(message)
-                                  : () => onShowMessageOptions(message),
-                              onLongPress: (isSelectionMode || message.deleted)
-                                  ? null
-                                  : () => onShowMessageOptions(message),
+                              // Gesture handling moved to individual bubbles
                               onPanUpdate: (isSelectionMode || message.deleted)
                                   ? null
                                   : (details) => onSlideUpdate(
@@ -180,6 +173,7 @@ class MessageBubbleWrapper extends StatelessWidget {
                                       ),
                                       showSenderInfo: showSenderInfo,
                                       clubId: clubId,
+                                      pendingUploads: pendingUploads,
                                       onMessageUpdated: onMessageUpdated,
                                       onMessageFailed: onMessageFailed,
                                     )

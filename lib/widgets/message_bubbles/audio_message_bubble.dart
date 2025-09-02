@@ -14,10 +14,11 @@ class AudioMessageBubble extends StatefulWidget {
   final bool isSelected;
   final bool showSenderInfo;
   final VoidCallback? onRetryUpload;
-  final Function(String messageId, String emoji, String userId)? onReactionRemoved;
+  final Function(String messageId, String emoji, String userId)?
+  onReactionRemoved;
 
   const AudioMessageBubble({
-    Key? key,
+    super.key,
     required this.message,
     required this.isOwn,
     required this.isPinned,
@@ -25,7 +26,7 @@ class AudioMessageBubble extends StatefulWidget {
     this.showSenderInfo = false,
     this.onRetryUpload,
     this.onReactionRemoved,
-  }) : super(key: key);
+  });
 
   @override
   State<AudioMessageBubble> createState() => _AudioMessageBubbleState();
@@ -216,7 +217,8 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
                         _AvatarSpeedToggle(
                           isPlaying: isPlaying,
                           playbackSpeed: playbackSpeed,
-                          senderProfilePicture: widget.message.senderProfilePicture,
+                          senderProfilePicture:
+                              widget.message.senderProfilePicture,
                           onSpeedTap: _togglePlaybackSpeed,
                           getIconColor: _getIconColor,
                           getSpeedBgColor: _getSpeedBgColor,
@@ -284,7 +286,9 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
             Align(
               alignment: Alignment.centerLeft,
               child: Padding(
-                padding: EdgeInsets.only(left: 16), // Align with center of play button
+                padding: EdgeInsets.only(
+                  left: 16,
+                ), // Align with center of play button
                 child: Text(
                   isPlaying
                       ? _formatDuration(_currentDuration.inSeconds)

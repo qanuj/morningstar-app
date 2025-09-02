@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../models/club_message.dart';
 import '../../models/message_status.dart';
 import '../../models/link_metadata.dart';
+import '../../models/message_image.dart';
+import '../../models/message_document.dart';
+import '../../models/message_audio.dart';
 import '../../services/api_service.dart';
+import '../../services/chat_api_service.dart';
 import '../../services/message_storage_service.dart';
 import 'message_bubble_factory.dart';
 
 /// A stateful message bubble that handles its own sending process
+/// Supports all upload types: text, images, videos, audio, documents
 class SelfSendingMessageBubble extends StatefulWidget {
   final ClubMessage message;
   final bool isOwn;
@@ -15,8 +21,9 @@ class SelfSendingMessageBubble extends StatefulWidget {
   final bool isSelected;
   final bool showSenderInfo;
   final String clubId;
+  final List<PlatformFile>? pendingUploads; // Files waiting to be uploaded
   final Function(ClubMessage oldMessage, ClubMessage newMessage)?
-  onMessageUpdated;
+      onMessageUpdated;
   final Function(String messageId)? onMessageFailed;
 
   const SelfSendingMessageBubble({
@@ -28,6 +35,7 @@ class SelfSendingMessageBubble extends StatefulWidget {
     required this.clubId,
     this.isSelected = false,
     this.showSenderInfo = false,
+    this.pendingUploads,
     this.onMessageUpdated,
     this.onMessageFailed,
   });
@@ -40,6 +48,17 @@ class SelfSendingMessageBubble extends StatefulWidget {
 class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
   late ClubMessage currentMessage;
   bool _isSending = false;
+  bool _isUploading = false;
+  double _uploadProgress = 0.0;
+  String _currentUploadFile = '';
+  int _completedUploads = 0;
+  int _totalUploads = 0;
+
+  // Upload results
+  List<MessageImage> _uploadedImages = [];
+  List<String> _uploadedVideos = [];
+  List<MessageDocument> _uploadedDocuments = [];
+  MessageAudio? _uploadedAudio;
 
   @override
   void initState() {
@@ -72,6 +91,122 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
     });
 
     try {
+      // Step 1: Handle file uploads if any
+      if (widget.pendingUploads != null && widget.pendingUploads!.isNotEmpty) {
+        await _handleFileUploads(widget.pendingUploads!);
+      }
+
+      // Step 2: Handle regular message sending
+      await _sendMessage();
+    } catch (e) {
+      await _handleSendFailure('Send failed: $e');
+    } finally {
+      setState(() {
+        _isSending = false;
+        _isUploading = false;
+      });
+    }
+  }
+
+  Future<void> _handleFileUploads(List<PlatformFile> files) async {
+    setState(() {
+      _isUploading = true;
+      _totalUploads = files.length;
+      _completedUploads = 0;
+      _uploadProgress = 0.0;
+    });
+
+    for (int i = 0; i < files.length; i++) {
+      final file = files[i];
+      
+      setState(() {
+        _currentUploadFile = file.name;
+        _uploadProgress = i / files.length;
+      });
+
+      try {
+        final uploadUrl = await ApiService.uploadFile(file);
+        if (uploadUrl != null) {
+          await _processUploadedFile(file, uploadUrl);
+        } else {
+          throw Exception('Upload failed for ${file.name}');
+        }
+      } catch (e) {
+        throw Exception('Failed to upload ${file.name}: $e');
+      }
+
+      setState(() {
+        _completedUploads = i + 1;
+        _uploadProgress = (i + 1) / files.length;
+      });
+    }
+
+    setState(() {
+      _isUploading = false;
+    });
+  }
+
+  Future<void> _processUploadedFile(PlatformFile file, String uploadUrl) async {
+    final fileType = _getFileType(file);
+    final fileSize = file.size;
+
+    switch (fileType) {
+      case 'image':
+        _uploadedImages.add(MessageImage(
+          url: uploadUrl,
+          caption: file.name,
+        ));
+        break;
+      
+      case 'video':
+        _uploadedVideos.add(uploadUrl);
+        break;
+      
+      case 'audio':
+        _uploadedAudio = MessageAudio(
+          url: uploadUrl,
+          filename: file.name,
+          duration: 0, // Duration would need to be calculated
+          size: fileSize,
+        );
+        break;
+      
+      case 'document':
+      default:
+        _uploadedDocuments.add(MessageDocument(
+          url: uploadUrl,
+          filename: file.name,
+          type: file.extension ?? 'unknown',
+          size: fileSize.toString(),
+        ));
+        break;
+    }
+  }
+
+  String _getFileType(PlatformFile file) {
+    final extension = file.extension?.toLowerCase();
+    if (extension == null) return 'document';
+
+    // Image types
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].contains(extension)) {
+      return 'image';
+    }
+    
+    // Video types
+    if (['mp4', 'mov', 'avi', 'mkv', 'wmv', 'flv', 'webm'].contains(extension)) {
+      return 'video';
+    }
+    
+    // Audio types
+    if (['mp3', 'wav', 'aac', 'flac', 'ogg', 'm4a', 'wma'].contains(extension)) {
+      return 'audio';
+    }
+    
+    return 'document';
+  }
+
+  Future<void> _sendMessage() async {
+    try {
       // Fetch link metadata if message contains URLs
       List<LinkMetadata> linkMeta = [];
       final urlPattern = RegExp(r'https?://[^\s]+');
@@ -89,7 +224,7 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
         }
       }
 
-      // Determine message type
+      // Determine message type based on content and uploads
       String messageType = _determineMessageType(
         currentMessage.content,
         linkMeta,
@@ -98,8 +233,34 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
       // Prepare API request
       final Map<String, dynamic> contentMap = {
         'type': messageType,
-        'body': currentMessage.content,
+        'body': currentMessage.content.trim().isEmpty ? ' ' : currentMessage.content,
       };
+
+      // Add uploaded content to message
+      if (_uploadedImages.isNotEmpty) {
+        contentMap['images'] = _uploadedImages.map((img) => img.url).toList();
+      }
+      
+      if (_uploadedVideos.isNotEmpty) {
+        contentMap['videos'] = _uploadedVideos;
+      }
+      
+      if (_uploadedDocuments.isNotEmpty) {
+        contentMap['documents'] = _uploadedDocuments.map((doc) => {
+          'url': doc.url,
+          'filename': doc.filename,
+          'type': doc.type,
+          'size': doc.size,
+        }).toList();
+      }
+      
+      if (_uploadedAudio != null) {
+        contentMap['audio'] = {
+          'url': _uploadedAudio!.url,
+          'duration': _uploadedAudio!.duration,
+          'size': _uploadedAudio!.size,
+        };
+      }
 
       if (linkMeta.isNotEmpty) {
         contentMap['meta'] = linkMeta.map((meta) => meta.toJson()).toList();
@@ -112,22 +273,36 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
           'replyTo': currentMessage.replyTo!.toJson(),
       };
 
-      // Send to API
-      final response = await ApiService.post(
-        '/conversations/${widget.clubId}/messages',
-        requestData,
-      );
+      // Send to API using the appropriate method based on content type
+      Map<String, dynamic>? response;
+      if (_hasUploads()) {
+        response = await ChatApiService.sendMessageWithMedia(
+          widget.clubId,
+          requestData,
+        );
+      } else {
+        response = await ChatApiService.sendMessage(
+          widget.clubId,
+          requestData,
+        );
+      }
+
+      if (response == null) {
+        throw Exception('No response from server');
+      }
 
       // Handle successful response
       await _handleSuccessResponse(response, linkMeta);
     } catch (e) {
-      // Handle error
-      await _handleSendFailure(e.toString());
-    } finally {
-      setState(() {
-        _isSending = false;
-      });
+      await _handleSendFailure('Failed to send message: $e');
     }
+  }
+
+  bool _hasUploads() {
+    return _uploadedImages.isNotEmpty ||
+           _uploadedVideos.isNotEmpty ||
+           _uploadedDocuments.isNotEmpty ||
+           _uploadedAudio != null;
   }
 
   Future<void> _handleSuccessResponse(
@@ -184,10 +359,7 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
 
   Future<void> _markAsDelivered(String messageId) async {
     try {
-      await ApiService.post(
-        '/conversations/${widget.clubId}/messages/$messageId/delivered',
-        {},
-      );
+      await ChatApiService.markAsDelivered(widget.clubId, messageId);
 
       await MessageStorageService.markAsDelivered(widget.clubId, messageId);
 
@@ -219,6 +391,12 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
   }
 
   String _determineMessageType(String content, List<LinkMetadata> linkMeta) {
+    // Check for uploaded content first
+    if (_uploadedAudio != null) return 'audio';
+    if (_uploadedImages.isNotEmpty) return 'image';
+    if (_uploadedVideos.isNotEmpty) return 'video';
+    if (_uploadedDocuments.isNotEmpty) return 'document';
+
     // Check if message is emoji-only
     final emojiOnlyPattern = RegExp(
       r'^(\s*[\p{Emoji}\p{Emoji_Modifier}\p{Emoji_Component}\p{Emoji_Modifier_Base}\p{Emoji_Presentation}\u200d]*\s*)+$',
@@ -244,28 +422,178 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
       );
       setState(() {
         currentMessage = retryMessage;
+        // Reset upload state for retry
+        _uploadProgress = 0.0;
+        _completedUploads = 0;
+        _isUploading = false;
       });
       widget.onMessageUpdated?.call(widget.message, retryMessage);
       _startSendProcess();
     }
   }
 
+  Widget _buildUploadProgressWidget() {
+    if (!_isUploading && !_isSending) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blue.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_isUploading) ...[
+            Row(
+              children: [
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Uploading $_currentUploadFile...',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.blue,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Text(
+                  '$_completedUploads/$_totalUploads',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: Colors.blue,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            LinearProgressIndicator(
+              value: _uploadProgress,
+              backgroundColor: Colors.blue.withOpacity(0.2),
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
+            ),
+          ] else if (_isSending) ...[
+            const Row(
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                  ),
+                ),
+                SizedBox(width: 8),
+                Text(
+                  'Sending message...',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.blue,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Show upload progress if uploading or sending
+    if (_isUploading || (_isSending && !_hasUploads())) {
+      return Column(
+        crossAxisAlignment: widget.isOwn 
+            ? CrossAxisAlignment.end 
+            : CrossAxisAlignment.start,
+        children: [
+          _buildUploadProgressWidget(),
+          // Show a preview of the message being sent
+          Opacity(
+            opacity: 0.7,
+            child: MessageBubbleFactory(
+              message: currentMessage,
+              isOwn: widget.isOwn,
+              isPinned: widget.isPinned,
+              isDeleted: widget.isDeleted,
+              isSelected: widget.isSelected,
+              showSenderInfo: widget.showSenderInfo,
+              onRetryUpload: null, // Disable retry during upload
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Show normal bubble with retry functionality for failed messages
     return GestureDetector(
       onTap: currentMessage.status == MessageStatus.failed
           ? _handleRetry
           : null,
-      child: MessageBubbleFactory(
-        message: currentMessage,
-        isOwn: widget.isOwn,
-        isPinned: widget.isPinned,
-        isDeleted: widget.isDeleted,
-        isSelected: widget.isSelected,
-        showSenderInfo: widget.showSenderInfo,
-        onRetryUpload: currentMessage.status == MessageStatus.failed
-            ? _handleRetry
-            : null,
+      child: Column(
+        crossAxisAlignment: widget.isOwn 
+            ? CrossAxisAlignment.end 
+            : CrossAxisAlignment.start,
+        children: [
+          MessageBubbleFactory(
+            message: currentMessage,
+            isOwn: widget.isOwn,
+            isPinned: widget.isPinned,
+            isDeleted: widget.isDeleted,
+            isSelected: widget.isSelected,
+            showSenderInfo: widget.showSenderInfo,
+            onRetryUpload: currentMessage.status == MessageStatus.failed
+                ? _handleRetry
+                : null,
+          ),
+          // Show error message for failed sends
+          if (currentMessage.status == MessageStatus.failed && 
+              currentMessage.errorMessage != null)
+            Container(
+              margin: EdgeInsets.only(
+                top: 4,
+                left: widget.isOwn ? 60 : 40,
+                right: widget.isOwn ? 40 : 60,
+              ),
+              child: Row(
+                mainAxisAlignment: widget.isOwn 
+                    ? MainAxisAlignment.end 
+                    : MainAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.info_outline, 
+                    size: 16, 
+                    color: Colors.red.withOpacity(0.7)
+                  ),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      currentMessage.errorMessage!,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.red.withOpacity(0.8),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }

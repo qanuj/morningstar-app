@@ -76,6 +76,9 @@ class ClubChatScreenState extends State<ClubChatScreen>
   bool? _cachedCanPinMessages;
   bool? _cachedCanShareUPIQR;
 
+  // Map to store pending file uploads by message ID
+  final Map<String, List<PlatformFile>> _pendingUploads = {};
+
   // Highlighted message state
   String? _highlightedMessageId;
   Timer? _highlightTimer;
@@ -990,12 +993,23 @@ class ClubChatScreenState extends State<ClubChatScreen>
         }
       }
     });
+
+    // Clean up pending uploads if message is no longer sending
+    if (newMessage.status != MessageStatus.sending) {
+      _pendingUploads.remove(oldMessage.id);
+      if (oldMessage.id != newMessage.id) {
+        _pendingUploads.remove(newMessage.id);
+      }
+    }
   }
 
   void _handleMessageFailed(String messageId) {
     // Message failure is handled by the SelfSendingMessageBubble internally
     // This callback can be used for additional UI feedback if needed
     debugPrint('❌ Message failed: $messageId');
+
+    // Keep pending uploads for failed messages so they can be retried
+    // They will be cleaned up when message is successfully sent or manually deleted
   }
 
   void _handleTextChanged(String value) {
@@ -1124,7 +1138,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
       senderName: user.name,
       senderProfilePicture: user.profilePicture,
       senderRole: 'MEMBER',
-      content: 'Audio message',
+      content: '',
       messageType: 'audio',
       createdAt: DateTime.now(),
       status: MessageStatus.sending,
@@ -1567,8 +1581,8 @@ class ClubChatScreenState extends State<ClubChatScreen>
                         slideOffset: _slideOffset,
                         onSlideUpdate: _handleSlideGesture,
                         onSlideEnd: _handleSlideEnd,
-                        onShowMessageOptions: _showMessageOptions,
-                        onShowErrorDialog: _showErrorDialog,
+                        // Message options now handled by bubbles
+                        // Error handling now in bubbles
                         onMessageUpdated: _handleMessageUpdated,
                         onMessageFailed: _handleMessageFailed,
                         isCurrentlyPinned: _isCurrentlyPinned,
