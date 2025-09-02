@@ -67,12 +67,21 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
   @override
   void initState() {
     super.initState();
+    print('🔍 SelfSendingMessageBubble: initState called for message: ${widget.message.id}');
+    print('🔍 SelfSendingMessageBubble: Message status: ${widget.message.status}');
+    print('🔍 SelfSendingMessageBubble: Message images: ${widget.message.images}');
+    print('🔍 SelfSendingMessageBubble: Message messageType: ${widget.message.messageType}');
+    
     currentMessage = widget.message;
     // If this is a sending message, start the send process
     if (currentMessage.status == MessageStatus.sending && !_isSending) {
+      print('🔍 SelfSendingMessageBubble: Scheduling send process start');
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        print('🔍 SelfSendingMessageBubble: Starting send process now');
         _startSendProcess();
       });
+    } else {
+      print('🔍 SelfSendingMessageBubble: NOT starting send process. Status: ${currentMessage.status}, _isSending: $_isSending');
     }
   }
 

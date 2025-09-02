@@ -179,6 +179,8 @@ class _MessageInputState extends State<MessageInput> {
 
   void _sendImageMessageWithCaption(String caption, String imagePath) {
     print('🔍 MessageInput: Creating message with imagePath: $imagePath');
+    print('🔍 MessageInput: Caption: "$caption"');
+    print('🔍 MessageInput: ClubId: ${widget.clubId}');
     final tempMessage = ClubMessage(
       id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
       clubId: widget.clubId,
@@ -195,7 +197,12 @@ class _MessageInputState extends State<MessageInput> {
       // Store temp file path for upload
       images: [imagePath],
     );
+    print(
+      '🔍 MessageInput: Created tempMessage with status: ${tempMessage.status}',
+    );
+    print('🔍 MessageInput: Calling widget.onSendMessage');
     widget.onSendMessage(tempMessage);
+    print('🔍 MessageInput: widget.onSendMessage completed');
   }
 
   void _sendImageMessage(List<XFile> images) {
@@ -704,158 +711,123 @@ class _MessageInputState extends State<MessageInput> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Theme.of(context).brightness == Brightness.dark
-            ? Colors.black
-            : Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.grey[800]!
-                : Colors.grey[300]!,
-            width: 0.5,
-          ),
-        ),
-      ),
-      child: SafeArea(
-        bottom: true,
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              // Check if audio recording is active - if so, show full-width recording interface
-              if (widget.audioRecordingKey.currentState?.isRecording == true ||
-                  widget.audioRecordingKey.currentState?.hasRecording ==
-                      true) ...[
-                // Full-width audio recording interface
-                AudioRecordingWidget(
-                  key: widget.audioRecordingKey,
-                  onAudioRecorded: _sendAudioMessage,
-                  isComposing: _isComposing,
-                  onRecordingStateChanged: () => setState(() {}),
-                ),
-              ] else ...[
-                // Normal input interface
-                // Attachment button (+)
-                IconButton(
-                  onPressed: _showUploadOptions,
-                  icon: Icon(
-                    Icons.add,
+    return SafeArea(
+      bottom: true,
+      top: false,
+      child: Row(
+        children: [
+          // Check if audio recording is active - if so, show full-width recording interface
+          if (widget.audioRecordingKey.currentState?.isRecording == true ||
+              widget.audioRecordingKey.currentState?.hasRecording == true) ...[
+            // Full-width audio recording interface
+            AudioRecordingWidget(
+              key: widget.audioRecordingKey,
+              onAudioRecorded: _sendAudioMessage,
+              isComposing: _isComposing,
+              onRecordingStateChanged: () => setState(() {}),
+            ),
+          ] else ...[
+            // Normal input interface
+            // Attachment button (+)
+            IconButton(
+              onPressed: _showUploadOptions,
+              icon: Icon(
+                Icons.add,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey[400]
+                    : Colors.grey[600],
+              ),
+            ),
+
+            // Expanded message input area
+            Expanded(
+              child: TextField(
+                controller: widget.messageController,
+                focusNode: widget.textFieldFocusNode,
+                autofocus: false,
+                decoration: InputDecoration(
+                  hintText: 'Message',
+                  hintStyle: TextStyle(
                     color: Theme.of(context).brightness == Brightness.dark
                         ? Colors.grey[400]
                         : Colors.grey[600],
+                    fontSize: 14,
                   ),
-                  iconSize: 28,
-                ),
-
-                // Expanded message input area
-                Expanded(
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    decoration: BoxDecoration(
-                      color: widget.textFieldFocusNode.hasFocus
-                          ? (Theme.of(context).brightness == Brightness.dark
-                                ? const Color(0xFF2a2f32)
-                                : Colors.grey.shade50)
-                          : (Theme.of(context).brightness == Brightness.dark
-                                ? const Color(0xFF2a2f32)
-                                : Colors.transparent),
-                    ),
-                    child: Row(
-                      children: [
-                        // Text field
-                        Expanded(
-                          child: TextField(
-                            controller: widget.messageController,
-                            focusNode: widget.textFieldFocusNode,
-                            autofocus: false,
-                            decoration: InputDecoration(
-                              hintText: 'Type a message',
-                              hintStyle: TextStyle(
-                                color:
-                                    Theme.of(context).brightness ==
-                                        Brightness.dark
-                                    ? Colors.grey[400]
-                                    : Colors.grey[600],
-                                fontSize: 16,
-                              ),
-                              border: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              focusedBorder: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 12,
-                              ),
-                            ),
-                            style: TextStyle(
-                              fontSize: 16,
-                              color:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? Colors.white
-                                  : Colors.black,
-                            ),
-                            maxLines: 5,
-                            minLines: 1,
-                            textCapitalization: TextCapitalization.sentences,
-                            keyboardType: TextInputType.multiline,
-                            textInputAction: TextInputAction.newline,
-                            onChanged: _handleTextChanged,
-                          ),
-                        ),
-                      ],
-                    ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(90.0)),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(90.0)),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(90.0)),
+                    borderSide: BorderSide.none,
+                  ),
+                  filled: true,
+                  fillColor: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey[800]
+                      : Colors.grey[100],
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
                   ),
                 ),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.black,
+                ),
+                maxLines: 5,
+                minLines: 1,
+                textCapitalization: TextCapitalization.sentences,
+                keyboardType: TextInputType.multiline,
+                textInputAction: TextInputAction.newline,
+                onChanged: _handleTextChanged,
+              ),
+            ),
 
-                // UPI Payment button - hidden when composing or no UPI apps available
-                if (!_isComposing && _availableUpiApps.isNotEmpty)
-                  IconButton(
-                    onPressed: () => _openUPIPayment(),
-                    icon: Icon(
-                      Icons.currency_rupee,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.grey[400]
-                          : Colors.grey[600],
-                    ),
-                    iconSize: 28,
-                  ),
+            // UPI Payment button - hidden when composing or no UPI apps available
+            if (!_isComposing && _availableUpiApps.isNotEmpty)
+              IconButton(
+                onPressed: () => _openUPIPayment(),
+                icon: Icon(
+                  Icons.currency_rupee,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey[400]
+                      : Colors.grey[600],
+                ),
+              ),
 
-                // Camera button - hidden when composing
-                if (!_isComposing)
-                  IconButton(
-                    onPressed: _handleCameraCapture,
-                    icon: Icon(
-                      Icons.camera_alt,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.grey[400]
-                          : Colors.grey[600],
-                    ),
-                    iconSize: 28,
-                  ),
+            // Camera button - hidden when composing
+            if (!_isComposing)
+              IconButton(
+                onPressed: _handleCameraCapture,
+                icon: Icon(
+                  Icons.camera_alt,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey[400]
+                      : Colors.grey[600],
+                ),
+              ),
 
-                // Send button or audio recording widget
-                if (_isComposing)
-                  IconButton(
-                    onPressed: _sendTextMessage,
-                    icon: const Icon(Icons.send, color: Color(0xFF003f9b)),
-                    iconSize: 28,
-                  )
-                else
-                  AudioRecordingWidget(
-                    key: widget.audioRecordingKey,
-                    onAudioRecorded: _sendAudioMessage,
-                    isComposing: _isComposing,
-                    onRecordingStateChanged: () => setState(() {}),
-                  ),
-              ],
-            ],
-          ),
-        ),
+            // Send button or audio recording widget
+            if (_isComposing)
+              IconButton(
+                onPressed: _sendTextMessage,
+                icon: const Icon(Icons.send, color: Color(0xFF003f9b)),
+              )
+            else
+              AudioRecordingWidget(
+                key: widget.audioRecordingKey,
+                onAudioRecorded: _sendAudioMessage,
+                isComposing: _isComposing,
+                onRecordingStateChanged: () => setState(() {}),
+              ),
+          ],
+        ],
       ),
     );
   }

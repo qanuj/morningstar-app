@@ -133,8 +133,13 @@ class _ImageCaptionDialogState extends State<ImageCaptionDialog> {
 
   void _sendImage() {
     final caption = _captionController.text.trim();
+    print('🔍 ImageCaptionDialog: _sendImage called');
+    print('🔍 ImageCaptionDialog: caption = "$caption"');
+    print('🔍 ImageCaptionDialog: _currentImagePath = $_currentImagePath');
     Navigator.of(context).pop();
+    print('🔍 ImageCaptionDialog: Calling widget.onSend');
     widget.onSend(caption, _currentImagePath);
+    print('🔍 ImageCaptionDialog: widget.onSend completed');
   }
 
   Widget _buildImagePreview() {

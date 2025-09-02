@@ -1198,9 +1198,21 @@ class ClubChatScreenState extends State<ClubChatScreen>
   }
 
   void _handleNewMessage(ClubMessage tempMessage) {
+    print(
+      '🔍 ClubChat: _handleNewMessage called with tempMessage id: ${tempMessage.id}',
+    );
+    print('🔍 ClubChat: tempMessage status: ${tempMessage.status}');
+    print('🔍 ClubChat: tempMessage images: ${tempMessage.images}');
+    print('🔍 ClubChat: tempMessage messageType: ${tempMessage.messageType}');
+
     final userProvider = context.read<UserProvider>();
     final user = userProvider.user;
-    if (user == null) return;
+    if (user == null) {
+      print('🔍 ClubChat: User is null, returning');
+      return;
+    }
+
+    print('🔍 ClubChat: User found: ${user.name} (${user.id})');
 
     // Fill in user information
     final message = ClubMessage(
@@ -1232,6 +1244,9 @@ class ClubChatScreenState extends State<ClubChatScreen>
       replyTo: _replyingTo, // Add reply if replying
     );
 
+    print('🔍 ClubChat: Created final message with status: ${message.status}');
+    print('🔍 ClubChat: Final message images: ${message.images}');
+
     // Clear reply state
     _cancelReply();
 
@@ -1239,14 +1254,16 @@ class ClubChatScreenState extends State<ClubChatScreen>
     setState(() {
       _messages.add(message);
     });
+
+    print(
+      '🔍 ClubChat: Added message to _messages list. Total messages: ${_messages.length}',
+    );
+    print('🔍 ClubChat: Last message status: ${_messages.last.status}');
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).brightness == Brightness.dark
-          ? Colors.grey[850]
-          : Colors.grey[100],
       resizeToAvoidBottomInset: true,
       appBar: ChatAppBar(
         club: widget.club,
