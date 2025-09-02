@@ -39,7 +39,6 @@ class MessageBubbleWrapper extends StatelessWidget {
   final Function(String messageId)? onMessageFailed;
   
   // Utility functions
-  final Function(String? role) getRoleColor;
   final Function(ClubMessage message) isCurrentlyPinned;
 
   const MessageBubbleWrapper({
@@ -61,7 +60,6 @@ class MessageBubbleWrapper extends StatelessWidget {
     required this.onShowErrorDialog,
     this.onMessageUpdated,
     this.onMessageFailed,
-    required this.getRoleColor,
     required this.isCurrentlyPinned,
   });
 
@@ -252,7 +250,7 @@ class MessageBubbleWrapper extends StatelessWidget {
         shape: BoxShape.circle,
         color: Theme.of(context).primaryColor.withOpacity(0.1),
         border: Border.all(
-          color: getRoleColor(message.senderRole ?? 'MEMBER').withOpacity(0.3),
+          color: _getRoleColor(context, message.senderRole ?? 'MEMBER').withOpacity(0.3),
           width: 1.5,
         ),
       ),
@@ -287,7 +285,7 @@ class MessageBubbleWrapper extends StatelessWidget {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: getRoleColor(message.senderRole ?? 'MEMBER'),
+            color: _getRoleColor(context, message.senderRole ?? 'MEMBER'),
           ),
         ),
       ),
@@ -335,5 +333,26 @@ class MessageBubbleWrapper extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Get the color associated with a user role
+  Color _getRoleColor(BuildContext context, String? role) {
+    switch (role?.toUpperCase()) {
+      case 'OWNER':
+        return Colors.purple;
+      case 'ADMIN':
+        return Colors.red;
+      case 'CAPTAIN':
+        return Colors.orange;
+      case 'VICE_CAPTAIN':
+        return Colors.amber;
+      case 'COACH':
+        return Colors.blue;
+      case 'MEMBER':
+      default:
+        return Theme.of(context).brightness == Brightness.dark
+            ? Colors.grey[400]!
+            : Colors.grey[600]!;
+    }
   }
 }

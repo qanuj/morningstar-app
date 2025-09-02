@@ -26,6 +26,7 @@ import '../../widgets/pinned_messages_section.dart';
 import '../../widgets/message_visibility_detector.dart';
 import '../../widgets/chat_app_bar.dart';
 import '../../widgets/message_bubble_wrapper.dart';
+import '../../widgets/message_input.dart';
 
 class ClubChatScreen extends StatefulWidget {
   final Club club;
@@ -64,11 +65,15 @@ class ClubChatScreenState extends State<ClubChatScreen>
 
   // Message selection state
   bool _isSelectionMode = false;
-  Set<String> _selectedMessageIds = <String>{};
+  final Set<String> _selectedMessageIds = <String>{};
 
   // Message status tracking
-  Set<String> _deliveredMessages = <String>{};
-  Set<String> _seenMessages = <String>{};
+  final Set<String> _deliveredMessages = <String>{};
+  final Set<String> _seenMessages = <String>{};
+
+  // Permission caching
+  bool? _cachedCanPinMessages;
+  bool? _cachedCanShareUPIQR;
 
   // Highlighted message state
   String? _highlightedMessageId;
@@ -638,6 +643,8 @@ class ClubChatScreenState extends State<ClubChatScreen>
           _detailedClubInfo = DetailedClubInfo.fromJson(
             response['club'] as Map<String, dynamic>,
           );
+          // Update permissions after club info is loaded
+          _updatePermissions();
         }
 
         // Sort by creation time (oldest first for chat display)
@@ -1416,7 +1423,27 @@ class ClubChatScreenState extends State<ClubChatScreen>
             if (_replyingTo != null) _buildReplyPreview(),
 
             // Message Input - Sticks to bottom footer
-            _buildMessageInput(),
+            MessageInput(
+              messageController: _messageController,
+              textFieldFocusNode: _textFieldFocusNode,
+              isComposing: _isComposing,
+              audioRecordingKey: _audioRecordingKey,
+              onSendMessage: _sendMessage,
+              onShowUploadOptions: _showUploadOptions,
+              onCapturePhoto: _capturePhotoWithCamera,
+              onSendAudioMessage: _sendAudioMessage,
+              onTextChanged: _handleTextChanged,
+              onComposingChanged: (isComposing) {
+                setState(() {
+                  _isComposing = isComposing;
+                });
+              },
+              onRecordingStateChanged: () {
+                setState(() {
+                  // This will trigger a rebuild with the new recording state
+                });
+              },
+            ),
           ],
         ),
       ),
@@ -1444,7 +1471,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
             messages: _messages,
             onScrollToMessage: _scrollToMessage,
             onTogglePin: _togglePin,
-            canPinMessages: _canPinMessages,
+            canPinMessages: () => _cachedCanPinMessages ?? false,
             clubId: widget.club.id,
           ),
 
@@ -1515,7 +1542,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
                         onShowErrorDialog: _showErrorDialog,
                         onMessageUpdated: _handleMessageUpdated,
                         onMessageFailed: _handleMessageFailed,
-                        getRoleColor: _getRoleColor,
                         isCurrentlyPinned: _isCurrentlyPinned,
                       ),
                     ),
@@ -1758,26 +1784,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
     });
   }
 
-  Color _getRoleColor(String role) {
-    switch (role.toUpperCase()) {
-      case 'OWNER':
-        return Colors.purple;
-      case 'ADMIN':
-        return Colors.red;
-      case 'CAPTAIN':
-        return Colors.orange;
-      case 'VICE_CAPTAIN':
-        return Colors.amber;
-      case 'COACH':
-        return Colors.blue;
-      case 'MEMBER':
-      default:
-        return Theme.of(context).brightness == Brightness.dark
-            ? Colors.grey[400]!
-            : Colors.grey[600]!;
-    }
-  }
-
   void _showUploadOptions() {
     showModalBottomSheet(
       context: context,
@@ -1992,17 +1998,40 @@ class ClubChatScreenState extends State<ClubChatScreen>
   }
 
   bool _canShareUPIQR() {
-    // TODO: This should check the current user's role in the club
-    // For now, we'll check if UPI ID is available in the club data
-    // In a complete implementation, this would verify the user is OWNER or ADMIN
+    // Use cached value if available
+    return _cachedCanShareUPIQR ?? false;
+  }
+
+  // Async method to check if user can share UPI QR
+  Future<bool> _checkCanShareUPIQR() async {
+    // First check if UPI ID is configured
+    if (widget.club.upiId == null || widget.club.upiId!.isEmpty) {
+      return false;
+    }
+
     final userProvider = context.read<UserProvider>();
     final user = userProvider.user;
-
     if (user == null) return false;
 
-    // For demo purposes, return true if club has UPI ID configured
-    // In production, this should also check user role in club membership
-    return widget.club.upiId != null && widget.club.upiId!.isNotEmpty;
+    // Check if user has admin privileges (OWNER, ADMIN, or CAPTAIN can share payment QR)
+    try {
+      return await userProvider.hasRoleInClub(widget.club.id, [
+        'OWNER',
+        'ADMIN',
+        'CAPTAIN',
+      ]);
+    } catch (e) {
+      print('Error checking UPI QR share permissions: $e');
+      // Fallback: only allow if user seems to be admin based on messages
+      final userMessages = _messages
+          .where((m) => m.senderId == user.id)
+          .toList();
+      if (userMessages.isNotEmpty) {
+        final userRole = userMessages.first.senderRole ?? 'MEMBER';
+        return ['OWNER', 'ADMIN', 'CAPTAIN'].contains(userRole);
+      }
+      return false;
+    }
   }
 
   void _shareClubUPIQR() {
@@ -2485,160 +2514,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
     );
   }
 
-  Widget _buildMessageInput() {
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.all(12),
-        child: Container(
-          width: double.infinity,
-          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(25),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 4,
-                spreadRadius: 1,
-                offset: Offset(0, -2),
-              ),
-            ],
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              // Check if audio recording is active - if so, show full-width recording interface
-              if (_audioRecordingKey.currentState?.isRecording == true ||
-                  _audioRecordingKey.currentState?.hasRecording == true) ...[
-                // Full-width audio recording interface
-                AudioRecordingWidget(
-                  key: _audioRecordingKey,
-                  onAudioRecorded: _sendAudioMessage,
-                  isComposing: _isComposing,
-                  onRecordingStateChanged: () {
-                    setState(() {
-                      // This will trigger a rebuild with the new recording state
-                    });
-                  },
-                ),
-              ] else ...[
-                // Normal input interface
-                // Attachment button (+)
-                IconButton(
-                  onPressed: _showUploadOptions,
-                  icon: Icon(
-                    Icons.add,
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.grey[400]
-                        : Colors.grey[600],
-                  ),
-                  iconSize: 28,
-                ),
-
-                // Expanded message input area
-                Expanded(
-                  child: AnimatedContainer(
-                    duration: Duration(milliseconds: 200),
-                    decoration: BoxDecoration(
-                      color: _textFieldFocusNode.hasFocus
-                          ? (Theme.of(context).brightness == Brightness.dark
-                                ? Color(0xFF2a2f32)
-                                : Colors.grey.shade50)
-                          : (Theme.of(context).brightness == Brightness.dark
-                                ? Color(0xFF2a2f32)
-                                : Colors.transparent),
-                    ),
-                    child: Row(
-                      children: [
-                        // Text field
-                        Expanded(
-                          child: TextField(
-                            controller: _messageController,
-                            focusNode: _textFieldFocusNode,
-                            autofocus: false,
-                            decoration: InputDecoration(
-                              hintText: 'Type a message',
-                              hintStyle: TextStyle(
-                                color:
-                                    Theme.of(context).brightness ==
-                                        Brightness.dark
-                                    ? Colors.grey[400]
-                                    : Colors.grey[600],
-                                fontSize: 16,
-                              ),
-                              border: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              focusedBorder: InputBorder.none,
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 12,
-                              ),
-                            ),
-                            style: TextStyle(
-                              fontSize: 16,
-                              color:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? Colors.white
-                                  : Colors.black,
-                            ),
-                            maxLines: 5,
-                            minLines: 1,
-                            textCapitalization: TextCapitalization.sentences,
-                            keyboardType: TextInputType.multiline,
-                            textInputAction: TextInputAction.newline,
-                            onChanged: (value) {
-                              setState(() {
-                                _isComposing = value.trim().isNotEmpty;
-                              });
-                              _handleTextChanged(value);
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Camera button - hidden when composing
-                if (!_isComposing)
-                  IconButton(
-                    onPressed: _capturePhotoWithCamera,
-                    icon: Icon(
-                      Icons.camera_alt,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.grey[400]
-                          : Colors.grey[600],
-                    ),
-                    iconSize: 28,
-                  ),
-
-                // Send button or audio recording widget
-                if (_isComposing)
-                  IconButton(
-                    onPressed: _sendMessage,
-                    icon: Icon(Icons.send, color: Color(0xFF003f9b)),
-                    iconSize: 28,
-                  )
-                else
-                  AudioRecordingWidget(
-                    key: _audioRecordingKey,
-                    onAudioRecorded: _sendAudioMessage,
-                    isComposing: _isComposing,
-                    onRecordingStateChanged: () {
-                      setState(() {
-                        // This will trigger a rebuild with the new recording state
-                      });
-                    },
-                  ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   String _formatFileSize(int bytes) {
     if (bytes < 1024) return '${bytes}B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)}KB';
@@ -2819,7 +2694,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
               },
             ),
             // Only show pin option if user has permission
-            if (_canPinMessages())
+            if (_cachedCanPinMessages ?? false)
               _buildOptionTile(
                 icon: _isCurrentlyPinned(message)
                     ? Icons.push_pin
@@ -3178,27 +3053,44 @@ class ClubChatScreenState extends State<ClubChatScreen>
   }
 
   // Helper method to check if current user can pin messages
-  bool _canPinMessages() {
+  Future<bool> _canPinMessages() async {
     if (_detailedClubInfo == null) return false;
 
     final userProvider = context.read<UserProvider>();
     final user = userProvider.user;
     if (user == null) return false;
 
-    // Check if user's role is in the allowed pin permissions
-    // We need to get the user's role in this club from their messages
-    // For now, we can check if they're OWNER or ADMIN based on pinMessagePermissions
+    // Get the allowed roles for pinning messages from club settings
     final allowedRoles = _detailedClubInfo!.pinMessagePermissions;
 
-    // Get user's role from their own messages in the conversation
-    final userMessages = _messages.where((m) => m.senderId == user.id).toList();
-    if (userMessages.isNotEmpty) {
-      final userRole = userMessages.first.senderRole ?? 'MEMBER';
-      return allowedRoles.contains(userRole);
+    // Use the new UserProvider method to check if user has any of the allowed roles
+    try {
+      return await userProvider.hasRoleInClub(widget.club.id, allowedRoles);
+    } catch (e) {
+      print('Error checking pin permissions: $e');
+      // Fallback to the old method if UserProvider fails
+      final userMessages = _messages
+          .where((m) => m.senderId == user.id)
+          .toList();
+      if (userMessages.isNotEmpty) {
+        final userRole = userMessages.first.senderRole ?? 'MEMBER';
+        return allowedRoles.contains(userRole);
+      }
+      return allowedRoles.contains('MEMBER');
     }
+  }
 
-    // Default to MEMBER role if no messages found
-    return allowedRoles.contains('MEMBER');
+  // Update cached permissions
+  Future<void> _updatePermissions() async {
+    final canPin = await _canPinMessages();
+    final canShareUPI = await _checkCanShareUPIQR();
+
+    if (mounted) {
+      setState(() {
+        _cachedCanPinMessages = canPin;
+        _cachedCanShareUPIQR = canShareUPI;
+      });
+    }
   }
 
   // Helper method to check if two timestamps are on the same date
