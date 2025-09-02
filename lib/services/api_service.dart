@@ -1,6 +1,10 @@
 // lib/services/api_service.dart
 import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
@@ -35,7 +39,7 @@ class ApiService {
   };
 
   static Future<Map<String, dynamic>> get(String endpoint) async {
-    print('🔵 Making GET request to: $baseUrl$endpoint');
+    debugPrint('🔵 Making GET request to: $baseUrl$endpoint');
     final response = await http.get(
       Uri.parse('$baseUrl$endpoint'),
       headers: headers,
@@ -116,11 +120,11 @@ class ApiService {
         }
         return decoded as Map<String, dynamic>;
       } catch (e) {
-        print('❌ Error decoding JSON: $e');
+        debugPrint('❌ Error decoding JSON: $e');
         throw Exception('Invalid JSON response: ${response.body}');
       }
     } else {
-      print('❌ Error Response Body: ${response.body}');
+      debugPrint('❌ Error Response Body: ${response.body}');
 
       try {
         final error = json.decode(response.body);
@@ -128,12 +132,88 @@ class ApiService {
             error['error'] ??
             error['message'] ??
             'API Error (${response.statusCode})';
-        print('❌ Parsed error: $errorMessage');
+        debugPrint('❌ Parsed error: $errorMessage');
         throw Exception(errorMessage);
       } catch (e) {
-        print('❌ Error parsing error response: $e');
+        debugPrint('❌ Error parsing error response: $e');
         throw Exception('API Error (${response.statusCode}): ${response.body}');
       }
+    }
+  }
+
+  /// Upload a file and return the URL
+  static Future<String?> uploadFile(PlatformFile file) async {
+    try {
+      // Get original file bytes
+      final bytes = file.bytes ?? await File(file.path!).readAsBytes();
+
+      var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/upload'));
+
+      request.headers.addAll(fileHeaders);
+
+      // Determine content type based on file extension
+      String? contentType;
+      final extension = file.extension?.toLowerCase();
+      switch (extension) {
+        case 'jpg':
+        case 'jpeg':
+          contentType = 'image/jpeg';
+          break;
+        case 'png':
+          contentType = 'image/png';
+          break;
+        case 'webp':
+          contentType = 'image/webp';
+          break;
+        case 'pdf':
+          contentType = 'application/pdf';
+          break;
+        case 'txt':
+          contentType = 'text/plain';
+          break;
+        case 'm4a':
+          contentType = 'audio/mp4';
+          break;
+        case 'mp4':
+          contentType = 'video/mp4';
+          break;
+        case 'mp3':
+          contentType = 'audio/mpeg';
+          break;
+        case 'wav':
+          contentType = 'audio/wav';
+          break;
+        case 'aac':
+          contentType = 'audio/aac';
+          break;
+        default:
+          contentType = 'application/octet-stream';
+      }
+
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'file',
+          bytes,
+          filename: file.name,
+          contentType: MediaType.parse(contentType),
+        ),
+      );
+
+      final response = await request.send();
+      final responseData = await response.stream.bytesToString();
+
+      if (response.statusCode == 200) {
+        final jsonResponse = json.decode(responseData);
+        if (jsonResponse['success'] == true && jsonResponse['url'] != null) {
+          return jsonResponse['url'];
+        }
+      }
+
+      debugPrint('❌ File upload failed: $responseData');
+      return null;
+    } catch (e) {
+      debugPrint('❌ Error uploading file: $e');
+      return null;
     }
   }
 }

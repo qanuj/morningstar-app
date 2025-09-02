@@ -2,14 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'dart:async';
-import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart';
-import 'dart:convert';
+import 'dart:typed_data';
 import '../../providers/user_provider.dart';
 import '../../models/club.dart';
 import '../../models/club_message.dart';
@@ -22,6 +19,7 @@ import '../../models/message_reply.dart';
 import '../../models/starred_info.dart';
 import '../../models/message_audio.dart';
 import '../../services/api_service.dart';
+import '../../services/chat_api_service.dart';
 import '../../services/message_storage_service.dart';
 import '../../services/media_storage_service.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -32,6 +30,7 @@ import '../../widgets/image_gallery_screen.dart';
 import '../../widgets/audio_recording_widget.dart';
 import '../../widgets/pinned_messages_section.dart';
 import '../../widgets/message_bubbles/self_sending_message_bubble.dart';
+import '../../widgets/message_visibility_detector.dart';
 
 class ClubChatScreen extends StatefulWidget {
   final Club club;
@@ -121,11 +120,11 @@ class _ClubChatScreenState extends State<ClubChatScreen>
         _seenMessages.addAll(readIds);
       });
 
-      print(
+      debugPrint(
         '📱 Loaded ${deliveredIds.length} delivered and ${readIds.length} read message flags',
       );
     } catch (e) {
-      print('❌ Error loading persistent status flags: $e');
+      debugPrint('❌ Error loading persistent status flags: $e');
     }
   }
 
@@ -152,7 +151,7 @@ class _ClubChatScreenState extends State<ClubChatScreen>
       _refreshAnimationController.repeat();
 
       // Always load from local storage first for offline-first experience
-      print('📱 Loading messages from local storage...');
+      debugPrint('📱 Loading messages from local storage...');
       final cachedMessages = await MessageStorageService.loadMessages(
         widget.club.id,
       );
@@ -167,11 +166,6 @@ class _ClubChatScreenState extends State<ClubChatScreen>
         _refreshAnimationController.stop();
         _refreshAnimationController.reset();
 
-        // Sort by creation time (oldest first for chat display)
-        _messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-
-        print('✅ Loaded ${cachedMessages.length} messages from local storage');
-
         // Mark new messages as delivered if not already in cache
         _markNewMessagesAsDelivered();
 
@@ -182,18 +176,14 @@ class _ClubChatScreenState extends State<ClubChatScreen>
         if (forceSync ||
             (!isOfflineMode &&
                 await MessageStorageService.needsSync(widget.club.id))) {
-          print('📡 Syncing with server...');
           _syncMessagesFromServer(forceSync: forceSync);
-        } else {
-          print('📱 Working in offline mode or data is current');
         }
       } else {
         // No local data available, must sync with server
-        print('📭 No local messages found, syncing with server...');
         await _syncMessagesFromServer(forceSync: true);
       }
     } catch (e) {
-      print('❌ Error loading messages: $e');
+      debugPrint('❌ Error loading messages: $e');
       _error = 'Unable to load messages. Please check your connection.';
       setState(() => _isLoading = false);
 
@@ -277,12 +267,12 @@ class _ClubChatScreenState extends State<ClubChatScreen>
           debugPrint(
             '🔵 Making POST request to: https://duggy.app/api/conversations/${widget.club.id}/messages/${message.id}/delivered',
           );
-          final response = await ApiService.post(
-            '/conversations/${widget.club.id}/messages/${message.id}/delivered',
-            {},
+          final success = await ChatApiService.markAsDelivered(
+            widget.club.id,
+            message.id,
           );
 
-          if (response['success'] == true) {
+          if (success) {
             // Mark in both memory and persistent storage immediately
             _deliveredMessages.add(message.id);
             await MessageStorageService.markAsDelivered(
@@ -400,12 +390,12 @@ class _ClubChatScreenState extends State<ClubChatScreen>
     }
 
     try {
-      final response = await ApiService.post(
-        '/conversations/${widget.club.id}/messages/${message.id}/read',
-        {},
+      final success = await ChatApiService.markAsRead(
+        widget.club.id,
+        message.id,
       );
 
-      if (response['success'] == true) {
+      if (success) {
         // Mark in both memory and persistent storage
         _seenMessages.add(messageId);
         await MessageStorageService.markAsRead(widget.club.id, messageId);
@@ -478,12 +468,12 @@ class _ClubChatScreenState extends State<ClubChatScreen>
     try {
       debugPrint('📡 Marking message ${message.id} as delivered...');
 
-      final response = await ApiService.post(
-        '/conversations/${widget.club.id}/messages/${message.id}/delivered',
-        {},
+      final success = await ChatApiService.markAsDelivered(
+        widget.club.id,
+        message.id,
       );
 
-      if (response['success'] == true) {
+      if (success) {
         // Update local state with current timestamp
         final now = DateTime.now();
 
@@ -530,7 +520,7 @@ class _ClubChatScreenState extends State<ClubChatScreen>
 
     // 1. Remove deleted messages
     if (deletedMessageIds.isNotEmpty) {
-      print('🗑️ Removing ${deletedMessageIds.length} deleted messages');
+      debugPrint('🗑️ Removing ${deletedMessageIds.length} deleted messages');
       updatedMessagesList.removeWhere(
         (msg) => deletedMessageIds.contains(msg.id),
       );
@@ -539,7 +529,7 @@ class _ClubChatScreenState extends State<ClubChatScreen>
 
     // 2. Update existing messages
     if (updatedMessages.isNotEmpty) {
-      print('📝 Updating ${updatedMessages.length} existing messages');
+      debugPrint('📝 Updating ${updatedMessages.length} existing messages');
       for (final updatedMsg in updatedMessages) {
         final index = updatedMessagesList.indexWhere(
           (msg) => msg.id == updatedMsg.id,
@@ -558,7 +548,7 @@ class _ClubChatScreenState extends State<ClubChatScreen>
 
     // 3. Add new messages
     if (newMessages.isNotEmpty) {
-      print('➕ Adding ${newMessages.length} new messages');
+      debugPrint('➕ Adding ${newMessages.length} new messages');
       updatedMessagesList.addAll(newMessages);
       hasChanges = true;
       // Highlight new messages temporarily
@@ -585,7 +575,7 @@ class _ClubChatScreenState extends State<ClubChatScreen>
       //   _scrollToBottom();
       // }
 
-      print('✅ Applied incremental changes successfully');
+      debugPrint('✅ Applied incremental changes successfully');
 
       // Mark new messages as delivered after sync
       if (newMessages.isNotEmpty) {
@@ -600,42 +590,13 @@ class _ClubChatScreenState extends State<ClubChatScreen>
     }
   }
 
-  /// Highlight a message temporarily to show it's new/updated
-  void _highlightMessage(String messageId) {
-    setState(() => _highlightedMessageId = messageId);
-
-    // Remove highlight after 2 seconds
-    _highlightTimer?.cancel();
-    _highlightTimer = Timer(Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() => _highlightedMessageId = null);
-      }
-    });
-  }
-
-  /// Scroll to bottom of message list
-  void _scrollToBottom() {
-    if (_scrollController.hasClients) {
-      Future.delayed(Duration(milliseconds: 100), () {
-        if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent,
-            duration: Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
-        }
-      });
-    }
-  }
-
   Future<void> _syncMessagesFromServer({bool forceSync = false}) async {
     try {
-      print('🔄 Syncing messages from server...');
-      final response = await ApiService.get(
-        '/conversations/${widget.club.id}/messages',
-      );
+      debugPrint('🔄 Syncing messages from server...');
+      final response = await ChatApiService.getMessages(widget.club.id);
 
-      if (response['success'] == true || response['messages'] != null) {
+      if (response != null &&
+          (response['success'] == true || response['messages'] != null)) {
         final List<dynamic> messageData = response['messages'] ?? [];
         final serverMessages = messageData
             .map((json) => ClubMessage.fromJson(json as Map<String, dynamic>))
@@ -678,7 +639,7 @@ class _ClubChatScreenState extends State<ClubChatScreen>
         );
 
         // Parse detailed club info from API response
-        if (response['club'] != null) {
+        if (response != null && response['club'] != null) {
           _detailedClubInfo = DetailedClubInfo.fromJson(
             response['club'] as Map<String, dynamic>,
           );
@@ -693,13 +654,13 @@ class _ClubChatScreenState extends State<ClubChatScreen>
         // Mark messages as delivered/read using existing methods
         _markReceivedMessagesAsDelivered();
 
-        print('✅ Sync completed successfully');
+        debugPrint('✅ Sync completed successfully');
       } else {
-        _error = response['message'] ?? 'Failed to load messages';
+        _error = response?['message'] ?? 'Failed to load messages';
         setState(() {});
       }
     } catch (e) {
-      print('❌ Error syncing messages from server: $e');
+      debugPrint('❌ Error syncing messages from server: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -1002,7 +963,7 @@ class _ClubChatScreenState extends State<ClubChatScreen>
   void _handleMessageFailed(String messageId) {
     // Message failure is handled by the SelfSendingMessageBubble internally
     // This callback can be used for additional UI feedback if needed
-    print('❌ Message failed: $messageId');
+    debugPrint('❌ Message failed: $messageId');
   }
 
   void _handleTextChanged(String value) {
@@ -1062,9 +1023,9 @@ class _ClubChatScreenState extends State<ClubChatScreen>
   Future<void> _sendImageFromUrl(String imageUrl, String caption) async {
     try {
       // Download the image first
-      final response = await http.get(Uri.parse(imageUrl));
-      if (response.statusCode != 200) {
-        return;
+      final imageBytes = await ChatApiService.fetchImageFromUrl(imageUrl);
+      if (imageBytes == null) {
+        throw Exception('Failed to download image from URL');
       }
 
       // Create a temporary file
@@ -1075,14 +1036,14 @@ class _ClubChatScreenState extends State<ClubChatScreen>
           .split('?')
           .first; // Remove query params
       final tempFile = File('${tempDir.path}/$fileName');
-      await tempFile.writeAsBytes(response.bodyBytes);
+      await tempFile.writeAsBytes(imageBytes);
 
       // Create PlatformFile for upload
       final platformFile = PlatformFile(
         name: fileName,
-        size: response.bodyBytes.length,
+        size: imageBytes.length,
         path: tempFile.path,
-        bytes: response.bodyBytes,
+        bytes: Uint8List.fromList(imageBytes),
       );
 
       // Use existing upload function
@@ -1184,38 +1145,34 @@ class _ClubChatScreenState extends State<ClubChatScreen>
         'content': {
           'type': 'audio',
           'url': uploadedUrl,
-          'duration': 0, // TODO: Calculate actual audio duration
+          'duration': 0,
           'size': _formatFileSize(fileSize),
         },
       };
 
       debugPrint('📤 Sending message data: $messageData');
-      final response = await ApiService.post(
-        '/conversations/${widget.club.id}/messages',
+      final response = await ChatApiService.sendMessageWithDocuments(
+        widget.club.id,
         messageData,
       );
 
       debugPrint('📥 API Response: $response');
-      if (response != null && response is Map<String, dynamic>) {
-        debugPrint('✅ Audio message sent successfully');
-        // The response is the message object directly, not wrapped in success
-        final newMessage = ClubMessage.fromJson(response);
-        await MessageStorageService.addMessage(widget.club.id, newMessage);
+      debugPrint('✅ Audio message sent successfully');
+      // The response is the message object directly, not wrapped in success
+      final newMessage = ClubMessage.fromJson(response!);
+      await MessageStorageService.addMessage(widget.club.id, newMessage);
 
-        // Update UI
-        setState(() {
-          // Remove temp message and add real message
-          _messages.removeWhere((m) => m.id == tempMessageId);
-          _messages.add(newMessage);
-          _messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-        });
+      // Update UI
+      setState(() {
+        // Remove temp message and add real message
+        _messages.removeWhere((m) => m.id == tempMessageId);
+        _messages.add(newMessage);
+        _messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      });
 
-        // Clean up local file
-        if (await audioFile.exists()) {
-          await audioFile.delete();
-        }
-      } else {
-        throw Exception('Unexpected response format');
+      // Clean up local file
+      if (await audioFile.exists()) {
+        await audioFile.delete();
       }
     } catch (e) {
       debugPrint('❌ Error sending audio message: $e');
@@ -1343,10 +1300,7 @@ class _ClubChatScreenState extends State<ClubChatScreen>
       });
 
       // Make API call in background using stored IDs
-      await ApiService.delete(
-        '/conversations/${widget.club.id}/messages/delete',
-        messageIdsToDelete,
-      );
+      await ChatApiService.deleteMessages(widget.club.id, messageIdsToDelete);
 
       if (mounted) {
         // Message deletion successful
@@ -1390,10 +1344,7 @@ class _ClubChatScreenState extends State<ClubChatScreen>
     );
 
     try {
-      await ApiService.post(
-        '/conversations/${widget.club.id}/messages/$messageId/reactions',
-        reaction.toJson(),
-      );
+      await ChatApiService.addReaction(widget.club.id, messageId, reaction);
 
       // Update local message with the reaction
       setState(() {
@@ -1420,7 +1371,7 @@ class _ClubChatScreenState extends State<ClubChatScreen>
 
       _hideReactionPicker();
     } catch (e) {
-      print('Error adding reaction: $e');
+      debugPrint('Error adding reaction: $e');
       // Error adding reaction
     }
   }
@@ -1680,11 +1631,12 @@ class _ClubChatScreenState extends State<ClubChatScreen>
 
                   return Container(
                     key: ValueKey('message_${message.id}'),
-                    child: _MessageVisibilityDetector(
-                      messageId: message.id,
-                      message: message,
+                    child: MessageVisibilityDetector(
+                      itemId: message.id,
                       onVisible: _markMessageAsSeen,
-                      currentUserId: context.read<UserProvider>().user?.id,
+                      skipTracking:
+                          message.senderId ==
+                          context.read<UserProvider>().user?.id,
                       child: _buildMessageBubble(
                         message,
                         showSenderInfo,
@@ -2659,7 +2611,7 @@ class _ClubChatScreenState extends State<ClubChatScreen>
         });
       }
     } catch (e) {
-      print('Error uploading images: $e');
+      debugPrint('Error uploading images: $e');
       // Mark as failed
       setState(() {
         final messageIndex = _messages.indexWhere((m) => m.id == tempMessageId);
@@ -2702,13 +2654,13 @@ class _ClubChatScreenState extends State<ClubChatScreen>
 
       final requestData = {'senderId': user.id, 'content': contentMap};
 
-      final response = await ApiService.post(
-        '/conversations/${widget.club.id}/messages',
+      final response = await ChatApiService.sendMessageWithMedia(
+        widget.club.id,
         requestData,
       );
 
-      print('✅ Message with media sent successfully');
-      print('📡 Server response: $response');
+      debugPrint('✅ Message with media sent successfully');
+      debugPrint('📡 Server response: $response');
 
       // Remove temporary message and reload all messages to get the server version
       setState(() {
@@ -2716,7 +2668,7 @@ class _ClubChatScreenState extends State<ClubChatScreen>
       });
 
       // Add new message to local storage
-      final newMessage = ClubMessage.fromJson(response);
+      final newMessage = ClubMessage.fromJson(response!);
       await MessageStorageService.addMessage(widget.club.id, newMessage);
 
       // Update UI
@@ -2727,7 +2679,7 @@ class _ClubChatScreenState extends State<ClubChatScreen>
         _messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
       });
     } catch (e) {
-      print('❌ Error sending message with media: $e');
+      debugPrint('❌ Error sending message with media: $e');
       setState(() {
         final messageIndex = _messages.indexWhere((m) => m.id == tempMessageId);
         if (messageIndex != -1) {
@@ -2748,8 +2700,8 @@ class _ClubChatScreenState extends State<ClubChatScreen>
     if (user == null) return;
 
     try {
-      final response = await ApiService.post(
-        '/conversations/${widget.club.id}/messages',
+      final response = await ChatApiService.sendMessageWithDocuments(
+        widget.club.id,
         {
           'senderId': user.id,
           'content': {
@@ -2761,15 +2713,15 @@ class _ClubChatScreenState extends State<ClubChatScreen>
         },
       );
 
-      final newMessage = ClubMessage.fromJson(response);
+      final newMessage = ClubMessage.fromJson(response!);
 
       setState(() {
         _messages.insert(0, newMessage);
       });
 
-      print('✅ Message with documents sent successfully');
+      debugPrint('✅ Message with documents sent successfully');
     } catch (e) {
-      print('❌ Error sending message with documents: $e');
+      debugPrint('❌ Error sending message with documents: $e');
       // Error sending documents
     }
   }
@@ -2802,709 +2754,8 @@ class _ClubChatScreenState extends State<ClubChatScreen>
     }
   }
 
-  Future<LinkMetadata?> _fetchLinkMetadata(String url) async {
-    try {
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        final html = response.body;
-
-        // Extract metadata using RegExp
-        String? title = _extractMetaContent(
-          html,
-          r'<title[^>]*>([^<]+)</title>',
-        );
-        title ??= _extractMetaContent(
-          html,
-          r'<meta[^>]*property=["\047]og:title["\047][^>]*content=["\047]([^"\047>]*)["\047][^>]*>',
-        );
-
-        String? description = _extractMetaContent(
-          html,
-          r'<meta[^>]*name=["\047]description["\047][^>]*content=["\047]([^"\047>]*)["\047][^>]*>',
-        );
-        description ??= _extractMetaContent(
-          html,
-          r'<meta[^>]*property=["\047]og:description["\047][^>]*content=["\047]([^"\047>]*)["\047][^>]*>',
-        );
-
-        String? image = _extractMetaContent(
-          html,
-          r'<meta[^>]*property=["\047]og:image["\047][^>]*content=["\047]([^"\047>]*)["\047][^>]*>',
-        );
-
-        String? siteName = _extractMetaContent(
-          html,
-          r'<meta[^>]*property=["\047]og:site_name["\047][^>]*content=["\047]([^"\047>]*)["\047][^>]*>',
-        );
-
-        // Get favicon
-        String? favicon = _extractMetaContent(
-          html,
-          r'<link[^>]*rel=["\047](?:icon|shortcut icon)["\047][^>]*href=["\047]([^"\047>]*)["\047][^>]*>',
-        );
-        if (favicon != null && !favicon.startsWith('http')) {
-          final uri = Uri.parse(url);
-          favicon =
-              '${uri.scheme}://${uri.host}${favicon.startsWith('/') ? '' : '/'}$favicon';
-        }
-
-        return LinkMetadata(
-          url: url,
-          title: title,
-          description: description,
-          image: image,
-          siteName: siteName,
-          favicon: favicon,
-        );
-      }
-    } catch (e) {
-      print('Error fetching metadata for $url: $e');
-    }
-    return null;
-  }
-
-  String? _extractMetaContent(String html, String pattern) {
-    final regex = RegExp(pattern, caseSensitive: false);
-    final match = regex.firstMatch(html);
-    return match?.group(1)?.trim();
-  }
-
-  Future<List<int>?> _compressImage(PlatformFile file) async {
-    try {
-      // Check if file is an image
-      final extension = file.extension?.toLowerCase();
-      if (extension == null ||
-          !['jpg', 'jpeg', 'png', 'webp'].contains(extension)) {
-        // Not an image, return original bytes
-        return file.bytes ?? await File(file.path!).readAsBytes();
-      }
-
-      final originalSize = file.size ?? 0;
-      print(
-        '🗜️ Attempting to compress image: ${file.name} (${(originalSize / (1024 * 1024)).toStringAsFixed(2)} MB)',
-      );
-
-      // If file is already small (< 1MB), don't compress
-      if (originalSize < 1024 * 1024) {
-        print('📷 Image is small enough, skipping compression');
-        return file.bytes ?? await File(file.path!).readAsBytes();
-      }
-
-      List<int>? result;
-
-      try {
-        if (file.bytes != null) {
-          // Compress from bytes (web)
-          result = await FlutterImageCompress.compressWithList(
-            file.bytes!,
-            minHeight: 1920, // Max height 1920px
-            minWidth: 1920, // Max width 1920px
-            quality: 70, // 70% quality
-            format: CompressFormat.jpeg,
-          );
-        } else if (file.path != null) {
-          // Compress from file path (mobile)
-          result = await FlutterImageCompress.compressWithFile(
-            file.path!,
-            minHeight: 1920, // Max height 1920px
-            minWidth: 1920, // Max width 1920px
-            quality: 70, // 70% quality
-            format: CompressFormat.jpeg,
-          );
-        }
-      } catch (compressionError) {
-        print('⚠️ Compression library error: $compressionError');
-        result = null;
-      }
-
-      // If compression failed or returned null, use original
-      if (result == null || result.isEmpty) {
-        print('🔄 Compression failed, using original image');
-        result = (file.bytes ?? await File(file.path!).readAsBytes())
-            .cast<int>();
-      }
-
-      final finalSize = result.length;
-      if (finalSize < originalSize) {
-        final reductionPercent = ((1 - finalSize / originalSize) * 100)
-            .toStringAsFixed(1);
-        print(
-          '✅ Image compressed: ${file.name} (${(finalSize / (1024 * 1024)).toStringAsFixed(2)} MB) - $reductionPercent% reduction',
-        );
-      } else {
-        print(
-          '📷 Using original image: ${file.name} (${(finalSize / (1024 * 1024)).toStringAsFixed(2)} MB)',
-        );
-      }
-
-      return result;
-    } catch (e) {
-      print('❌ Image processing failed: $e');
-      // Return original bytes if everything fails
-      try {
-        return file.bytes ?? await File(file.path!).readAsBytes();
-      } catch (fallbackError) {
-        print('❌ Failed to read original file: $fallbackError');
-        return null;
-      }
-    }
-  }
-
   Future<String?> _uploadFile(PlatformFile file) async {
-    try {
-      // Compress image if it's an image file
-      final bytes = await _compressImage(file);
-      if (bytes == null) {
-        throw Exception('Failed to process file: ${file.name}');
-      }
-
-      var request = http.MultipartRequest(
-        'POST',
-        Uri.parse('${ApiService.baseUrl}/upload'),
-      );
-
-      request.headers.addAll(ApiService.fileHeaders);
-      // Determine content type based on file extension
-      String? contentType;
-      final extension = file.extension?.toLowerCase();
-      switch (extension) {
-        case 'jpg':
-        case 'jpeg':
-          contentType = 'image/jpeg';
-          break;
-        case 'png':
-          contentType = 'image/png';
-          break;
-        case 'webp':
-          contentType = 'image/webp';
-          break;
-        case 'pdf':
-          contentType = 'application/pdf';
-          break;
-        case 'txt':
-          contentType = 'text/plain';
-          break;
-        case 'm4a':
-          contentType = 'audio/mp4';
-          break;
-        case 'mp4':
-          contentType = 'video/mp4';
-          break;
-        case 'mp3':
-          contentType = 'audio/mpeg';
-          break;
-        case 'wav':
-          contentType = 'audio/wav';
-          break;
-        case 'aac':
-          contentType = 'audio/aac';
-          break;
-        default:
-          contentType = 'application/octet-stream';
-      }
-
-      // Debug: Print upload information
-      print('Uploading file: ${file.name}');
-      print('  Extension: $extension');
-      print('  Content Type: $contentType');
-      print('  File Size: ${file.size} bytes');
-
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'file',
-          bytes,
-          filename: file.name,
-          contentType: MediaType.parse(contentType),
-        ),
-      );
-
-      final response = await request.send();
-      final responseData = await response.stream.bytesToString();
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> result = json.decode(responseData);
-        return result['url'];
-      } else {
-        throw Exception('Upload failed: $responseData');
-      }
-    } catch (e) {
-      print('Upload error: $e');
-      return null;
-    }
-  }
-
-  Widget _buildImageWidget(MessageImage image, {double height = 200}) {
-    // Check if it's a local file path (during upload) or network URL
-    final isLocalFile =
-        image.url.startsWith('/') ||
-        image.url.startsWith('file://') ||
-        !image.url.startsWith('http');
-
-    if (isLocalFile && File(image.url).existsSync()) {
-      return Image.file(
-        File(image.url),
-        fit: BoxFit.cover,
-        height: height,
-        width: double.infinity,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            height: height,
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.grey[800]
-                : Colors.grey[300],
-            child: Center(
-              child: Icon(
-                Icons.broken_image,
-                size: height > 150 ? 48 : 24,
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white.withOpacity(0.5)
-                    : Colors.grey[600],
-              ),
-            ),
-          );
-        },
-      );
-    } else {
-      return Image.network(
-        image.url,
-        fit: BoxFit.cover,
-        height: height,
-        width: double.infinity,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            height: height,
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.grey[800]
-                : Colors.grey[300],
-            child: Center(
-              child: Icon(
-                Icons.broken_image,
-                size: height > 150 ? 48 : 24,
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white.withOpacity(0.5)
-                    : Colors.grey[600],
-              ),
-            ),
-          );
-        },
-      );
-    }
-  }
-
-  Widget _buildImageGallery(List<MessageImage> images) {
-    // Collect all captions to display below images
-    final allCaptions = images
-        .where((img) => img.caption != null && img.caption!.isNotEmpty)
-        .map((img) => img.caption!)
-        .toList();
-
-    // If only 1-2 images, show them without borders/background
-    if (images.length <= 2) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(height: 8),
-          ...images
-              .asMap()
-              .entries
-              .map(
-                (entry) => Padding(
-                  padding: EdgeInsets.only(bottom: 8),
-                  child: GestureDetector(
-                    onTap: () => _openImageGallery(images, entry.key),
-                    child: Hero(
-                      tag: 'image_${entry.value.url}',
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: _buildImageWidget(entry.value),
-                      ),
-                    ),
-                  ),
-                ),
-              )
-              .toList(),
-          // Show all captions below images
-          if (allCaptions.isNotEmpty) ...[
-            SizedBox(height: 4),
-            ...allCaptions.map(
-              (caption) => Padding(
-                padding: EdgeInsets.only(bottom: 4),
-                child: Text(
-                  caption,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.white.withOpacity(0.6)
-                        : Colors.grey[600],
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ],
-      );
-    }
-
-    // For 3+ images, show gallery grid with +n more
-    return Column(
-      children: [
-        SizedBox(height: 8),
-        Container(
-          height: 120,
-          child: Row(
-            children: [
-              // Show up to 4 images
-              for (int i = 0; i < (images.length > 4 ? 4 : images.length); i++)
-                Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.only(right: i < 3 ? 4 : 0),
-                    child: Stack(
-                      children: [
-                        Hero(
-                          tag: 'image_${images[i].url}',
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: _buildImageWidget(images[i], height: 120),
-                          ),
-                        ),
-                        // Show +n more on 4th image if there are more
-                        if (i == 3 && images.length > 4)
-                          Positioned.fill(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.6),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  '+${images.length - 4}',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        // Tap to view all images
-                        Positioned.fill(
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(8),
-                              onTap: () => _openImageGallery(images, i),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        // Show all captions below the grid
-        if (allCaptions.isNotEmpty) ...[
-          SizedBox(height: 8),
-          ...allCaptions.map(
-            (caption) => Padding(
-              padding: EdgeInsets.only(bottom: 4),
-              child: Text(
-                caption,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white.withOpacity(0.6)
-                      : Colors.grey[600],
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
-  void _openImageGallery(List<MessageImage> images, int initialIndex) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => ImageGalleryScreen(
-          messages: _messages,
-          initialImageIndex: initialIndex,
-          initialImageUrl: images[initialIndex].url,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDocumentList(List<MessageDocument> documents) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(height: 8),
-        ...documents
-            .map(
-              (doc) => Padding(
-                padding: EdgeInsets.only(bottom: 8),
-                child: Container(
-                  padding: EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.grey[800]
-                        : Colors.grey[100],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.grey[600]!
-                          : Colors.grey[300]!,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        doc.type == 'pdf'
-                            ? Icons.picture_as_pdf
-                            : Icons.description,
-                        color: doc.type == 'pdf' ? Colors.red : Colors.blue,
-                      ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              doc.filename,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w500,
-                                fontSize: 14,
-                              ),
-                            ),
-                            Row(
-                              children: [
-                                Text(
-                                  doc.type.toUpperCase(),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color:
-                                        Theme.of(context).brightness ==
-                                            Brightness.dark
-                                        ? Colors.white.withOpacity(0.6)
-                                        : Colors.grey[600],
-                                  ),
-                                ),
-                                if (doc.size != null) ...[
-                                  Text(
-                                    ' • ${doc.size}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color:
-                                          Theme.of(context).brightness ==
-                                              Brightness.dark
-                                          ? Colors.white.withOpacity(0.6)
-                                          : Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(
-                        Icons.download,
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.white.withOpacity(0.6)
-                            : Colors.grey[600],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            )
-            .toList(),
-      ],
-    );
-  }
-
-  Widget _buildLinkPreviews(List<LinkMetadata> linkMeta) {
-    return Column(
-      children: [
-        SizedBox(height: 8),
-        ...linkMeta
-            .map(
-              (link) => Padding(
-                padding: EdgeInsets.only(bottom: 8),
-                child: InkWell(
-                  onTap: () => _launchUrl(link.url),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.grey[700]!
-                            : Colors.grey[300]!,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Image preview if available
-                        if (link.image != null && link.image!.isNotEmpty)
-                          ClipRRect(
-                            borderRadius: BorderRadius.vertical(
-                              top: Radius.circular(12),
-                            ),
-                            child: Image.network(
-                              link.image!,
-                              width: double.infinity,
-                              height: 150,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return SizedBox.shrink(); // Hide if image fails to load
-                              },
-                            ),
-                          ),
-
-                        // Content
-                        Padding(
-                          padding: EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Title
-                              if (link.title != null && link.title!.isNotEmpty)
-                                Text(
-                                  link.title!,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color:
-                                        Theme.of(context).brightness ==
-                                            Brightness.dark
-                                        ? Colors.white.withOpacity(0.9)
-                                        : Colors.black.withOpacity(0.8),
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-
-                              // Description
-                              if (link.description != null &&
-                                  link.description!.isNotEmpty) ...[
-                                SizedBox(height: 4),
-                                Text(
-                                  link.description!,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color:
-                                        Theme.of(context).brightness ==
-                                            Brightness.dark
-                                        ? Colors.white.withOpacity(0.7)
-                                        : Colors.black.withOpacity(0.6),
-                                  ),
-                                  maxLines: 3,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-
-                              // Site info
-                              SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  // Favicon if available
-                                  if (link.favicon != null &&
-                                      link.favicon!.isNotEmpty) ...[
-                                    Image.network(
-                                      link.favicon!,
-                                      width: 16,
-                                      height: 16,
-                                      errorBuilder:
-                                          (context, error, stackTrace) {
-                                            return Icon(
-                                              Icons.language,
-                                              size: 16,
-                                              color:
-                                                  Theme.of(
-                                                        context,
-                                                      ).brightness ==
-                                                      Brightness.dark
-                                                  ? Colors.white.withOpacity(
-                                                      0.6,
-                                                    )
-                                                  : Colors.grey[600],
-                                            );
-                                          },
-                                    ),
-                                    SizedBox(width: 8),
-                                  ] else ...[
-                                    Icon(
-                                      Icons.language,
-                                      size: 16,
-                                      color:
-                                          Theme.of(context).brightness ==
-                                              Brightness.dark
-                                          ? Colors.white.withOpacity(0.6)
-                                          : Colors.grey[600],
-                                    ),
-                                    SizedBox(width: 8),
-                                  ],
-
-                                  Expanded(
-                                    child: Text(
-                                      link.siteName ?? Uri.parse(link.url).host,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color:
-                                            Theme.of(context).brightness ==
-                                                Brightness.dark
-                                            ? Colors.white.withOpacity(0.6)
-                                            : Colors.grey[600],
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-
-                                  Icon(
-                                    Icons.open_in_new,
-                                    size: 16,
-                                    color:
-                                        Theme.of(context).brightness ==
-                                            Brightness.dark
-                                        ? Colors.white.withOpacity(0.6)
-                                        : Colors.grey[600],
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            )
-            .toList(),
-      ],
-    );
-  }
-
-  void _launchUrl(String url) async {
-    try {
-      final Uri uri = Uri.parse(url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        // Could not launch URL
-      }
-    } catch (e) {
-      // Error opening link
-    }
+    return await ChatApiService.uploadFile(file);
   }
 
   Widget _buildReplyPreview() {
@@ -3734,26 +2985,6 @@ class _ClubChatScreenState extends State<ClubChatScreen>
     if (bytes < 1024) return '${bytes}B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)}KB';
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)}MB';
-  }
-
-  Widget _buildLoadingState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 16),
-          Text(
-            'Loading messages...',
-            style: TextStyle(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.white.withOpacity(0.7)
-                  : Colors.black.withOpacity(0.6),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _buildErrorState(String error) {
@@ -4065,8 +3296,9 @@ class _ClubChatScreenState extends State<ClubChatScreen>
     );
 
     try {
-      final response = await ApiService.get(
-        '/conversations/${widget.club.id}/messages/${message.id}/status',
+      final response = await ChatApiService.getMessageStatus(
+        widget.club.id,
+        message.id,
       );
 
       if (mounted) {
@@ -4081,7 +3313,8 @@ class _ClubChatScreenState extends State<ClubChatScreen>
               children: [
                 Text('Sent at: ${_formatDateTime(message.createdAt)}'),
                 SizedBox(height: 8),
-                if (response['deliveredTo'] != null &&
+                if (response != null &&
+                    response['deliveredTo'] != null &&
                     response['deliveredTo'].isNotEmpty) ...[
                   Text(
                     'Delivered to:',
@@ -4097,7 +3330,8 @@ class _ClubChatScreenState extends State<ClubChatScreen>
                       .toList(),
                   SizedBox(height: 8),
                 ],
-                if (response['readBy'] != null &&
+                if (response != null &&
+                    response['readBy'] != null &&
                     response['readBy'].isNotEmpty) ...[
                   Text(
                     'Read by:',
@@ -4152,9 +3386,10 @@ class _ClubChatScreenState extends State<ClubChatScreen>
   void _toggleStar(ClubMessage message) async {
     try {
       final endpoint = message.starred.isStarred ? '/unstar' : '/star';
-      await ApiService.post(
-        '/conversations/${widget.club.id}/messages/${message.id}$endpoint',
-        {},
+      await ChatApiService.updateMessageStatus(
+        widget.club.id,
+        message.id,
+        endpoint,
       );
 
       setState(() {
@@ -4292,10 +3527,7 @@ class _ClubChatScreenState extends State<ClubChatScreen>
   Future<void> _pinMessageWithDuration(ClubMessage message, int hours) async {
     try {
       final requestData = {'durationHours': hours};
-      await ApiService.post(
-        '/conversations/${widget.club.id}/messages/${message.id}/pin',
-        requestData,
-      );
+      await ChatApiService.pinMessage(widget.club.id, message.id, requestData);
       // Sync from server to get authoritative pinned status for all users
       await _syncMessagesFromServer(forceSync: false);
     } catch (e) {
@@ -4305,9 +3537,7 @@ class _ClubChatScreenState extends State<ClubChatScreen>
 
   Future<void> _unpinMessage(ClubMessage message) async {
     try {
-      await ApiService.delete(
-        '/conversations/${widget.club.id}/messages/${message.id}/pin',
-      );
+      await ChatApiService.unpinMessage(widget.club.id, message.id);
 
       // Sync from server to get authoritative pinned status for all users
       await _syncMessagesFromServer(forceSync: false);
@@ -4320,7 +3550,7 @@ class _ClubChatScreenState extends State<ClubChatScreen>
   int _currentPollingInterval = 30; // Start with 30 seconds
   bool _isMarkingDelivered =
       false; // Lock to prevent concurrent delivery marking
-  Set<String> _processingDelivery =
+  final Set<String> _processingDelivery =
       <String>{}; // Track messages currently being marked as delivered
 
   // Helper method to check if a message belongs to the current user
@@ -4459,107 +3689,5 @@ class _ClubChatScreenState extends State<ClubChatScreen>
       duration: Duration(milliseconds: 500),
       curve: Curves.easeInOut,
     );
-  }
-}
-
-// Custom visibility detector widget for message seen status
-class _MessageVisibilityDetector extends StatefulWidget {
-  final String messageId;
-  final ClubMessage message;
-  final Function(String) onVisible;
-  final String? currentUserId;
-  final Widget child;
-
-  const _MessageVisibilityDetector({
-    Key? key,
-    required this.messageId,
-    required this.message,
-    required this.onVisible,
-    required this.currentUserId,
-    required this.child,
-  }) : super(key: key);
-
-  @override
-  _MessageVisibilityDetectorState createState() =>
-      _MessageVisibilityDetectorState();
-}
-
-class _MessageVisibilityDetectorState
-    extends State<_MessageVisibilityDetector> {
-  bool _hasBeenSeen = false;
-
-  @override
-  void initState() {
-    super.initState();
-    // Check visibility after the widget is built
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkVisibility();
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // Don't track visibility for own messages
-    if (widget.message.senderId == widget.currentUserId) {
-      return widget.child;
-    }
-
-    return NotificationListener<ScrollNotification>(
-      onNotification: (notification) {
-        if (!_hasBeenSeen) {
-          // Check visibility on any scroll notification, not just updates
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _checkVisibility();
-          });
-        }
-        return false;
-      },
-      child: widget.child,
-    );
-  }
-
-  void _checkVisibility() {
-    if (_hasBeenSeen || !mounted) return;
-
-    final renderBox = context.findRenderObject() as RenderBox?;
-    if (renderBox == null) {
-      debugPrint('👁️ No render box for message ${widget.messageId}');
-      return;
-    }
-
-    try {
-      final position = renderBox.localToGlobal(Offset.zero);
-      final size = renderBox.size;
-
-      final screenHeight = MediaQuery.of(context).size.height;
-      final topSafeArea = MediaQuery.of(context).padding.top;
-      final bottomSafeArea = MediaQuery.of(context).padding.bottom;
-
-      // Calculate visible screen area (excluding status bar and navigation)
-      final visibleTop = topSafeArea + 100; // Account for app bar
-      final visibleBottom =
-          screenHeight - bottomSafeArea - 150; // Account for input area
-
-      // Check if message is visible in the viewport
-      final messageTop = position.dy;
-      final messageBottom = position.dy + size.height;
-
-      // Message is considered "seen" if at least 50% of it is visible
-      final visibleHeight =
-          (messageBottom.clamp(visibleTop, visibleBottom) -
-          messageTop.clamp(visibleTop, visibleBottom));
-      final visibilityRatio = visibleHeight / size.height;
-
-      //debugPrint('👁️ Message ${widget.messageId}: top=$messageTop, bottom=$messageBottom, visibleTop=$visibleTop, visibleBottom=$visibleBottom, ratio=$visibilityRatio');
-
-      if (visibilityRatio >= 0.5) {
-        //debugPrint('✅ Message ${widget.messageId} is visible! Marking as seen.');
-        _hasBeenSeen = true;
-        widget.onVisible(widget.messageId);
-      }
-    } catch (e) {
-      // Handle any errors in visibility calculation
-      debugPrint('❌ Error checking message visibility: $e');
-    }
   }
 }
