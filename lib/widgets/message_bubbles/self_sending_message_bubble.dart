@@ -9,6 +9,7 @@ import '../../models/message_audio.dart';
 import '../../services/api_service.dart';
 import '../../services/chat_api_service.dart';
 import '../../services/message_storage_service.dart';
+import '../../services/open_graph_service.dart';
 import 'message_bubble_factory.dart';
 
 /// A stateful message bubble that handles its own sending process
@@ -450,8 +451,29 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
           'duration': _uploadedAudio!.duration,
           'size': _uploadedAudio!.size?.toString(),
         };
+      } else if (messageType == 'link' && linkMeta.isNotEmpty) {
+        // Link message with special schema format
+        final firstLink = linkMeta.first;
+        contentMap = {
+          'type': 'link',
+          'url': firstLink.url,
+          'body': currentMessage.content.trim().isEmpty
+              ? ' '
+              : currentMessage.content,
+        };
+        
+        // Add optional fields only if they exist
+        if (firstLink.title != null && firstLink.title!.isNotEmpty) {
+          contentMap['title'] = firstLink.title;
+        }
+        if (firstLink.description != null && firstLink.description!.isNotEmpty) {
+          contentMap['description'] = firstLink.description;
+        }
+        if (firstLink.image != null && firstLink.image!.isNotEmpty) {
+          contentMap['images'] = [firstLink.image!]; // Array with one image
+        }
       } else {
-        // All other cases: text, emoji, link, and ALL images/videos (single or multiple)
+        // All other cases: text, emoji, and ALL images/videos (single or multiple)
         contentMap = {
           'type': messageType,
           'body': currentMessage.content.trim().isEmpty
@@ -606,13 +628,23 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
   }
 
   Future<LinkMetadata?> _fetchLinkMetadata(String url) async {
-    // Simplified link metadata fetching
-    // In a real implementation, you'd call a service to get link previews
     try {
-      // This should call your actual link preview service
-      return null; // Placeholder
+      final ogData = await OpenGraphService.fetchMetadata(url);
+      return LinkMetadata(
+        url: ogData.url,
+        title: ogData.title,
+        description: ogData.description,
+        image: ogData.image,
+        siteName: ogData.siteName,
+        favicon: ogData.favicon,
+      );
     } catch (e) {
-      return null;
+      debugPrint('Failed to fetch link metadata for $url: $e');
+      // Create basic link metadata if OG data fails
+      return LinkMetadata(
+        url: url,
+        title: url,
+      );
     }
   }
 

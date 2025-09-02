@@ -9,6 +9,8 @@ import '../models/message_status.dart';
 import '../models/message_document.dart';
 import '../models/starred_info.dart';
 import '../models/message_audio.dart';
+import '../models/link_metadata.dart';
+import '../services/open_graph_service.dart';
 
 /// A comprehensive self-contained message input widget for chat functionality
 /// Handles text input, file attachments, camera capture, and audio recording
@@ -47,11 +49,56 @@ class _MessageInputState extends State<MessageInput> {
     }
   }
 
-  void _sendTextMessage() {
+  void _sendTextMessage() async {
     final text = widget.messageController.text.trim();
     if (text.isEmpty) return;
 
-    // Create temp message
+    // Clear input immediately for better UX
+    widget.messageController.clear();
+    setState(() {
+      _isComposing = false;
+    });
+
+    // Detect links in the message
+    final urlRegex = RegExp(
+      r'https?://[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:/[^\s]*)?',
+      caseSensitive: false,
+    );
+    final matches = urlRegex.allMatches(text);
+    
+    String messageType = 'text';
+    List<LinkMetadata> linkMetadata = [];
+    
+    // If we found links, extract open graph data
+    if (matches.isNotEmpty) {
+      messageType = 'link';
+      
+      for (final match in matches) {
+        final url = match.group(0)!;
+        try {
+          // Extract open graph data in background
+          final ogData = await OpenGraphService.fetchMetadata(url);
+          final linkMeta = LinkMetadata(
+            url: ogData.url,
+            title: ogData.title,
+            description: ogData.description,
+            image: ogData.image,
+            siteName: ogData.siteName,
+            favicon: ogData.favicon,
+          );
+          linkMetadata.add(linkMeta);
+        } catch (e) {
+          debugPrint('Failed to fetch link metadata for $url: $e');
+          // Create basic link metadata if OG data fails
+          linkMetadata.add(LinkMetadata(
+            url: url,
+            title: url,
+          ));
+        }
+      }
+    }
+
+    // Create temp message with link metadata
     final tempMessage = ClubMessage(
       id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
       clubId: widget.clubId,
@@ -60,17 +107,13 @@ class _MessageInputState extends State<MessageInput> {
       senderProfilePicture: null,
       senderRole: 'MEMBER',
       content: text,
-      messageType: 'text',
+      messageType: messageType,
       createdAt: DateTime.now(),
       status: MessageStatus.sending,
       starred: StarredInfo(isStarred: false),
       pin: PinInfo(isPinned: false),
+      linkMeta: linkMetadata,
     );
-
-    widget.messageController.clear();
-    setState(() {
-      _isComposing = false;
-    });
 
     widget.onSendMessage(tempMessage);
   }

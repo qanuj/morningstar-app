@@ -212,12 +212,20 @@ class ClubMessage {
             break;
           case 'link':
             if (content['url'] != null) {
+              // Handle both old format (thumbnail) and new format (images array)
+              String? linkImage;
+              if (content['images'] is List && (content['images'] as List).isNotEmpty) {
+                linkImage = (content['images'] as List).first;
+              } else if (content['thumbnail'] != null) {
+                linkImage = content['thumbnail'];
+              }
+              
               linkMeta = [
                 LinkMetadata(
                   url: content['url'],
                   title: content['title'],
                   description: content['description'],
-                  image: content['thumbnail'],
+                  image: linkImage,
                 ),
               ];
             }
