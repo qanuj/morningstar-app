@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'dart:async';
 import '../../providers/user_provider.dart';
@@ -12,7 +11,6 @@ import '../../models/club_message.dart';
 import '../../models/message_status.dart';
 import '../../models/message_image.dart';
 import '../../models/message_document.dart';
-import '../../models/message_reaction.dart';
 import '../../models/message_reply.dart';
 import '../../models/starred_info.dart';
 import '../../models/message_audio.dart';
@@ -44,7 +42,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
   final ScrollController _scrollController = ScrollController();
   List<ClubMessage> _messages = [];
   bool _isLoading = true;
-  bool _isComposing = false;
+  // _isComposing removed - now handled internally by MessageInput
   String? _error;
   late AnimationController _refreshAnimationController;
   DetailedClubInfo? _detailedClubInfo;
@@ -892,8 +890,8 @@ class ClubChatScreenState extends State<ClubChatScreen>
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Clear All'),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text('Clear All'),
           ),
         ],
       ),
@@ -910,44 +908,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
         // Ignore clear data errors
       }
     }
-  }
-
-  Future<void> _sendMessage() async {
-    if (!_isComposing) return;
-
-    final content = _messageController.text.trim();
-    if (content.isEmpty) return;
-
-    final userProvider = context.read<UserProvider>();
-    final user = userProvider.user;
-    if (user == null) return;
-
-    // Generate temporary message ID
-    final tempMessageId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
-
-    // Create optimistic message (add immediately to list)
-    final optimisticMessage = ClubMessage(
-      id: tempMessageId,
-      clubId: widget.club.id,
-      senderId: user.id,
-      senderName: user.name,
-      senderProfilePicture: user.profilePicture,
-      senderRole: 'MEMBER', // Default role for current user
-      content: content,
-      createdAt: DateTime.now(),
-      status: MessageStatus.sending,
-      replyTo: _replyingTo,
-      starred: StarredInfo(isStarred: false),
-      pin: PinInfo(isPinned: false),
-    );
-
-    // Clear input and reply state, add message to list immediately
-    _messageController.clear();
-    setState(() {
-      _isComposing = false;
-      _insertMessageInOrder(optimisticMessage);
-      _replyingTo = null; // Clear reply after sending
-    });
   }
 
   /// Insert a message in the correct chronological position without sorting the entire list
@@ -1010,108 +970,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
 
     // Keep pending uploads for failed messages so they can be retried
     // They will be cleaned up when message is successfully sent or manually deleted
-  }
-
-  void _handleTextChanged(String value) {
-    // Check if the text contains an image URL (simple detection for paste events)
-    if (value.trim() != _lastTextValue?.trim()) {
-      final newText = value.trim();
-      if (_isImageUrl(newText) && newText.isNotEmpty) {
-        // Clear the text field and show image paste dialog
-        _messageController.clear();
-        setState(() {
-          _isComposing = false;
-        });
-        _showImagePasteDialog(newText);
-      }
-      _lastTextValue = value;
-    }
-  }
-
-  bool _isImageUrl(String url) {
-    if (url.isEmpty) return false;
-
-    // Check if it's a valid URL
-    try {
-      final uri = Uri.parse(url);
-      if (!uri.hasScheme || (!uri.scheme.startsWith('http'))) return false;
-
-      // Check common image extensions
-      final path = uri.path.toLowerCase();
-      final imageExtensions = [
-        '.jpg',
-        '.jpeg',
-        '.png',
-        '.gif',
-        '.webp',
-        '.bmp',
-        '.svg',
-      ];
-      return imageExtensions.any((ext) => path.endsWith(ext));
-    } catch (e) {
-      return false;
-    }
-  }
-
-  Future<void> _showImagePasteDialog(String imageUrl) async {
-    Navigator.of(context).push(
-      MaterialPageRoute<String>(
-        builder: (context) => ImageCaptionDialog(
-          imageUrl: imageUrl,
-          title: 'Send Image',
-          onSend: (caption, croppedPath) =>
-              _sendImageFromUrl(imageUrl, caption),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _sendImageFromUrl(String imageUrl, String caption) async {
-    try {
-      // Download the image first
-      final imageBytes = await ChatApiService.fetchImageFromUrl(imageUrl);
-      if (imageBytes == null) {
-        throw Exception('Failed to download image from URL');
-      }
-
-      // Create a temporary file
-      final tempDir = await getApplicationDocumentsDirectory();
-      final fileName = imageUrl
-          .split('/')
-          .last
-          .split('?')
-          .first; // Remove query params
-      final tempFile = File('${tempDir.path}/$fileName');
-      await tempFile.writeAsBytes(imageBytes);
-
-      // Create PlatformFile for upload
-      final platformFile = PlatformFile(
-        name: fileName,
-        size: imageBytes.length,
-        path: tempFile.path,
-        bytes: Uint8List.fromList(imageBytes),
-      );
-
-      // Use existing upload function
-      final uploadedUrl = await _uploadFile(platformFile);
-      if (uploadedUrl != null && caption.isNotEmpty) {
-        // Send a text message with caption
-        _messageController.text = caption;
-        setState(() {
-          _isComposing = true;
-        });
-        await _sendMessage();
-      }
-
-      // Clean up temp file
-      try {
-        await tempFile.delete();
-      } catch (e) {
-        // Ignore cleanup errors
-      }
-    } catch (e) {
-      // Failed to process image
-    }
   }
 
   Future<void> _sendAudioMessage(String audioPath) async {
@@ -1361,6 +1219,39 @@ class ClubChatScreenState extends State<ClubChatScreen>
     });
   }
 
+  void _handleNewMessage(ClubMessage tempMessage) {
+    final userProvider = context.read<UserProvider>();
+    final user = userProvider.user;
+    if (user == null) return;
+
+    // Fill in user information
+    final message = ClubMessage(
+      id: tempMessage.id,
+      clubId: tempMessage.clubId,
+      senderId: user.id,
+      senderName: user.name,
+      senderProfilePicture: user.profilePicture,
+      senderRole: tempMessage.senderRole,
+      content: tempMessage.content,
+      messageType: tempMessage.messageType,
+      createdAt: tempMessage.createdAt,
+      status: tempMessage.status,
+      starred: tempMessage.starred,
+      pin: tempMessage.pin,
+      documents: tempMessage.documents,
+      audio: tempMessage.audio,
+      replyTo: _replyingTo, // Add reply if replying
+    );
+
+    // Clear reply state
+    _cancelReply();
+
+    // Add to messages list optimistically
+    setState(() {
+      _messages.add(message);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1409,23 +1300,10 @@ class ClubChatScreenState extends State<ClubChatScreen>
             MessageInput(
               messageController: _messageController,
               textFieldFocusNode: _textFieldFocusNode,
-              isComposing: _isComposing,
+              clubId: widget.club.id,
               audioRecordingKey: _audioRecordingKey,
-              onSendMessage: _sendMessage,
-              onShowUploadOptions: _showUploadOptions,
-              onCapturePhoto: _capturePhotoWithCamera,
+              onSendMessage: _handleNewMessage,
               onSendAudioMessage: _sendAudioMessage,
-              onTextChanged: _handleTextChanged,
-              onComposingChanged: (isComposing) {
-                setState(() {
-                  _isComposing = isComposing;
-                });
-              },
-              onRecordingStateChanged: () {
-                setState(() {
-                  // This will trigger a rebuild with the new recording state
-                });
-              },
             ),
           ],
         ),
@@ -1521,8 +1399,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
                         slideOffset: _slideOffset,
                         onSlideUpdate: _handleSlideGesture,
                         onSlideEnd: _handleSlideEnd,
-                        // Message options now handled by bubbles
-                        // Error handling now in bubbles
                         onMessageUpdated: _handleMessageUpdated,
                         onMessageFailed: _handleMessageFailed,
                         isCurrentlyPinned: _isCurrentlyPinned,
@@ -1599,224 +1475,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
     return items;
   }
 
-  void _showUploadOptions() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Theme.of(context).brightness == Brightness.dark
-          ? Colors.grey[850]
-          : Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.6,
-        minChildSize: 0.4,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (context, scrollController) => Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.grey[850]
-                : Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-          ),
-          child: Column(
-            children: [
-              // Handle bar
-              Container(
-                width: 36,
-                height: 4,
-                margin: EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.grey[400],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-
-              // Scrollable content
-              Expanded(
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  padding: EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      // First row - Photos, Document, Location, Audio
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildGridOption(
-                            icon: Icons.photo_library,
-                            iconColor: Color(0xFF2196F3),
-                            title: 'Photos',
-                            onTap: () {
-                              Navigator.pop(context);
-                              _pickImages();
-                            },
-                          ),
-                          _buildGridOption(
-                            icon: Icons.description,
-                            iconColor: Color(0xFF2196F3),
-                            title: 'Document',
-                            onTap: () {
-                              Navigator.pop(context);
-                              _pickDocuments();
-                            },
-                          ),
-                          _buildGridOption(
-                            icon: Icons.location_on,
-                            iconColor: Color(0xFF00C853),
-                            title: 'Location',
-                            onTap: () {
-                              Navigator.pop(context);
-                              // Location sharing coming soon
-                            },
-                          ),
-                        ],
-                      ),
-
-                      SizedBox(height: 30),
-
-                      // Second row - Contact, Catalog, Quick replies, Poll
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildGridOption(
-                            icon: Icons.person,
-                            iconColor: Colors.grey[700]!,
-                            title: 'Contact',
-                            onTap: () {
-                              Navigator.pop(context);
-                              // Contact sharing coming soon
-                            },
-                          ),
-                          _buildGridOption(
-                            icon: Icons.storefront,
-                            iconColor: Colors.black,
-                            title: 'Catalog',
-                            onTap: () {
-                              Navigator.pop(context);
-                              // Catalog coming soon
-                            },
-                          ),
-                          _buildGridOption(
-                            icon: Icons.bolt,
-                            iconColor: Color(0xFFFFB300),
-                            title: 'Quick replies',
-                            onTap: () {
-                              Navigator.pop(context);
-                              // Quick replies coming soon
-                            },
-                          ),
-                          _buildGridOption(
-                            icon: Icons.poll,
-                            iconColor: Color(0xFFFFB300),
-                            title: 'Poll',
-                            onTap: () {
-                              Navigator.pop(context);
-                              // Poll creation coming soon
-                            },
-                          ),
-                        ],
-                      ),
-
-                      SizedBox(height: 30),
-
-                      // Third row - Event, Share UPI QR (conditional)
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildGridOption(
-                            icon: Icons.event,
-                            iconColor: Color(0xFFE53935),
-                            title: 'Event',
-                            onTap: () {
-                              Navigator.pop(context);
-                              // Event creation coming soon
-                            },
-                          ),
-                          if (_canShareUPIQR())
-                            _buildGridOption(
-                              icon: Icons.qr_code_2,
-                              iconColor: Color(0xFF2196F3),
-                              title: 'Share UPI QR',
-                              onTap: () {
-                                Navigator.pop(context);
-                                _shareClubUPIQR();
-                              },
-                            ),
-                          // Empty spacers to maintain alignment
-                          if (!_canShareUPIQR()) ...[
-                            SizedBox(width: 70),
-                            SizedBox(width: 70),
-                          ],
-                          SizedBox(
-                            width: 70,
-                          ), // Always add one spacer for balance
-                        ],
-                      ),
-
-                      SizedBox(
-                        height: 50,
-                      ), // Extra space at bottom for future additions
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGridOption({
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        width: 70,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 30, color: iconColor),
-            ),
-            SizedBox(height: 8),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white.withOpacity(0.8)
-                    : Colors.black.withOpacity(0.7),
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  bool _canShareUPIQR() {
-    // Use cached value if available
-    return _cachedCanShareUPIQR ?? false;
-  }
-
   // Async method to check if user can share UPI QR
   Future<bool> _checkCanShareUPIQR() async {
     // First check if UPI ID is configured
@@ -1884,315 +1542,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
     );
   }
 
-  Future<void> _pickImages() async {
-    try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.image,
-        allowMultiple: true,
-        allowCompression: true,
-      );
-
-      if (result != null && result.files.isNotEmpty) {
-        _startImageUpload(result.files);
-      }
-    } catch (e) {
-      // Error picking images
-    }
-  }
-
-  Future<void> _capturePhotoWithCamera() async {
-    try {
-      final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 85,
-        maxWidth: 1920,
-        maxHeight: 1080,
-      );
-
-      if (image != null) {
-        // Convert XFile to PlatformFile for compatibility with existing flow
-        final File imageFile = File(image.path);
-        final List<int> imageBytes = await imageFile.readAsBytes();
-
-        final PlatformFile platformFile = PlatformFile(
-          name: image.name.isNotEmpty
-              ? image.name
-              : 'camera_${DateTime.now().millisecondsSinceEpoch}.jpg',
-          path: image.path,
-          size: imageBytes.length,
-          bytes: null, // Keep as null since we have path
-        );
-
-        // Use the existing image upload flow which includes caption dialog
-        _startImageUpload([platformFile]);
-      }
-    } catch (e) {
-      // Error capturing photo
-    }
-  }
-
-  Future<void> _pickDocuments() async {
-    try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf', 'txt'],
-        allowMultiple: true,
-      );
-
-      if (result != null && result.files.isNotEmpty) {
-        _uploadDocuments(result.files);
-      }
-    } catch (e) {
-      // Error picking documents
-    }
-  }
-
-  Future<void> _startImageUpload(List<PlatformFile> files) async {
-    // Show caption dialog for single image, immediate upload for multiple
-    if (files.length == 1) {
-      _showSingleImageCaptionDialog(files.first);
-    } else {
-      _uploadImagesWithProgress(files, {});
-    }
-  }
-
-  void _showSingleImageCaptionDialog(PlatformFile file) {
-    Navigator.of(context).push(
-      MaterialPageRoute<String>(
-        builder: (context) => ImageCaptionDialog(
-          imageFile: file,
-          title: 'Send Image',
-          onSend: (caption, croppedPath) {
-            // If image was cropped, use the cropped version
-            if (croppedPath != null) {
-              final croppedFile = PlatformFile(
-                name: file.name,
-                size: File(croppedPath).lengthSync(),
-                path: croppedPath,
-              );
-              _uploadImagesWithProgress(
-                [croppedFile],
-                {croppedFile.name: caption},
-              );
-            } else {
-              _uploadImagesWithProgress([file], {file.name: caption});
-            }
-          },
-        ),
-      ),
-    );
-  }
-
-  Future<void> _uploadImagesWithProgress(
-    List<PlatformFile> files,
-    Map<String, String> captions,
-  ) async {
-    final userProvider = context.read<UserProvider>();
-    final user = userProvider.user;
-    if (user == null) return;
-
-    // Generate temporary message ID
-    final tempMessageId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
-
-    // Get the caption (message body) - use first non-empty caption or empty string
-    String messageBody = '';
-    for (String caption in captions.values) {
-      if (caption.isNotEmpty) {
-        messageBody = caption;
-        break;
-      }
-    }
-
-    // Create optimistic message with image previews
-    final List<MessageImage> tempImages = files.map((file) {
-      return MessageImage(
-        url: file.path ?? '', // Use local path for preview
-        caption: null, // Caption becomes the message body
-      );
-    }).toList();
-
-    // Create optimistic message
-    final optimisticMessage = ClubMessage(
-      id: tempMessageId,
-      clubId: widget.club.id,
-      senderId: user.id,
-      senderName: user.name,
-      senderProfilePicture: user.profilePicture,
-      senderRole: 'MEMBER',
-      content: messageBody,
-      pictures: tempImages,
-      messageType: files.length == 1 ? 'image' : 'text_with_images',
-      createdAt: DateTime.now(),
-      status: MessageStatus.sending,
-      starred: StarredInfo(isStarred: false),
-      pin: PinInfo(isPinned: false),
-    );
-
-    // Add message to list immediately with previews
-    setState(() {
-      _insertMessageInOrder(optimisticMessage);
-    });
-
-    // Scroll to bottom
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
-
-    try {
-      // Upload images one by one with progress tracking
-      List<MessageImage> uploadedImages = [];
-      for (int i = 0; i < files.length; i++) {
-        final file = files[i];
-
-        // Update message with current upload progress
-        setState(() {
-          final messageIndex = _messages.indexWhere(
-            (m) => m.id == tempMessageId,
-          );
-          if (messageIndex != -1) {
-            // Update message to show which image is currently uploading
-            _messages[messageIndex] = _messages[messageIndex].copyWith(
-              status: MessageStatus.sending,
-              errorMessage: 'Uploading image ${i + 1}/${files.length}...',
-            );
-          }
-        });
-
-        final uploadedUrl = await _uploadFile(file);
-        if (uploadedUrl != null) {
-          uploadedImages.add(
-            MessageImage(
-              url: uploadedUrl,
-              caption: null, // Caption is now the message body
-            ),
-          );
-        } else {
-          // If any upload fails, mark message as failed immediately
-          setState(() {
-            final messageIndex = _messages.indexWhere(
-              (m) => m.id == tempMessageId,
-            );
-            if (messageIndex != -1) {
-              _messages[messageIndex] = _messages[messageIndex].copyWith(
-                status: MessageStatus.failed,
-                errorMessage: 'Failed to upload image ${i + 1}/${files.length}',
-              );
-            }
-          });
-          return; // Stop upload process on first failure
-        }
-      }
-
-      if (uploadedImages.isNotEmpty) {
-        // Send the message with uploaded images
-        await _sendMessageWithUploadedMedia(
-          tempMessageId,
-          messageBody,
-          uploadedImages,
-          [], // Empty videos array for now
-        );
-      } else {
-        // Mark as failed if no images uploaded
-        setState(() {
-          final messageIndex = _messages.indexWhere(
-            (m) => m.id == tempMessageId,
-          );
-          if (messageIndex != -1) {
-            _messages[messageIndex] = _messages[messageIndex].copyWith(
-              status: MessageStatus.failed,
-              errorMessage: 'Failed to upload images',
-            );
-          }
-        });
-      }
-    } catch (e) {
-      debugPrint('Error uploading images: $e');
-      // Mark as failed
-      setState(() {
-        final messageIndex = _messages.indexWhere((m) => m.id == tempMessageId);
-        if (messageIndex != -1) {
-          _messages[messageIndex] = _messages[messageIndex].copyWith(
-            status: MessageStatus.failed,
-            errorMessage: 'Upload failed: $e',
-          );
-        }
-      });
-    }
-  }
-
-  Future<void> _sendMessageWithUploadedMedia(
-    String tempMessageId,
-    String messageBody,
-    List<MessageImage> uploadedImages,
-    List<String> uploadedVideos,
-  ) async {
-    final userProvider = context.read<UserProvider>();
-    final user = userProvider.user;
-    if (user == null) return;
-
-    try {
-      // Updated schema now supports images and videos arrays in text messages
-      final Map<String, dynamic> contentMap = {
-        'type': 'text',
-        'body': messageBody.trim().isEmpty ? ' ' : messageBody,
-      };
-
-      // Add images array if there are images
-      if (uploadedImages.isNotEmpty) {
-        contentMap['images'] = uploadedImages.map((img) => img.url).toList();
-      }
-
-      // Add videos array if there are videos
-      if (uploadedVideos.isNotEmpty) {
-        contentMap['videos'] = uploadedVideos;
-      }
-
-      final requestData = {'senderId': user.id, 'content': contentMap};
-
-      final response = await ChatApiService.sendMessageWithMedia(
-        widget.club.id,
-        requestData,
-      );
-
-      debugPrint('✅ Message with media sent successfully');
-      debugPrint('📡 Server response: $response');
-
-      // Remove temporary message and reload all messages to get the server version
-      setState(() {
-        _messages.removeWhere((m) => m.id == tempMessageId);
-      });
-
-      // Add new message to local storage
-      final newMessage = ClubMessage.fromJson(response!);
-      await MessageStorageService.addMessage(widget.club.id, newMessage);
-
-      // Update UI
-      setState(() {
-        // Remove temp message and add real message in correct order
-        _messages.removeWhere((m) => m.id == tempMessageId);
-        _insertMessageInOrder(newMessage);
-      });
-    } catch (e) {
-      debugPrint('❌ Error sending message with media: $e');
-      setState(() {
-        final messageIndex = _messages.indexWhere((m) => m.id == tempMessageId);
-        if (messageIndex != -1) {
-          _messages[messageIndex] = _messages[messageIndex].copyWith(
-            status: MessageStatus.failed,
-            errorMessage: 'Failed to send message with media',
-          );
-        }
-      });
-    }
-  }
-
   Future<void> _sendMessageWithDocuments(
     List<MessageDocument> uploadedDocs,
   ) async {
@@ -2224,34 +1573,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
     } catch (e) {
       debugPrint('❌ Error sending message with documents: $e');
       // Error sending documents
-    }
-  }
-
-  Future<void> _uploadDocuments(List<PlatformFile> files) async {
-    try {
-      List<MessageDocument> uploadedDocs = [];
-
-      for (PlatformFile file in files) {
-        final uploadedUrl = await _uploadFile(file);
-        if (uploadedUrl != null) {
-          final extension = file.extension?.toLowerCase() ?? '';
-          final fileSize = _formatFileSize(file.size);
-          uploadedDocs.add(
-            MessageDocument(
-              url: uploadedUrl,
-              filename: file.name,
-              type: extension,
-              size: fileSize,
-            ),
-          );
-        }
-      }
-
-      if (uploadedDocs.isNotEmpty) {
-        await _sendMessageWithDocuments(uploadedDocs);
-      }
-    } catch (e) {
-      // Error uploading documents
     }
   }
 
@@ -2569,13 +1890,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
   final Set<String> _processingDelivery =
       <String>{}; // Track messages currently being marked as delivered
 
-  // Helper method to check if a message belongs to the current user
-  bool _isOwnMessage(ClubMessage message) {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final currentUser = userProvider.user;
-    return currentUser != null && message.senderId == currentUser.id;
-  }
-
   // Helper method to check if current user can pin messages
   Future<bool> _canPinMessages() async {
     if (_detailedClubInfo == null) return false;
@@ -2591,7 +1905,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
     try {
       return await userProvider.hasRoleInClub(widget.club.id, allowedRoles);
     } catch (e) {
-      print('Error checking pin permissions: $e');
+      debugPrint('Error checking pin permissions: $e');
       // Fallback to the old method if UserProvider fails
       final userMessages = _messages
           .where((m) => m.senderId == user.id)

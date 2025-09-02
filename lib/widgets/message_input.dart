@@ -1,36 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 import '../widgets/audio_recording_widget.dart';
+import '../models/club_message.dart';
+import '../models/message_status.dart';
+import '../models/message_image.dart';
+import '../models/message_document.dart';
+import '../models/message_reply.dart';
 
-/// A comprehensive message input widget for chat functionality
+/// A comprehensive self-contained message input widget for chat functionality
 /// Handles text input, file attachments, camera capture, and audio recording
 class MessageInput extends StatefulWidget {
   final TextEditingController messageController;
   final FocusNode textFieldFocusNode;
-  final bool isComposing;
+  final String clubId;
   final GlobalKey<AudioRecordingWidgetState> audioRecordingKey;
   
-  // Callbacks
-  final VoidCallback onSendMessage;
-  final VoidCallback onShowUploadOptions;
-  final VoidCallback onCapturePhoto;
+  // Simplified callbacks - only what's needed
+  final Function(ClubMessage) onSendMessage;
   final Function(String) onSendAudioMessage;
-  final Function(String) onTextChanged;
-  final Function(bool) onComposingChanged;
-  final VoidCallback onRecordingStateChanged;
 
   const MessageInput({
     super.key,
     required this.messageController,
     required this.textFieldFocusNode,
-    required this.isComposing,
+    required this.clubId,
     required this.audioRecordingKey,
     required this.onSendMessage,
-    required this.onShowUploadOptions,
-    required this.onCapturePhoto,
     required this.onSendAudioMessage,
-    required this.onTextChanged,
-    required this.onComposingChanged,
-    required this.onRecordingStateChanged,
   });
 
   @override
@@ -38,6 +35,313 @@ class MessageInput extends StatefulWidget {
 }
 
 class _MessageInputState extends State<MessageInput> {
+  bool _isComposing = false;
+  final ImagePicker _imagePicker = ImagePicker();
+
+  void _handleTextChanged(String value) {
+    final isComposing = value.trim().isNotEmpty;
+    if (_isComposing != isComposing) {
+      setState(() {
+        _isComposing = isComposing;
+      });
+    }
+  }
+
+  void _sendTextMessage() {
+    final text = widget.messageController.text.trim();
+    if (text.isEmpty) return;
+
+    // Create temp message
+    final tempMessage = ClubMessage(
+      id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+      clubId: widget.clubId,
+      senderId: 'current_user', // Will be filled by parent
+      senderName: 'You',
+      senderProfilePicture: null,
+      senderRole: 'MEMBER',
+      content: text,
+      messageType: 'text',
+      createdAt: DateTime.now(),
+      status: MessageStatus.sending,
+      starred: StarredInfo(isStarred: false),
+      pin: PinInfo(isPinned: false),
+    );
+
+    widget.messageController.clear();
+    setState(() {
+      _isComposing = false;
+    });
+
+    widget.onSendMessage(tempMessage);
+  }
+
+  void _handleCameraCapture() async {
+    try {
+      final XFile? photo = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 80,
+      );
+      
+      if (photo != null) {
+        _sendImageMessage([photo]);
+      }
+    } catch (e) {
+      _showError('Failed to capture photo: $e');
+    }
+  }
+
+  void _pickImages() async {
+    try {
+      final List<XFile> images = await _imagePicker.pickMultiImage(
+        imageQuality: 80,
+      );
+      
+      if (images.isNotEmpty) {
+        _sendImageMessage(images);
+      }
+    } catch (e) {
+      _showError('Failed to pick images: $e');
+    }
+  }
+
+  void _pickDocuments() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx', 'ppt', 'pptx'],
+      );
+      
+      if (result != null && result.files.isNotEmpty) {
+        _sendDocumentMessage(result.files);
+      }
+    } catch (e) {
+      _showError('Failed to pick documents: $e');
+    }
+  }
+
+  void _sendImageMessage(List<XFile> images) {
+    for (final image in images) {
+      final tempMessage = ClubMessage(
+        id: 'temp_${DateTime.now().millisecondsSinceEpoch}_${images.indexOf(image)}',
+        clubId: widget.clubId,
+        senderId: 'current_user',
+        senderName: 'You',
+        senderProfilePicture: null,
+        senderRole: 'MEMBER',
+        content: '',
+        messageType: 'image',
+        createdAt: DateTime.now(),
+        status: MessageStatus.sending,
+        starred: StarredInfo(isStarred: false),
+        pin: PinInfo(isPinned: false),
+        // Store temp file path for upload
+        images: [MessageImage(url: image.path, caption: null)],
+      );
+
+      widget.onSendMessage(tempMessage);
+    }
+  }
+
+  void _sendDocumentMessage(List<PlatformFile> documents) {
+    for (final doc in documents) {
+      final tempMessage = ClubMessage(
+        id: 'temp_${DateTime.now().millisecondsSinceEpoch}_${documents.indexOf(doc)}',
+        clubId: widget.clubId,
+        senderId: 'current_user',
+        senderName: 'You',
+        senderProfilePicture: null,
+        senderRole: 'MEMBER',
+        content: '',
+        messageType: 'document',
+        createdAt: DateTime.now(),
+        status: MessageStatus.sending,
+        starred: StarredInfo(isStarred: false),
+        pin: PinInfo(isPinned: false),
+        // Store temp file info for upload
+        documents: [MessageDocument(
+          url: doc.path ?? '',
+          filename: doc.name,
+          type: doc.extension ?? 'file',
+          size: doc.size.toString(),
+        )],
+      );
+
+      widget.onSendMessage(tempMessage);
+    }
+  }
+
+  void _showUploadOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? Colors.grey[850]
+          : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (context, scrollController) => Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.grey[850]
+                : Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                width: 36,
+                height: 4,
+                margin: EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[400],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Scrollable content
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      // First row - Photos, Document
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _buildGridOption(
+                            icon: Icons.photo_library,
+                            iconColor: Color(0xFF2196F3),
+                            title: 'Photos',
+                            onTap: () {
+                              Navigator.pop(context);
+                              _pickImages();
+                            },
+                          ),
+                          _buildGridOption(
+                            icon: Icons.description,
+                            iconColor: Color(0xFF2196F3),
+                            title: 'Document',
+                            onTap: () {
+                              Navigator.pop(context);
+                              _pickDocuments();
+                            },
+                          ),
+                          _buildGridOption(
+                            icon: Icons.location_on,
+                            iconColor: Color(0xFF00C853),
+                            title: 'Location',
+                            onTap: () {
+                              Navigator.pop(context);
+                              // Location sharing coming soon
+                            },
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 30),
+                      // Coming soon options
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _buildGridOption(
+                            icon: Icons.person,
+                            iconColor: Colors.grey[700]!,
+                            title: 'Contact',
+                            onTap: () {
+                              Navigator.pop(context);
+                              // Contact sharing coming soon
+                            },
+                          ),
+                          _buildGridOption(
+                            icon: Icons.poll,
+                            iconColor: Color(0xFFFFB300),
+                            title: 'Poll',
+                            onTap: () {
+                              Navigator.pop(context);
+                              // Poll creation coming soon
+                            },
+                          ),
+                          _buildGridOption(
+                            icon: Icons.event,
+                            iconColor: Color(0xFFE53935),
+                            title: 'Event',
+                            onTap: () {
+                              Navigator.pop(context);
+                              // Event creation coming soon
+                            },
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 50),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGridOption({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: 70,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 30, color: iconColor),
+            ),
+            SizedBox(height: 8),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white.withOpacity(0.8)
+                    : Colors.black87,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -68,14 +372,14 @@ class _MessageInputState extends State<MessageInput> {
                 AudioRecordingWidget(
                   key: widget.audioRecordingKey,
                   onAudioRecorded: widget.onSendAudioMessage,
-                  isComposing: widget.isComposing,
-                  onRecordingStateChanged: widget.onRecordingStateChanged,
+                  isComposing: _isComposing,
+                  onRecordingStateChanged: () => setState(() {}),
                 ),
               ] else ...[
                 // Normal input interface
                 // Attachment button (+)
                 IconButton(
-                  onPressed: widget.onShowUploadOptions,
+                  onPressed: _showUploadOptions,
                   icon: Icon(
                     Icons.add,
                     color: Theme.of(context).brightness == Brightness.dark
@@ -137,11 +441,7 @@ class _MessageInputState extends State<MessageInput> {
                             textCapitalization: TextCapitalization.sentences,
                             keyboardType: TextInputType.multiline,
                             textInputAction: TextInputAction.newline,
-                            onChanged: (value) {
-                              final isComposing = value.trim().isNotEmpty;
-                              widget.onComposingChanged(isComposing);
-                              widget.onTextChanged(value);
-                            },
+                            onChanged: _handleTextChanged,
                           ),
                         ),
                       ],
@@ -150,9 +450,9 @@ class _MessageInputState extends State<MessageInput> {
                 ),
 
                 // Camera button - hidden when composing
-                if (!widget.isComposing)
+                if (!_isComposing)
                   IconButton(
-                    onPressed: widget.onCapturePhoto,
+                    onPressed: _handleCameraCapture,
                     icon: Icon(
                       Icons.camera_alt,
                       color: Theme.of(context).brightness == Brightness.dark
@@ -163,9 +463,9 @@ class _MessageInputState extends State<MessageInput> {
                   ),
 
                 // Send button or audio recording widget
-                if (widget.isComposing)
+                if (_isComposing)
                   IconButton(
-                    onPressed: widget.onSendMessage,
+                    onPressed: _sendTextMessage,
                     icon: const Icon(Icons.send, color: Color(0xFF003f9b)),
                     iconSize: 28,
                   )
@@ -173,8 +473,8 @@ class _MessageInputState extends State<MessageInput> {
                   AudioRecordingWidget(
                     key: widget.audioRecordingKey,
                     onAudioRecorded: widget.onSendAudioMessage,
-                    isComposing: widget.isComposing,
-                    onRecordingStateChanged: widget.onRecordingStateChanged,
+                    isComposing: _isComposing,
+                    onRecordingStateChanged: () => setState(() {}),
                   ),
               ],
             ],
