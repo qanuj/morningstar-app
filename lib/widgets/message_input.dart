@@ -238,11 +238,17 @@ class _MessageInputState extends State<MessageInput> {
     }
   }
 
-  void _sendAudioMessage(String audioPath) {
+  void _sendAudioMessage(String audioPath, Duration recordingDuration) {
     // Extract audio file information
     final file = File(audioPath);
     final fileName = audioPath.split('/').last;
     final fileSize = file.existsSync() ? file.lengthSync() : 0;
+
+    // Use the duration passed from the recording widget
+    final durationInSeconds = recordingDuration.inSeconds;
+    
+    print('🎵 _sendAudioMessage: Recording duration = ${recordingDuration.inSeconds}s');
+    print('🎵 _sendAudioMessage: File size = $fileSize bytes');
 
     final tempMessage = ClubMessage(
       id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
@@ -258,7 +264,12 @@ class _MessageInputState extends State<MessageInput> {
       starred: StarredInfo(isStarred: false),
       pin: PinInfo(isPinned: false),
       // Store temp audio info for upload
-      audio: MessageAudio(url: audioPath, filename: fileName, size: fileSize),
+      audio: MessageAudio(
+        url: audioPath, 
+        filename: fileName, 
+        size: fileSize,
+        duration: durationInSeconds,
+      ),
     );
 
     widget.onSendMessage(tempMessage);

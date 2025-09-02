@@ -234,10 +234,11 @@ class ClubMessage {
             if (content['url'] != null) {
               audio = MessageAudio.fromJson({
                 'url': content['url'],
-                'name': content['name'],
+                'filename': content['name'] ?? content['filename'] ?? 'audio.m4a',
                 'duration': content['duration'],
                 'size': content['size'],
               });
+              print('🔍 ClubMessage.fromJson: Parsed audio from server: ${audio.filename}, duration: ${audio.duration}s');
             }
             break;
         }
@@ -287,6 +288,22 @@ class ClubMessage {
           .map((url) => url as String)
           .toList();
       print('🔍 ClubMessage.fromJson: Parsed ${images.length} images from cache level');
+    }
+    
+    // Parse top-level audio object (for cache compatibility)
+    if (json['audio'] is Map<String, dynamic> && audio == null) {
+      audio = MessageAudio.fromJson(json['audio'] as Map<String, dynamic>);
+      print('🔍 ClubMessage.fromJson: Parsed audio from cache level: ${audio.filename}');
+      // Override messageType to audio if we found audio data
+      messageType = 'audio';
+    }
+    
+    // Parse top-level documents array (for cache compatibility)
+    if (json['documents'] is List && documents.isEmpty) {
+      documents = (json['documents'] as List)
+          .map((doc) => MessageDocument.fromJson(doc as Map<String, dynamic>))
+          .toList();
+      print('🔍 ClubMessage.fromJson: Parsed ${documents.length} documents from cache level');
     }
 
     // Extract sender info from nested objects if available

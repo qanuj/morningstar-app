@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../models/club_message.dart';
 import '../../models/message_status.dart';
 import 'base_message_bubble.dart';
@@ -122,7 +123,17 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
     if (_audioPlayer == null || !_isInitialized) return;
 
     try {
-      await _audioPlayer!.setSource(UrlSource(widget.message.audio!.url));
+      final audioUrl = widget.message.audio!.url;
+      
+      // Use appropriate source based on URL type
+      if (audioUrl.startsWith('http://') || audioUrl.startsWith('https://')) {
+        // Remote URL - use UrlSource
+        await _audioPlayer!.setSource(UrlSource(audioUrl));
+      } else {
+        // Local file path - use DeviceFileSource
+        await _audioPlayer!.setSource(DeviceFileSource(audioUrl));
+      }
+      
       await _audioPlayer!.setPlaybackRate(playbackSpeed);
     } catch (e) {
       print('Error loading audio file: $e');
@@ -434,6 +445,48 @@ class _AvatarSpeedToggle extends StatelessWidget {
     required this.getSpeedBgColor,
   });
 
+  bool _isSvg(String url) {
+    return url.toLowerCase().contains('.svg') || 
+           url.toLowerCase().contains('svg?') ||
+           url.toLowerCase().contains('/svg/');
+  }
+
+  Widget _buildProfilePicture(BuildContext context) {
+    if (senderProfilePicture == null) {
+      return Icon(
+        Icons.person,
+        size: 20,
+        color: getIconColor(context).withOpacity(0.6),
+      );
+    }
+
+    if (_isSvg(senderProfilePicture!)) {
+      return SvgPicture.network(
+        senderProfilePicture!,
+        width: 32,
+        height: 32,
+        fit: BoxFit.cover,
+        placeholderBuilder: (context) => Icon(
+          Icons.person,
+          size: 20,
+          color: getIconColor(context).withOpacity(0.6),
+        ),
+      );
+    } else {
+      return Image.network(
+        senderProfilePicture!,
+        width: 32,
+        height: 32,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Icon(
+          Icons.person,
+          size: 20,
+          color: getIconColor(context).withOpacity(0.6),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!isPlaying) {
@@ -448,20 +501,16 @@ class _AvatarSpeedToggle extends StatelessWidget {
               color: Theme.of(context).brightness == Brightness.dark
                   ? Colors.grey[700]
                   : Colors.grey[300],
-              image: senderProfilePicture != null
-                  ? DecorationImage(
-                      image: NetworkImage(senderProfilePicture!),
-                      fit: BoxFit.cover,
-                    )
-                  : null,
             ),
-            child: senderProfilePicture == null
-                ? Icon(
+            child: senderProfilePicture != null
+                ? ClipOval(
+                    child: _buildProfilePicture(context),
+                  )
+                : Icon(
                     Icons.person,
                     size: 20,
                     color: getIconColor(context).withOpacity(0.6),
-                  )
-                : null,
+                  ),
           ),
           // Microphone badge
           Positioned(
@@ -537,84 +586,82 @@ class _PlayProgressControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Row(
-        children: [
-          // Play/Pause button
-          GestureDetector(
-            onTap: () => onPlayPauseTap(),
-            child: Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.transparent,
-              ),
-              child: Icon(
-                isPlaying ? Icons.pause : Icons.play_arrow,
-                color: getIconColor(context),
-                size: 28,
-              ),
+    return Row(
+      children: [
+        // Play/Pause button
+        GestureDetector(
+          onTap: () => onPlayPauseTap(),
+          child: Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.transparent,
+            ),
+            child: Icon(
+              isPlaying ? Icons.pause : Icons.play_arrow,
+              color: getIconColor(context),
+              size: 28,
             ),
           ),
+        ),
 
-          SizedBox(width: 12),
+        SizedBox(width: 12),
 
-          // Progress bar with dots
-          Expanded(
-            child: GestureDetector(
-              onTapDown: (details) => onSeekTap(details),
-              child: Container(
-                height: 20,
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final availableWidth = constraints.maxWidth;
-                    final dotCount = (availableWidth / 5)
-                        .floor(); // 3px dot + 2px margin
+        // Progress bar with dots
+        Expanded(
+          child: GestureDetector(
+            onTapDown: (details) => onSeekTap(details),
+            child: SizedBox(
+              height: 20,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final availableWidth = constraints.maxWidth;
+                  final dotCount = (availableWidth / 5)
+                      .floor(); // 3px dot + 2px margin
 
-                    return Stack(
-                      alignment: Alignment.centerLeft,
-                      children: [
-                        // Background dots
-                        Row(
-                          children: List.generate(dotCount, (index) {
-                            return Container(
-                              width: 3,
-                              height: 3,
-                              margin: EdgeInsets.only(
-                                right: index < dotCount - 1 ? 2 : 0,
-                              ),
-                              decoration: BoxDecoration(
-                                color: getDotColor(context),
-                                shape: BoxShape.circle,
-                              ),
-                            );
-                          }),
-                        ),
-
-                        // Progress indicator (black circle)
-                        Positioned(
-                          left:
-                              currentPosition *
-                              (availableWidth - 12), // Subtract circle width
-                          child: Container(
-                            width: 12,
-                            height: 12,
+                  return Stack(
+                    alignment: Alignment.centerLeft,
+                    children: [
+                      // Background dots
+                      Row(
+                        children: List.generate(dotCount, (index) {
+                          return Container(
+                            width: 3,
+                            height: 3,
+                            margin: EdgeInsets.only(
+                              right: index < dotCount - 1 ? 2 : 0,
+                            ),
                             decoration: BoxDecoration(
-                              color: getIconColor(context),
+                              color: getDotColor(context),
                               shape: BoxShape.circle,
                             ),
+                          );
+                        }),
+                      ),
+
+                      // Progress indicator (black circle)
+                      Positioned(
+                        left:
+                            currentPosition *
+                            (availableWidth - 12), // Subtract circle width
+                        child: Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: getIconColor(context),
+                            shape: BoxShape.circle,
                           ),
                         ),
-                      ],
-                    );
-                  },
-                ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

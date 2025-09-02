@@ -7,7 +7,7 @@ import 'dart:io';
 import 'dart:async';
 
 class AudioRecordingWidget extends StatefulWidget {
-  final Function(String audioPath) onAudioRecorded;
+  final Function(String audioPath, Duration duration) onAudioRecorded;
   final bool isComposing;
   final VoidCallback? onRecordingStateChanged;
 
@@ -55,25 +55,13 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
 
   Future<void> _startVoiceRecording() async {
     if (_isRecording || _hasRecording) return;
-    
+
     try {
       // Ensure recorder is opened
       try {
         await _audioRecorder.openRecorder();
       } catch (e) {
         // Recorder might already be opened
-      }
-      
-      // Check permission status first
-      final initialStatus = await Permission.microphone.status;
-      
-      // If permission is not granted, request it
-      if (!initialStatus.isGranted) {
-        final permissionStatus = await Permission.microphone.request();
-        if (!permissionStatus.isGranted) {
-          _showPermissionDeniedDialog();
-          return;
-        }
       }
 
       // Create audio file path
@@ -91,7 +79,7 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
         _isRecording = true;
         _recordingDuration = Duration.zero;
       });
-      
+
       // Notify parent of state change
       widget.onRecordingStateChanged?.call();
 
@@ -101,10 +89,9 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
           _recordingDuration = Duration(seconds: timer.tick);
         });
       });
-      
+
       HapticFeedback.mediumImpact();
       print('Recording started successfully to: $_audioPath');
-      
     } catch (e) {
       print('Error starting recording: $e');
       setState(() {
@@ -116,12 +103,12 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
 
   Future<void> _stopVoiceRecording() async {
     if (!_isRecording) return;
-    
+
     try {
       final path = await _audioRecorder.stopRecorder();
-      
+
       _recordingTimer?.cancel();
-      
+
       setState(() {
         _isRecording = false;
         _hasRecording = true;
@@ -130,12 +117,12 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
           _audioPath = path;
         }
       });
-      
+
       // Notify parent of state change
       widget.onRecordingStateChanged?.call();
-      
+
       HapticFeedback.lightImpact();
-      
+
       if (path != null && path.isNotEmpty) {
         // Check file details
         final file = File(path);
@@ -159,151 +146,46 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
       _recordingDuration = Duration.zero;
       _recordedAudioFile = null;
     });
-    
+
     // Notify parent of state change
     widget.onRecordingStateChanged?.call();
-    
+
     HapticFeedback.selectionClick();
-    
+
     // TODO: Delete the recorded file
     print('Recording deleted');
   }
 
   void _sendAudioRecording() async {
     if (!_hasRecording || _recordedAudioFile == null) return;
-    
+
     final audioFile = _recordedAudioFile!;
     final duration = _recordingDuration;
-    
+
     // Reset recording state
     setState(() {
       _hasRecording = false;
       _recordingDuration = Duration.zero;
       _recordedAudioFile = null;
     });
-    
+
     // Notify parent of state change
     widget.onRecordingStateChanged?.call();
-    
+
     HapticFeedback.lightImpact();
-    
+
     // Call the callback to send the audio message
-    widget.onAudioRecorded(audioFile.path);
-    
-    print('Audio message sent. Duration: ${_formatRecordingDuration(duration)}');
+    widget.onAudioRecorded(audioFile.path, duration);
+
+    print(
+      'Audio message sent. Duration: ${_formatRecordingDuration(duration)}',
+    );
   }
 
   String _formatRecordingDuration(Duration duration) {
     final minutes = duration.inMinutes;
     final seconds = duration.inSeconds % 60;
     return '${minutes.toString().padLeft(1, '0')}:${seconds.toString().padLeft(2, '0')}';
-  }
-
-  void _showPermissionDeniedDialog() {
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Text('Microphone Permission Required'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.mic_off,
-              size: 48,
-              color: Colors.orange,
-            ),
-            SizedBox(height: 16),
-            Text(
-              'This app needs microphone access to record voice messages.',
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Please grant permission to continue.',
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              if (mounted) Navigator.of(context).pop();
-            },
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (mounted) Navigator.of(context).pop();
-              
-              // Try requesting permission again
-              final newStatus = await Permission.microphone.request();
-              if (newStatus.isGranted) {
-                _startVoiceRecording();
-              } else if (newStatus.isPermanentlyDenied) {
-                _showPermissionPermanentlyDeniedDialog();
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xFF003f9b),
-            ),
-            child: Text('Try Again', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showPermissionPermanentlyDeniedDialog() {
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Text('Permission Permanently Denied'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.mic_off,
-              size: 48,
-              color: Colors.red,
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Microphone access has been permanently denied. Please enable it manually in Settings.',
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Settings > Privacy & Security > Microphone > Duggy',
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              if (mounted) Navigator.of(context).pop();
-            },
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (mounted) Navigator.of(context).pop();
-              await openAppSettings();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xFF003f9b),
-            ),
-            child: Text('Open Settings', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
   }
 
   void _showErrorDialog(String message) {
@@ -343,11 +225,7 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
           child: Row(
             children: [
               // Recording icon
-              Icon(
-                Icons.fiber_manual_record,
-                color: Colors.red,
-                size: 16,
-              ),
+              Icon(Icons.fiber_manual_record, color: Colors.red, size: 16),
               SizedBox(width: 12),
               // Duration text
               Expanded(
@@ -363,10 +241,7 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
               // Stop button
               IconButton(
                 onPressed: _stopVoiceRecording,
-                icon: Icon(
-                  Icons.stop,
-                  color: Colors.red,
-                ),
+                icon: Icon(Icons.stop, color: Colors.red),
                 iconSize: 28,
               ),
             ],
@@ -383,28 +258,23 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
           decoration: BoxDecoration(
             color: Theme.of(context).primaryColor.withOpacity(0.1),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Theme.of(context).primaryColor.withOpacity(0.3)),
+            border: Border.all(
+              color: Theme.of(context).primaryColor.withOpacity(0.3),
+            ),
           ),
           child: Row(
             children: [
               // Delete button
               IconButton(
                 onPressed: _deleteRecording,
-                icon: Icon(
-                  Icons.delete,
-                  color: Colors.red,
-                ),
+                icon: Icon(Icons.delete, color: Colors.red),
                 iconSize: 24,
                 padding: EdgeInsets.zero,
                 constraints: BoxConstraints(minWidth: 32, minHeight: 32),
               ),
               SizedBox(width: 8),
               // Audio icon and duration
-              Icon(
-                Icons.mic,
-                color: Theme.of(context).primaryColor,
-                size: 16,
-              ),
+              Icon(Icons.mic, color: Theme.of(context).primaryColor, size: 16),
               SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -419,10 +289,7 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
               // Send button
               IconButton(
                 onPressed: _sendAudioRecording,
-                icon: Icon(
-                  Icons.send,
-                  color: Theme.of(context).primaryColor,
-                ),
+                icon: Icon(Icons.send, color: Theme.of(context).primaryColor),
                 iconSize: 24,
                 padding: EdgeInsets.zero,
                 constraints: BoxConstraints(minWidth: 32, minHeight: 32),
@@ -434,7 +301,7 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
     } else {
       // Normal mic button
       return IconButton(
-        onPressed: widget.isComposing 
+        onPressed: widget.isComposing
             ? null // Let parent handle send message
             : _startVoiceRecording,
         icon: Icon(
@@ -442,8 +309,8 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
           color: widget.isComposing
               ? Color(0xFF003f9b)
               : (Theme.of(context).brightness == Brightness.dark
-                  ? Colors.grey[400]
-                  : Colors.grey[600]),
+                    ? Colors.grey[400]
+                    : Colors.grey[600]),
         ),
         iconSize: 28,
       );
@@ -454,7 +321,7 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
   bool get isRecording => _isRecording;
   bool get hasRecording => _hasRecording;
   Duration get recordingDuration => _recordingDuration;
-  
+
   // Method to get hint text for input field
   String getHintText(String defaultHint) {
     if (_isRecording) {
@@ -465,7 +332,7 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
       return defaultHint;
     }
   }
-  
+
   // Method to check if input should be enabled
   bool get shouldEnableInput => !_isRecording && !_hasRecording;
 }

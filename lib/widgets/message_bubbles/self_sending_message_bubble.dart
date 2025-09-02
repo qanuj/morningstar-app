@@ -270,10 +270,15 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
                 duration: audio.duration,
                 size: audio.size,
               );
+            } else {
+              throw Exception('Failed to upload audio: No upload URL returned');
             }
+          } else {
+            throw Exception('Audio file not found: $audioPath');
           }
         } catch (e) {
           print('Failed to upload audio: $e');
+          rethrow; // Propagate the error instead of silencing it
         }
       } else {
         _uploadedAudio = audio;
@@ -439,11 +444,12 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
           _uploadedAudio != null &&
           currentMessage.content.trim().isEmpty) {
         // Single audio without text
+        print('🎵 Building audio contentMap: duration=${_uploadedAudio!.duration}, size=${_uploadedAudio!.size}');
         contentMap = {
           'type': 'audio',
           'url': _uploadedAudio!.url,
           'duration': _uploadedAudio!.duration,
-          'size': _uploadedAudio!.size,
+          'size': _uploadedAudio!.size?.toString(),
         };
       } else {
         // All other cases: text, emoji, link, and ALL images/videos (single or multiple)
