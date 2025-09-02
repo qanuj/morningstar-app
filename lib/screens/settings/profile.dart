@@ -6,6 +6,7 @@ import '../../services/auth_service.dart';
 import '../../utils/theme.dart';
 import '../../utils/dialogs.dart';
 import '../../widgets/custom_app_bar.dart';
+import '../../widgets/svg_avatar.dart';
 import '../auth/login.dart';
 import 'edit_profile.dart';
 
@@ -70,19 +71,17 @@ class ProfileScreen extends StatelessWidget {
                               ),
                             ],
                           ),
-                          child: CircleAvatar(
-                            radius: 50,
+                          child: SVGAvatar(
+                            imageUrl: user.profilePicture,
+                            size: 100,
                             backgroundColor: Theme.of(context).colorScheme.primary,
-                            backgroundImage: user.profilePicture != null
-                                ? NetworkImage(user.profilePicture!)
-                                : null,
                             child: user.profilePicture == null
                                 ? Text(
                                     user.name.isNotEmpty
                                         ? user.name[0].toUpperCase()
                                         : 'U',
                                     style: TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 40,
                                       fontWeight: FontWeight.w400,
                                       color: Theme.of(context).colorScheme.onPrimary,
                                     ),

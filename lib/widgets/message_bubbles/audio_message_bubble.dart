@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../../models/club_message.dart';
 import '../../models/message_status.dart';
 import 'base_message_bubble.dart';
 import 'audio_upload_states.dart';
+import '../svg_avatar.dart';
 
 /// Audio message bubble - shows audio player with speed controls and playback
 class AudioMessageBubble extends StatefulWidget {
@@ -445,47 +445,6 @@ class _AvatarSpeedToggle extends StatelessWidget {
     required this.getSpeedBgColor,
   });
 
-  bool _isSvg(String url) {
-    return url.toLowerCase().contains('.svg') || 
-           url.toLowerCase().contains('svg?') ||
-           url.toLowerCase().contains('/svg/');
-  }
-
-  Widget _buildProfilePicture(BuildContext context) {
-    if (senderProfilePicture == null) {
-      return Icon(
-        Icons.person,
-        size: 20,
-        color: getIconColor(context).withOpacity(0.6),
-      );
-    }
-
-    if (_isSvg(senderProfilePicture!)) {
-      return SvgPicture.network(
-        senderProfilePicture!,
-        width: 32,
-        height: 32,
-        fit: BoxFit.cover,
-        placeholderBuilder: (context) => Icon(
-          Icons.person,
-          size: 20,
-          color: getIconColor(context).withOpacity(0.6),
-        ),
-      );
-    } else {
-      return Image.network(
-        senderProfilePicture!,
-        width: 32,
-        height: 32,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Icon(
-          Icons.person,
-          size: 20,
-          color: getIconColor(context).withOpacity(0.6),
-        ),
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -493,24 +452,14 @@ class _AvatarSpeedToggle extends StatelessWidget {
       // Show avatar when not playing
       return Stack(
         children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.grey[700]
-                  : Colors.grey[300],
-            ),
-            child: senderProfilePicture != null
-                ? ClipOval(
-                    child: _buildProfilePicture(context),
-                  )
-                : Icon(
-                    Icons.person,
-                    size: 20,
-                    color: getIconColor(context).withOpacity(0.6),
-                  ),
+          SVGAvatar(
+            imageUrl: senderProfilePicture,
+            size: 32,
+            iconColor: getIconColor(context).withOpacity(0.6),
+            iconSize: 20,
+            backgroundColor: Theme.of(context).brightness == Brightness.dark
+                ? Colors.grey[700]
+                : Colors.grey[300],
           ),
           // Microphone badge
           Positioned(

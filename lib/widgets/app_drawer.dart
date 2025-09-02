@@ -8,6 +8,7 @@ import '../screens/settings/profile.dart';
 import '../screens/matches/matches.dart';
 import '../screens/wallet/store.dart';
 import '../screens/wallet/my_orders.dart';
+import 'svg_avatar.dart';
 import '../screens/wallet/transactions.dart';
 import '../screens/news/polls.dart';
 import '../screens/news/notifications.dart';
@@ -103,30 +104,15 @@ class AppDrawer extends StatelessWidget {
                   child: Row(
                     children: [
                       // User Picture on Left
-                      Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.3),
-                            width: 2,
-                          ),
-                        ),
-                        child: CircleAvatar(
-                          radius: 30,
-                          backgroundColor: Colors.white.withOpacity(0.2),
-                          backgroundImage: user?.profilePicture != null
-                              ? NetworkImage(user!.profilePicture!)
-                              : null,
-                          child: user?.profilePicture == null
-                              ? Icon(
-                                  Icons.person,
-                                  color: Colors.white,
-                                  size: 30,
-                                )
-                              : null,
-                        ),
+                      SVGAvatar(
+                        imageUrl: user?.profilePicture,
+                        size: 60,
+                        backgroundColor: Colors.white.withOpacity(0.2),
+                        iconColor: Colors.white,
+                        iconSize: 30,
+                        showBorder: true,
+                        borderColor: Colors.white.withOpacity(0.3),
+                        borderWidth: 2,
                       ),
                       SizedBox(width: 16),
                       // User Info on Right
