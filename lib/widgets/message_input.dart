@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../widgets/audio_recording_widget.dart';
 import '../models/club_message.dart';
 import '../models/message_status.dart';
 import '../models/message_image.dart';
 import '../models/message_document.dart';
-import '../models/message_reply.dart';
+import '../models/starred_info.dart';
+import '../models/message_audio.dart';
 
 /// A comprehensive self-contained message input widget for chat functionality
 /// Handles text input, file attachments, camera capture, and audio recording
@@ -18,7 +20,6 @@ class MessageInput extends StatefulWidget {
   
   // Simplified callbacks - only what's needed
   final Function(ClubMessage) onSendMessage;
-  final Function(String) onSendAudioMessage;
 
   const MessageInput({
     super.key,
@@ -27,7 +28,6 @@ class MessageInput extends StatefulWidget {
     required this.clubId,
     required this.audioRecordingKey,
     required this.onSendMessage,
-    required this.onSendAudioMessage,
   });
 
   @override
@@ -136,7 +136,7 @@ class _MessageInputState extends State<MessageInput> {
         starred: StarredInfo(isStarred: false),
         pin: PinInfo(isPinned: false),
         // Store temp file path for upload
-        images: [MessageImage(url: image.path, caption: null)],
+        pictures: [MessageImage(url: image.path, caption: null)],
       );
 
       widget.onSendMessage(tempMessage);
@@ -169,6 +169,36 @@ class _MessageInputState extends State<MessageInput> {
 
       widget.onSendMessage(tempMessage);
     }
+  }
+
+  void _sendAudioMessage(String audioPath) {
+    // Extract audio file information
+    final file = File(audioPath);
+    final fileName = audioPath.split('/').last;
+    final fileSize = file.existsSync() ? file.lengthSync() : 0;
+
+    final tempMessage = ClubMessage(
+      id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+      clubId: widget.clubId,
+      senderId: 'current_user',
+      senderName: 'You',
+      senderProfilePicture: null,
+      senderRole: 'MEMBER',
+      content: '',
+      messageType: 'audio',
+      createdAt: DateTime.now(),
+      status: MessageStatus.sending,
+      starred: StarredInfo(isStarred: false),
+      pin: PinInfo(isPinned: false),
+      // Store temp audio info for upload
+      audio: MessageAudio(
+        url: audioPath,
+        filename: fileName,
+        size: fileSize,
+      ),
+    );
+
+    widget.onSendMessage(tempMessage);
   }
 
   void _showUploadOptions() {
@@ -371,7 +401,7 @@ class _MessageInputState extends State<MessageInput> {
                 // Full-width audio recording interface
                 AudioRecordingWidget(
                   key: widget.audioRecordingKey,
-                  onAudioRecorded: widget.onSendAudioMessage,
+                  onAudioRecorded: _sendAudioMessage,
                   isComposing: _isComposing,
                   onRecordingStateChanged: () => setState(() {}),
                 ),
@@ -472,7 +502,7 @@ class _MessageInputState extends State<MessageInput> {
                 else
                   AudioRecordingWidget(
                     key: widget.audioRecordingKey,
-                    onAudioRecorded: widget.onSendAudioMessage,
+                    onAudioRecorded: _sendAudioMessage,
                     isComposing: _isComposing,
                     onRecordingStateChanged: () => setState(() {}),
                   ),

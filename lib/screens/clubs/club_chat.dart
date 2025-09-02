@@ -48,15 +48,11 @@ class ClubChatScreenState extends State<ClubChatScreen>
   DetailedClubInfo? _detailedClubInfo;
   final FocusNode _textFieldFocusNode = FocusNode();
   MessageReply? _replyingTo;
-  ClubMessage? _selectedMessageForReaction;
 
   // Slide-to-reply state
   double _slideOffset = 0.0;
   bool _isSliding = false;
   String? _slidingMessageId;
-
-  // Paste image detection
-  String? _lastTextValue;
 
   // Audio recording widget key
   final GlobalKey<AudioRecordingWidgetState> _audioRecordingKey =
@@ -72,7 +68,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
 
   // Permission caching
   bool? _cachedCanPinMessages;
-  bool? _cachedCanShareUPIQR;
 
   // Map to store pending file uploads by message ID
   final Map<String, List<PlatformFile>> _pendingUploads = {};
@@ -972,128 +967,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
     // They will be cleaned up when message is successfully sent or manually deleted
   }
 
-  Future<void> _sendAudioMessage(String audioPath) async {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final user = userProvider.user;
-
-    if (user == null) {
-      debugPrint('❌ Cannot send audio message - user not logged in');
-      return;
-    }
-
-    final tempMessageId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
-
-    // Create temporary audio file info
-    final audioFile = File(audioPath);
-    final fileName = audioFile.path.split('/').last;
-    final fileSize = await audioFile.length();
-
-    // Create optimistic message with audio structure
-    final optimisticMessage = ClubMessage(
-      id: tempMessageId,
-      clubId: widget.club.id,
-      senderId: user.id,
-      senderName: user.name,
-      senderProfilePicture: user.profilePicture,
-      senderRole: 'MEMBER',
-      content: '',
-      messageType: 'audio',
-      createdAt: DateTime.now(),
-      status: MessageStatus.sending,
-      starred: StarredInfo(isStarred: false),
-      pin: PinInfo(isPinned: false),
-      // Add audio structure for the bubble
-      audio: MessageAudio(
-        url: audioPath, // Use local path initially
-        filename: fileName,
-        duration: 0, // Will be updated when upload completes
-        size: fileSize,
-      ),
-    );
-
-    // Add message to list immediately
-    setState(() {
-      _insertMessageInOrder(optimisticMessage);
-    });
-
-    // Scroll to bottom
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
-
-    try {
-      // Create fake PlatformFile for upload function
-      final platformFile = PlatformFile(
-        name: fileName,
-        size: fileSize,
-        path: audioPath,
-      );
-
-      // Upload audio file first
-      debugPrint('🔄 Starting audio file upload...');
-      final uploadedUrl = await _uploadFile(platformFile);
-      debugPrint('📁 Upload result: $uploadedUrl');
-      if (uploadedUrl == null) {
-        throw Exception('Failed to upload audio file');
-      }
-
-      // Create message with uploaded audio
-      final messageData = {
-        'senderId': user.id,
-        'content': {
-          'type': 'audio',
-          'url': uploadedUrl,
-          'duration': 0,
-          'size': _formatFileSize(fileSize),
-        },
-      };
-
-      debugPrint('📤 Sending message data: $messageData');
-      final response = await ChatApiService.sendMessageWithDocuments(
-        widget.club.id,
-        messageData,
-      );
-
-      debugPrint('📥 API Response: $response');
-      debugPrint('✅ Audio message sent successfully');
-      // The response is the message object directly, not wrapped in success
-      final newMessage = ClubMessage.fromJson(response!);
-      await MessageStorageService.addMessage(widget.club.id, newMessage);
-
-      // Update UI
-      setState(() {
-        // Remove temp message and add real message in correct order
-        _messages.removeWhere((m) => m.id == tempMessageId);
-        _insertMessageInOrder(newMessage);
-      });
-
-      // Clean up local file
-      if (await audioFile.exists()) {
-        await audioFile.delete();
-      }
-    } catch (e) {
-      debugPrint('❌ Error sending audio message: $e');
-
-      // Mark optimistic message as failed
-      setState(() {
-        final messageIndex = _messages.indexWhere((m) => m.id == tempMessageId);
-        if (messageIndex != -1) {
-          _messages[messageIndex] = _messages[messageIndex].copyWith(
-            status: MessageStatus.failed,
-            errorMessage: 'Failed to send audio message',
-          );
-        }
-      });
-
-      // Error handled by optimistic message state
-    }
-  }
 
   void _handleSlideGesture(
     DragUpdateDetails details,
@@ -1303,7 +1176,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
               clubId: widget.club.id,
               audioRecordingKey: _audioRecordingKey,
               onSendMessage: _handleNewMessage,
-              onSendAudioMessage: _sendAudioMessage,
             ),
           ],
         ),
@@ -1504,75 +1376,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
         return ['OWNER', 'ADMIN', 'CAPTAIN'].contains(userRole);
       }
       return false;
-    }
-  }
-
-  void _shareClubUPIQR() {
-    // For now, show a placeholder message
-    // In the future, this would fetch the club's UPI QR code from the server
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Share Club UPI QR'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.qr_code, size: 64, color: Color(0xFF9C27B0)),
-            SizedBox(height: 16),
-            Text(
-              'Club UPI QR Code sharing coming soon!',
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Members will be able to scan and pay directly to the club.',
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(),
-            style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF003f9b)),
-            child: Text('OK', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _sendMessageWithDocuments(
-    List<MessageDocument> uploadedDocs,
-  ) async {
-    final userProvider = context.read<UserProvider>();
-    final user = userProvider.user;
-    if (user == null) return;
-
-    try {
-      final response = await ChatApiService.sendMessageWithDocuments(
-        widget.club.id,
-        {
-          'senderId': user.id,
-          'content': {
-            'type': 'document',
-            'url': uploadedDocs.first.url,
-            'name': uploadedDocs.first.filename,
-            'size': uploadedDocs.first.size,
-          },
-        },
-      );
-
-      final newMessage = ClubMessage.fromJson(response!);
-
-      setState(() {
-        _insertMessageInOrder(newMessage);
-      });
-
-      debugPrint('✅ Message with documents sent successfully');
-    } catch (e) {
-      debugPrint('❌ Error sending message with documents: $e');
-      // Error sending documents
     }
   }
 
@@ -1926,7 +1729,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
     if (mounted) {
       setState(() {
         _cachedCanPinMessages = canPin;
-        _cachedCanShareUPIQR = canShareUPI;
       });
     }
   }
