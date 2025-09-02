@@ -405,18 +405,18 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
     try {
       // Fetch link metadata if message contains URLs
       List<LinkMetadata> linkMeta = [];
-      final urlPattern = RegExp(r'https?://[^\s]+');
-      final urls = urlPattern
-          .allMatches(currentMessage.content)
-          .map((match) => match.group(0)!)
-          .toList();
+      final urlPattern = RegExp(
+        r'http?://[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:/[^\s]*)?',
+        caseSensitive: false,
+      );
+      final matches = urlPattern.allMatches(currentMessage.content);
 
-      if (urls.isNotEmpty) {
-        for (String url in urls) {
-          final metadata = await _fetchLinkMetadata(url);
-          if (metadata != null) {
-            linkMeta.add(metadata);
-          }
+      if (matches.isNotEmpty) {
+        // Only process the first link (break after first)
+        final url = matches.first.group(0)!;
+        final metadata = await _fetchLinkMetadata(url);
+        if (metadata != null) {
+          linkMeta.add(metadata);
         }
       }
 
@@ -444,7 +444,9 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
           _uploadedAudio != null &&
           currentMessage.content.trim().isEmpty) {
         // Single audio without text
-        print('🎵 Building audio contentMap: duration=${_uploadedAudio!.duration}, size=${_uploadedAudio!.size}');
+        print(
+          '🎵 Building audio contentMap: duration=${_uploadedAudio!.duration}, size=${_uploadedAudio!.size}',
+        );
         contentMap = {
           'type': 'audio',
           'url': _uploadedAudio!.url,
@@ -461,12 +463,13 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
               ? ' '
               : currentMessage.content,
         };
-        
+
         // Add optional fields only if they exist
         if (firstLink.title != null && firstLink.title!.isNotEmpty) {
           contentMap['title'] = firstLink.title;
         }
-        if (firstLink.description != null && firstLink.description!.isNotEmpty) {
+        if (firstLink.description != null &&
+            firstLink.description!.isNotEmpty) {
           contentMap['description'] = firstLink.description;
         }
         if (firstLink.image != null && firstLink.image!.isNotEmpty) {
@@ -494,9 +497,7 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
           contentMap['videos'] = _uploadedVideos;
         }
 
-        if (linkMeta.isNotEmpty) {
-          contentMap['meta'] = linkMeta.map((meta) => meta.toJson()).toList();
-        }
+        // Note: meta field is deprecated - we only use the new linkSchema format now
       }
 
       final requestData = {
@@ -556,32 +557,28 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
       print('🔍 _handleSuccessResponse: Extracted messageData = $messageData');
 
       // Create new message from server response
-      final newMessage = ClubMessage.fromJson(messageData);
-      print(
-        '🔍 _handleSuccessResponse: Created newMessage with images.length = ${newMessage.images.length}',
-      );
-      print(
-        '🔍 _handleSuccessResponse: newMessage.content = "${newMessage.content}"',
-      );
-      print(
-        '🔍 _handleSuccessResponse: newMessage.messageType = "${newMessage.messageType}"',
-      );
+      var finalMessage = ClubMessage.fromJson(messageData);
+      
+      // Preserve locally extracted link metadata if we have it and server didn't provide it
+      if (linkMeta.isNotEmpty && finalMessage.linkMeta.isEmpty) {
+        finalMessage = finalMessage.copyWith(linkMeta: linkMeta);
+      }
 
       // Save to storage
-      await MessageStorageService.addMessage(widget.clubId, newMessage);
+      await MessageStorageService.addMessage(widget.clubId, finalMessage);
 
       // Update current message
       if (mounted) {
         setState(() {
-          currentMessage = newMessage;
+          currentMessage = finalMessage;
         });
       }
 
       // Notify parent of update
-      widget.onMessageUpdated?.call(widget.message, newMessage);
+      widget.onMessageUpdated?.call(widget.message, finalMessage);
 
       // Mark as delivered
-      await _markAsDelivered(newMessage.id);
+      await _markAsDelivered(finalMessage.id);
     } catch (e) {
       await _handleSendFailure('Failed to process response: $e');
     }
@@ -635,15 +632,16 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
         title: ogData.title,
         description: ogData.description,
         image: ogData.image,
-        siteName: ogData.siteName,
+        siteName: ogData.siteName ?? Uri.parse(url).host, // Get domain name as fallback
         favicon: ogData.favicon,
       );
     } catch (e) {
       debugPrint('Failed to fetch link metadata for $url: $e');
       // Create basic link metadata if OG data fails
       return LinkMetadata(
-        url: url,
+        url: url, 
         title: url,
+        siteName: Uri.parse(url).host,
       );
     }
   }
@@ -680,7 +678,8 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
 
     if (isEmojiOnly) {
       return 'emoji';
-    } else if (linkMeta.isNotEmpty && content.trim().isEmpty) {
+    } else if (linkMeta.isNotEmpty) {
+      // If we have link metadata, this is a link message (regardless of additional text)
       return 'link';
     } else {
       // For all other cases (pure text messages), use 'text'

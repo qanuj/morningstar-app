@@ -193,22 +193,10 @@ class ClubMessage {
             }
             break;
           case 'text':
-            // Handle text messages with images array
+            // Text messages with images will be handled in the general images parsing below
             print(
               '🔍 ClubMessage.fromJson: Parsing text message with content = $content',
             );
-            if (content['images'] is List) {
-              final imagesList = content['images'] as List;
-              images = imagesList.map((url) => url as String).toList();
-              print(
-                '🔍 ClubMessage.fromJson: Found ${images.length} images in text message',
-              );
-              print('🔍 ClubMessage.fromJson: Image URLs = $images');
-            } else {
-              print(
-                '🔍 ClubMessage.fromJson: No images array found in text content',
-              );
-            }
             break;
           case 'link':
             if (content['url'] != null) {
@@ -226,6 +214,8 @@ class ClubMessage {
                   title: content['title'],
                   description: content['description'],
                   image: linkImage,
+                  siteName: content['siteName'],
+                  favicon: content['favicon'],
                 ),
               ];
             }
@@ -257,15 +247,18 @@ class ClubMessage {
         }
       }
 
-      // Parse images array (as URLs)
-      if (content['images'] is List) {
+      // Parse images array (as URLs) - for text messages and other non-link types
+      if (content['images'] is List && messageType != 'link' && images.isEmpty) {
         images = (content['images'] as List)
             .map((url) => url as String)
             .toList();
+        print(
+          '🔍 ClubMessage.fromJson: Found ${images.length} images for $messageType message',
+        );
       }
 
       // Parse pictures array (for backward compatibility)
-      if (content['pictures'] is List) {
+      if (content['pictures'] is List && images.isEmpty) {
         final picturesList = content['pictures'] as List;
         images = picturesList
             .map((pic) {
@@ -280,12 +273,7 @@ class ClubMessage {
             .toList();
       }
 
-      // Parse link metadata array (for existing format compatibility)
-      if (content['meta'] is List) {
-        linkMeta = (content['meta'] as List)
-            .map((meta) => LinkMetadata.fromJson(meta as Map<String, dynamic>))
-            .toList();
-      }
+      // Note: meta field is deprecated - we only use the new linkSchema format now
     }
 
     // Parse top-level images array (for cache compatibility)
