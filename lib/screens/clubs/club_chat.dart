@@ -20,12 +20,12 @@ import '../../services/chat_api_service.dart';
 import '../../services/message_storage_service.dart';
 import '../../services/media_storage_service.dart';
 import '../../widgets/club_info_dialog.dart';
-import '../../widgets/message_bubbles/message_bubble_factory.dart';
 import '../../widgets/image_caption_dialog.dart';
 import '../../widgets/audio_recording_widget.dart';
 import '../../widgets/pinned_messages_section.dart';
-import '../../widgets/message_bubbles/self_sending_message_bubble.dart';
 import '../../widgets/message_visibility_detector.dart';
+import '../../widgets/chat_app_bar.dart';
+import '../../widgets/message_bubble_wrapper.dart';
 
 class ClubChatScreen extends StatefulWidget {
   final Club club;
@@ -1378,181 +1378,46 @@ class ClubChatScreenState extends State<ClubChatScreen>
           ? Colors.grey[850]
           : Colors.grey[100],
       resizeToAvoidBottomInset: true,
-      appBar: AppBar(
-        backgroundColor: Color(0xFF003f9b),
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: _isSelectionMode
-            ? Text(
-                '${_selectedMessageIds.length} message${_selectedMessageIds.length == 1 ? '' : 's'} selected',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              )
-            : Row(
-                children: [
-                  // Club Logo
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.3),
-                        width: 1,
-                      ),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(18),
-                      child:
-                          widget.club.logo != null &&
-                              widget.club.logo!.isNotEmpty
-                          ? Image.network(
-                              widget.club.logo!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return _buildDefaultClubLogo();
-                              },
-                              loadingBuilder:
-                                  (context, child, loadingProgress) {
-                                    if (loadingProgress == null) return child;
-                                    return _buildDefaultClubLogo();
-                                  },
-                            )
-                          : _buildDefaultClubLogo(),
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  // Club Name and Status
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: _showClubInfoDialog,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.club.name,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            'tap here for club info',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.8),
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-        actions: _isSelectionMode
-            ? [
-                IconButton(
-                  icon: Icon(Icons.close, color: Colors.white),
-                  onPressed: _exitSelectionMode,
-                  tooltip: 'Cancel selection',
-                ),
-                IconButton(
-                  icon: Icon(Icons.delete, color: Colors.white),
-                  onPressed: _selectedMessageIds.isNotEmpty
-                      ? _deleteSelectedMessages
-                      : null,
-                  tooltip: 'Delete selected messages',
-                ),
-              ]
-            : [
-                // Offline mode indicator and refresh button
-                FutureBuilder<bool>(
-                  future: MessageStorageService.isOfflineMode(widget.club.id),
-                  builder: (context, snapshot) {
-                    final isOfflineMode = snapshot.data ?? false;
-                    return Stack(
-                      children: [
-                        IconButton(
-                          icon: AnimatedBuilder(
-                            animation: _refreshAnimationController,
-                            builder: (context, child) {
-                              return Transform.rotate(
-                                angle:
-                                    _refreshAnimationController.value *
-                                    2.0 *
-                                    3.14159,
-                                child: Icon(Icons.refresh, color: Colors.white),
-                              );
-                            },
-                          ),
-                          onPressed: () => _loadMessages(forceSync: true),
-                          tooltip: isOfflineMode
-                              ? 'Refresh from server (Offline mode is ON)'
-                              : 'Refresh messages',
-                        ),
-                        if (isOfflineMode)
-                          Positioned(
-                            right: 8,
-                            top: 8,
-                            child: Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: Colors.orange,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                          ),
-                      ],
-                    );
-                  },
-                ),
-                IconButton(
-                  icon: Icon(Icons.more_vert, color: Colors.white),
-                  onPressed: () => _showMoreOptions(),
-                  tooltip: 'More options',
-                ),
-              ],
+      appBar: ChatAppBar(
+        club: widget.club,
+        isSelectionMode: _isSelectionMode,
+        selectedMessageIds: _selectedMessageIds,
+        refreshAnimationController: _refreshAnimationController,
+        onBackPressed: () => Navigator.of(context).pop(),
+        onShowClubInfo: _showClubInfoDialog,
+        onExitSelectionMode: _exitSelectionMode,
+        onDeleteSelectedMessages: _deleteSelectedMessages,
+        onRefreshMessages: () => _loadMessages(forceSync: true),
+        onShowMoreOptions: _showMoreOptions,
       ),
       body: SafeArea(
-        child: Container(
-          child: Column(
-            children: [
-              // Messages List - Takes all available space
-              Expanded(
-                child: Container(
-                  width: double.infinity,
-                  child: GestureDetector(
-                    onTap: () {
-                      // Close keyboard when tapping in messages area
-                      FocusScope.of(context).unfocus();
-                    },
-                    behavior: HitTestBehavior.opaque,
-                    child: _error != null
-                        ? _buildErrorState(_error!)
-                        : _messages.isEmpty
-                        ? _buildEmptyState()
-                        : _buildMessagesList(),
-                  ),
+        child: Column(
+          children: [
+            // Messages List - Takes all available space
+            Expanded(
+              child: SizedBox(
+                width: double.infinity,
+                child: GestureDetector(
+                  onTap: () {
+                    // Close keyboard when tapping in messages area
+                    FocusScope.of(context).unfocus();
+                  },
+                  behavior: HitTestBehavior.opaque,
+                  child: _error != null
+                      ? _buildErrorState(_error!)
+                      : _messages.isEmpty
+                      ? _buildEmptyState()
+                      : _buildMessagesList(),
                 ),
               ),
+            ),
 
-              // Reply preview (if replying to a message)
-              if (_replyingTo != null) _buildReplyPreview(),
+            // Reply preview (if replying to a message)
+            if (_replyingTo != null) _buildReplyPreview(),
 
-              // Message Input - Sticks to bottom footer
-              _buildMessageInput(),
-            ],
-          ),
+            // Message Input - Sticks to bottom footer
+            _buildMessageInput(),
+          ],
         ),
       ),
     );
@@ -1632,10 +1497,26 @@ class ClubChatScreenState extends State<ClubChatScreen>
                       skipTracking:
                           message.senderId ==
                           context.read<UserProvider>().user?.id,
-                      child: _buildMessageBubble(
-                        message,
-                        showSenderInfo,
-                        isLastFromSender,
+                      child: MessageBubbleWrapper(
+                        message: message,
+                        showSenderInfo: showSenderInfo,
+                        isLastFromSender: isLastFromSender,
+                        clubId: widget.club.id,
+                        isSelectionMode: _isSelectionMode,
+                        selectedMessageIds: _selectedMessageIds,
+                        onToggleSelection: _toggleSelection,
+                        highlightedMessageId: _highlightedMessageId,
+                        isSliding: _isSliding,
+                        slidingMessageId: _slidingMessageId,
+                        slideOffset: _slideOffset,
+                        onSlideUpdate: _handleSlideGesture,
+                        onSlideEnd: _handleSlideEnd,
+                        onShowMessageOptions: _showMessageOptions,
+                        onShowErrorDialog: _showErrorDialog,
+                        onMessageUpdated: _handleMessageUpdated,
+                        onMessageFailed: _handleMessageFailed,
+                        getRoleColor: _getRoleColor,
+                        isCurrentlyPinned: _isCurrentlyPinned,
                       ),
                     ),
                   );
@@ -1765,154 +1646,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
     );
   }
 
-  Widget _buildMessageBubble(
-    ClubMessage message,
-    bool showSenderInfo,
-    bool isLastFromSender,
-  ) {
-    final userProvider = context.read<UserProvider>();
-    final isOwn = message.senderId == userProvider.user?.id;
-
-    return AnimatedContainer(
-      duration: Duration(milliseconds: 300),
-      margin: EdgeInsets.only(bottom: isLastFromSender ? 12 : 4),
-      decoration: _highlightedMessageId == message.id
-          ? BoxDecoration(
-              color: Color(0xFF06aeef).withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
-            )
-          : null,
-      padding: _highlightedMessageId == message.id
-          ? EdgeInsets.symmetric(horizontal: 8, vertical: 4)
-          : EdgeInsets.zero,
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: isOwn
-                ? MainAxisAlignment.end
-                : MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              if (!isOwn && showSenderInfo) _buildSenderAvatar(message),
-              if (!isOwn && !showSenderInfo) SizedBox(width: 34),
-
-              Flexible(
-                child: Container(
-                  constraints: BoxConstraints(
-                    maxWidth: MediaQuery.of(context).size.width * 0.75,
-                  ),
-                  child: Stack(
-                    children: [
-                      // Reply icon background (shown during slide)
-                      if (_isSliding && _slidingMessageId == message.id)
-                        Positioned(
-                          right: isOwn ? null : 10,
-                          left: isOwn ? 10 : null,
-                          top: 0,
-                          bottom: 0,
-                          child: AnimatedContainer(
-                            duration: Duration(milliseconds: 100),
-                            width: 50,
-                            decoration: BoxDecoration(
-                              color: Color(0xFF06aeef).withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(25),
-                            ),
-                            alignment: Alignment.center,
-                            child: AnimatedScale(
-                              scale: _slideOffset > 50.0 ? 1.2 : 1.0,
-                              duration: Duration(milliseconds: 100),
-                              child: Icon(
-                                Icons.reply,
-                                color: Color(
-                                  0xFF06aeff,
-                                ).withOpacity(_slideOffset > 50.0 ? 1.0 : 0.7),
-                                size: _slideOffset > 50.0 ? 32 : 28,
-                              ),
-                            ),
-                          ),
-                        ),
-
-                      // Message content with slide animation
-                      Transform.translate(
-                        offset: Offset(
-                          _slidingMessageId == message.id
-                              ? (isOwn ? -_slideOffset : _slideOffset)
-                              : 0.0,
-                          0.0,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: isOwn
-                              ? CrossAxisAlignment.end
-                              : CrossAxisAlignment.start,
-                          children: [
-                            // Reply info (if this message is a reply)
-                            if (message.replyTo != null)
-                              _buildReplyInfo(message.replyTo!, isOwn),
-
-                            GestureDetector(
-                              onTap: message.deleted
-                                  ? null
-                                  : _isSelectionMode
-                                  ? () => _toggleSelection(message.id)
-                                  : message.status == MessageStatus.failed
-                                  ? () => _showErrorDialog(message)
-                                  : () => _showMessageOptions(message),
-                              onLongPress: (_isSelectionMode || message.deleted)
-                                  ? null
-                                  : () => _showMessageOptions(message),
-                              onPanUpdate: (_isSelectionMode || message.deleted)
-                                  ? null
-                                  : (details) => _handleSlideGesture(
-                                      details,
-                                      message,
-                                      isOwn,
-                                    ),
-                              onPanEnd: (_isSelectionMode || message.deleted)
-                                  ? null
-                                  : (details) => _handleSlideEnd(
-                                      details,
-                                      message,
-                                      isOwn,
-                                    ),
-                              child: message.status == MessageStatus.sending
-                                  ? SelfSendingMessageBubble(
-                                      message: message,
-                                      isOwn: isOwn,
-                                      isPinned: _isCurrentlyPinned(message),
-                                      isDeleted: message.deleted,
-                                      isSelected: _selectedMessageIds.contains(
-                                        message.id,
-                                      ),
-                                      showSenderInfo: showSenderInfo,
-                                      clubId: widget.club.id,
-                                      onMessageUpdated: _handleMessageUpdated,
-                                      onMessageFailed: _handleMessageFailed,
-                                    )
-                                  : MessageBubbleFactory(
-                                      message: message,
-                                      isOwn: isOwn,
-                                      isDeleted: message.deleted,
-                                      isPinned: _isCurrentlyPinned(message),
-                                      isSelected: _selectedMessageIds.contains(
-                                        message.id,
-                                      ),
-                                      showSenderInfo: showSenderInfo,
-                                    ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showErrorDialog(ClubMessage message) {
     showDialog(
       context: context,
@@ -2023,76 +1756,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _sendMessage();
     });
-  }
-
-  Widget _buildDefaultClubLogo() {
-    return Container(
-      color: Theme.of(context).primaryColor.withOpacity(0.1),
-      child: Center(
-        child: Text(
-          widget.club.name.isNotEmpty
-              ? widget.club.name.substring(0, 1).toUpperCase()
-              : 'C',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSenderAvatar(ClubMessage message) {
-    return Container(
-      width: 28,
-      height: 28,
-      margin: EdgeInsets.only(right: 6, bottom: 2),
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Theme.of(context).primaryColor.withOpacity(0.1),
-        border: Border.all(
-          color: _getRoleColor(message.senderRole ?? 'MEMBER').withOpacity(0.3),
-          width: 1.5,
-        ),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child:
-            message.senderProfilePicture != null &&
-                message.senderProfilePicture!.isNotEmpty
-            ? Image.network(
-                message.senderProfilePicture!,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return _buildDefaultSenderAvatar(message);
-                },
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return _buildDefaultSenderAvatar(message);
-                },
-              )
-            : _buildDefaultSenderAvatar(message),
-      ),
-    );
-  }
-
-  Widget _buildDefaultSenderAvatar(ClubMessage message) {
-    return Container(
-      color: _getRoleColor(message.senderRole ?? 'MEMBER').withOpacity(0.1),
-      child: Center(
-        child: Text(
-          message.senderName.isNotEmpty
-              ? message.senderName.substring(0, 1).toUpperCase()
-              : '?',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: _getRoleColor(message.senderRole ?? 'MEMBER'),
-          ),
-        ),
-      ),
-    );
   }
 
   Color _getRoleColor(String role) {
@@ -3059,47 +2722,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
                     ? Colors.white.withOpacity(0.7)
                     : Colors.black.withOpacity(0.6),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildReplyInfo(MessageReply reply, bool isOwn) {
-    return Container(
-      margin: EdgeInsets.only(bottom: 8),
-      child: Container(
-        padding: EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: (Theme.of(context).brightness == Brightness.dark
-              ? Colors.white.withOpacity(0.1)
-              : Colors.black.withOpacity(0.1)),
-          borderRadius: BorderRadius.circular(6),
-          border: Border(left: BorderSide(color: Color(0xFF06aeef), width: 3)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              reply.senderName,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF06aeef),
-              ),
-            ),
-            SizedBox(height: 2),
-            Text(
-              reply.content,
-              style: TextStyle(
-                fontSize: 13,
-                color: (Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white.withOpacity(0.8)
-                    : Colors.black.withOpacity(0.6)),
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
