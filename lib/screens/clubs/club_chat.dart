@@ -27,6 +27,7 @@ import '../../widgets/message_visibility_detector.dart';
 import '../../widgets/chat_app_bar.dart';
 import '../../widgets/message_bubble_wrapper.dart';
 import '../../widgets/message_input.dart';
+import '../../widgets/chat_header.dart';
 
 class ClubChatScreen extends StatefulWidget {
   final Club club;
@@ -558,9 +559,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
     }
 
     if (hasChanges) {
-      // Sort by creation time (oldest first for chat display)
-      updatedMessagesList.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-
       setState(() {
         _messages = updatedMessagesList;
         _isLoading = false;
@@ -647,8 +645,8 @@ class ClubChatScreenState extends State<ClubChatScreen>
           _updatePermissions();
         }
 
-        // Sort by creation time (oldest first for chat display)
-        _messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        // Messages from server should already be in correct chronological order
+        // No sorting needed to prevent UI jumping
 
         // Sync delivery status from server before trying to mark new ones
         _syncDeliveryStatusFromServer(serverMessages);
@@ -944,19 +942,51 @@ class ClubChatScreenState extends State<ClubChatScreen>
     _messageController.clear();
     setState(() {
       _isComposing = false;
-      _messages.add(optimisticMessage);
+      _insertMessageInOrder(optimisticMessage);
       _replyingTo = null; // Clear reply after sending
     });
+  }
+
+  /// Insert a message in the correct chronological position without sorting the entire list
+  void _insertMessageInOrder(ClubMessage message) {
+    // Find the correct position to insert the message (chronological order)
+    int insertIndex = _messages.length;
+    for (int i = _messages.length - 1; i >= 0; i--) {
+      if (_messages[i].createdAt.isAfter(message.createdAt)) {
+        insertIndex = i;
+      } else {
+        break;
+      }
+    }
+    _messages.insert(insertIndex, message);
+  }
+
+  /// Replace a message and re-position it if the timestamp changed
+  void _replaceMessage(ClubMessage oldMessage, ClubMessage newMessage) {
+    final messageIndex = _messages.indexWhere((m) => m.id == oldMessage.id);
+    if (messageIndex != -1) {
+      _messages.removeAt(messageIndex);
+      // If timestamp is different, insert in correct position
+      if (oldMessage.createdAt != newMessage.createdAt) {
+        _insertMessageInOrder(newMessage);
+      } else {
+        // Same timestamp, insert at same position
+        _messages.insert(messageIndex, newMessage);
+      }
+    }
   }
 
   void _handleMessageUpdated(ClubMessage oldMessage, ClubMessage newMessage) {
     setState(() {
       final messageIndex = _messages.indexWhere((m) => m.id == oldMessage.id);
       if (messageIndex != -1) {
-        _messages[messageIndex] = newMessage;
-        // Only sort if the message ID changed (from temp to real ID)
-        if (oldMessage.id != newMessage.id) {
-          _messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        // If the message ID changed (temp to real) or timestamp changed, reposition
+        if (oldMessage.id != newMessage.id ||
+            oldMessage.createdAt != newMessage.createdAt) {
+          _replaceMessage(oldMessage, newMessage);
+        } else {
+          // Just update in place for status changes
+          _messages[messageIndex] = newMessage;
         }
       }
     });
@@ -1111,7 +1141,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
 
     // Add message to list immediately
     setState(() {
-      _messages.add(optimisticMessage);
+      _insertMessageInOrder(optimisticMessage);
     });
 
     // Scroll to bottom
@@ -1166,10 +1196,9 @@ class ClubChatScreenState extends State<ClubChatScreen>
 
       // Update UI
       setState(() {
-        // Remove temp message and add real message
+        // Remove temp message and add real message in correct order
         _messages.removeWhere((m) => m.id == tempMessageId);
-        _messages.add(newMessage);
-        _messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        _insertMessageInOrder(newMessage);
       });
 
       // Clean up local file
@@ -1394,7 +1423,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
         onShowClubInfo: _showClubInfoDialog,
         onExitSelectionMode: _exitSelectionMode,
         onDeleteSelectedMessages: _deleteSelectedMessages,
-        onRefreshMessages: () => _loadMessages(forceSync: true),
+        onRefreshMessages: () => _loadMessages(),
         onShowMoreOptions: _showMoreOptions,
       ),
       body: SafeArea(
@@ -1490,7 +1519,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
 
                   // Check if item is a date header
                   if (item is DateTime) {
-                    return _buildDateHeader(item);
+                    return ChatHeader.date(date: item);
                   }
 
                   // Otherwise it's a message
@@ -1558,7 +1587,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
   // Handle pull-to-refresh at top of screen
   Future<void> _handleRefresh() async {
     debugPrint('🔄 Pull-to-refresh triggered');
-    await _loadMessages(forceSync: true);
+    await _loadMessages();
   }
 
   // Handle scroll notifications for bottom refresh detection
@@ -1587,7 +1616,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
     _bottomRefreshTimer = Timer(Duration(seconds: 1), () {
       // Trigger refresh with haptic feedback
       HapticFeedback.lightImpact();
-      _loadMessages(forceSync: true);
+      _loadMessages();
     });
   }
 
@@ -1614,62 +1643,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
     }
 
     return items;
-  }
-
-  // Helper method to build date header widget
-  Widget _buildDateHeader(DateTime date) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final yesterday = today.subtract(Duration(days: 1));
-
-    String dateText;
-    if (_isSameDate(date, today)) {
-      dateText = 'Today';
-    } else if (_isSameDate(date, yesterday)) {
-      dateText = 'Yesterday';
-    } else {
-      // Format as "Mon, Jan 15, 2024"
-      final weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      final months = [
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'May',
-        'Jun',
-        'Jul',
-        'Aug',
-        'Sep',
-        'Oct',
-        'Nov',
-        'Dec',
-      ];
-
-      final weekday = weekdays[date.weekday % 7];
-      final month = months[date.month - 1];
-
-      dateText = '$weekday, $month ${date.day}, ${date.year}';
-    }
-
-    return Container(
-      margin: EdgeInsets.symmetric(vertical: 16.0),
-      alignment: Alignment.center,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(16.0),
-        ),
-        child: Text(
-          dateText,
-          style: TextStyle(
-            fontSize: 12.0,
-            fontWeight: FontWeight.w500,
-            color: Colors.grey.shade600,
-          ),
-        ),
-      ),
-    );
   }
 
   void _showErrorDialog(ClubMessage message) {
@@ -2216,7 +2189,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
 
     // Add message to list immediately with previews
     setState(() {
-      _messages.add(optimisticMessage);
+      _insertMessageInOrder(optimisticMessage);
     });
 
     // Scroll to bottom
@@ -2360,10 +2333,9 @@ class ClubChatScreenState extends State<ClubChatScreen>
 
       // Update UI
       setState(() {
-        // Remove temp message and add real message
+        // Remove temp message and add real message in correct order
         _messages.removeWhere((m) => m.id == tempMessageId);
-        _messages.add(newMessage);
-        _messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        _insertMessageInOrder(newMessage);
       });
     } catch (e) {
       debugPrint('❌ Error sending message with media: $e');
@@ -2403,7 +2375,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
       final newMessage = ClubMessage.fromJson(response!);
 
       setState(() {
-        _messages.insert(0, newMessage);
+        _insertMessageInOrder(newMessage);
       });
 
       debugPrint('✅ Message with documents sent successfully');

@@ -15,11 +15,12 @@ class SelfSendingMessageBubble extends StatefulWidget {
   final bool isSelected;
   final bool showSenderInfo;
   final String clubId;
-  final Function(ClubMessage oldMessage, ClubMessage newMessage)? onMessageUpdated;
+  final Function(ClubMessage oldMessage, ClubMessage newMessage)?
+  onMessageUpdated;
   final Function(String messageId)? onMessageFailed;
 
   const SelfSendingMessageBubble({
-    Key? key,
+    super.key,
     required this.message,
     required this.isOwn,
     required this.isPinned,
@@ -29,10 +30,11 @@ class SelfSendingMessageBubble extends StatefulWidget {
     this.showSenderInfo = false,
     this.onMessageUpdated,
     this.onMessageFailed,
-  }) : super(key: key);
+  });
 
   @override
-  _SelfSendingMessageBubbleState createState() => _SelfSendingMessageBubbleState();
+  _SelfSendingMessageBubbleState createState() =>
+      _SelfSendingMessageBubbleState();
 }
 
 class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
@@ -43,7 +45,7 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
   void initState() {
     super.initState();
     currentMessage = widget.message;
-    
+
     // If this is a sending message, start the send process
     if (currentMessage.status == MessageStatus.sending && !_isSending) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -88,7 +90,10 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
       }
 
       // Determine message type
-      String messageType = _determineMessageType(currentMessage.content, linkMeta);
+      String messageType = _determineMessageType(
+        currentMessage.content,
+        linkMeta,
+      );
 
       // Prepare API request
       final Map<String, dynamic> contentMap = {
@@ -103,7 +108,8 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
       final requestData = {
         'senderId': currentMessage.senderId,
         'content': contentMap,
-        if (currentMessage.replyTo != null) 'replyTo': currentMessage.replyTo!.toJson(),
+        if (currentMessage.replyTo != null)
+          'replyTo': currentMessage.replyTo!.toJson(),
       };
 
       // Send to API
@@ -112,13 +118,8 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
         requestData,
       );
 
-      if (response != null) {
-        // Handle successful response
-        await _handleSuccessResponse(response, linkMeta);
-      } else {
-        // Handle failure
-        await _handleSendFailure('Server response was null');
-      }
+      // Handle successful response
+      await _handleSuccessResponse(response, linkMeta);
     } catch (e) {
       // Handle error
       await _handleSendFailure(e.toString());
@@ -129,47 +130,39 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
     }
   }
 
-  Future<void> _handleSuccessResponse(Map<String, dynamic> response, List<LinkMetadata> linkMeta) async {
+  Future<void> _handleSuccessResponse(
+    Map<String, dynamic> response,
+    List<LinkMetadata> linkMeta,
+  ) async {
     try {
       // Extract message data from response
       Map<String, dynamic>? messageData;
-      
+
       if (response.containsKey('data') && response['data'] is Map) {
         messageData = response['data'] as Map<String, dynamic>;
-      } else if (response.containsKey('message') && response['message'] is Map) {
+      } else if (response.containsKey('message') &&
+          response['message'] is Map) {
         messageData = response['message'] as Map<String, dynamic>;
       } else {
         messageData = response;
       }
 
-      if (messageData != null) {
-        // Create new message from server response
-        final newMessage = ClubMessage.fromJson(messageData);
-        
-        // Save to storage
-        await MessageStorageService.addMessage(widget.clubId, newMessage);
-        
-        // Update current message
-        setState(() {
-          currentMessage = newMessage;
-        });
+      // Create new message from server response
+      final newMessage = ClubMessage.fromJson(messageData);
 
-        // Notify parent of update
-        widget.onMessageUpdated?.call(widget.message, newMessage);
+      // Save to storage
+      await MessageStorageService.addMessage(widget.clubId, newMessage);
 
-        // Mark as delivered
-        await _markAsDelivered(newMessage.id);
-        
-      } else {
-        // Fallback: just update status to sent
-        final updatedMessage = currentMessage.copyWith(
-          status: MessageStatus.sent,
-        );
-        setState(() {
-          currentMessage = updatedMessage;
-        });
-        widget.onMessageUpdated?.call(widget.message, updatedMessage);
-      }
+      // Update current message
+      setState(() {
+        currentMessage = newMessage;
+      });
+
+      // Notify parent of update
+      widget.onMessageUpdated?.call(widget.message, newMessage);
+
+      // Mark as delivered
+      await _markAsDelivered(newMessage.id);
     } catch (e) {
       await _handleSendFailure('Failed to process response: $e');
     }
@@ -180,7 +173,7 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
       status: MessageStatus.failed,
       errorMessage: errorMessage,
     );
-    
+
     setState(() {
       currentMessage = failedMessage;
     });
@@ -195,19 +188,19 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
         '/conversations/${widget.clubId}/messages/$messageId/delivered',
         {},
       );
-      
+
       await MessageStorageService.markAsDelivered(widget.clubId, messageId);
-      
+
       // Update message status to delivered
       final deliveredMessage = currentMessage.copyWith(
         status: MessageStatus.delivered,
         deliveredAt: DateTime.now(),
       );
-      
+
       setState(() {
         currentMessage = deliveredMessage;
       });
-      
+
       widget.onMessageUpdated?.call(currentMessage, deliveredMessage);
     } catch (e) {
       print('⚠️ Failed to mark message as delivered: $e');
@@ -231,8 +224,9 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
       r'^(\s*[\p{Emoji}\p{Emoji_Modifier}\p{Emoji_Component}\p{Emoji_Modifier_Base}\p{Emoji_Presentation}\u200d]*\s*)+$',
       unicode: true,
     );
-    final isEmojiOnly = emojiOnlyPattern.hasMatch(content) && content.trim().length <= 12;
-    
+    final isEmojiOnly =
+        emojiOnlyPattern.hasMatch(content) && content.trim().length <= 12;
+
     if (isEmojiOnly) {
       return 'emoji';
     } else if (linkMeta.isNotEmpty) {
@@ -259,7 +253,9 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: currentMessage.status == MessageStatus.failed ? _handleRetry : null,
+      onTap: currentMessage.status == MessageStatus.failed
+          ? _handleRetry
+          : null,
       child: MessageBubbleFactory(
         message: currentMessage,
         isOwn: widget.isOwn,
@@ -267,7 +263,9 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
         isDeleted: widget.isDeleted,
         isSelected: widget.isSelected,
         showSenderInfo: widget.showSenderInfo,
-        onRetryUpload: currentMessage.status == MessageStatus.failed ? _handleRetry : null,
+        onRetryUpload: currentMessage.status == MessageStatus.failed
+            ? _handleRetry
+            : null,
       ),
     );
   }
