@@ -6,27 +6,22 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'dart:async';
-import 'dart:typed_data';
 import '../../providers/user_provider.dart';
 import '../../models/club.dart';
 import '../../models/club_message.dart';
 import '../../models/message_status.dart';
 import '../../models/message_image.dart';
 import '../../models/message_document.dart';
-import '../../models/link_metadata.dart';
 import '../../models/message_reaction.dart';
 import '../../models/message_reply.dart';
 import '../../models/starred_info.dart';
 import '../../models/message_audio.dart';
-import '../../services/api_service.dart';
 import '../../services/chat_api_service.dart';
 import '../../services/message_storage_service.dart';
 import '../../services/media_storage_service.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../widgets/club_info_dialog.dart';
 import '../../widgets/message_bubbles/message_bubble_factory.dart';
 import '../../widgets/image_caption_dialog.dart';
-import '../../widgets/image_gallery_screen.dart';
 import '../../widgets/audio_recording_widget.dart';
 import '../../widgets/pinned_messages_section.dart';
 import '../../widgets/message_bubbles/self_sending_message_bubble.dart';
@@ -35,13 +30,13 @@ import '../../widgets/message_visibility_detector.dart';
 class ClubChatScreen extends StatefulWidget {
   final Club club;
 
-  const ClubChatScreen({Key? key, required this.club}) : super(key: key);
+  const ClubChatScreen({super.key, required this.club});
 
   @override
-  _ClubChatScreenState createState() => _ClubChatScreenState();
+  ClubChatScreenState createState() => ClubChatScreenState();
 }
 
-class _ClubChatScreenState extends State<ClubChatScreen>
+class ClubChatScreenState extends State<ClubChatScreen>
     with TickerProviderStateMixin {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -639,7 +634,7 @@ class _ClubChatScreenState extends State<ClubChatScreen>
         );
 
         // Parse detailed club info from API response
-        if (response != null && response['club'] != null) {
+        if (response['club'] != null) {
           _detailedClubInfo = DetailedClubInfo.fromJson(
             response['club'] as Map<String, dynamic>,
           );
@@ -2734,7 +2729,7 @@ class _ClubChatScreenState extends State<ClubChatScreen>
         final uploadedUrl = await _uploadFile(file);
         if (uploadedUrl != null) {
           final extension = file.extension?.toLowerCase() ?? '';
-          final fileSize = _formatFileSize(file.size ?? 0);
+          final fileSize = _formatFileSize(file.size);
           uploadedDocs.add(
             MessageDocument(
               url: uploadedUrl,
@@ -3467,7 +3462,7 @@ class _ClubChatScreenState extends State<ClubChatScreen>
               SizedBox(height: 24),
 
               // Cancel button
-              Container(
+              SizedBox(
                 width: double.infinity,
                 child: TextButton(
                   onPressed: () => Navigator.pop(context),
