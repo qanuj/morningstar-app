@@ -2,23 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 import 'dart:async';
 import '../../providers/user_provider.dart';
 import '../../models/club.dart';
 import '../../models/club_message.dart';
 import '../../models/message_status.dart';
-import '../../models/message_image.dart';
-import '../../models/message_document.dart';
 import '../../models/message_reply.dart';
-import '../../models/starred_info.dart';
-import '../../models/message_audio.dart';
 import '../../services/chat_api_service.dart';
 import '../../services/message_storage_service.dart';
 import '../../services/media_storage_service.dart';
 import '../../widgets/club_info_dialog.dart';
-import '../../widgets/image_caption_dialog.dart';
 import '../../widgets/audio_recording_widget.dart';
 import '../../widgets/pinned_messages_section.dart';
 import '../../widgets/message_visibility_detector.dart';
@@ -967,7 +960,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
     // They will be cleaned up when message is successfully sent or manually deleted
   }
 
-
   void _handleSlideGesture(
     DragUpdateDetails details,
     ClubMessage message,
@@ -1348,40 +1340,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
   }
 
   // Async method to check if user can share UPI QR
-  Future<bool> _checkCanShareUPIQR() async {
-    // First check if UPI ID is configured
-    if (widget.club.upiId == null || widget.club.upiId!.isEmpty) {
-      return false;
-    }
-
-    final userProvider = context.read<UserProvider>();
-    final user = userProvider.user;
-    if (user == null) return false;
-
-    // Check if user has admin privileges (OWNER, ADMIN, or CAPTAIN can share payment QR)
-    try {
-      return await userProvider.hasRoleInClub(widget.club.id, [
-        'OWNER',
-        'ADMIN',
-        'CAPTAIN',
-      ]);
-    } catch (e) {
-      print('Error checking UPI QR share permissions: $e');
-      // Fallback: only allow if user seems to be admin based on messages
-      final userMessages = _messages
-          .where((m) => m.senderId == user.id)
-          .toList();
-      if (userMessages.isNotEmpty) {
-        final userRole = userMessages.first.senderRole ?? 'MEMBER';
-        return ['OWNER', 'ADMIN', 'CAPTAIN'].contains(userRole);
-      }
-      return false;
-    }
-  }
-
-  Future<String?> _uploadFile(PlatformFile file) async {
-    return await ChatApiService.uploadFile(file);
-  }
 
   Widget _buildReplyPreview() {
     if (_replyingTo == null) return SizedBox.shrink();
@@ -1450,12 +1408,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
         ],
       ),
     );
-  }
-
-  String _formatFileSize(int bytes) {
-    if (bytes < 1024) return '${bytes}B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)}KB';
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)}MB';
   }
 
   Widget _buildErrorState(String error) {
@@ -1724,7 +1676,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
   // Update cached permissions
   Future<void> _updatePermissions() async {
     final canPin = await _canPinMessages();
-    final canShareUPI = await _checkCanShareUPIQR();
 
     if (mounted) {
       setState(() {
