@@ -337,34 +337,23 @@ class BaseMessageBubble extends StatelessWidget {
                   currentUserId != null &&
                   emojiUsers.any((user) => user['userId'] == currentUserId);
 
-              Widget emojiWidget = Text(
-                emoji,
-                style: TextStyle(
-                  fontSize: 14,
-                  // Highlight emoji if current user has reacted
-                  color: hasCurrentUserReacted ? Color(0xFF003f9b) : null,
+              Widget emojiWidget = Container(
+                padding: EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(4),
+                  color: hasCurrentUserReacted
+                      ? Color(0xFF003f9b).withOpacity(0.1)
+                      : Colors.transparent,
+                ),
+                child: Text(
+                  emoji,
+                  style: TextStyle(
+                    fontSize: 14,
+                    // Highlight emoji if current user has reacted
+                    color: hasCurrentUserReacted ? Color(0xFF003f9b) : null,
+                  ),
                 ),
               );
-
-              // Make emoji tappable if current user has reacted with it
-              if (hasCurrentUserReacted && onReactionRemoved != null) {
-                emojiWidget = GestureDetector(
-                  onTap: () {
-                    // Remove the current user's reaction for this emoji
-                    onReactionRemoved!(message.id, emoji, currentUserId);
-                  },
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 2, vertical: 1),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(4),
-                      color: hasCurrentUserReacted
-                          ? Color(0xFF003f9b).withOpacity(0.1)
-                          : Colors.transparent,
-                    ),
-                    child: emojiWidget,
-                  ),
-                );
-              }
 
               return Row(
                 mainAxisSize: MainAxisSize.min,
