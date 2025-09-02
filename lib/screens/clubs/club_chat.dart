@@ -8,6 +8,7 @@ import '../../models/club.dart';
 import '../../models/club_message.dart';
 import '../../models/message_status.dart';
 import '../../models/message_reply.dart';
+import '../../models/message_reaction.dart';
 import '../../services/chat_api_service.dart';
 import '../../services/message_storage_service.dart';
 import '../../services/media_storage_service.dart';
@@ -298,7 +299,8 @@ class ClubChatScreenState extends State<ClubChatScreen>
     for (final message in serverMessages) {
       // For messages from OTHER users: track our delivery/read status to avoid duplicate API calls
       if (message.senderId != currentUserId) {
-        if (message.status == MessageStatus.delivered || message.deliveredAt != null) {
+        if (message.status == MessageStatus.delivered ||
+            message.deliveredAt != null) {
           if (!_deliveredMessages.contains(message.id)) {
             _deliveredMessages.add(message.id);
             syncedCount++;
@@ -311,9 +313,9 @@ class ClubChatScreenState extends State<ClubChatScreen>
           }
         }
       }
-      
-      // Note: For messages sent BY current user, the server status reflects 
-      // whether OTHER users have read/delivered them. This status should be 
+
+      // Note: For messages sent BY current user, the server status reflects
+      // whether OTHER users have read/delivered them. This status should be
       // used directly from the server message without local tracking.
     }
 
@@ -530,21 +532,26 @@ class ClubChatScreenState extends State<ClubChatScreen>
           final currentMsg = updatedMessagesList[index];
           final serverStatus = updatedMsg.status;
           final localStatus = currentMsg.status;
-          
-          debugPrint('🔍 Message ${updatedMsg.id}: local=${localStatus.toString().split('.').last} → server=${serverStatus.toString().split('.').last}');
-          
+
+          debugPrint(
+            '🔍 Message ${updatedMsg.id}: local=${localStatus.toString().split('.').last} → server=${serverStatus.toString().split('.').last}',
+          );
+
           // Use server timestamps if available, otherwise keep local timestamps
-          final finalDeliveredAt = updatedMsg.deliveredAt ?? currentMsg.deliveredAt;
+          final finalDeliveredAt =
+              updatedMsg.deliveredAt ?? currentMsg.deliveredAt;
           final finalReadAt = updatedMsg.readAt ?? currentMsg.readAt;
-          
+
           // Use server status as authoritative (it includes latest read/delivered info from all users)
           updatedMessagesList[index] = updatedMsg.copyWith(
             deliveredAt: finalDeliveredAt,
             readAt: finalReadAt,
           );
           hasChanges = true;
-          
-          debugPrint('✅ Updated message ${updatedMsg.id} with server status: ${serverStatus.toString().split('.').last}');
+
+          debugPrint(
+            '✅ Updated message ${updatedMsg.id} with server status: ${serverStatus.toString().split('.').last}',
+          );
         }
       }
     }
@@ -595,29 +602,33 @@ class ClubChatScreenState extends State<ClubChatScreen>
       debugPrint('🔄 Syncing messages from server...');
       debugPrint('📱 Local messages before sync:');
       for (final msg in _messages) {
-        debugPrint('   ${msg.id}: status = ${msg.status.toString().split('.').last}');
+        debugPrint(
+          '   ${msg.id}: status = ${msg.status.toString().split('.').last}',
+        );
       }
-      
+
       final response = await ChatApiService.getMessages(widget.club.id);
 
       if (response != null &&
           (response['success'] == true || response['messages'] != null)) {
         final List<dynamic> messageData = response['messages'] ?? [];
-        final serverMessages = messageData
-            .map((json) {
-              final message = ClubMessage.fromJson(json as Map<String, dynamic>);
-              debugPrint('📡 Server message ${message.id}: status = ${message.status.toString().split('.').last}');
-              return message;
-            })
-            .toList();
+        final serverMessages = messageData.map((json) {
+          final message = ClubMessage.fromJson(json as Map<String, dynamic>);
+          debugPrint(
+            '📡 Server message ${message.id}: status = ${message.status.toString().split('.').last}',
+          );
+          return message;
+        }).toList();
 
         // Compare messages to identify changes
         final comparison = MessageStorageService.compareMessages(
           _messages,
           serverMessages,
         );
-        
-        debugPrint('📊 Comparison result: needsUpdate=${comparison['needsUpdate']}, new=${(comparison['new'] as List).length}, updated=${(comparison['updated'] as List).length}, deleted=${(comparison['deleted'] as List).length}');
+
+        debugPrint(
+          '📊 Comparison result: needsUpdate=${comparison['needsUpdate']}, new=${(comparison['new'] as List).length}, updated=${(comparison['updated'] as List).length}, deleted=${(comparison['deleted'] as List).length}',
+        );
 
         if (comparison['needsUpdate'] as bool) {
           // Apply incremental changes instead of full reload
@@ -984,6 +995,88 @@ class ClubChatScreenState extends State<ClubChatScreen>
     // They will be cleaned up when message is successfully sent or manually deleted
   }
 
+  /// Handle reaction removal directly from the message bubble
+  Future<void> _handleReactionRemoved(
+    String messageId,
+    String emoji,
+    String userId,
+  ) async {
+    debugPrint('🚀 _handleReactionRemoved called: messageId=$messageId, emoji=$emoji, userId=$userId');
+    
+    final userProvider = context.read<UserProvider>();
+    final currentUser = userProvider.user;
+
+    if (currentUser == null || userId != currentUser.id) {
+      debugPrint('❌ Permission denied - not current user or user is null');
+      return; // Only allow removing own reactions
+    }
+
+    // Store original messages for potential revert
+    final originalMessages = List<ClubMessage>.from(_messages);
+
+    // Optimistically remove the reaction for immediate UI feedback
+    setState(() {
+      final messageIndex = _messages.indexWhere((m) => m.id == messageId);
+      if (messageIndex != -1) {
+        final message = _messages[messageIndex];
+        final updatedReactions = <MessageReaction>[];
+
+        for (final reaction in message.reactions) {
+          if (reaction.emoji == emoji) {
+            // Remove current user from this reaction
+            if (reaction.users.length <= 1) {
+              // Don't add this reaction if current user was the only one
+              continue;
+            } else {
+              // Remove just this user from the reaction
+              final updatedUsers = reaction.users
+                  .where((u) => u.userId != userId)
+                  .toList();
+              updatedReactions.add(
+                MessageReaction(
+                  emoji: reaction.emoji,
+                  users: updatedUsers,
+                  count: updatedUsers.length,
+                  createdAt: reaction.createdAt,
+                ),
+              );
+            }
+          } else {
+            // Keep other reactions unchanged
+            updatedReactions.add(reaction);
+          }
+        }
+
+        // Update the message with new reactions
+        _messages[messageIndex] = message.copyWith(reactions: updatedReactions);
+        debugPrint('✅ Updated message reactions: ${updatedReactions.length} reactions remaining');
+      }
+    });
+
+    try {
+      // Make API call to remove the reaction
+      final success = await ChatApiService.removeReaction(
+        widget.club.id,
+        messageId,
+      );
+
+      if (!success) {
+        throw Exception('API call failed');
+      }
+
+      debugPrint('✅ Reaction removed successfully from message bubble');
+    } catch (e) {
+      debugPrint('❌ Error removing reaction from message bubble: $e');
+
+      // Revert optimistic update on error
+      if (mounted) {
+        setState(() {
+          _messages = originalMessages;
+        });
+      }
+    }
+  }
+
   void _handleSlideGesture(
     DragUpdateDetails details,
     ClubMessage message,
@@ -1303,6 +1396,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
                         onSlideEnd: _handleSlideEnd,
                         onMessageUpdated: _handleMessageUpdated,
                         onMessageFailed: _handleMessageFailed,
+                        onReactionRemoved: _handleReactionRemoved,
                         isCurrentlyPinned: _isCurrentlyPinned,
                       ),
                     ),

@@ -2,8 +2,9 @@ import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 import '../../models/club_message.dart';
 import '../../models/message_status.dart';
-import '../../services/api_service.dart';
+import '../../services/chat_api_service.dart';
 import '../../providers/user_provider.dart';
+import '../svg_avatar.dart';
 
 /// Base message bubble that provides the container and meta overlay for all message types
 class BaseMessageBubble extends StatelessWidget {
@@ -256,12 +257,12 @@ class BaseMessageBubble extends StatelessWidget {
 
     // Group reactions by emoji and collect user information with emoji data
     Map<String, List<Map<String, String>>> groupedReactions = {};
-    int totalCount = 0;
+    int calculatedCount = 0;
 
     for (var reaction in message.reactions) {
       // Handle new format with users array
       if (reaction.users.isNotEmpty) {
-        totalCount += reaction.users.length;
+        calculatedCount += reaction.users.length;
         List<Map<String, String>> userList = [];
         for (var user in reaction.users) {
           final userInfo = {
@@ -275,7 +276,7 @@ class BaseMessageBubble extends StatelessWidget {
         groupedReactions[reaction.emoji] = userList;
       } else {
         // Handle old format for backward compatibility
-        totalCount += 1;
+        calculatedCount += 1;
         final userName = reaction.userName.isNotEmpty
             ? reaction.userName
             : 'Unknown User';
@@ -293,6 +294,9 @@ class BaseMessageBubble extends StatelessWidget {
         }
       }
     }
+
+    // Use API reactionsCount if available, otherwise use calculated count
+    final totalCount = message.reactionsCount ?? calculatedCount;
 
     // Get all unique emojis
     final uniqueEmojis = groupedReactions.keys.toList();
@@ -325,30 +329,67 @@ class BaseMessageBubble extends StatelessWidget {
             // Display emojis with individual counts if needed
             ...uniqueEmojis.asMap().entries.map((entry) {
               final emoji = entry.value;
-              final emojiUserCount = groupedReactions[emoji]!.length;
+              final emojiUsers = groupedReactions[emoji]!;
+
+              // Check if current user has reacted with this emoji
+              final currentUserId = context.read<UserProvider>().user?.id;
+              final hasCurrentUserReacted =
+                  currentUserId != null &&
+                  emojiUsers.any((user) => user['userId'] == currentUserId);
+
+              Widget emojiWidget = Text(
+                emoji,
+                style: TextStyle(
+                  fontSize: 14,
+                  // Highlight emoji if current user has reacted
+                  color: hasCurrentUserReacted ? Color(0xFF003f9b) : null,
+                ),
+              );
+
+              // Make emoji tappable if current user has reacted with it
+              if (hasCurrentUserReacted && onReactionRemoved != null) {
+                emojiWidget = GestureDetector(
+                  onTap: () {
+                    // Remove the current user's reaction for this emoji
+                    onReactionRemoved!(message.id, emoji, currentUserId);
+                  },
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(4),
+                      color: hasCurrentUserReacted
+                          ? Color(0xFF003f9b).withOpacity(0.1)
+                          : Colors.transparent,
+                    ),
+                    child: emojiWidget,
+                  ),
+                );
+              }
 
               return Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(emoji, style: TextStyle(fontSize: 14)),
-                  // Show count for this emoji if it has more than 1 reaction
-                  if (emojiUserCount > 1) ...[
-                    Text(
-                      emojiUserCount.toString(),
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.white.withOpacity(0.8)
-                            : Colors.black.withOpacity(0.7),
-                      ),
-                    ),
-                  ],
+                  emojiWidget,
                   // Add spacing between different emojis (except for the last one)
-                  if (entry.key < uniqueEmojis.length - 1) SizedBox(width: 2),
+                  if (entry.key < uniqueEmojis.length - 1) SizedBox(width: 4),
                 ],
               );
             }),
+            // Show total count at the end if there are more than 1 reactions total
+            if (totalCount > 1) ...[
+              if (uniqueEmojis.isNotEmpty)
+                SizedBox(width: 4), // Add spacing before total count
+              Text(
+                totalCount.toString(),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white.withOpacity(0.9)
+                      : Colors.black.withOpacity(0.8),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -491,28 +532,29 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
     }
 
     try {
+      // Update UI immediately by calling the callback first (optimistic update)
+      if (widget.onReactionRemoved != null) {
+        debugPrint('🔄 Calling onReactionRemoved callback for immediate UI update');
+        widget.onReactionRemoved!(widget.message.id, emoji, userId);
+        
+        // Add a small delay to ensure the callback is processed before API call
+        await Future.delayed(Duration(milliseconds: 10));
+      }
+      
       // Make API call to remove the reaction
-      await ApiService.delete(
-        '/conversations/${widget.message.clubId}/messages/${widget.message.id}/reactions/$emoji',
+      final success = await ChatApiService.removeReaction(
+        widget.message.clubId,
+        widget.message.id,
       );
 
-      // Show success snackbar
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Removed $emoji reaction'),
-            duration: Duration(seconds: 1),
-            backgroundColor: Colors.green,
-          ),
-        );
+      if (!success) {
+        throw Exception('Failed to remove reaction');
       }
-
-      // Update UI by calling a callback if provided
-      if (widget.onReactionRemoved != null) {
-        widget.onReactionRemoved!(widget.message.id, emoji, userId);
-      }
+      
+      // Success - no snackbar needed, UI already updated via callback
+      debugPrint('✅ Reaction removed successfully from details drawer');
     } catch (e) {
-      print('Error removing reaction: $e');
+      debugPrint('❌ Error removing reaction from details drawer: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -646,11 +688,15 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
                     return GestureDetector(
                       onTap: isCurrentUser
                           ? () {
-                              Navigator.pop(context); // Close the drawer
                               // Use the user's specific emoji for All tab, or current tab emoji
                               final emojiToRemove = tab == 'All'
                                   ? userEmoji
                                   : tab;
+                              
+                              // Close the drawer first for immediate feedback
+                              Navigator.pop(context);
+                              
+                              // Then remove the reaction
                               _removeReactionAndUpdateUI(
                                 context,
                                 emojiToRemove,
@@ -666,13 +712,15 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
                         ),
                         child: Row(
                           children: [
-                            // Avatar with profile picture or letter fallback
-                            CircleAvatar(
-                              radius: 22,
-                              backgroundColor: Color(0xFF003f9b),
-                              backgroundImage: profilePicture.isNotEmpty
-                                  ? NetworkImage(profilePicture)
+                            // Avatar with SVG support and proper fallback
+                            SVGAvatar(
+                              imageUrl: profilePicture.isNotEmpty
+                                  ? profilePicture
                                   : null,
+                              size: 44,
+                              backgroundColor: Color(0xFF003f9b),
+                              iconColor: Colors.white,
+                              fallbackIcon: Icons.person,
                               child: profilePicture.isEmpty
                                   ? Text(
                                       userName.isNotEmpty

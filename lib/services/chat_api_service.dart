@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:file_picker/file_picker.dart';
 import '../models/club_message.dart';
@@ -174,19 +175,29 @@ class ChatApiService {
     }
   }
 
-  /// Remove reaction from message
-  static Future<bool> removeReaction(
-    String clubId,
-    String messageId,
-    String emoji,
-  ) async {
+  /// Remove all reactions from message by current user
+  static Future<bool> removeReaction(String clubId, String messageId) async {
     try {
       await ApiService.delete(
-        '/conversations/$clubId/messages/$messageId/reactions/$emoji',
+        '/conversations/$clubId/messages/$messageId/reactions',
       );
       return true;
     } catch (e) {
-      print('❌ Error removing reaction: $e');
+      debugPrint('❌ Error removing reaction: $e');
+      return false;
+    }
+  }
+
+  /// Update existing reaction emoji
+  static Future<bool> updateReaction(String clubId, String messageId, String emoji) async {
+    try {
+      await ApiService.put(
+        '/conversations/$clubId/messages/$messageId/reactions',
+        {'emoji': emoji},
+      );
+      return true;
+    } catch (e) {
+      debugPrint('❌ Error updating reaction: $e');
       return false;
     }
   }

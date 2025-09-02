@@ -68,28 +68,37 @@ class InteractiveMessageBubble extends StatefulWidget {
   });
 
   @override
-  State<InteractiveMessageBubble> createState() => _InteractiveMessageBubbleState();
+  State<InteractiveMessageBubble> createState() =>
+      _InteractiveMessageBubbleState();
 }
 
 class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
   // Local state for immediate UI feedback
   late bool _localIsStarred;
-  
+  late List<MessageReaction> _localReactions;
+
   @override
   void initState() {
     super.initState();
     _localIsStarred = widget.message.starred.isStarred;
+    _localReactions = List.from(widget.message.reactions);
   }
-  
+
   @override
   void didUpdateWidget(InteractiveMessageBubble oldWidget) {
     super.didUpdateWidget(oldWidget);
     // Update local state when widget updates
-    if (oldWidget.message.starred.isStarred != widget.message.starred.isStarred) {
+    if (oldWidget.message.starred.isStarred !=
+        widget.message.starred.isStarred) {
       _localIsStarred = widget.message.starred.isStarred;
+      debugPrint('🌟 Updated local starred state: $_localIsStarred');
+    }
+    if (oldWidget.message.reactions != widget.message.reactions) {
+      _localReactions = List.from(widget.message.reactions);
+      debugPrint('⚡ Updated local reactions: ${_localReactions.length} reactions');
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -115,18 +124,28 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
       ),
     );
   }
-  
+
   ClubMessage _createMessageWithLocalState() {
-    // Create a message with local starred state for immediate UI feedback
+    // Create a message with local starred state and reactions for immediate UI feedback
+    bool needsUpdate = false;
+    ClubMessage updatedMessage = widget.message;
+
     if (_localIsStarred != widget.message.starred.isStarred) {
-      return widget.message.copyWith(
+      updatedMessage = updatedMessage.copyWith(
         starred: StarredInfo(
           isStarred: _localIsStarred,
           starredAt: _localIsStarred ? DateTime.now().toIso8601String() : null,
         ),
       );
+      needsUpdate = true;
     }
-    return widget.message;
+
+    if (_localReactions != widget.message.reactions) {
+      updatedMessage = updatedMessage.copyWith(reactions: _localReactions);
+      needsUpdate = true;
+    }
+
+    return needsUpdate ? updatedMessage : widget.message;
   }
 
   void _handleMessageTap(BuildContext context) {
@@ -282,7 +301,9 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
             if (widget.canPinMessages)
               _buildOptionTile(
                 context: context,
-                icon: widget.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+                icon: widget.isPinned
+                    ? Icons.push_pin
+                    : Icons.push_pin_outlined,
                 title: widget.isPinned ? 'Unpin' : 'Pin',
                 onTap: () {
                   Navigator.pop(context);
@@ -355,43 +376,148 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
     final user = userProvider.user;
     if (user == null) return;
 
-    try {
-      final reaction = MessageReaction(
+    // Store original reactions for potential revert
+    final originalReactions = List<MessageReaction>.from(_localReactions);
+
+    // Check if user already has this exact reaction (for toggle behavior)
+    final hasThisReaction = _localReactions.any(
+      (r) => r.emoji == emoji && r.users.any((u) => u.userId == user.id),
+    );
+
+    if (hasThisReaction) {
+      // Toggle off: User clicked emoji they already have - remove their reaction
+      setState(() {
+        _localReactions.removeWhere((r) => 
+          r.emoji == emoji && r.users.any((u) => u.userId == user.id)
+        );
+        
+        // Also remove user from other emoji reactions if they exist
+        for (int i = 0; i < _localReactions.length; i++) {
+          final reaction = _localReactions[i];
+          final updatedUsers = reaction.users.where((u) => u.userId != user.id).toList();
+          if (updatedUsers.length != reaction.users.length) {
+            if (updatedUsers.isEmpty) {
+              _localReactions.removeAt(i);
+              i--; // Adjust index after removal
+            } else {
+              _localReactions[i] = MessageReaction(
+                emoji: reaction.emoji,
+                users: updatedUsers,
+                count: updatedUsers.length,
+                createdAt: reaction.createdAt,
+              );
+            }
+          }
+        }
+      });
+
+      try {
+        await ChatApiService.removeReaction(widget.clubId, message.id);
+        debugPrint('✅ Reaction removed successfully');
+      } catch (e) {
+        debugPrint('❌ Error removing reaction: $e');
+        // Revert optimistic update on error
+        setState(() {
+          _localReactions = originalReactions;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to remove reaction'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } else {
+      // Add/Replace: User clicked new emoji - let server handle replacement logic
+      final newReaction = MessageReaction(
         emoji: emoji,
-        users: [ReactionUser(userId: user.id, name: user.name)],
+        users: [ReactionUser(
+          userId: user.id, 
+          name: user.name,
+          profilePicture: user.profilePicture,
+        )],
         count: 1,
       );
 
-      await ChatApiService.addReaction(widget.clubId, message.id, reaction);
-      
-      // Show success feedback
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Added $emoji reaction'),
-            duration: Duration(seconds: 1),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint('❌ Error adding reaction: $e');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to add reaction'),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 2),
-          ),
-        );
+      // Optimistically update UI: remove user from all reactions, then add new one
+      setState(() {
+        // Remove user from any existing reactions
+        for (int i = 0; i < _localReactions.length; i++) {
+          final reaction = _localReactions[i];
+          final updatedUsers = reaction.users.where((u) => u.userId != user.id).toList();
+          if (updatedUsers.length != reaction.users.length) {
+            if (updatedUsers.isEmpty) {
+              _localReactions.removeAt(i);
+              i--; // Adjust index after removal
+            } else {
+              _localReactions[i] = MessageReaction(
+                emoji: reaction.emoji,
+                users: updatedUsers,
+                count: updatedUsers.length,
+                createdAt: reaction.createdAt,
+              );
+            }
+          }
+        }
+
+        // Add new reaction
+        final existingEmojiIndex = _localReactions.indexWhere((r) => r.emoji == emoji);
+        if (existingEmojiIndex != -1) {
+          // Add to existing emoji reaction
+          final existing = _localReactions[existingEmojiIndex];
+          final updatedUsers = [
+            ...existing.users,
+            ReactionUser(
+              userId: user.id, 
+              name: user.name,
+              profilePicture: user.profilePicture,
+            ),
+          ];
+          _localReactions[existingEmojiIndex] = MessageReaction(
+            emoji: existing.emoji,
+            users: updatedUsers,
+            count: updatedUsers.length,
+            createdAt: existing.createdAt,
+          );
+        } else {
+          // Create new emoji reaction
+          _localReactions.add(newReaction);
+        }
+      });
+
+      try {
+        await ChatApiService.addReaction(widget.clubId, message.id, newReaction);
+        debugPrint('✅ Reaction added successfully');
+      } catch (e) {
+        debugPrint('❌ Error adding reaction: $e');
+        // Revert optimistic update on error
+        setState(() {
+          _localReactions = originalReactions;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to add reaction'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
       }
     }
   }
 
-  Future<void> _handleReactionRemoved(String messageId, String emoji, String userId) async {
+  Future<void> _handleReactionRemoved(
+    String messageId,
+    String emoji,
+    String userId,
+  ) async {
     final userProvider = context.read<UserProvider>();
     final currentUser = userProvider.user;
-    
+
     if (currentUser == null || userId != currentUser.id) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -403,21 +529,49 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
       return;
     }
 
-    try {
-      await ChatApiService.removeReaction(widget.clubId, messageId, emoji);
-      
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Removed $emoji reaction'),
-            duration: Duration(seconds: 1),
-            backgroundColor: Colors.green,
-          ),
-        );
+    // Store original reactions for potential revert
+    final originalReactions = List<MessageReaction>.from(_localReactions);
+
+    // Optimistically remove the reaction for immediate UI feedback
+    setState(() {
+      final reactionIndex = _localReactions.indexWhere(
+        (r) => r.emoji == emoji && r.users.any((u) => u.userId == userId),
+      );
+
+      if (reactionIndex != -1) {
+        final reaction = _localReactions[reactionIndex];
+        if (reaction.users.length <= 1) {
+          // Remove entire reaction if this was the only user
+          _localReactions.removeAt(reactionIndex);
+        } else {
+          // Remove just this user from the reaction
+          final updatedUsers = reaction.users
+              .where((u) => u.userId != userId)
+              .toList();
+          _localReactions[reactionIndex] = MessageReaction(
+            emoji: reaction.emoji,
+            users: updatedUsers,
+            count: updatedUsers.length,
+            createdAt: reaction.createdAt,
+          );
+        }
       }
+    });
+
+    try {
+      await ChatApiService.removeReaction(widget.clubId, messageId);
+
+      // Success - no snackbar needed, UI already updated
+      debugPrint('✅ Reaction removed successfully');
     } catch (e) {
       debugPrint('❌ Error removing reaction: $e');
-      if (context.mounted) {
+
+      // Revert optimistic update on error
+      setState(() {
+        _localReactions = originalReactions;
+      });
+
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to remove reaction'),
@@ -444,14 +598,14 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
     setState(() {
       _localIsStarred = !_localIsStarred;
     });
-    
+
     try {
       if (message.starred.isStarred) {
         await ChatApiService.unstarMessage(widget.clubId, message.id);
       } else {
         await ChatApiService.starMessage(widget.clubId, message.id);
       }
-      
+
       // Success - the UI already shows the updated state
       debugPrint('✅ Star toggled successfully for message: ${message.id}');
     } catch (e) {
@@ -460,11 +614,13 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
       setState(() {
         _localIsStarred = !_localIsStarred;
       });
-      
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to ${message.starred.isStarred ? 'unstar' : 'star'} message'),
+            content: Text(
+              'Failed to ${message.starred.isStarred ? 'unstar' : 'star'} message',
+            ),
             backgroundColor: Colors.red,
             duration: Duration(seconds: 2),
           ),
@@ -481,14 +637,18 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
         // Show pin duration dialog
         final duration = await _showPinDurationDialog(context);
         if (duration != null) {
-          await ChatApiService.pinMessage(widget.clubId, message.id, {'durationHours': duration});
+          await ChatApiService.pinMessage(widget.clubId, message.id, {
+            'durationHours': duration,
+          });
         }
       }
-      
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(widget.isPinned ? 'Message unpinned' : 'Message pinned'),
+            content: Text(
+              widget.isPinned ? 'Message unpinned' : 'Message pinned',
+            ),
             duration: Duration(seconds: 1),
             backgroundColor: Colors.green,
           ),
@@ -614,7 +774,7 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
     if (widget.isOwn) {
       return true;
     }
-    
+
     return false;
   }
 }

@@ -44,6 +44,7 @@ class ClubMessage {
   final MessageStatus status;
   final String? errorMessage;
   final List<MessageReaction> reactions;
+  final int? reactionsCount;
   final MessageReply? replyTo;
   final bool deleted;
   final String? deletedBy;
@@ -71,6 +72,7 @@ class ClubMessage {
     this.status = MessageStatus.sent,
     this.errorMessage,
     this.reactions = const [],
+    this.reactionsCount,
     this.replyTo,
     this.deleted = false,
     this.deletedBy,
@@ -90,6 +92,7 @@ class ClubMessage {
     String? gifUrl,
     String? messageType,
     List<MessageReaction>? reactions,
+    int? reactionsCount,
     MessageReply? replyTo,
     bool? deleted,
     String? deletedBy,
@@ -116,6 +119,7 @@ class ClubMessage {
       status: status ?? this.status,
       errorMessage: errorMessage ?? this.errorMessage,
       reactions: reactions ?? this.reactions,
+      reactionsCount: reactionsCount ?? this.reactionsCount,
       replyTo: replyTo ?? this.replyTo,
       deleted: deleted ?? this.deleted,
       deletedBy: deletedBy ?? this.deletedBy,
@@ -475,6 +479,7 @@ class ClubMessage {
       status: messageStatus, // Use the parsed status
       errorMessage: json['errorMessage'],
       reactions: reactions,
+      reactionsCount: json['reactionsCount'] as int?,
       replyTo: replyTo,
       deleted: isDeleted,
       deletedBy: deletedByName,
