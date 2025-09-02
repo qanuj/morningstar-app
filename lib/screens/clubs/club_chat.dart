@@ -296,25 +296,25 @@ class ClubChatScreenState extends State<ClubChatScreen>
     int syncedCount = 0;
 
     for (final message in serverMessages) {
-      // Skip messages sent by current user
-      if (message.senderId == currentUserId) continue;
+      // For messages from OTHER users: track our delivery/read status to avoid duplicate API calls
+      if (message.senderId != currentUserId) {
+        if (message.status == MessageStatus.delivered || message.deliveredAt != null) {
+          if (!_deliveredMessages.contains(message.id)) {
+            _deliveredMessages.add(message.id);
+            syncedCount++;
+          }
+        }
 
-      // Check if message has delivery information for current user
-      // This relies on the updated backend API that includes status.delivered
-      if (message.status == MessageStatus.delivered ||
-          message.deliveredAt != null) {
-        if (!_deliveredMessages.contains(message.id)) {
-          _deliveredMessages.add(message.id);
-          syncedCount++;
+        if (message.status == MessageStatus.read || message.readAt != null) {
+          if (!_seenMessages.contains(message.id)) {
+            _seenMessages.add(message.id);
+          }
         }
       }
-
-      // Also sync read status
-      if (message.status == MessageStatus.read || message.readAt != null) {
-        if (!_seenMessages.contains(message.id)) {
-          _seenMessages.add(message.id);
-        }
-      }
+      
+      // Note: For messages sent BY current user, the server status reflects 
+      // whether OTHER users have read/delivered them. This status should be 
+      // used directly from the server message without local tracking.
     }
 
     if (syncedCount > 0) {
@@ -525,13 +525,26 @@ class ClubChatScreenState extends State<ClubChatScreen>
           (msg) => msg.id == updatedMsg.id,
         );
         if (index != -1) {
-          // Preserve local read/delivered status
+          // Use server status as authoritative source after refresh
+          // Only preserve local status if it's higher priority and timestamps are missing
           final currentMsg = updatedMessagesList[index];
+          final serverStatus = updatedMsg.status;
+          final localStatus = currentMsg.status;
+          
+          debugPrint('🔍 Message ${updatedMsg.id}: local=${localStatus.toString().split('.').last} → server=${serverStatus.toString().split('.').last}');
+          
+          // Use server timestamps if available, otherwise keep local timestamps
+          final finalDeliveredAt = updatedMsg.deliveredAt ?? currentMsg.deliveredAt;
+          final finalReadAt = updatedMsg.readAt ?? currentMsg.readAt;
+          
+          // Use server status as authoritative (it includes latest read/delivered info from all users)
           updatedMessagesList[index] = updatedMsg.copyWith(
-            deliveredAt: currentMsg.deliveredAt,
-            readAt: currentMsg.readAt,
+            deliveredAt: finalDeliveredAt,
+            readAt: finalReadAt,
           );
           hasChanges = true;
+          
+          debugPrint('✅ Updated message ${updatedMsg.id} with server status: ${serverStatus.toString().split('.').last}');
         }
       }
     }
@@ -580,13 +593,22 @@ class ClubChatScreenState extends State<ClubChatScreen>
   Future<void> _syncMessagesFromServer({bool forceSync = false}) async {
     try {
       debugPrint('🔄 Syncing messages from server...');
+      debugPrint('📱 Local messages before sync:');
+      for (final msg in _messages) {
+        debugPrint('   ${msg.id}: status = ${msg.status.toString().split('.').last}');
+      }
+      
       final response = await ChatApiService.getMessages(widget.club.id);
 
       if (response != null &&
           (response['success'] == true || response['messages'] != null)) {
         final List<dynamic> messageData = response['messages'] ?? [];
         final serverMessages = messageData
-            .map((json) => ClubMessage.fromJson(json as Map<String, dynamic>))
+            .map((json) {
+              final message = ClubMessage.fromJson(json as Map<String, dynamic>);
+              debugPrint('📡 Server message ${message.id}: status = ${message.status.toString().split('.').last}');
+              return message;
+            })
             .toList();
 
         // Compare messages to identify changes
@@ -594,6 +616,8 @@ class ClubChatScreenState extends State<ClubChatScreen>
           _messages,
           serverMessages,
         );
+        
+        debugPrint('📊 Comparison result: needsUpdate=${comparison['needsUpdate']}, new=${(comparison['new'] as List).length}, updated=${(comparison['updated'] as List).length}, deleted=${(comparison['deleted'] as List).length}');
 
         if (comparison['needsUpdate'] as bool) {
           // Apply incremental changes instead of full reload
@@ -1144,7 +1168,10 @@ class ClubChatScreenState extends State<ClubChatScreen>
         onShowClubInfo: _showClubInfoDialog,
         onExitSelectionMode: _exitSelectionMode,
         onDeleteSelectedMessages: _deleteSelectedMessages,
-        onRefreshMessages: () => _loadMessages(),
+        onRefreshMessages: () {
+          debugPrint('🔄 App bar refresh pressed, forcing sync...');
+          _loadMessages(forceSync: true);
+        },
         onShowMoreOptions: _showMoreOptions,
       ),
       body: SafeArea(

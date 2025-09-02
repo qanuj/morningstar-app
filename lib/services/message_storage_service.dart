@@ -214,13 +214,16 @@ class MessageStorageService {
 
   /// Check if a message has changed
   static bool _hasMessageChanged(ClubMessage local, ClubMessage server) {
-    // Compare key fields that might change
+    // Compare key fields that might change, including status
     return local.content != server.content ||
            local.pin.isPinned != server.pin.isPinned ||
            local.pin.pinStart != server.pin.pinStart ||
            local.starred.isStarred != server.starred.isStarred ||
            local.deleted != server.deleted ||
-           local.reactions.length != server.reactions.length;
+           local.reactions.length != server.reactions.length ||
+           local.status != server.status ||
+           local.deliveredAt != server.deliveredAt ||
+           local.readAt != server.readAt;
   }
 
   /// Merge server messages with local data (preserving read/delivered status)
@@ -245,28 +248,33 @@ class MessageStorageService {
         final mergedDeliveredAt = serverMsg.deliveredAt ?? localMsg.deliveredAt;
         final mergedReadAt = serverMsg.readAt ?? localMsg.readAt;
         
-        // Determine the correct status based on multiple sources
+        // Use server status as authoritative for refresh operations
+        // Server status includes read/delivered info from ALL users, not just current user
         MessageStatus finalStatus = serverMsg.status;
         
-        // Check persistent flags first (most reliable for local status)
-        if (readIds.contains(serverMsg.id)) {
-          finalStatus = MessageStatus.read;
-        } else if (deliveredIds.contains(serverMsg.id)) {
-          finalStatus = MessageStatus.delivered;
-        }
+        print('🔀 Merging ${serverMsg.id}: local=${localMsg.status.toString().split('.').last} → server=${serverMsg.status.toString().split('.').last}');
         
-        // Override with timestamps if available (more authoritative)
-        if (mergedReadAt != null) {
-          finalStatus = MessageStatus.read;
-        } else if (mergedDeliveredAt != null && finalStatus == MessageStatus.sent) {
-          finalStatus = MessageStatus.delivered;
-        }
-        
-        // If server has higher status but no local timestamps, preserve server status
-        if (serverMsg.status.index > finalStatus.index && 
-            mergedReadAt == null && mergedDeliveredAt == null) {
+        // Server status is authoritative since it reflects the actual read/delivered state
+        // from all recipients. Only fall back to persistent flags for messages received by current user.
+        if (serverMsg.status == MessageStatus.sent) {
+          // Server hasn't updated status yet, check our local tracking
+          // (This only applies to messages we received, not messages we sent)
+          if (readIds.contains(serverMsg.id)) {
+            finalStatus = MessageStatus.read;
+            print('   📌 Server status is SENT, but found in persistent readIds, using READ');
+          } else if (deliveredIds.contains(serverMsg.id)) {
+            finalStatus = MessageStatus.delivered;
+            print('   📌 Server status is SENT, but found in persistent deliveredIds, using DELIVERED');
+          }
+        } else {
+          // Use server status as it's authoritative
+          // For sent messages: shows if others have read them
+          // For received messages: shows our read/delivered status
           finalStatus = serverMsg.status;
+          print('   🌐 Using server status as authoritative: ${finalStatus.toString().split('.').last}');
         }
+        
+        print('   ✅ Final merged status: ${finalStatus.toString().split('.').last}');
         
         final merged = serverMsg.copyWith(
           status: finalStatus,

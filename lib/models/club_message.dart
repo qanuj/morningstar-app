@@ -371,12 +371,6 @@ class ClubMessage {
     DateTime? deliveredAt;
     DateTime? readAt;
 
-    if (json['messageId'] == 'cmezzje2t0001nwzh0x8qrcd5') {
-      debugPrint(
-        '🤡 Status parsing: delivered=${json['status']['delivered']}, read=${json['status']['read']}',
-      );
-    }
-
     if (json['status'] is Map<String, dynamic>) {
       final statusData = json['status'] as Map<String, dynamic>;
 
@@ -406,12 +400,8 @@ class ClubMessage {
         messageStatus = MessageStatus.sent;
       }
     } else if (json['status'] is String) {
-      if (json['messageId'] == 'cmezzje2t0001nwzh0x8qrcd5') {
-        debugPrint('🔍 🔍 🔍 🔍 🔍 Status parsing: $json');
-      }
       // Handle string status format (from cache)
       final statusStr = json['status'] as String;
-      print('🔍 ClubMessage.fromJson: Loading status from cache: $statusStr');
       switch (statusStr) {
         case 'sending':
           messageStatus = MessageStatus.sending;
@@ -435,12 +425,14 @@ class ClubMessage {
 
     // Also check readBy and deliveredTo arrays for status determination
     // This provides additional validation beyond the status object
+    // Only override cache status if we have explicit receipt arrays from API
     if (json['readBy'] is List && (json['readBy'] as List).isNotEmpty) {
       // If there are any read receipts, prioritize read status
       messageStatus = MessageStatus.read;
     } else if (json['deliveredTo'] is List &&
         (json['deliveredTo'] as List).isNotEmpty) {
       // If there are delivery receipts but no read receipts, use delivered status
+      // Only override if current status is sent (don't downgrade read to delivered)
       if (messageStatus == MessageStatus.sent) {
         messageStatus = MessageStatus.delivered;
       }
@@ -464,6 +456,7 @@ class ClubMessage {
         json['createdAt'] ?? DateTime.now().toIso8601String(),
       ).toLocal(),
       status: messageStatus, // Use the parsed status
+      errorMessage: json['errorMessage'],
       reactions: reactions,
       replyTo: replyTo,
       deleted: isDeleted,
