@@ -6,9 +6,21 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/app_config.dart';
+
+class ApiException implements Exception {
+  final String message;
+  final String rawResponse;
+  
+  ApiException(this.message, this.rawResponse);
+  
+  @override
+  String toString() => message;
+}
 
 class ApiService {
-  static const String baseUrl = 'https://duggy.app/api';
+  // Get base URL from app configuration
+  static String get baseUrl => AppConfig.apiBaseUrl;
   static String? _token;
 
   static Future<void> init() async {
@@ -39,7 +51,9 @@ class ApiService {
   };
 
   static Future<Map<String, dynamic>> get(String endpoint) async {
-    debugPrint('🔵 Making GET request to: $baseUrl$endpoint');
+    if (AppConfig.enableDebugPrints) {
+      debugPrint('🔵 Making GET request to: $baseUrl$endpoint');
+    }
     final response = await http.get(
       Uri.parse('$baseUrl$endpoint'),
       headers: headers,
@@ -51,7 +65,9 @@ class ApiService {
     String endpoint,
     Map<String, dynamic> data,
   ) async {
-    print('🔵 Making POST request to: $baseUrl$endpoint');
+    if (AppConfig.enableDebugPrints) {
+      print('🔵 Making POST request to: $baseUrl$endpoint');
+    }
 
     //print('🔵 Request data: $data');
     //print('🔵 Request headers: $headers');
@@ -109,7 +125,6 @@ class ApiService {
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       //print('✅ Success Response Body: ${response.body}');
-
       try {
         final decoded = json.decode(response.body);
         //print('🔵 Decoded response: $decoded');
@@ -133,8 +148,11 @@ class ApiService {
             error['message'] ??
             'API Error (${response.statusCode})';
         debugPrint('❌ Parsed error: $errorMessage');
-        throw Exception(errorMessage);
+        throw ApiException(errorMessage, response.body);
       } catch (e) {
+        if (e is ApiException) {
+          rethrow;
+        }
         debugPrint('❌ Error parsing error response: $e');
         throw Exception('API Error (${response.statusCode}): ${response.body}');
       }

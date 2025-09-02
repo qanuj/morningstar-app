@@ -48,28 +48,11 @@ class _StaticDuggyLogo extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
+        SvgPicture.asset(
+          'assets/images/duggy_logo.svg',
           width: size,
           height: size,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(size * 0.1),
-            boxShadow: [
-              BoxShadow(
-                color: Theme.of(context).shadowColor.withOpacity(0.1),
-                blurRadius: size * 0.2,
-                offset: Offset(0, size * 0.1),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(size * 0.1),
-            child: SvgPicture.asset(
-              'assets/images/duggy_logo.svg',
-              width: size,
-              height: size,
-              fit: BoxFit.contain,
-            ),
-          ),
+          fit: BoxFit.contain,
         ),
 
         if (showText) ...[

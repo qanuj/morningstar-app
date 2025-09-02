@@ -81,7 +81,7 @@
 //   factory LoggerService() => _instance;
 //   LoggerService._internal();
 
-//   static const String _baseUrl = 'https://duggy.app/api';
+//   static const String _baseUrl = 'http://localhost:3000/api';
 //   static const String _logsEndpoint = '/logs';
 //   static const int _maxLocalLogs = 1000;
 //   static const int _batchSize = 50;

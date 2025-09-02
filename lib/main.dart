@@ -6,9 +6,14 @@ import 'providers/theme_provider.dart';
 import 'providers/conversation_provider.dart';
 import 'screens/auth/splash.dart';
 import 'utils/theme.dart';
+import 'config/app_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Log current configuration
+  AppConfig.logConfig();
+  
   runApp(MyApp());
 }
 

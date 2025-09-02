@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../widgets/keyboard_avoiding_wrapper.dart';
@@ -14,6 +16,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _phoneController = TextEditingController();
   final _phoneFocusNode = FocusNode();
   bool _isLoading = false;
+  int _remainingTime = 0;
+  Timer? _timer;
 
   @override
   void initState() {
@@ -25,10 +29,45 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reset loading state when user returns to this screen
+    if (_isLoading) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
   void dispose() {
     _phoneController.dispose();
     _phoneFocusNode.dispose();
+    _timer?.cancel();
     super.dispose();
+  }
+
+  void _startCountdown(int seconds) {
+    setState(() {
+      _remainingTime = seconds;
+    });
+
+    _timer?.cancel();
+    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
+      if (_remainingTime > 0) {
+        setState(() {
+          _remainingTime--;
+        });
+      }
+
+      if (_remainingTime <= 0) {
+        setState(() {
+          _remainingTime = 0;
+        });
+        timer.cancel();
+        _timer = null;
+      }
+    });
   }
 
   Future<void> _sendOTP() async {
@@ -43,16 +82,52 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await ApiService.post('/auth/send-otp', {'phoneNumber': phone});
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => OTPScreen(phoneNumber: phone),
+      await ApiService.put('/auth/sms', {'phoneNumber': phone});
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => OTPScreen(phoneNumber: phone)));
+    } catch (e) {
+      if (e is ApiException) {
+        // Try to parse rate limiting information from raw response
+        try {
+          final responseData = json.decode(e.rawResponse);
+          if (responseData['remainingTime'] != null) {
+            final remainingTime = responseData['remainingTime'] as int;
+            // Start countdown instead of showing error message
+            _startCountdown(remainingTime);
+            return; // Don't show error message, just disable button
+          }
+        } catch (_) {
+          // Continue to show normal error message
+        }
+
+        // Show error message for non-rate-limiting errors
+        String errorMessage = e is ApiException ? e.message : e.toString();
+
+        // Remove "Exception: " prefix if present
+        if (errorMessage.startsWith('Exception: ')) {
+          errorMessage = errorMessage.substring(11);
+        }
+        setState(() => _isLoading = false);
+      }
+
+      // Show error message for non-rate-limiting errors
+      String errorMessage = e is ApiException ? e.message : e.toString();
+
+      // Remove "Exception: " prefix if present
+      if (errorMessage.startsWith('Exception: ')) {
+        errorMessage = errorMessage.substring(11);
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 4),
         ),
       );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to send OTP: $e')),
-      );
+    } finally {
+      setState(() => _isLoading = false);
     }
 
     setState(() => _isLoading = false);
@@ -60,193 +135,147 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return KeyboardAvoidingWrapper(
-      backgroundColor: Theme.of(context).colorScheme.primary,
-      child: SafeArea(
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: SafeArea(
         child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 24),
+          padding: EdgeInsets.all(24),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Spacer(flex: 2),
-              
-              // Duggy Logo and Branding
-              Container(
-                padding: EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.2),
-                    width: 1,
-                  ),
+
+              // Bigger logo - theme aware
+              Center(
+                child: DuggyLogoVariant.large(
+                  color: theme.colorScheme.primary,
+                  showText: false,
                 ),
-                child: DuggyLogoVariant.medium(color: Theme.of(context).colorScheme.onPrimary),
               ),
-              
-              SizedBox(height: 24),
-              
-              // App Title
-              Text(
-                'Welcome to Duggy',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w400,
-                  color: Theme.of(context).colorScheme.onPrimary,
-                  letterSpacing: -0.5,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              
-              SizedBox(height: 8),
-              
-              // Subtitle
-              Text(
-                'Your Cricket Club Companion',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.8),
-                  fontWeight: FontWeight.w400,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              
+
               SizedBox(height: 48),
-              
-              // Login Form Container - More Compact
-              Container(
-                margin: EdgeInsets.symmetric(horizontal: 8),
-                padding: EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.onPrimary,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Theme.of(context).shadowColor.withOpacity(0.1),
-                      blurRadius: 24,
-                      offset: Offset(0, 8),
-                      spreadRadius: 0,
-                    ),
-                  ],
+
+              // Phone Input with right arrow suffix - theme aware
+              TextField(
+                controller: _phoneController,
+                focusNode: _phoneFocusNode,
+                keyboardType: TextInputType.phone,
+                maxLength: 10,
+                onSubmitted: (_) => _sendOTP(),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w400,
+                  color: theme.textTheme.bodyLarge?.color,
                 ),
-                child: Column(
-                  children: [
-                    // Form Header
-                    Text(
-                      'Sign In',
+                decoration: InputDecoration(
+                  labelText: 'Phone Number',
+                  hintText: 'Enter 10-digit number',
+                  labelStyle: TextStyle(
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                    fontSize: 16,
+                  ),
+                  hintStyle: TextStyle(
+                    color: isDark ? Colors.grey[500] : Colors.grey[500],
+                    fontSize: 16,
+                  ),
+                  filled: true,
+                  fillColor: isDark ? Color(0xFF2a2a2a) : Colors.white,
+                  prefixIcon: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                    child: Text(
+                      '+91',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 16,
                         fontWeight: FontWeight.w400,
-                        color: Theme.of(context).colorScheme.primary,
-                        letterSpacing: -0.3,
+                        color: theme.textTheme.bodyLarge?.color,
                       ),
                     ),
-                    
-                    SizedBox(height: 24),
-                    
-                    // Phone Input
-                    TextField(
-                      controller: _phoneController,
-                      focusNode: _phoneFocusNode,
-                      keyboardType: TextInputType.phone,
-                      maxLength: 10,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: 'Phone Number',
-                        hintText: 'Enter 10-digit mobile number',
-                        prefixIcon: Container(
-                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                          child: Text(
-                            '+91',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w400,
-                              color: Theme.of(context).textTheme.titleLarge?.color,
+                  ),
+                  suffixIcon: _isLoading
+                      ? Container(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: theme.colorScheme.primary,
+                              strokeWidth: 2,
                             ),
                           ),
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: Theme.of(context).dividerColor,
-                            width: 1,
+                        )
+                      : _remainingTime > 0
+                      ? Container(
+                          padding: EdgeInsets.all(12),
+                          child: Text(
+                            '$_remainingTime',
+                            style: TextStyle(
+                              color: Colors.orange,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        )
+                      : IconButton(
+                          onPressed: _sendOTP,
+                          icon: Icon(
+                            Icons.arrow_forward,
+                            color: theme.colorScheme.primary,
+                            size: 24,
                           ),
                         ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: Theme.of(context).dividerColor,
-                            width: 1,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: Theme.of(context).colorScheme.primary,
-                            width: 2,
-                          ),
-                        ),
-                        counterText: '',
-                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                      ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: isDark
+                          ? Color(0xFF444444).withOpacity(0.5)
+                          : theme.dividerColor,
+                      width: 1,
                     ),
-                    
-                    SizedBox(height: 24),
-                    
-                    // Send OTP Button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _sendOTP,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).colorScheme.primary,
-                          foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                          padding: EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 0,
-                          shadowColor: Colors.transparent,
-                        ),
-                        child: _isLoading
-                            ? Container(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  color: Theme.of(context).colorScheme.onPrimary,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : Text(
-                                'Send OTP',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w400,
-                                  letterSpacing: 0.2,
-                                ),
-                              ),
-                      ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: isDark
+                          ? Color(0xFF444444).withOpacity(0.5)
+                          : theme.dividerColor,
+                      width: 1,
                     ),
-                  ],
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: theme.colorScheme.primary,
+                      width: 2,
+                    ),
+                  ),
+                  counterText: '',
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
                 ),
               ),
-              
-              SizedBox(height: 24),
-              
-              // Help Text
-              Text(
-                'We\'ll send you a verification code',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.7),
-                  fontWeight: FontWeight.w400,
+
+              // Helper text for rate limiting
+              if (_remainingTime > 0) ...[
+                SizedBox(height: 8),
+                Center(
+                  child: Text(
+                    'Please wait $_remainingTime seconds before requesting a new OTP',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.orange,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ),
-                textAlign: TextAlign.center,
-              ),
-              
+              ],
+
               Spacer(flex: 3),
             ],
           ),
