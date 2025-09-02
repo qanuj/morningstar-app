@@ -19,7 +19,7 @@ class BaseMessageBubble extends StatelessWidget {
   final double? overlayBottomPosition;
   final Function(String messageId, String emoji, String userId)?
   onReactionRemoved;
-  
+
   // Message action callbacks
   final Function(ClubMessage message, String emoji)? onReactionAdded;
   final Function(ClubMessage message)? onReplyToMessage;
@@ -59,75 +59,76 @@ class BaseMessageBubble extends StatelessWidget {
       // onTap: () => _handleMessageTap(context),
       // onLongPress: () => _showMessageOptions(context),
       child: Column(
-      crossAxisAlignment: isOwn
-          ? CrossAxisAlignment.end
-          : CrossAxisAlignment.start,
-      children: [
-        // Main message bubble
-        Container(
-          padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-          decoration: isTransparent
-              ? null
-              : BoxDecoration(
-                  color: _getBubbleColor(context),
-                  borderRadius: BorderRadius.circular(12),
-                  border: message.status == MessageStatus.failed
-                      ? Border.all(color: Colors.red, width: 1)
-                      : null,
-                  boxShadow: showShadow
-                      ? [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
-                            blurRadius: 4,
-                            offset: Offset(0, 2),
-                          ),
-                        ]
-                      : null,
+        crossAxisAlignment: isOwn
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
+        children: [
+          // Main message bubble
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            decoration: isTransparent
+                ? null
+                : BoxDecoration(
+                    color: _getBubbleColor(context),
+                    borderRadius: BorderRadius.circular(12),
+                    border: message.status == MessageStatus.failed
+                        ? Border.all(color: Colors.red, width: 1)
+                        : null,
+                    boxShadow: showShadow
+                        ? [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.08),
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
+                            ),
+                          ]
+                        : null,
+                  ),
+            child: Stack(
+              children: [
+                // Message content
+                Padding(
+                  padding: showMetaOverlay
+                      ? EdgeInsets.only(
+                          bottom: 12,
+                        ) // Reduced space for meta overlay
+                      : EdgeInsets.zero, // No extra space if no overlay
+                  child: content,
                 ),
-          child: Stack(
-            children: [
-              // Message content
-              Padding(
-                padding: showMetaOverlay
-                    ? EdgeInsets.only(
-                        bottom: 12,
-                      ) // Reduced space for meta overlay
-                    : EdgeInsets.zero, // No extra space if no overlay
-                child: content,
-              ),
 
-              // Meta overlay (pin, star, time, tick) at bottom right
-              if (showMetaOverlay)
-                _shouldUseColumnLayout()
-                    ? Positioned(
-                        bottom: overlayBottomPosition ?? 2,
-                        right: 0, // Align to right edge for small text
-                        child: _buildMetaOverlay(context),
-                      )
-                    : Positioned(
-                        bottom: overlayBottomPosition ?? 2,
-                        right: 5, // Normal inline position
-                        child: _buildMetaOverlay(context),
-                      ),
-            ],
-          ),
-        ),
-
-        // Reactions display (below the bubble with overlap using transform)
-        if (message.reactions.isNotEmpty)
-          Transform.translate(
-            offset: Offset(0, -12), // Move up to overlap the bubble
-            child: Container(
-              margin: EdgeInsets.only(
-                right: isOwn ? 12 : 0,
-                left: isOwn ? 0 : 12,
-                bottom: 8, // Add some space below
-              ),
-              alignment: isOwn ? Alignment.centerRight : Alignment.centerLeft,
-              child: _buildReactionsDisplay(context),
+                // Meta overlay (pin, star, time, tick) at bottom right
+                if (showMetaOverlay)
+                  _shouldUseColumnLayout()
+                      ? Positioned(
+                          bottom: overlayBottomPosition ?? 2,
+                          right: 0, // Align to right edge for small text
+                          child: _buildMetaOverlay(context),
+                        )
+                      : Positioned(
+                          bottom: overlayBottomPosition ?? 2,
+                          right: 5, // Normal inline position
+                          child: _buildMetaOverlay(context),
+                        ),
+              ],
             ),
           ),
-      ],
+
+          // Reactions display (below the bubble with overlap using transform)
+          if (message.reactions.isNotEmpty)
+            Transform.translate(
+              offset: Offset(0, -12), // Move up to overlap the bubble
+              child: Container(
+                margin: EdgeInsets.only(
+                  right: isOwn ? 12 : 0,
+                  left: isOwn ? 0 : 12,
+                  bottom: 8, // Add some space below
+                ),
+                alignment: isOwn ? Alignment.centerRight : Alignment.centerLeft,
+                child: _buildReactionsDisplay(context),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
