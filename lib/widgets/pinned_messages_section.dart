@@ -6,6 +6,7 @@ import '../models/club_message.dart';
 class PinnedMessagesSection extends StatefulWidget {
   final List<ClubMessage> messages;
   final Function(String messageId) onScrollToMessage;
+  final Function(String messageId)? onHighlightMessage; // New callback for highlighting
   final Function(ClubMessage message) onTogglePin;
   final Function() canPinMessages;
   final String clubId;
@@ -14,6 +15,7 @@ class PinnedMessagesSection extends StatefulWidget {
     super.key,
     required this.messages,
     required this.onScrollToMessage,
+    this.onHighlightMessage,
     required this.onTogglePin,
     required this.canPinMessages,
     required this.clubId,
@@ -52,8 +54,8 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
     final pinnedMessages = widget.messages
         .where((m) => _isCurrentlyPinned(m))
         .toList();
-    if (_currentPinnedIndex >= pinnedMessages.length) {
-      _currentPinnedIndex = 0;
+    if (_currentPinnedIndex >= pinnedMessages.length && pinnedMessages.isNotEmpty) {
+      _currentPinnedIndex = pinnedMessages.length - 1; // Go to last instead of first
     }
   }
 
@@ -80,8 +82,20 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
             !currentPinnedIds.containsAll(previousPinnedIds)) {
           setState(() {
             _lastKnownPinnedIds = currentPinnedIds;
-            // Reset pinned index when pinned messages change
-            _currentPinnedIndex = 0;
+            // Try to preserve the currently viewed pinned message
+            final pinnedMessages = widget.messages
+                .where((m) => _isCurrentlyPinned(m))
+                .toList();
+            
+            if (pinnedMessages.isEmpty) {
+              _currentPinnedIndex = 0;
+            } else if (_currentPinnedIndex < pinnedMessages.length) {
+              // Current index is still valid, keep it
+              // No change needed
+            } else {
+              // Current index is out of bounds, go to last message
+              _currentPinnedIndex = pinnedMessages.length - 1;
+            }
           });
         }
       }
@@ -110,21 +124,33 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
     final currentMessage = pinnedMessages[_currentPinnedIndex];
     final hasMultiple = pinnedMessages.length > 1;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Color(0xFFF8F9FA),
-        border: Border(bottom: BorderSide(color: Color(0xFFDEE2E6), width: 1)),
-      ),
-      child: Column(
-        children: [
-          _buildPinnedMessageItem(
-            currentMessage,
-            pinnedMessages.length,
-            _currentPinnedIndex + 1,
-          ),
-          if (hasMultiple)
-            _buildPinnedIndicator(pinnedMessages.length, _currentPinnedIndex),
-        ],
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque, // Make entire pinned section tappable
+      onTap: () => _cycleToPinnedMessage(currentMessage.id),
+      onLongPress: () => _showPinnedMessageOptions(currentMessage),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Color(0xFF2a2f32)
+              : Color(0xFFF8F9FA),
+          border: Border(bottom: BorderSide(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white.withOpacity(0.1)
+                : Color(0xFFDEE2E6), 
+            width: 1,
+          )),
+        ),
+        child: Column(
+          children: [
+            _buildPinnedMessageItem(
+              currentMessage,
+              pinnedMessages.length,
+              _currentPinnedIndex + 1,
+            ),
+            if (hasMultiple)
+              _buildPinnedIndicator(pinnedMessages.length, _currentPinnedIndex),
+          ],
+        ),
       ),
     );
   }
@@ -164,17 +190,20 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
     final String displayText = _getPinnedMessageDisplayText(message);
     final String firstLine = displayText.split('\n').first;
 
-    return GestureDetector(
-      onTap: () => _cycleToPinnedMessage(message.id),
-      onLongPress: () => _showPinnedMessageOptions(message),
-      child: Container(
-        height: 56, // Fixed height to prevent changes
-        padding: EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
+    return Container(
+      height: 56, // Fixed height to prevent changes
+      padding: EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             // Pin icon
-            Icon(Icons.push_pin, size: 16, color: Color(0xFF6C757D)),
+            Icon(
+              Icons.push_pin, 
+              size: 16, 
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white.withOpacity(0.6)
+                  : Color(0xFF6C757D),
+            ),
             SizedBox(width: 8),
 
             // Message content
@@ -186,7 +215,12 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
                   // Message preview
                   Text(
                     firstLine,
-                    style: TextStyle(fontSize: 14, color: Color(0xFF6C757D)),
+                    style: TextStyle(
+                      fontSize: 14, 
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white.withOpacity(0.7)
+                          : Color(0xFF6C757D),
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -198,7 +232,6 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
             _buildPinnedMessageIndicator(message),
           ],
         ),
-      ),
     );
   }
 
@@ -229,20 +262,28 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
                     placeholder: (context, url) => Container(
                       width: 32,
                       height: 32,
-                      color: Colors.grey[300],
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey[700]
+                          : Colors.grey[300],
                       child: Icon(
                         Icons.image,
-                        color: Colors.grey[600],
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.grey[400]
+                            : Colors.grey[600],
                         size: 14,
                       ),
                     ),
                     errorWidget: (context, url, error) => Container(
                       width: 32,
                       height: 32,
-                      color: Colors.grey[300],
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey[700]
+                          : Colors.grey[300],
                       child: Icon(
                         Icons.broken_image,
-                        color: Colors.grey[600],
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.grey[400]
+                            : Colors.grey[600],
                         size: 14,
                       ),
                     ),
@@ -285,7 +326,9 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
 
     // Show icon indicators for other message types
     Widget? iconWidget;
-    Color iconColor = Color(0xFF6C757D);
+    Color iconColor = Theme.of(context).brightness == Brightness.dark
+        ? Colors.white.withOpacity(0.6)
+        : Color(0xFF6C757D);
 
     if (message.messageType == 'audio' && message.audio != null) {
       iconWidget = Icon(Icons.audiotrack, size: 20, color: iconColor);
@@ -305,9 +348,16 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
         width: 32,
         height: 32,
         decoration: BoxDecoration(
-          color: Color(0xFFF8F9FA),
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Color(0xFF404040)
+              : Color(0xFFF8F9FA),
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: Color(0xFFDEE2E6), width: 1),
+          border: Border.all(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white.withOpacity(0.1)
+                : Color(0xFFDEE2E6), 
+            width: 1,
+          ),
         ),
         child: Center(child: iconWidget),
       );
@@ -318,8 +368,8 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
   }
 
   Widget _buildPinnedIndicator(int totalCount, int currentIndex) {
-    // Show max 4 indicators as requested
-    final indicatorsToShow = totalCount > 4 ? 4 : totalCount;
+    // Show max 10 indicators as requested
+    final indicatorsToShow = totalCount > 10 ? 10 : totalCount;
 
     return Container(
       padding: EdgeInsets.only(bottom: 8, left: 16, right: 16),
@@ -330,7 +380,9 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
             '${currentIndex + 1} of $totalCount',
             style: TextStyle(
               fontSize: 12,
-              color: Color(0xFF6C757D),
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white.withOpacity(0.6)
+                  : Color(0xFF6C757D),
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -340,11 +392,11 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
             child: Row(
               children: List.generate(indicatorsToShow, (index) {
                 bool isActive;
-                if (totalCount <= 4) {
-                  // Show normal indicators for 4 or fewer items
+                if (totalCount <= 10) {
+                  // Show normal indicators for 10 or fewer items
                   isActive = index == currentIndex;
                 } else {
-                  // For more than 4 items, show progress within the 4 indicators
+                  // For more than 10 items, show progress within the 10 indicators
                   final progress =
                       (currentIndex / (totalCount - 1)) *
                       (indicatorsToShow - 1);
@@ -358,7 +410,11 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
                     ),
                     height: 2,
                     decoration: BoxDecoration(
-                      color: isActive ? Color(0xFF003f9b) : Color(0xFFDEE2E6),
+                      color: isActive 
+                          ? Color(0xFF003f9b) 
+                          : (Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white.withOpacity(0.2)
+                              : Color(0xFFDEE2E6)),
                       borderRadius: BorderRadius.circular(1),
                     ),
                   ),
@@ -376,8 +432,14 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
         .where((m) => _isCurrentlyPinned(m))
         .toList();
     if (pinnedMessages.length <= 1) {
-      // If only one pinned message, just scroll to it
+      // If only one pinned message, scroll to it and highlight it
       widget.onScrollToMessage(currentMessageId);
+      if (widget.onHighlightMessage != null) {
+        // Add a small delay to ensure scroll completes before highlighting
+        Future.delayed(Duration(milliseconds: 600), () {
+          widget.onHighlightMessage!(currentMessageId);
+        });
+      }
       return;
     }
 
@@ -386,9 +448,15 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
       _currentPinnedIndex = (_currentPinnedIndex + 1) % pinnedMessages.length;
     });
 
-    // Scroll to the new current pinned message
+    // Scroll to and highlight the new current pinned message
     final nextMessage = pinnedMessages[_currentPinnedIndex];
     widget.onScrollToMessage(nextMessage.id);
+    if (widget.onHighlightMessage != null) {
+      // Add a small delay to ensure scroll completes before highlighting
+      Future.delayed(Duration(milliseconds: 600), () {
+        widget.onHighlightMessage!(nextMessage.id);
+      });
+    }
   }
 
   void _showPinnedMessageOptions(ClubMessage message) {
@@ -411,7 +479,9 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey[600]
+                      : Colors.grey[300],
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),

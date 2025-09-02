@@ -53,6 +53,9 @@ class ClubMessage {
   // Local-only fields for read/delivered tracking
   final DateTime? deliveredAt;
   final DateTime? readAt;
+  // Read receipts and delivery status arrays
+  final List<Map<String, dynamic>> deliveredTo;
+  final List<Map<String, dynamic>> readBy;
 
   ClubMessage({
     required this.id,
@@ -80,6 +83,8 @@ class ClubMessage {
     this.deliveredAt,
     this.readAt,
     required this.pin,
+    this.deliveredTo = const [],
+    this.readBy = const [],
   });
 
   ClubMessage copyWith({
@@ -100,6 +105,8 @@ class ClubMessage {
     PinInfo? pin,
     DateTime? deliveredAt,
     DateTime? readAt,
+    List<Map<String, dynamic>>? deliveredTo,
+    List<Map<String, dynamic>>? readBy,
   }) {
     return ClubMessage(
       id: id,
@@ -127,6 +134,8 @@ class ClubMessage {
       pin: pin ?? this.pin,
       deliveredAt: deliveredAt ?? this.deliveredAt,
       readAt: readAt ?? this.readAt,
+      deliveredTo: deliveredTo ?? this.deliveredTo,
+      readBy: readBy ?? this.readBy,
     );
   }
 
@@ -461,6 +470,22 @@ class ClubMessage {
       }
     }
 
+    // Parse deliveredTo and readBy arrays
+    List<Map<String, dynamic>> deliveredToList = [];
+    List<Map<String, dynamic>> readByList = [];
+    
+    if (json['deliveredTo'] is List) {
+      deliveredToList = (json['deliveredTo'] as List)
+          .map((item) => item as Map<String, dynamic>)
+          .toList();
+    }
+    
+    if (json['readBy'] is List) {
+      readByList = (json['readBy'] as List)
+          .map((item) => item as Map<String, dynamic>)
+          .toList();
+    }
+
     return ClubMessage(
       id: json['messageId'] ?? json['id'] ?? '',
       clubId: json['clubId'] ?? '',
@@ -503,6 +528,8 @@ class ClubMessage {
           (json['readAt'] != null
               ? DateTime.parse(json['readAt']).toLocal()
               : null),
+      deliveredTo: deliveredToList,
+      readBy: readByList,
     );
   }
 

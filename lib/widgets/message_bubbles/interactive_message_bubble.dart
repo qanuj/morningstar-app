@@ -7,6 +7,7 @@ import '../../models/message_reaction.dart';
 import '../../models/starred_info.dart';
 import '../../services/chat_api_service.dart';
 import '../../providers/user_provider.dart';
+import '../message_info_sheet.dart';
 import 'message_bubble_factory.dart';
 
 /// A wrapper for BaseMessageBubble that adds interactive functionality
@@ -22,6 +23,7 @@ class InteractiveMessageBubble extends StatefulWidget {
   final bool showMetaOverlay;
   final bool showShadow;
   final double? overlayBottomPosition;
+  final List<Map<String, dynamic>> clubMembers;
 
   // Message interaction callbacks
   final Function(ClubMessage message)? onMessageTap;
@@ -46,6 +48,7 @@ class InteractiveMessageBubble extends StatefulWidget {
     required this.isOwn,
     required this.isPinned,
     required this.showSenderInfo,
+    this.clubMembers = const [],
     this.isSelected = false,
     this.isTransparent = false,
     this.customColor,
@@ -213,8 +216,14 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
+      isScrollControlled: true,
       builder: (context) => Container(
-        padding: EdgeInsets.symmetric(vertical: 16),
+        padding: EdgeInsets.only(
+          top: 16,
+          left: 0,
+          right: 0,
+          bottom: MediaQuery.of(context).viewPadding.bottom + 16,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -633,6 +642,7 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
     try {
       if (widget.isPinned) {
         await ChatApiService.unpinMessage(widget.clubId, message.id);
+        debugPrint('✅ Message unpinned successfully');
       } else {
         // Show pin duration dialog
         final duration = await _showPinDurationDialog(context);
@@ -640,19 +650,8 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
           await ChatApiService.pinMessage(widget.clubId, message.id, {
             'durationHours': duration,
           });
+          debugPrint('✅ Message pinned successfully');
         }
-      }
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              widget.isPinned ? 'Message unpinned' : 'Message pinned',
-            ),
-            duration: Duration(seconds: 1),
-            backgroundColor: Colors.green,
-          ),
-        );
       }
     } catch (e) {
       debugPrint('❌ Error toggling pin: $e');
@@ -676,34 +675,18 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
   }
 
   void _handleShowMessageInfo(ClubMessage message) {
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Message Info'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Sent: ${_formatDateTime(message.createdAt)}'),
-              if (message.deliveredAt != null)
-                Text('Delivered: ${_formatDateTime(message.deliveredAt!)}'),
-              if (message.readAt != null)
-                Text('Read: ${_formatDateTime(message.readAt!)}'),
-              Text('Status: ${message.status.name}'),
-              if (message.reactions.isNotEmpty) ...[
-                SizedBox(height: 8),
-                Text('Reactions: ${message.reactions.length}'),
-              ],
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Close'),
-          ),
-        ],
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? Color(0xFF2a2f32)
+          : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      isScrollControlled: true,
+      builder: (context) => MessageInfoSheet(
+        message: message,
+        clubMembers: widget.clubMembers,
       ),
     );
   }

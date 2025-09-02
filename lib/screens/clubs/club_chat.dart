@@ -1340,6 +1340,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
           PinnedMessagesSection(
             messages: _messages,
             onScrollToMessage: _scrollToMessage,
+            onHighlightMessage: _highlightMessage,
             onTogglePin: _togglePin,
             canPinMessages: () => _cachedCanPinMessages ?? false,
             clubId: widget.club.id,
@@ -1411,6 +1412,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
                         onMessageUpdated: _handleMessageUpdated,
                         onMessageFailed: _handleMessageFailed,
                         onReactionRemoved: _handleReactionRemoved,
+                        canPinMessages: _cachedCanPinMessages ?? false,
                         isCurrentlyPinned: _isCurrentlyPinned,
                       ),
                     ),
@@ -1926,14 +1928,40 @@ class ClubChatScreenState extends State<ClubChatScreen>
     final sortedIndex = allMessages.indexWhere((m) => m.id == messageId);
     if (sortedIndex == -1) return;
 
-    // Scroll to the message
+    // Calculate scroll position with better handling for end messages
     final itemHeight = 100.0; // Approximate height per message
     final targetOffset = sortedIndex * itemHeight;
+    final maxScrollExtent = _scrollController.position.maxScrollExtent;
+    
+    // Ensure we don't scroll beyond the maximum extent
+    final adjustedOffset = targetOffset > maxScrollExtent ? maxScrollExtent : targetOffset;
+    
+    // For messages at the very end, scroll to bottom with some padding
+    final isNearEnd = sortedIndex >= allMessages.length - 3;
+    final finalOffset = isNearEnd ? maxScrollExtent : adjustedOffset;
 
     _scrollController.animateTo(
-      targetOffset,
+      finalOffset,
       duration: Duration(milliseconds: 500),
       curve: Curves.easeInOut,
     );
+  }
+
+  void _highlightMessage(String messageId) {
+    // Set the highlighted message ID for visual feedback
+    setState(() {
+      _highlightedMessageId = messageId;
+    });
+
+    // Remove highlight after 2 seconds
+    Timer(Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          _highlightedMessageId = null;
+        });
+      }
+    });
+    
+    debugPrint('🎯 Highlighted message: $messageId');
   }
 }

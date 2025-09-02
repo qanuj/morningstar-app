@@ -212,8 +212,12 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
       padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
         color: widget.isOwn
-            ? Theme.of(context).primaryColorLight
-            : Theme.of(context).cardColor,
+            ? (Theme.of(context).brightness == Brightness.dark
+                ? Color(0xFF1E3A8A) // Same as text bubbles - dark blue
+                : Color(0xFFE3F2FD)) // Same as text bubbles - light blue
+            : (Theme.of(context).brightness == Brightness.dark
+                ? Colors.grey[800]! // Same as text bubbles - dark gray
+                : Colors.white), // Same as text bubbles - white
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(

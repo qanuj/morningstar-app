@@ -302,26 +302,24 @@ class BaseMessageBubble extends StatelessWidget {
     final uniqueEmojis = groupedReactions.keys.toList();
 
     return GestureDetector(
-      onTap: () {
-        debugPrint('Reaction tapped! Total reactions: $totalCount');
+      onLongPress: () {
+        debugPrint('Reaction long pressed! Total reactions: $totalCount');
         _showReactionDetails(context);
       },
       behavior: HitTestBehavior.opaque,
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(
-            0.8,
-          ), // Slightly more opaque for visibility
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.grey[800]! // Same as received text bubbles
+              : Colors.white, // Same as received text bubbles
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.black.withOpacity(0.2), width: 1),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 2,
-              offset: Offset(0, 1),
-            ),
-          ],
+          border: Border.all(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.grey[600]!
+                : Colors.grey[300]!, 
+            width: 1,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -338,7 +336,7 @@ class BaseMessageBubble extends StatelessWidget {
                   emojiUsers.any((user) => user['userId'] == currentUserId);
 
               Widget emojiWidget = Container(
-                padding: EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+                padding: EdgeInsets.symmetric(horizontal: 1, vertical: 0),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(4),
                   color: hasCurrentUserReacted
@@ -348,7 +346,7 @@ class BaseMessageBubble extends StatelessWidget {
                 child: Text(
                   emoji,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 22, // Increased from 18 to 22 for better visibility
                     // Highlight emoji if current user has reacted
                     color: hasCurrentUserReacted ? Color(0xFF003f9b) : null,
                   ),
@@ -443,9 +441,11 @@ class BaseMessageBubble extends StatelessWidget {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? Color(0xFF2a2f32)
+          : Colors.white,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (context) => ReactionDetailsSheet(
         message: message,
@@ -568,7 +568,9 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.grey[300],
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.grey[600]
+                  : Colors.grey[300],
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -579,9 +581,15 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
           TabBar(
             controller: _tabController,
             isScrollable: true,
-            labelColor: Color(0xFF003f9b),
-            unselectedLabelColor: Colors.grey[600],
-            indicatorColor: Color(0xFF003f9b),
+            labelColor: Theme.of(context).brightness == Brightness.dark
+                ? Colors.lightBlueAccent
+                : Color(0xFF003f9b),
+            unselectedLabelColor: Theme.of(context).brightness == Brightness.dark
+                ? Colors.grey[400]
+                : Colors.grey[600],
+            indicatorColor: Theme.of(context).brightness == Brightness.dark
+                ? Colors.lightBlueAccent
+                : Color(0xFF003f9b),
             labelStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             unselectedLabelStyle: TextStyle(
               fontSize: 16,
@@ -650,7 +658,12 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
                       padding: EdgeInsets.all(32),
                       child: Text(
                         'No reactions found',
-                        style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                        style: TextStyle(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.grey[400]
+                              : Colors.grey[600], 
+                          fontSize: 16,
+                        ),
                       ),
                     ),
                   );
@@ -740,7 +753,9 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w500,
-                                      color: Colors.black87,
+                                      color: Theme.of(context).brightness == Brightness.dark
+                                          ? Colors.white.withOpacity(0.9)
+                                          : Colors.black87,
                                     ),
                                   ),
                                   if (isCurrentUser)
@@ -748,7 +763,9 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
                                       'Click to remove',
                                       style: TextStyle(
                                         fontSize: 14,
-                                        color: Colors.grey[600],
+                                        color: Theme.of(context).brightness == Brightness.dark
+                                            ? Colors.grey[400]
+                                            : Colors.grey[600],
                                       ),
                                     )
                                   else
@@ -756,7 +773,9 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
                                       'Member',
                                       style: TextStyle(
                                         fontSize: 14,
-                                        color: Colors.grey[600],
+                                        color: Theme.of(context).brightness == Brightness.dark
+                                            ? Colors.grey[400]
+                                            : Colors.grey[600],
                                       ),
                                     ),
                                 ],

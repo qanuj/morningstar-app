@@ -49,6 +49,7 @@ class MessageBubbleWrapper extends StatelessWidget {
   onReactionRemoved;
   final bool canPinMessages;
   final bool canDeleteMessages;
+  final List<Map<String, dynamic>> clubMembers;
 
   // Utility functions
   final Function(ClubMessage message) isCurrentlyPinned;
@@ -75,6 +76,7 @@ class MessageBubbleWrapper extends StatelessWidget {
     this.onReactionRemoved,
     this.canPinMessages = false,
     this.canDeleteMessages = false,
+    this.clubMembers = const [],
     required this.isCurrentlyPinned,
   });
 
@@ -244,6 +246,7 @@ class MessageBubbleWrapper extends StatelessWidget {
       canDeleteMessages: canDeleteMessages,
       isSelectionMode: isSelectionMode,
       showSenderInfo: showSenderInfo,
+      clubMembers: clubMembers,
       onReactionRemoved: onReactionRemoved,
       onToggleSelection: (messageId) {
         onToggleSelection(messageId);

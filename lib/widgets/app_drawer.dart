@@ -89,10 +89,15 @@ class AppDrawer extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [
-                        Theme.of(context).primaryColor,
-                        Theme.of(context).primaryColorDark,
-                      ],
+                      colors: Theme.of(context).brightness == Brightness.dark
+                          ? [
+                              Color(0xFF2a2f32),
+                              Color(0xFF1e2326),
+                            ]
+                          : [
+                              Theme.of(context).primaryColor,
+                              Theme.of(context).primaryColorDark,
+                            ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
