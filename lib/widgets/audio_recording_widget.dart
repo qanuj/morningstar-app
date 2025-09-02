@@ -25,6 +25,7 @@ class AudioRecordingWidget extends StatefulWidget {
 class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
   // Audio recording state
   bool _isRecording = false;
+  bool _isPaused = false;
   bool _hasRecording = false;
   Duration _recordingDuration = Duration.zero;
   Timer? _recordingTimer;
@@ -77,6 +78,7 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
 
       setState(() {
         _isRecording = true;
+        _isPaused = false;
         _recordingDuration = Duration.zero;
       });
 
@@ -101,21 +103,47 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
     }
   }
 
-  Future<void> _stopVoiceRecording() async {
+  Future<void> _pauseResumeRecording() async {
+    if (!_isRecording) return;
+
+    try {
+      if (_isPaused) {
+        // Resume recording
+        await _audioRecorder.resumeRecorder();
+        _recordingTimer = Timer.periodic(Duration(seconds: 1), (timer) {
+          setState(() {
+            _recordingDuration = Duration(seconds: _recordingDuration.inSeconds + 1);
+          });
+        });
+        setState(() {
+          _isPaused = false;
+        });
+        HapticFeedback.lightImpact();
+      } else {
+        // Pause recording
+        await _audioRecorder.pauseRecorder();
+        _recordingTimer?.cancel();
+        setState(() {
+          _isPaused = true;
+        });
+        HapticFeedback.lightImpact();
+      }
+    } catch (e) {
+      print('Error pausing/resuming recording: $e');
+      _showErrorDialog('Failed to pause/resume recording. Please try again.');
+    }
+  }
+
+  Future<void> _stopAndSendRecording() async {
     if (!_isRecording) return;
 
     try {
       final path = await _audioRecorder.stopRecorder();
-
       _recordingTimer?.cancel();
 
       setState(() {
         _isRecording = false;
-        _hasRecording = true;
-        if (path != null && path.isNotEmpty) {
-          _recordedAudioFile = File(path);
-          _audioPath = path;
-        }
+        _isPaused = false;
       });
 
       // Notify parent of state change
@@ -128,15 +156,56 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
         final file = File(path);
         if (await file.exists()) {
           final fileSize = await file.length();
-          print('Recording stopped successfully:');
+          print('Recording stopped and sending:');
           print('  Path: $path');
           print('  Duration: ${_formatRecordingDuration(_recordingDuration)}');
           print('  File size: ${(fileSize / 1024).toStringAsFixed(2)} KB');
+          
+          // Send immediately
+          widget.onAudioRecorded(path, _recordingDuration);
+          
+          // Reset state
+          setState(() {
+            _recordingDuration = Duration.zero;
+          });
         }
       }
     } catch (e) {
-      print('Error stopping recording: $e');
-      _showErrorDialog('Failed to stop recording. Please try again.');
+      print('Error stopping and sending recording: $e');
+      _showErrorDialog('Failed to send recording. Please try again.');
+    }
+  }
+
+  Future<void> _cancelRecording() async {
+    if (!_isRecording) return;
+
+    try {
+      await _audioRecorder.stopRecorder();
+      _recordingTimer?.cancel();
+
+      setState(() {
+        _isRecording = false;
+        _isPaused = false;
+        _recordingDuration = Duration.zero;
+      });
+
+      // Notify parent of state change
+      widget.onRecordingStateChanged?.call();
+
+      HapticFeedback.selectionClick();
+
+      // Delete the recorded file if it exists
+      if (_audioPath != null) {
+        final file = File(_audioPath!);
+        if (await file.exists()) {
+          await file.delete();
+          print('Recording cancelled and file deleted');
+        }
+        _audioPath = null;
+      }
+    } catch (e) {
+      print('Error cancelling recording: $e');
+      _showErrorDialog('Failed to cancel recording. Please try again.');
     }
   }
 
@@ -218,30 +287,76 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
           margin: EdgeInsets.symmetric(horizontal: 8),
           padding: EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
-            color: Colors.red.withOpacity(0.1),
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.red.withOpacity(0.15)
+                : Colors.red.withOpacity(0.1),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.red.withOpacity(0.3)),
+            border: Border.all(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.red.withOpacity(0.4)
+                  : Colors.red.withOpacity(0.3),
+            ),
           ),
           child: Row(
             children: [
+              // Delete/Cancel button
+              IconButton(
+                onPressed: _cancelRecording,
+                icon: Icon(
+                  Icons.delete,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.red[400]
+                      : Colors.red,
+                ),
+                iconSize: 24,
+                padding: EdgeInsets.zero,
+                constraints: BoxConstraints(minWidth: 32, minHeight: 32),
+              ),
+              SizedBox(width: 8),
               // Recording icon
-              Icon(Icons.fiber_manual_record, color: Colors.red, size: 16),
+              Icon(
+                _isPaused ? Icons.pause : Icons.fiber_manual_record,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.red[400]
+                    : Colors.red,
+                size: 16,
+              ),
               SizedBox(width: 12),
               // Duration text
               Expanded(
                 child: Text(
-                  'Recording... ${_formatRecordingDuration(_recordingDuration)}',
+                  _isPaused 
+                    ? 'Paused ${_formatRecordingDuration(_recordingDuration)}'
+                    : 'Recording... ${_formatRecordingDuration(_recordingDuration)}',
                   style: TextStyle(
-                    color: Colors.red,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.red[400]
+                        : Colors.red,
                     fontWeight: FontWeight.w500,
                     fontSize: 16,
                   ),
                 ),
               ),
-              // Stop button
+              // Pause/Resume button
               IconButton(
-                onPressed: _stopVoiceRecording,
-                icon: Icon(Icons.stop, color: Colors.red),
+                onPressed: _pauseResumeRecording,
+                icon: Icon(
+                  _isPaused ? Icons.mic : Icons.pause,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.orange[400]
+                      : Colors.orange,
+                ),
+                iconSize: 28,
+              ),
+              // Send button
+              IconButton(
+                onPressed: _stopAndSendRecording,
+                icon: Icon(
+                  Icons.send,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Color(0xFF4dd0ff) // Lighter blue for dark mode
+                      : Color(0xFF003f9b), // Primary blue for light mode
+                ),
                 iconSize: 28,
               ),
             ],
@@ -256,10 +371,14 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
           margin: EdgeInsets.symmetric(horizontal: 8),
           padding: EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
-            color: Theme.of(context).primaryColor.withOpacity(0.1),
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Theme.of(context).primaryColor.withOpacity(0.15)
+                : Theme.of(context).primaryColor.withOpacity(0.1),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: Theme.of(context).primaryColor.withOpacity(0.3),
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Theme.of(context).primaryColor.withOpacity(0.4)
+                  : Theme.of(context).primaryColor.withOpacity(0.3),
             ),
           ),
           child: Row(
@@ -267,20 +386,33 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
               // Delete button
               IconButton(
                 onPressed: _deleteRecording,
-                icon: Icon(Icons.delete, color: Colors.red),
+                icon: Icon(
+                  Icons.delete,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.red[400]
+                      : Colors.red,
+                ),
                 iconSize: 24,
                 padding: EdgeInsets.zero,
                 constraints: BoxConstraints(minWidth: 32, minHeight: 32),
               ),
               SizedBox(width: 8),
               // Audio icon and duration
-              Icon(Icons.mic, color: Theme.of(context).primaryColor, size: 16),
+              Icon(
+                Icons.mic,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Theme.of(context).primaryColor.withOpacity(0.8)
+                    : Theme.of(context).primaryColor,
+                size: 16,
+              ),
               SizedBox(width: 8),
               Expanded(
                 child: Text(
                   'Audio recorded (${_formatRecordingDuration(_recordingDuration)})',
                   style: TextStyle(
-                    color: Theme.of(context).primaryColor,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Theme.of(context).primaryColor.withOpacity(0.9)
+                        : Theme.of(context).primaryColor,
                     fontWeight: FontWeight.w500,
                     fontSize: 16,
                   ),
@@ -289,7 +421,12 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
               // Send button
               IconButton(
                 onPressed: _sendAudioRecording,
-                icon: Icon(Icons.send, color: Theme.of(context).primaryColor),
+                icon: Icon(
+                  Icons.send,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Theme.of(context).primaryColor.withOpacity(0.9)
+                      : Theme.of(context).primaryColor,
+                ),
                 iconSize: 24,
                 padding: EdgeInsets.zero,
                 constraints: BoxConstraints(minWidth: 32, minHeight: 32),
