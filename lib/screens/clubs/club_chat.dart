@@ -25,10 +25,8 @@ import '../../models/message_audio.dart';
 import '../../services/api_service.dart';
 import '../../services/message_storage_service.dart';
 import '../../services/media_storage_service.dart';
-// import 'package:emoji_picker_flutter/emoji_picker_flutter.dart'; // Package not available
 import 'package:url_launcher/url_launcher.dart';
 import '../../widgets/club_info_dialog.dart';
-import '../../widgets/audio_player_widget.dart';
 import '../../widgets/message_bubbles/message_bubble_factory.dart';
 import '../../widgets/image_caption_dialog.dart';
 import '../../widgets/image_gallery_screen.dart';
@@ -53,7 +51,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   DetailedClubInfo? _detailedClubInfo;
   final FocusNode _textFieldFocusNode = FocusNode();
   MessageReply? _replyingTo;
-  bool _showEmojiReactionPicker = false;
   ClubMessage? _selectedMessageForReaction;
 
   // Slide-to-reply state
@@ -758,12 +755,10 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   Future<void> _toggleOfflineMode(bool enabled) async {
     await MessageStorageService.setOfflineMode(widget.club.id, enabled);
 
-    // Offline mode toggled - removed SnackBar notification
   }
 
   Future<void> _downloadAllMedia() async {
     try {
-      // Downloading media files - removed SnackBar notification
 
       // Extract media URLs from current messages
       final mediaUrls = <Map<String, dynamic>>[];
@@ -811,12 +806,9 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
           widget.club.id,
           mediaUrls,
         );
-        // Media download completed - removed SnackBar notification
-      } else {
-        // No media files to download - removed SnackBar notification
       }
     } catch (e) {
-      // Failed to download media - removed SnackBar notification
+      // Ignore errors during media download
     }
   }
 
@@ -920,7 +912,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
 
     if (confirmed == true) {
       try {
-        // Clearing local data - removed SnackBar notification
 
         // Clear all club data including media
         await MessageStorageService.clearClubData(widget.club.id);
@@ -928,9 +919,8 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         // Reload from server
         await _loadMessages(forceSync: true);
 
-        // Local data cleared and reloaded - removed SnackBar notification
       } catch (e) {
-        // Failed to clear local data - removed SnackBar notification
+        // Ignore clear data errors
       }
     }
   }
@@ -945,7 +935,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     final user = userProvider.user;
     if (user == null) {
       print('❌ User is null, cannot send message');
-      // User not found - removed SnackBar notification
       return;
     }
 
@@ -1045,14 +1034,12 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         if (_replyingTo != null) 'replyTo': _replyingTo!.toJson(),
       };
 
-      //print('🔵 Request data: $requestData');
 
       final response = await ApiService.post(
         '/conversations/${widget.club.id}/messages',
         requestData,
       );
 
-      //print('🔵 Full API Response: $response');
 
       // Check different possible response structures
       bool isSuccess = false;
@@ -1423,10 +1410,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         }
       });
 
-      // Show error to user
-      if (context.mounted) {
-        // Failed to send audio message - removed SnackBar notification
-      }
+      // Error handled by optimistic message state
     }
   }
 
@@ -1538,20 +1522,16 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       });
 
       // Make API call in background using stored IDs
-      final response = await ApiService.delete(
+      await ApiService.delete(
         '/conversations/${widget.club.id}/messages/delete',
         messageIdsToDelete,
       );
 
       if (mounted) {
-        // Use response message or fall back to default
-        final message =
-            response['message'] ??
-            '${messageIdsToDelete.length} message(s) deleted';
-        // Messages deleted successfully
+        // Message deletion successful
       }
     } catch (e) {
-      // Failed to delete messages
+      // Error deleting messages
     }
   }
 
@@ -1564,13 +1544,11 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   void _showReactionPicker(ClubMessage message) {
     setState(() {
       _selectedMessageForReaction = message;
-      _showEmojiReactionPicker = true;
     });
   }
 
   void _hideReactionPicker() {
     setState(() {
-      _showEmojiReactionPicker = false;
       _selectedMessageForReaction = null;
     });
   }
@@ -1622,37 +1600,10 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       _hideReactionPicker();
     } catch (e) {
       print('Error adding reaction: $e');
-      // Failed to add reaction
+      // Error adding reaction
     }
   }
 
-  void _removeReaction(ClubMessage message, MessageReaction reaction) async {
-    final userProvider = context.read<UserProvider>();
-    final user = userProvider.user;
-    if (user == null || reaction.userId != user.id) return;
-
-    try {
-      await ApiService.delete(
-        '/conversations/${widget.club.id}/messages/${message.id}/reactions/${reaction.emoji}',
-      );
-
-      // Update local message by removing the reaction
-      setState(() {
-        final messageIndex = _messages.indexWhere((m) => m.id == message.id);
-        if (messageIndex != -1) {
-          final updatedReactions = message.reactions
-              .where((r) => !(r.userId == user.id && r.emoji == reaction.emoji))
-              .toList();
-
-          _messages[messageIndex] = message.copyWith(
-            reactions: updatedReactions,
-          );
-        }
-      });
-    } catch (e) {
-      print('Error removing reaction: $e');
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -2437,7 +2388,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                             title: 'Location',
                             onTap: () {
                               Navigator.pop(context);
-                              _shareLocation();
+                              // Location sharing coming soon
                             },
                           ),
                         ],
@@ -2455,7 +2406,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                             title: 'Contact',
                             onTap: () {
                               Navigator.pop(context);
-                              _showCreateMatch(); // Placeholder for contact sharing
+                              // Contact sharing coming soon
                             },
                           ),
                           _buildGridOption(
@@ -2464,7 +2415,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                             title: 'Catalog',
                             onTap: () {
                               Navigator.pop(context);
-                              _showCreateTournament(); // Placeholder for catalog
+                              // Catalog coming soon
                             },
                           ),
                           _buildGridOption(
@@ -2473,7 +2424,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                             title: 'Quick replies',
                             onTap: () {
                               Navigator.pop(context);
-                              _showCreateEvent(); // Placeholder for quick replies
+                              // Quick replies coming soon
                             },
                           ),
                           _buildGridOption(
@@ -2482,7 +2433,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                             title: 'Poll',
                             onTap: () {
                               Navigator.pop(context);
-                              _showCreatePoll();
+                              // Poll creation coming soon
                             },
                           ),
                         ],
@@ -2500,7 +2451,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                             title: 'Event',
                             onTap: () {
                               Navigator.pop(context);
-                              _showCreateEvent();
+                              // Event creation coming soon
                             },
                           ),
                           if (_canShareUPIQR())
@@ -2538,87 +2489,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     );
   }
 
-  Widget _buildUploadOption({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        width: 100,
-        padding: EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                icon,
-                size: 24,
-                color: Theme.of(context).primaryColor,
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white.withOpacity(0.8)
-                    : Colors.black.withOpacity(0.7),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
-  Widget _buildMenuOption({
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, size: 22, color: iconColor),
-            ),
-            SizedBox(width: 16),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white.withOpacity(0.9)
-                    : Colors.black.withOpacity(0.8),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildGridOption({
     required IconData icon,
@@ -2663,25 +2534,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     );
   }
 
-  void _showCreatePoll() {
-    // Poll creation coming soon
-  }
-
-  void _showCreateMatch() {
-    // Match creation coming soon
-  }
-
-  void _showCreateTournament() {
-    // Tournament creation coming soon
-  }
-
-  void _showCreateEvent() {
-    // Event creation coming soon
-  }
-
-  void _shareLocation() {
-    // Location sharing coming soon
-  }
 
   bool _canShareUPIQR() {
     // TODO: This should check the current user's role in the club
@@ -2805,76 +2657,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     }
   }
 
-  Widget _buildImagePreview(PlatformFile file) {
-    // Check if it's a local file path or bytes
-    if (file.bytes != null) {
-      // Web platform - use bytes
-      return Image.memory(
-        file.bytes!,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            height: 150,
-            color: Colors.grey[300],
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.broken_image, size: 48, color: Colors.grey[600]),
-                  SizedBox(height: 8),
-                  Text(
-                    'Failed to load image',
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      );
-    } else if (file.path != null) {
-      // Mobile platform - use file path
-      return Image.file(
-        File(file.path!),
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            height: 150,
-            color: Colors.grey[300],
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.broken_image, size: 48, color: Colors.grey[600]),
-                  SizedBox(height: 8),
-                  Text(
-                    'Failed to load image',
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      );
-    } else {
-      // Fallback - show placeholder
-      return Container(
-        height: 150,
-        color: Colors.grey[300],
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.image, size: 48, color: Colors.grey[600]),
-              SizedBox(height: 8),
-              Text('Image preview', style: TextStyle(color: Colors.grey[600])),
-            ],
-          ),
-        ),
-      );
-    }
-  }
 
   void _showSingleImageCaptionDialog(PlatformFile file) {
     Navigator.of(context).push(
@@ -3410,86 +3192,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     }
   }
 
-  List<TextSpan> _parseInlineFormatting(
-    String text,
-    Color baseColor,
-    Color codeBackgroundColor,
-  ) {
-    final List<TextSpan> spans = [];
-    int currentIndex = 0;
-
-    // Combined regex for all inline formatting
-    final regex = RegExp(r'(\*[^*]+\*)|(_[^_]+_)|(~[^~]+~)|(`[^`]+`)');
-
-    for (final match in regex.allMatches(text)) {
-      // Add text before the match
-      if (match.start > currentIndex) {
-        spans.add(
-          TextSpan(
-            text: text.substring(currentIndex, match.start),
-            style: TextStyle(color: baseColor),
-          ),
-        );
-      }
-
-      final matchedText = match.group(0)!;
-
-      if (matchedText.startsWith('*') && matchedText.endsWith('*')) {
-        // Bold: *text*
-        spans.add(
-          TextSpan(
-            text: matchedText.substring(1, matchedText.length - 1),
-            style: TextStyle(fontWeight: FontWeight.bold, color: baseColor),
-          ),
-        );
-      } else if (matchedText.startsWith('_') && matchedText.endsWith('_')) {
-        // Italic: _text_
-        spans.add(
-          TextSpan(
-            text: matchedText.substring(1, matchedText.length - 1),
-            style: TextStyle(fontStyle: FontStyle.italic, color: baseColor),
-          ),
-        );
-      } else if (matchedText.startsWith('~') && matchedText.endsWith('~')) {
-        // Strikethrough: ~text~
-        spans.add(
-          TextSpan(
-            text: matchedText.substring(1, matchedText.length - 1),
-            style: TextStyle(
-              decoration: TextDecoration.lineThrough,
-              color: baseColor,
-            ),
-          ),
-        );
-      } else if (matchedText.startsWith('`') && matchedText.endsWith('`')) {
-        // Inline code: `text`
-        spans.add(
-          TextSpan(
-            text: matchedText.substring(1, matchedText.length - 1),
-            style: TextStyle(
-              fontFamily: 'monospace',
-              backgroundColor: codeBackgroundColor,
-              color: baseColor,
-            ),
-          ),
-        );
-      }
-
-      currentIndex = match.end;
-    }
-
-    // Add remaining text
-    if (currentIndex < text.length) {
-      spans.add(
-        TextSpan(
-          text: text.substring(currentIndex),
-          style: TextStyle(color: baseColor),
-        ),
-      );
-    }
-
-    return spans;
-  }
 
   Widget _buildImageWidget(MessageImage image, {double height = 200}) {
     // Check if it's a local file path (during upload) or network URL
@@ -3965,78 +3667,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     }
   }
 
-  void _showImageDialog(List<MessageImage> images, int initialIndex) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.black,
-        insetPadding: EdgeInsets.zero,
-        child: Stack(
-          children: [
-            PageView.builder(
-              controller: PageController(initialPage: initialIndex),
-              itemCount: images.length,
-              itemBuilder: (context, index) {
-                final image = images[index];
-                return Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: InteractiveViewer(
-                        child: Image.network(
-                          image.url,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.broken_image,
-                                    size: 64,
-                                    color: Colors.white54,
-                                  ),
-                                  SizedBox(height: 16),
-                                  Text(
-                                    'Failed to load image',
-                                    style: TextStyle(color: Colors.white54),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                    if (image.caption != null && image.caption!.isNotEmpty) ...[
-                      Container(
-                        width: double.infinity,
-                        padding: EdgeInsets.all(16),
-                        color: Colors.black87,
-                        child: Text(
-                          image.caption!,
-                          style: TextStyle(color: Colors.white, fontSize: 16),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ],
-                  ],
-                );
-              },
-            ),
-            Positioned(
-              top: 40,
-              right: 16,
-              child: IconButton(
-                onPressed: () => Navigator.pop(context),
-                icon: Icon(Icons.close, color: Colors.white, size: 28),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildReplyPreview() {
     if (_replyingTo == null) return SizedBox.shrink();
@@ -4261,58 +3891,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     );
   }
 
-  List<String> _getPopularEmojis() {
-    return [
-      '😀',
-      '😂',
-      '😍',
-      '🥰',
-      '😊',
-      '😉',
-      '😎',
-      '🤔',
-      '😢',
-      '😭',
-      '😡',
-      '🤬',
-      '🥺',
-      '😤',
-      '😴',
-      '🤤',
-      '👍',
-      '👎',
-      '👏',
-      '🙌',
-      '👋',
-      '✋',
-      '👌',
-      '🤞',
-      '💪',
-      '🙏',
-      '✨',
-      '🔥',
-      '💯',
-      '❤️',
-      '💔',
-      '😘',
-      '🏏',
-      '⚾',
-      '🏀',
-      '⚽',
-      '🎾',
-      '🏆',
-      '🥇',
-      '🎉',
-      '🎊',
-      '🎈',
-      '🎁',
-      '🍕',
-      '🍔',
-      '🍟',
-      '🍗',
-      '🌮',
-    ];
-  }
 
   String _formatFileSize(int bytes) {
     if (bytes < 1024) return '${bytes}B';
@@ -4756,7 +4334,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       });
     } catch (e) {
       if (mounted) {
-        //do notning
+        // Error toggling star status
       }
     }
   }
@@ -4883,7 +4461,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       // Sync from server to get authoritative pinned status for all users
       await _syncMessagesFromServer(forceSync: false);
 
-      // Message pinned successfully
     } catch (e) {
       // Error pinning message
     }
@@ -4898,31 +4475,15 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
       // Sync from server to get authoritative pinned status for all users
       await _syncMessagesFromServer(forceSync: false);
 
-      // Message unpinned successfully
     } catch (e) {
       // Error unpinning message
     }
   }
 
-  String _formatDuration(int hours) {
-    if (hours == 24) {
-      return '24 hours';
-    } else if (hours == 24 * 7) {
-      return '7 days';
-    } else if (hours == 24 * 30) {
-      return '30 days';
-    } else if (hours < 24) {
-      return '$hours hours';
-    } else {
-      final days = hours ~/ 24;
-      return '$days days';
-    }
-  }
 
   Timer? _pinnedRefreshTimer;
   Timer? _messagePollingTimer;
   int _currentPollingInterval = 30; // Start with 30 seconds
-  int _lastMessageCount = 0;
   bool _isMarkingDelivered =
       false; // Lock to prevent concurrent delivery marking
   Set<String> _processingDelivery =
@@ -5024,7 +4585,6 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   // Start adaptive polling for new messages
   void _startMessagePolling() {
     _messagePollingTimer?.cancel();
-    _lastMessageCount = _messages.length;
     _scheduleNextPoll();
   }
 
