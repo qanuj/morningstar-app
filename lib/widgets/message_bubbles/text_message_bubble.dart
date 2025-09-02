@@ -38,20 +38,6 @@ class TextMessageBubble extends StatelessWidget {
   }
 
   Widget _buildContent(BuildContext context) {
-    print(
-      '🔍 TextMessageBubble._buildContent: images.length = ${message.images.length}',
-    );
-    print('🔍 TextMessageBubble._buildContent: content = "${message.content}"');
-    print(
-      '🔍 TextMessageBubble._buildContent: messageType = "${message.messageType}"',
-    );
-
-    if (message.images.isNotEmpty) {
-      print(
-        '🔍 TextMessageBubble: Will build image gallery with ${message.images.length} images',
-      );
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

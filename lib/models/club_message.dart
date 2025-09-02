@@ -280,6 +280,14 @@ class ClubMessage {
             .toList();
       }
     }
+    
+    // Parse top-level images array (for cache compatibility)
+    if (json['images'] is List && images.isEmpty) {
+      images = (json['images'] as List)
+          .map((url) => url as String)
+          .toList();
+      print('🔍 ClubMessage.fromJson: Parsed ${images.length} images from cache level');
+    }
 
     // Extract sender info from nested objects if available
     String senderName = 'Unknown';
@@ -401,8 +409,9 @@ class ClubMessage {
       if (json['messageId'] == 'cmezzje2t0001nwzh0x8qrcd5') {
         debugPrint('🔍 🔍 🔍 🔍 🔍 Status parsing: $json');
       }
-      // Handle string status format
+      // Handle string status format (from cache)
       final statusStr = json['status'] as String;
+      print('🔍 ClubMessage.fromJson: Loading status from cache: $statusStr');
       switch (statusStr) {
         case 'sending':
           messageStatus = MessageStatus.sending;
@@ -511,6 +520,8 @@ class ClubMessage {
       'gifUrl': gifUrl,
       'messageType': messageType,
       'createdAt': createdAt.toIso8601String(),
+      'status': status.toString().split('.').last, // Convert enum to string
+      'errorMessage': errorMessage,
       'reactions': reactions.map((r) => r.toJson()).toList(),
       'replyTo': replyTo?.toJson(),
       'deleted': deleted,

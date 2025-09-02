@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/club_message.dart';
 import '../models/message_status.dart';
-import 'media_storage_service.dart';
 
 class MessageStorageService {
   static const String _messagesKeyPrefix = 'club_messages_';
@@ -169,66 +168,11 @@ class MessageStorageService {
       // Save messages first
       await saveMessages(clubId, messages);
       
-      // Extract and download media in background
-      _downloadMediaInBackground(clubId, messages);
     } catch (e) {
       print('❌ Error saving messages with media: $e');
     }
   }
 
-  /// Download media files in background
-  static Future<void> _downloadMediaInBackground(String clubId, List<ClubMessage> messages) async {
-    try {
-      final mediaUrls = <Map<String, dynamic>>[];
-      
-      for (final message in messages) {
-        // Extract images
-        for (final picture in message.images) {
-          mediaUrls.add({
-            'url': picture,
-            'type': 'image',
-            'messageId': message.id,
-          });
-        }
-        
-        // Extract documents
-        for (final document in message.documents) {
-          mediaUrls.add({
-            'url': document.url,
-            'type': 'document',
-            'messageId': message.id,
-            'filename': document.filename,
-          });
-        }
-        
-        // Extract audio
-        if (message.audio != null) {
-          mediaUrls.add({
-            'url': message.audio!.url,
-            'type': 'audio',
-            'messageId': message.id,
-            'duration': message.audio!.duration,
-          });
-        }
-        
-        // Extract GIFs
-        if (message.gifUrl != null && message.gifUrl!.isNotEmpty) {
-          mediaUrls.add({
-            'url': message.gifUrl!,
-            'type': 'gif',
-            'messageId': message.id,
-          });
-        }
-      }
-      
-      if (mediaUrls.isNotEmpty) {
-        // Download media asynchronously
-        MediaStorageService.downloadAllMediaForClub(clubId, mediaUrls);
-      }
-    } catch (e) {
-      print('❌ Error downloading media in background: $e');
-    }
-  }
 
   /// Compare local and server messages to find differences
   static Map<String, dynamic> compareMessages(
@@ -391,7 +335,7 @@ class MessageStorageService {
       final needsSync = await MessageStorageService.needsSync(clubId);
       final lastMessage = await getLastMessageTimestamp(clubId);
       final isOffline = await isOfflineMode(clubId);
-      final mediaStats = await MediaStorageService.getStorageStats(clubId);
+      // Media stats removed - offline functionality disabled
       final deliveredIds = await getDeliveredMessageIds(clubId);
       final readIds = await getReadMessageIds(clubId);
       
@@ -409,7 +353,7 @@ class MessageStorageService {
             : null,
         'deliveredCount': deliveredIds.length,
         'readCount': readIds.length,
-        'media': mediaStats,
+        'media': null, // Media stats removed - offline functionality disabled
       };
     } catch (e) {
       return {'error': e.toString()};
@@ -529,8 +473,7 @@ class MessageStorageService {
       // Clear messages
       await clearMessages(clubId);
       
-      // Clear media
-      await MediaStorageService.clearClubMedia(clubId);
+      // Media clearing removed - offline functionality disabled
       
       // Clear status flags
       await clearStatusFlags(clubId);
