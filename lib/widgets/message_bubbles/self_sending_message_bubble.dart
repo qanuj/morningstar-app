@@ -285,44 +285,43 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
       }
     }
 
-    // Handle documents that are already in the message
-    if (currentMessage.documents.isNotEmpty) {
-      for (final document in currentMessage.documents) {
-        final docPath = document.url;
+    // Handle document that is already in the message
+    if (currentMessage.document != null) {
+      final document = currentMessage.document!;
+      final docPath = document.url;
 
-        // Skip if it's already a remote URL
-        if (!docPath.startsWith('http')) {
-          try {
-            final file = File(docPath);
-            if (await file.exists()) {
-              final fileName = docPath.split('/').last;
-              final fileSize = await file.length();
+      // Skip if it's already a remote URL
+      if (!docPath.startsWith('http')) {
+        try {
+          final file = File(docPath);
+          if (await file.exists()) {
+            final fileName = docPath.split('/').last;
+            final fileSize = await file.length();
 
-              final platformFile = PlatformFile(
-                name: fileName,
-                path: docPath,
-                size: fileSize,
-                bytes: null,
+            final platformFile = PlatformFile(
+              name: fileName,
+              path: docPath,
+              size: fileSize,
+              bytes: null,
+            );
+
+            final uploadUrl = await ApiService.uploadFile(platformFile);
+            if (uploadUrl != null) {
+              _uploadedDocuments.add(
+                MessageDocument(
+                  url: uploadUrl,
+                  filename: document.filename,
+                  type: document.type,
+                  size: document.size,
+                ),
               );
-
-              final uploadUrl = await ApiService.uploadFile(platformFile);
-              if (uploadUrl != null) {
-                _uploadedDocuments.add(
-                  MessageDocument(
-                    url: uploadUrl,
-                    filename: document.filename,
-                    type: document.type,
-                    size: document.size,
-                  ),
-                );
-              }
             }
-          } catch (e) {
-            print('Failed to upload document: $e');
           }
-        } else {
-          _uploadedDocuments.add(document);
+        } catch (e) {
+          print('Failed to upload document: $e');
         }
+      } else {
+        _uploadedDocuments.add(document);
       }
     }
   }
@@ -621,8 +620,9 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
     // PRIORITY 1: Check for uploaded media first (highest priority)
     // For standalone media files without meaningful text content, use specific media types
     if (_uploadedAudio != null && content.trim().isEmpty) return 'audio';
-    if (_uploadedDocuments.isNotEmpty && content.trim().isEmpty)
+    if (_uploadedDocuments.isNotEmpty && content.trim().isEmpty) {
       return 'document';
+    }
 
     // IMPORTANT: According to API schema, there is NO 'image' or 'video' type!
     // Images and videos should be sent as 'text' type with images/videos arrays
