@@ -1,6 +1,6 @@
+import 'package:duggy/services/chat_api_service.dart';
 import 'package:flutter/material.dart';
 import '../models/club_message.dart';
-import '../services/api_service.dart';
 import 'svg_avatar.dart';
 
 class MessageInfoSheet extends StatefulWidget {
@@ -41,13 +41,16 @@ class _MessageInfoSheetState extends State<MessageInfoSheet>
 
   Future<void> _fetchMessageStatus() async {
     try {
-      final data = await ApiService.get('/conversations/${widget.message.clubId}/messages/${widget.message.id}/status');
-      
+      final data = await ChatApiService.getMessageStatus(
+        widget.message.clubId,
+        widget.message.id,
+      );
+
       setState(() {
         _deliveredTo = (data['delivered'] as List? ?? [])
             .map((item) => item as Map<String, dynamic>)
             .toList();
-        _readBy = (data['seen'] as List? ?? [])
+        _readBy = (data['read'] as List? ?? [])
             .map((item) => item as Map<String, dynamic>)
             .toList();
         _isLoading = false;
@@ -61,7 +64,6 @@ class _MessageInfoSheetState extends State<MessageInfoSheet>
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -73,9 +75,7 @@ class _MessageInfoSheetState extends State<MessageInfoSheet>
           color: isDark ? Colors.grey[900] : Colors.white,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        child: const Center(
-          child: CircularProgressIndicator(),
-        ),
+        child: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -138,17 +138,24 @@ class _MessageInfoSheetState extends State<MessageInfoSheet>
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Tab bar
           TabBar(
             controller: _tabController,
             isScrollable: true,
-            labelColor: isDark ? Colors.lightBlueAccent : const Color(0xFF003f9b),
+            labelColor: isDark
+                ? Colors.lightBlueAccent
+                : const Color(0xFF003f9b),
             unselectedLabelColor: isDark ? Colors.grey[400] : Colors.grey[600],
-            indicatorColor: isDark ? Colors.lightBlueAccent : const Color(0xFF003f9b),
-            labelStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            indicatorColor: isDark
+                ? Colors.lightBlueAccent
+                : const Color(0xFF003f9b),
+            labelStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
             unselectedLabelStyle: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.normal,
@@ -158,7 +165,7 @@ class _MessageInfoSheetState extends State<MessageInfoSheet>
               Tab(text: 'Delivered ${deliveredUsers.length}'),
             ],
           ),
-          
+
           // Tab Bar View
           Expanded(
             child: TabBarView(
@@ -174,24 +181,28 @@ class _MessageInfoSheetState extends State<MessageInfoSheet>
     );
   }
 
-  Widget _buildUserList(List<Map<String, dynamic>> users, String type, bool isDark) {
+  Widget _buildUserList(
+    List<Map<String, dynamic>> users,
+    String type,
+    bool isDark,
+  ) {
     if (users.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              type == 'seen' 
-                ? Icons.check_circle_outline
-                : Icons.check_outlined,
+              type == 'seen'
+                  ? Icons.check_circle_outline
+                  : Icons.check_outlined,
               size: 48,
               color: isDark ? Colors.grey[600] : Colors.grey[400],
             ),
             const SizedBox(height: 16),
             Text(
-              type == 'seen' 
-                ? 'No one has seen this message yet'
-                : 'Message not delivered to anyone yet',
+              type == 'seen'
+                  ? 'No one has seen this message yet'
+                  : 'Message not delivered to anyone yet',
               style: TextStyle(
                 fontSize: 16,
                 color: isDark ? Colors.grey[400] : Colors.grey[600],
@@ -215,9 +226,9 @@ class _MessageInfoSheetState extends State<MessageInfoSheet>
 
   Widget _buildUserTile(Map<String, dynamic> user, String type, bool isDark) {
     final name = user['name'] ?? 'Unknown User';
-    final profilePicture = user['avatar'];
-    final timestamp = user['time'];
-    
+    final profilePicture = user['profilePicture'];
+    final timestamp = user['at'];
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
@@ -256,7 +267,9 @@ class _MessageInfoSheetState extends State<MessageInfoSheet>
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
-                    color: isDark ? Colors.white.withOpacity(0.9) : Colors.black87,
+                    color: isDark
+                        ? Colors.white.withOpacity(0.9)
+                        : Colors.black87,
                   ),
                 ),
                 if (timestamp != null)
@@ -290,13 +303,12 @@ class _MessageInfoSheetState extends State<MessageInfoSheet>
     );
   }
 
-
   String _formatTimestamp(String timestamp, String type) {
     try {
       final dateTime = DateTime.parse(timestamp);
       final now = DateTime.now();
       final difference = now.difference(dateTime);
-      
+
       String timeAgo;
       if (difference.inMinutes < 1) {
         timeAgo = 'just now';
@@ -309,11 +321,10 @@ class _MessageInfoSheetState extends State<MessageInfoSheet>
       } else {
         timeAgo = '${(difference.inDays / 7).floor()}w ago';
       }
-      
+
       return '${type == 'seen' ? 'Seen' : 'Delivered'} $timeAgo';
     } catch (e) {
       return type == 'seen' ? 'Seen' : 'Delivered';
     }
   }
-
 }

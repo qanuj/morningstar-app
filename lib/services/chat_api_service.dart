@@ -105,7 +105,7 @@ class ChatApiService {
   }
 
   /// Get message status
-  static Future<Map<String, dynamic>?> getMessageStatus(
+  static Future<Map<String, dynamic>> getMessageStatus(
     String clubId,
     String messageId,
   ) async {
@@ -116,7 +116,7 @@ class ChatApiService {
       return response;
     } catch (e) {
       print('❌ Error getting message status: $e');
-      return null;
+      throw Exception('Failed to get message status: $e');
     }
   }
 
@@ -189,7 +189,11 @@ class ChatApiService {
   }
 
   /// Update existing reaction emoji
-  static Future<bool> updateReaction(String clubId, String messageId, String emoji) async {
+  static Future<bool> updateReaction(
+    String clubId,
+    String messageId,
+    String emoji,
+  ) async {
     try {
       await ApiService.put(
         '/conversations/$clubId/messages/$messageId/reactions',
