@@ -535,6 +535,12 @@ class ClubMessage {
         if (linkData.favicon != null) 'favicon': linkData.favicon,
         if (linkData.image != null) 'images': [linkData.image!],
       };
+    } else if (messageType == 'emoji') {
+      // For emoji messages, format content as emojiSchema structure
+      contentJson = {
+        'type': 'emoji',
+        'body': content,
+      };
     } else {
       contentJson = content;
     }

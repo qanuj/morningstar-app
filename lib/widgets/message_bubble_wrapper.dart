@@ -16,33 +16,37 @@ class MessageBubbleWrapper extends StatelessWidget {
   final bool showSenderInfo;
   final bool isLastFromSender;
   final String clubId;
-  
+
   // Selection mode
   final bool isSelectionMode;
   final Set<String> selectedMessageIds;
   final Function(String messageId) onToggleSelection;
-  
+
   // Highlighting
   final String? highlightedMessageId;
-  
+
   // Slide to reply
   final bool isSliding;
   final String? slidingMessageId;
   final double slideOffset;
-  final Function(DragUpdateDetails details, ClubMessage message, bool isOwn) onSlideUpdate;
-  final Function(DragEndDetails details, ClubMessage message, bool isOwn) onSlideEnd;
-  
+  final Function(DragUpdateDetails details, ClubMessage message, bool isOwn)
+  onSlideUpdate;
+  final Function(DragEndDetails details, ClubMessage message, bool isOwn)
+  onSlideEnd;
+
   // Message actions - removed, handled by bubbles themselves
-  
+
   // Self-sending message callbacks
-  final Function(ClubMessage oldMessage, ClubMessage newMessage)? onMessageUpdated;
+  final Function(ClubMessage oldMessage, ClubMessage newMessage)?
+  onMessageUpdated;
   final Function(String messageId)? onMessageFailed;
-  
+
   // Pending uploads for self-sending messages
   final List<PlatformFile>? pendingUploads;
-  
+
   // Message interaction callbacks - only keep onReactionRemoved for BaseMessageBubble compatibility
-  final Function(String messageId, String emoji, String userId)? onReactionRemoved;
+  final Function(String messageId, String emoji, String userId)?
+  onReactionRemoved;
   final bool canPinMessages;
   final bool canDeleteMessages;
 
@@ -129,9 +133,9 @@ class MessageBubbleWrapper extends StatelessWidget {
                               duration: const Duration(milliseconds: 100),
                               child: Icon(
                                 Icons.reply,
-                                color: const Color(0xFF06aeff).withOpacity(
-                                  slideOffset > 50.0 ? 1.0 : 0.7,
-                                ),
+                                color: const Color(
+                                  0xFF06aeff,
+                                ).withOpacity(slideOffset > 50.0 ? 1.0 : 0.7),
                                 size: slideOffset > 50.0 ? 32 : 28,
                               ),
                             ),
@@ -159,18 +163,12 @@ class MessageBubbleWrapper extends StatelessWidget {
                               // Gesture handling moved to individual bubbles
                               onPanUpdate: (isSelectionMode || message.deleted)
                                   ? null
-                                  : (details) => onSlideUpdate(
-                                      details,
-                                      message,
-                                      isOwn,
-                                    ),
+                                  : (details) =>
+                                        onSlideUpdate(details, message, isOwn),
                               onPanEnd: (isSelectionMode || message.deleted)
                                   ? null
-                                  : (details) => onSlideEnd(
-                                      details,
-                                      message,
-                                      isOwn,
-                                    ),
+                                  : (details) =>
+                                        onSlideEnd(details, message, isOwn),
                               child: message.status == MessageStatus.sending
                                   ? SelfSendingMessageBubble(
                                       message: message,
@@ -197,7 +195,7 @@ class MessageBubbleWrapper extends StatelessWidget {
               ),
             ],
           ),
-          
+
           // Error message display below the bubble
           if (message.status == MessageStatus.failed)
             Container(
@@ -207,8 +205,8 @@ class MessageBubbleWrapper extends StatelessWidget {
                 right: isOwn ? 40 : 60,
               ),
               child: Row(
-                mainAxisAlignment: isOwn 
-                    ? MainAxisAlignment.end 
+                mainAxisAlignment: isOwn
+                    ? MainAxisAlignment.end
                     : MainAxisAlignment.start,
                 children: [
                   Icon(
@@ -254,31 +252,42 @@ class MessageBubbleWrapper extends StatelessWidget {
   }
 
   Widget _buildSenderAvatar(BuildContext context) {
-    return Container(
-      width: 28,
-      height: 28,
-      margin: const EdgeInsets.only(right: 6, bottom: 2),
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Theme.of(context).primaryColor.withOpacity(0.1),
-        border: Border.all(
-          color: _getRoleColor(context, message.senderRole ?? 'MEMBER').withOpacity(0.3),
-          width: 1.5,
+    return Stack(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          margin: const EdgeInsets.only(right: 6, bottom: 2),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Theme.of(context).primaryColor.withOpacity(0.1),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child:
+                message.senderProfilePicture != null &&
+                    message.senderProfilePicture!.isNotEmpty
+                ? _buildProfilePicture(context, message.senderProfilePicture!)
+                : _buildDefaultSenderAvatar(context),
+          ),
         ),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: message.senderProfilePicture != null &&
-                message.senderProfilePicture!.isNotEmpty
-            ? _buildProfilePicture(context, message.senderProfilePicture!)
-            : _buildDefaultSenderAvatar(context),
-      ),
+        // Role badge
+        if (_shouldShowRoleBadge(message.senderRole))
+          Positioned(
+            right: 2,
+            bottom: 0,
+            child: Text(
+              _getRoleBadgeEmoji(message.senderRole),
+              style: const TextStyle(fontSize: 14),
+            ),
+          ),
+      ],
     );
   }
 
   Widget _buildProfilePicture(BuildContext context, String profilePictureUrl) {
     // Check if the URL is an SVG
-    if (profilePictureUrl.toLowerCase().contains('.svg') || 
+    if (profilePictureUrl.toLowerCase().contains('.svg') ||
         profilePictureUrl.toLowerCase().contains('svg?')) {
       return SvgPicture.network(
         profilePictureUrl,
@@ -380,6 +389,24 @@ class MessageBubbleWrapper extends StatelessWidget {
         return Theme.of(context).brightness == Brightness.dark
             ? Colors.grey[400]!
             : Colors.grey[600]!;
+    }
+  }
+
+  /// Check if role badge should be shown
+  bool _shouldShowRoleBadge(String? role) {
+    final upperRole = role?.toUpperCase();
+    return upperRole == 'OWNER' || upperRole == 'ADMIN';
+  }
+
+  /// Get the emoji badge for the user role
+  String _getRoleBadgeEmoji(String? role) {
+    switch (role?.toUpperCase()) {
+      case 'OWNER':
+        return '👑'; // Crown emoji
+      case 'ADMIN':
+        return '🛡️'; // Shield emoji
+      default:
+        return '';
     }
   }
 }
