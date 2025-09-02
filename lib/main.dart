@@ -10,10 +10,10 @@ import 'config/app_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Log current configuration
   AppConfig.logConfig();
-  
+
   runApp(MyApp());
 }
 

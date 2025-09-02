@@ -199,13 +199,16 @@ class ClubMessage {
             );
             break;
           case 'link':
+            print('🔗 ClubMessage.fromJson: Parsing link message with content = $content');
             if (content['url'] != null) {
               // Handle both old format (thumbnail) and new format (images array)
               String? linkImage;
               if (content['images'] is List && (content['images'] as List).isNotEmpty) {
                 linkImage = (content['images'] as List).first;
+                print('🔗 ClubMessage.fromJson: Found link image from images array: $linkImage');
               } else if (content['thumbnail'] != null) {
                 linkImage = content['thumbnail'];
+                print('🔗 ClubMessage.fromJson: Found link image from thumbnail: $linkImage');
               }
               
               linkMeta = [
@@ -218,6 +221,10 @@ class ClubMessage {
                   favicon: content['favicon'],
                 ),
               ];
+              print('🔗 ClubMessage.fromJson: Created linkMeta with ${linkMeta.length} items');
+              print('🔗 ClubMessage.fromJson: LinkMeta title: ${linkMeta.first.title}');
+            } else {
+              print('🔗 ClubMessage.fromJson: No URL found in link content');
             }
             break;
           case 'document':
@@ -514,6 +521,24 @@ class ClubMessage {
   }
 
   Map<String, dynamic> toJson() {
+    // For link messages, format content as linkSchema structure
+    dynamic contentJson;
+    if (messageType == 'link' && linkMeta.isNotEmpty) {
+      final linkData = linkMeta.first;
+      contentJson = {
+        'type': 'link',
+        'url': linkData.url,
+        'body': content,
+        if (linkData.title != null) 'title': linkData.title,
+        if (linkData.description != null) 'description': linkData.description,
+        if (linkData.siteName != null) 'siteName': linkData.siteName,
+        if (linkData.favicon != null) 'favicon': linkData.favicon,
+        if (linkData.image != null) 'images': [linkData.image!],
+      };
+    } else {
+      contentJson = content;
+    }
+
     return {
       'id': id,
       'messageId': id, // For API compatibility
@@ -522,7 +547,7 @@ class ClubMessage {
       'senderName': senderName,
       'senderProfilePicture': senderProfilePicture,
       'senderRole': senderRole,
-      'content': content,
+      'content': contentJson,
       'images': images,
       'document': document?.toJson(),
       'audio': audio?.toJson(),

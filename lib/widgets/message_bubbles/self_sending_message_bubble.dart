@@ -559,9 +559,21 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
       // Create new message from server response
       var finalMessage = ClubMessage.fromJson(messageData);
       
-      // Preserve locally extracted link metadata if we have it and server didn't provide it
-      if (linkMeta.isNotEmpty && finalMessage.linkMeta.isEmpty) {
-        finalMessage = finalMessage.copyWith(linkMeta: linkMeta);
+      // Preserve locally extracted link metadata if we have richer local data
+      if (linkMeta.isNotEmpty) {
+        if (finalMessage.linkMeta.isEmpty) {
+          // Server provided no link metadata, use our local data
+          finalMessage = finalMessage.copyWith(linkMeta: linkMeta);
+        } else {
+          // Check if our local metadata is more complete than server's
+          final serverMeta = finalMessage.linkMeta.first;
+          final localMeta = linkMeta.first;
+          
+          // Prefer local metadata if it has siteName/favicon (richer data)
+          if (localMeta.siteName != null || localMeta.favicon != null) {
+            finalMessage = finalMessage.copyWith(linkMeta: linkMeta);
+          }
+        }
       }
 
       // Save to storage
