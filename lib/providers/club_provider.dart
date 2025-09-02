@@ -17,15 +17,22 @@ class ClubProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final Map<String, dynamic> response = await ApiService.get('/my/clubs');
       List<dynamic> clubsData = [];
       
-      // Handle different response formats
-      final data = response['data'];
-      if (data is List) {
-        clubsData = data;
-      } else if (data is Map) {
-        clubsData = [data]; // Single club wrapped in data
+      // First try to load from cached data in ApiService
+      if (ApiService.hasClubsData) {
+        clubsData = ApiService.cachedClubsData!;
+      } else {
+        // Fallback to API call if no cached data
+        final Map<String, dynamic> response = await ApiService.get('/my/clubs');
+        
+        // Handle different response formats
+        final data = response['data'];
+        if (data is List) {
+          clubsData = data;
+        } else if (data is Map) {
+          clubsData = [data]; // Single club wrapped in data
+        }
       }
       
       _clubs = clubsData.map((club) {

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -137,8 +138,41 @@ class _OTPScreenState extends State<OTPScreen> {
         'otp': otp,
       });
 
+      // Set token first so we can make authenticated API calls
       await ApiService.setToken(response['token']);
 
+      // Get user and clubs data from the API after successful login
+      Map<String, dynamic>? userData;
+      List<Map<String, dynamic>>? clubsData;
+
+      try {
+        // Fetch user data from /auth/me
+        final userResponse = await ApiService.get('/auth/me');
+        if (userResponse.containsKey('data') && userResponse['data'] != null) {
+          userData = userResponse['data'];
+        } else if (userResponse.containsKey('user') && userResponse['user'] != null) {
+          userData = userResponse['user'];
+        } else {
+          userData = userResponse;
+        }
+
+        // Fetch clubs data from /my/clubs
+        final clubsResponse = await ApiService.get('/my/clubs');
+        final data = clubsResponse['data'];
+        if (data is List) {
+          clubsData = List<Map<String, dynamic>>.from(data);
+        } else if (data is Map) {
+          clubsData = [Map<String, dynamic>.from(data)];
+        }
+
+        // Update ApiService with the fetched data
+        await ApiService.setToken(response['token'], userData: userData, clubsData: clubsData);
+      } catch (e) {
+        debugPrint('Error fetching user/clubs data: $e');
+        // Continue with login even if additional data fetch fails
+      }
+
+      // Load data from cached sources in providers
       await Provider.of<UserProvider>(context, listen: false).loadUser();
       await Provider.of<ClubProvider>(context, listen: false).loadClubs();
 

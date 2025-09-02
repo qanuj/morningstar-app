@@ -22,22 +22,60 @@ class ApiService {
   // Get base URL from app configuration
   static String get baseUrl => AppConfig.apiBaseUrl;
   static String? _token;
+  static Map<String, dynamic>? _userData;
+  static List<Map<String, dynamic>>? _clubsData;
 
   static Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString('token');
+    
+    // Load cached user and clubs data
+    final userDataString = prefs.getString('userData');
+    if (userDataString != null) {
+      try {
+        _userData = json.decode(userDataString);
+      } catch (e) {
+        debugPrint('Error loading cached user data: $e');
+      }
+    }
+    
+    final clubsDataString = prefs.getString('clubsData');
+    if (clubsDataString != null) {
+      try {
+        final decoded = json.decode(clubsDataString);
+        _clubsData = List<Map<String, dynamic>>.from(decoded);
+      } catch (e) {
+        debugPrint('Error loading cached clubs data: $e');
+      }
+    }
   }
 
-  static Future<void> setToken(String token) async {
+  static Future<void> setToken(String token, {Map<String, dynamic>? userData, List<Map<String, dynamic>>? clubsData}) async {
     _token = token;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('token', token);
+    
+    // Store user data if provided
+    if (userData != null) {
+      _userData = userData;
+      await prefs.setString('userData', json.encode(userData));
+    }
+    
+    // Store clubs data if provided
+    if (clubsData != null) {
+      _clubsData = clubsData;
+      await prefs.setString('clubsData', json.encode(clubsData));
+    }
   }
 
   static Future<void> clearToken() async {
     _token = null;
+    _userData = null;
+    _clubsData = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
+    await prefs.remove('userData');
+    await prefs.remove('clubsData');
     await prefs.remove('clubId');
   }
 
@@ -49,6 +87,12 @@ class ApiService {
   static Map<String, String> get fileHeaders => {
     if (_token != null) 'Authorization': 'Bearer $_token',
   };
+
+  // Getters for cached data
+  static Map<String, dynamic>? get cachedUserData => _userData;
+  static List<Map<String, dynamic>>? get cachedClubsData => _clubsData;
+  static bool get hasUserData => _userData != null;
+  static bool get hasClubsData => _clubsData != null;
 
   static Future<Map<String, dynamic>> get(String endpoint) async {
     if (AppConfig.enableDebugPrints) {

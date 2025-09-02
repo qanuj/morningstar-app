@@ -31,16 +31,23 @@ class UserProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final userData = await AuthService.getCurrentUser();
-      
-      // Handle different response formats
-      if (userData.containsKey('data') && userData['data'] != null) {
-        _user = User.fromJson(userData['data']);
-      } else if (userData.containsKey('user') && userData['user'] != null) {
-        _user = User.fromJson(userData['user']);
+      // First try to load from cached data in ApiService
+      if (ApiService.hasUserData) {
+        final cachedUserData = ApiService.cachedUserData!;
+        _user = User.fromJson(cachedUserData);
       } else {
-        // Assume the response itself is the user data
-        _user = User.fromJson(userData);
+        // Fallback to API call if no cached data
+        final userData = await AuthService.getCurrentUser();
+        
+        // Handle different response formats
+        if (userData.containsKey('data') && userData['data'] != null) {
+          _user = User.fromJson(userData['data']);
+        } else if (userData.containsKey('user') && userData['user'] != null) {
+          _user = User.fromJson(userData['user']);
+        } else {
+          // Assume the response itself is the user data
+          _user = User.fromJson(userData);
+        }
       }
     } catch (e) {
       print('Error loading user: $e');
@@ -81,15 +88,22 @@ class UserProvider with ChangeNotifier {
   /// Load and cache club memberships
   Future<List<ClubMembership>> _loadAndCacheMemberships() async {
     try {
-      final response = await ApiService.get('/my/clubs');
       List<dynamic> clubsData = [];
       
-      // Handle different response formats
-      final data = response['data'];
-      if (data is List) {
-        clubsData = data;
-      } else if (data is Map) {
-        clubsData = [data];
+      // First try to load from cached data in ApiService
+      if (ApiService.hasClubsData) {
+        clubsData = ApiService.cachedClubsData!;
+      } else {
+        // Fallback to API call if no cached data
+        final response = await ApiService.get('/my/clubs');
+        
+        // Handle different response formats
+        final data = response['data'];
+        if (data is List) {
+          clubsData = data;
+        } else if (data is Map) {
+          clubsData = [data];
+        }
       }
       
       // Parse memberships

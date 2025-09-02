@@ -40,7 +40,9 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
         onPressed: onBackPressed,
       ),
       title: isSelectionMode ? _buildSelectionTitle() : _buildNormalTitle(),
-      actions: isSelectionMode ? _buildSelectionActions() : _buildNormalActions(),
+      actions: isSelectionMode
+          ? _buildSelectionActions()
+          : _buildNormalActions(),
     );
   }
 
@@ -64,10 +66,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
           height: 36,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(
-              color: Colors.white.withOpacity(0.3),
-              width: 1,
-            ),
+            border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(18),
@@ -125,7 +124,9 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
         color: Theme.of(context).primaryColor.withOpacity(0.1),
         child: Center(
           child: Text(
-            club.name.isNotEmpty ? club.name.substring(0, 1).toUpperCase() : 'C',
+            club.name.isNotEmpty
+                ? club.name.substring(0, 1).toUpperCase()
+                : 'C',
             style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -146,7 +147,9 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
       ),
       IconButton(
         icon: const Icon(Icons.delete, color: Colors.white),
-        onPressed: selectedMessageIds.isNotEmpty ? onDeleteSelectedMessages : null,
+        onPressed: selectedMessageIds.isNotEmpty
+            ? onDeleteSelectedMessages
+            : null,
         tooltip: 'Delete selected messages',
       ),
     ];
