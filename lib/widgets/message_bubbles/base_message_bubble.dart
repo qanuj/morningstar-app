@@ -181,8 +181,8 @@ class BaseMessageBubble extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Star icon (first)
-          if (isOwn && message.starred.isStarred) ...[
+          // Star icon (first) - show for any starred message
+          if (message.starred.isStarred) ...[
             Icon(Icons.star, size: 10, color: iconColor),
             SizedBox(width: 4),
           ],
@@ -299,7 +299,7 @@ class BaseMessageBubble extends StatelessWidget {
 
     return GestureDetector(
       onTap: () {
-        print('Reaction tapped! Total reactions: $totalCount');
+        debugPrint('Reaction tapped! Total reactions: $totalCount');
         _showReactionDetails(context);
       },
       behavior: HitTestBehavior.opaque,

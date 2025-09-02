@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../models/club_message.dart';
 import '../models/message_reply.dart';
 import '../models/message_status.dart';
@@ -269,20 +270,35 @@ class MessageBubbleWrapper extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: message.senderProfilePicture != null &&
                 message.senderProfilePicture!.isNotEmpty
-            ? Image.network(
-                message.senderProfilePicture!,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return _buildDefaultSenderAvatar(context);
-                },
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return _buildDefaultSenderAvatar(context);
-                },
-              )
+            ? _buildProfilePicture(context, message.senderProfilePicture!)
             : _buildDefaultSenderAvatar(context),
       ),
     );
+  }
+
+  Widget _buildProfilePicture(BuildContext context, String profilePictureUrl) {
+    // Check if the URL is an SVG
+    if (profilePictureUrl.toLowerCase().contains('.svg') || 
+        profilePictureUrl.toLowerCase().contains('svg?')) {
+      return SvgPicture.network(
+        profilePictureUrl,
+        fit: BoxFit.cover,
+        placeholderBuilder: (context) => _buildDefaultSenderAvatar(context),
+      );
+    } else {
+      // Regular image (PNG, JPG, etc.)
+      return Image.network(
+        profilePictureUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return _buildDefaultSenderAvatar(context);
+        },
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return _buildDefaultSenderAvatar(context);
+        },
+      );
+    }
   }
 
   Widget _buildDefaultSenderAvatar(BuildContext context) {

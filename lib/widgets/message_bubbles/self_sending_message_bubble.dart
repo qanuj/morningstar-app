@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'dart:io';
 import '../../models/club_message.dart';
 import '../../models/message_status.dart';
 import '../../models/link_metadata.dart';
@@ -59,6 +60,9 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
   List<String> _uploadedVideos = [];
   List<MessageDocument> _uploadedDocuments = [];
   MessageAudio? _uploadedAudio;
+  
+  // Track individual file upload progress
+  Map<String, double> _fileUploadProgress = {};
 
   @override
   void initState() {
@@ -77,18 +81,22 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
   void didUpdateWidget(SelfSendingMessageBubble oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.message != oldWidget.message) {
-      setState(() {
-        currentMessage = widget.message;
-      });
+      if (mounted) {
+        setState(() {
+          currentMessage = widget.message;
+        });
+      }
     }
   }
 
   Future<void> _startSendProcess() async {
     if (_isSending || currentMessage.status != MessageStatus.sending) return;
 
-    setState(() {
-      _isSending = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isSending = true;
+      });
+    }
 
     try {
       // Step 1: Handle file uploads if any
@@ -101,28 +109,40 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
     } catch (e) {
       await _handleSendFailure('Send failed: $e');
     } finally {
-      setState(() {
-        _isSending = false;
-        _isUploading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isSending = false;
+          _isUploading = false;
+        });
+      }
     }
   }
 
   Future<void> _handleFileUploads(List<PlatformFile> files) async {
-    setState(() {
-      _isUploading = true;
-      _totalUploads = files.length;
-      _completedUploads = 0;
-      _uploadProgress = 0.0;
-    });
+    if (mounted) {
+      setState(() {
+        _isUploading = true;
+        _totalUploads = files.length;
+        _completedUploads = 0;
+        _uploadProgress = 0.0;
+        // Initialize progress tracking for each file
+        _fileUploadProgress.clear();
+        for (final file in files) {
+          _fileUploadProgress[file.name] = 0.0;
+        }
+      });
+    }
 
     for (int i = 0; i < files.length; i++) {
       final file = files[i];
       
-      setState(() {
-        _currentUploadFile = file.name;
-        _uploadProgress = i / files.length;
-      });
+      if (mounted) {
+        setState(() {
+          _currentUploadFile = file.name;
+          _uploadProgress = i / files.length;
+          _fileUploadProgress[file.name] = 0.5; // In progress
+        });
+      }
 
       try {
         final uploadUrl = await ApiService.uploadFile(file);
@@ -135,15 +155,20 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
         throw Exception('Failed to upload ${file.name}: $e');
       }
 
-      setState(() {
-        _completedUploads = i + 1;
-        _uploadProgress = (i + 1) / files.length;
-      });
+      if (mounted) {
+        setState(() {
+          _completedUploads = i + 1;
+          _uploadProgress = (i + 1) / files.length;
+          _fileUploadProgress[file.name] = 1.0; // Complete
+        });
+      }
     }
 
-    setState(() {
-      _isUploading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _isUploading = false;
+      });
+    }
   }
 
   Future<void> _processUploadedFile(PlatformFile file, String uploadUrl) async {
@@ -329,9 +354,11 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
       await MessageStorageService.addMessage(widget.clubId, newMessage);
 
       // Update current message
-      setState(() {
-        currentMessage = newMessage;
-      });
+      if (mounted) {
+        setState(() {
+          currentMessage = newMessage;
+        });
+      }
 
       // Notify parent of update
       widget.onMessageUpdated?.call(widget.message, newMessage);
@@ -349,9 +376,11 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
       errorMessage: errorMessage,
     );
 
-    setState(() {
-      currentMessage = failedMessage;
-    });
+    if (mounted) {
+      setState(() {
+        currentMessage = failedMessage;
+      });
+    }
 
     widget.onMessageUpdated?.call(widget.message, failedMessage);
     widget.onMessageFailed?.call(currentMessage.id);
@@ -369,9 +398,11 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
         deliveredAt: DateTime.now(),
       );
 
-      setState(() {
-        currentMessage = deliveredMessage;
-      });
+      if (mounted) {
+        setState(() {
+          currentMessage = deliveredMessage;
+        });
+      }
 
       widget.onMessageUpdated?.call(currentMessage, deliveredMessage);
     } catch (e) {
@@ -420,16 +451,131 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
         status: MessageStatus.sending,
         errorMessage: null,
       );
-      setState(() {
-        currentMessage = retryMessage;
-        // Reset upload state for retry
-        _uploadProgress = 0.0;
-        _completedUploads = 0;
-        _isUploading = false;
-      });
+      if (mounted) {
+        setState(() {
+          currentMessage = retryMessage;
+          // Reset upload state for retry
+          _uploadProgress = 0.0;
+          _completedUploads = 0;
+          _isUploading = false;
+        });
+      }
       widget.onMessageUpdated?.call(widget.message, retryMessage);
       _startSendProcess();
     }
+  }
+
+  Widget _buildImageUploadPreview() {
+    if (widget.pendingUploads == null || widget.pendingUploads!.isEmpty) {
+      return SizedBox.shrink();
+    }
+    
+    final imageFiles = widget.pendingUploads!.where(_isImageFile).toList();
+    if (imageFiles.isEmpty) return SizedBox.shrink();
+    
+    return Container(
+      margin: EdgeInsets.only(bottom: 8),
+      child: imageFiles.length == 1
+          ? _buildImageWithProgress(imageFiles[0].path!, imageFiles[0].name)
+          : GridView.builder(
+              shrinkWrap: true,
+              physics: NeverScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 4,
+                mainAxisSpacing: 4,
+                childAspectRatio: 1,
+              ),
+              itemCount: imageFiles.length > 4 ? 4 : imageFiles.length,
+              itemBuilder: (context, index) {
+                final file = imageFiles[index];
+                return _buildImageWithProgress(file.path!, file.name);
+              },
+            ),
+    );
+  }
+  
+  bool _isImageFile(PlatformFile file) {
+    final extension = file.extension?.toLowerCase() ?? '';
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(extension);
+  }
+  
+  Widget _buildImageWithProgress(String imagePath, String fileName) {
+    final progress = _fileUploadProgress[fileName] ?? 0.0;
+    final isUploading = progress > 0.0 && progress < 1.0;
+    final isLocal = imagePath.startsWith('/') || imagePath.startsWith('file://');
+    
+    return Container(
+      height: 200,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        color: Colors.grey[200],
+      ),
+      child: Stack(
+        children: [
+          // Image
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: isLocal
+                ? Image.file(
+                    File(imagePath),
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.grey[300],
+                        child: Icon(Icons.image, size: 48, color: Colors.grey[600]),
+                      );
+                    },
+                  )
+                : Image.network(
+                    imagePath,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.grey[300],
+                        child: Icon(Icons.image, size: 48, color: Colors.grey[600]),
+                      );
+                    },
+                  ),
+          ),
+          
+          // Upload progress overlay
+          if (isUploading)
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                color: Colors.black.withOpacity(0.6),
+              ),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      value: progress,
+                      strokeWidth: 3,
+                      backgroundColor: Colors.white.withOpacity(0.3),
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      '${(progress * 100).toInt()}%',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   Widget _buildUploadProgressWidget() {
@@ -522,20 +668,26 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
             ? CrossAxisAlignment.end 
             : CrossAxisAlignment.start,
         children: [
+          // Show image upload preview with progress
+          _buildImageUploadPreview(),
+          
+          // Show basic progress info for text/other uploads
           _buildUploadProgressWidget(),
-          // Show a preview of the message being sent
-          Opacity(
-            opacity: 0.7,
-            child: MessageBubbleFactory(
-              message: currentMessage,
-              isOwn: widget.isOwn,
-              isPinned: widget.isPinned,
-              isDeleted: widget.isDeleted,
-              isSelected: widget.isSelected,
-              showSenderInfo: widget.showSenderInfo,
-              onRetryUpload: null, // Disable retry during upload
+          
+          // Show text content if any
+          if (currentMessage.content.trim().isNotEmpty)
+            Opacity(
+              opacity: 0.7,
+              child: MessageBubbleFactory(
+                message: currentMessage.copyWith(pictures: []), // Remove pictures to avoid duplication
+                isOwn: widget.isOwn,
+                isPinned: widget.isPinned,
+                isDeleted: widget.isDeleted,
+                isSelected: widget.isSelected,
+                showSenderInfo: widget.showSenderInfo,
+                onRetryUpload: null,
+              ),
             ),
-          ),
         ],
       );
     }

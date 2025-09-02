@@ -118,25 +118,29 @@ class MessageBubbleFactory extends StatelessWidget {
       isSelected: isSelected,
       customColor: Colors.grey[300],
       showMetaOverlay: false,
-      showShadow: true,
+      showShadow: false,
       onReactionRemoved: onReactionRemoved,
       content: Container(
-        padding: EdgeInsets.symmetric(vertical: 2, horizontal: 4),
+        padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.do_not_disturb_on_outlined,
+              Icons.block,
               size: 16,
-              color: Colors.black87,
+              color: Colors.grey[600],
             ),
             SizedBox(width: 8),
-            Text(
-              'This message was deleted',
-              style: TextStyle(
-                fontSize: 14,
-                fontStyle: FontStyle.italic,
-                color: Colors.black87,
+            Flexible(
+              child: Text(
+                message.deletedBy != null && message.deletedBy!.isNotEmpty
+                    ? 'Message deleted by ${message.deletedBy}'
+                    : 'This message was deleted',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontStyle: FontStyle.italic,
+                  color: Colors.grey[600],
+                ),
               ),
             ),
           ],

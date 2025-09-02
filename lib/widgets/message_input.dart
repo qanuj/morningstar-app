@@ -3,6 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../widgets/audio_recording_widget.dart';
+import '../widgets/image_caption_dialog.dart';
 import '../models/club_message.dart';
 import '../models/message_status.dart';
 import '../models/message_image.dart';
@@ -83,7 +84,7 @@ class _MessageInputState extends State<MessageInput> {
       );
       
       if (photo != null) {
-        _sendImageMessage([photo]);
+        _showImageCaptionDialog(photo);
       }
     } catch (e) {
       _showError('Failed to capture photo: $e');
@@ -97,7 +98,14 @@ class _MessageInputState extends State<MessageInput> {
       );
       
       if (images.isNotEmpty) {
-        _sendImageMessage(images);
+        // For now, handle first image through caption dialog
+        // Multiple image support can be added later by extending ImageCaptionDialog
+        _showImageCaptionDialog(images.first);
+        
+        // If user selected multiple images, show the rest without caption dialog
+        if (images.length > 1) {
+          _sendImageMessage(images.skip(1).toList());
+        }
       }
     } catch (e) {
       _showError('Failed to pick images: $e');
@@ -118,6 +126,52 @@ class _MessageInputState extends State<MessageInput> {
     } catch (e) {
       _showError('Failed to pick documents: $e');
     }
+  }
+
+  void _showImageCaptionDialog(XFile image) async {
+    final platformFile = PlatformFile(
+      name: image.name,
+      path: image.path,
+      size: await File(image.path).length(),
+      bytes: null,
+    );
+
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ImageCaptionDialog(
+            imageFile: platformFile,
+            title: 'Send Image',
+            onSend: (caption, croppedImagePath) {
+              _sendImageMessageWithCaption(caption, croppedImagePath ?? image.path);
+            },
+          ),
+          fullscreenDialog: true,
+        ),
+      );
+    }
+  }
+
+  void _sendImageMessageWithCaption(String caption, String imagePath) {
+    final tempMessage = ClubMessage(
+      id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+      clubId: widget.clubId,
+      senderId: 'current_user',
+      senderName: 'You',
+      senderProfilePicture: null,
+      senderRole: 'MEMBER',
+      content: caption.trim(),
+      messageType: 'image',
+      createdAt: DateTime.now(),
+      status: MessageStatus.sending,
+      starred: StarredInfo(isStarred: false),
+      pin: PinInfo(isPinned: false),
+      // Store temp file path for upload
+      pictures: [MessageImage(url: imagePath, caption: null)],
+    );
+
+    widget.onSendMessage(tempMessage);
   }
 
   void _sendImageMessage(List<XFile> images) {

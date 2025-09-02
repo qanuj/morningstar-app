@@ -142,12 +142,23 @@ class ClubMessage {
     String? deletedByName;
 
     final content = json['content'];
-    if (content is String) {
+    
+    // Check if message is deleted at top level first
+    if (json['isDeleted'] == true) {
+      isDeleted = true;
+      // Try to get deletedBy from various possible locations
+      if (content is Map<String, dynamic>) {
+        deletedByName = content['deletedBy'] ?? content['deletedByName'];
+      }
+      deletedByName = deletedByName ?? json['deletedBy'] ?? json['deletedByName'];
+      messageContent = '';
+      messageType = 'deleted';
+    } else if (content is String) {
       messageContent = content;
       messageType = 'text';
     } else if (content is Map<String, dynamic>) {
-      // Check if message is deleted
-      if (json['isDeleted'] == true) {
+      // Check if message is deleted within content
+      if (content['isDeleted'] == true || content['type'] == 'deleted') {
         isDeleted = true;
         deletedByName = content['deletedBy'] ?? content['deletedByName'];
         messageContent = '';

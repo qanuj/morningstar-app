@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../models/club.dart';
 import '../services/message_storage_service.dart';
 
@@ -71,17 +72,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(18),
             child: club.logo != null && club.logo!.isNotEmpty
-                ? Image.network(
-                    club.logo!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return _buildDefaultClubLogo();
-                    },
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return _buildDefaultClubLogo();
-                    },
-                  )
+                ? _buildClubLogo()
                 : _buildDefaultClubLogo(),
           ),
         ),
@@ -116,6 +107,31 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
       ],
     );
+  }
+
+  Widget _buildClubLogo() {
+    // Check if the URL is an SVG
+    if (club.logo!.toLowerCase().contains('.svg') || 
+        club.logo!.toLowerCase().contains('svg?')) {
+      return SvgPicture.network(
+        club.logo!,
+        fit: BoxFit.cover,
+        placeholderBuilder: (context) => _buildDefaultClubLogo(),
+      );
+    } else {
+      // Regular image (PNG, JPG, etc.)
+      return Image.network(
+        club.logo!,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return _buildDefaultClubLogo();
+        },
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return _buildDefaultClubLogo();
+        },
+      );
+    }
   }
 
   Widget _buildDefaultClubLogo() {

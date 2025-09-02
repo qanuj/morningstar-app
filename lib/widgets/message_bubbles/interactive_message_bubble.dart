@@ -4,9 +4,9 @@ import 'package:provider/provider.dart';
 import '../../models/club_message.dart';
 import '../../models/message_status.dart';
 import '../../models/message_reaction.dart';
+import '../../models/starred_info.dart';
 import '../../services/chat_api_service.dart';
 import '../../providers/user_provider.dart';
-import 'base_message_bubble.dart';
 import 'message_bubble_factory.dart';
 
 /// A wrapper for BaseMessageBubble that adds interactive functionality
@@ -72,21 +72,36 @@ class InteractiveMessageBubble extends StatefulWidget {
 }
 
 class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
+  // Local state for immediate UI feedback
+  late bool _localIsStarred;
+  
+  @override
+  void initState() {
+    super.initState();
+    _localIsStarred = widget.message.starred.isStarred;
+  }
+  
+  @override
+  void didUpdateWidget(InteractiveMessageBubble oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Update local state when widget updates
+    if (oldWidget.message.starred.isStarred != widget.message.starred.isStarred) {
+      _localIsStarred = widget.message.starred.isStarred;
+    }
+  }
+  
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => _handleMessageTap(context),
       onLongPress: () => _handleMessageLongPress(context),
-      child: BaseMessageBubble(
-        message: widget.message,
+      child: MessageBubbleFactory(
+        message: _createMessageWithLocalState(),
         isOwn: widget.isOwn,
+        isDeleted: widget.message.deleted,
         isPinned: widget.isPinned,
         isSelected: widget.isSelected,
-        isTransparent: widget.isTransparent,
-        customColor: widget.customColor,
-        showMetaOverlay: widget.showMetaOverlay,
-        showShadow: widget.showShadow,
-        overlayBottomPosition: widget.overlayBottomPosition,
+        showSenderInfo: widget.showSenderInfo,
         onReactionRemoved: _handleReactionRemoved,
         onReactionAdded: _handleReactionAdded,
         onReplyToMessage: _handleReplyToMessage,
@@ -96,17 +111,22 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
         onShowMessageInfo: _handleShowMessageInfo,
         canPinMessages: widget.canPinMessages,
         canDeleteMessages: widget.canDeleteMessages,
-        content: MessageBubbleFactory(
-          message: widget.message,
-          isOwn: widget.isOwn,
-          isDeleted: widget.message.deleted,
-          isPinned: widget.isPinned,
-          isSelected: widget.isSelected,
-          showSenderInfo: widget.showSenderInfo,
-          onReactionRemoved: widget.onReactionRemoved,
-        ),
+        isSelectionMode: widget.isSelectionMode,
       ),
     );
+  }
+  
+  ClubMessage _createMessageWithLocalState() {
+    // Create a message with local starred state for immediate UI feedback
+    if (_localIsStarred != widget.message.starred.isStarred) {
+      return widget.message.copyWith(
+        starred: StarredInfo(
+          isStarred: _localIsStarred,
+          starredAt: _localIsStarred ? DateTime.now().toIso8601String() : null,
+        ),
+      );
+    }
+    return widget.message;
   }
 
   void _handleMessageTap(BuildContext context) {
@@ -251,8 +271,8 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
               ),
             _buildOptionTile(
               context: context,
-              icon: widget.message.starred.isStarred ? Icons.star : Icons.star_outline,
-              title: widget.message.starred.isStarred ? 'Unstar' : 'Star',
+              icon: _localIsStarred ? Icons.star : Icons.star_outline,
+              title: _localIsStarred ? 'Unstar' : 'Star',
               onTap: () {
                 Navigator.pop(context);
                 _handleToggleStarMessage(widget.message);
@@ -269,7 +289,8 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
                   _handleTogglePinMessage(widget.message);
                 },
               ),
-            if (widget.canDeleteMessages)
+            // Show delete option if: 1) User has general delete permissions, OR 2) It's their own message, OR 3) User is admin/owner
+            if (_canDeleteThisMessage())
               _buildOptionTile(
                 context: context,
                 icon: Icons.delete,
@@ -419,6 +440,11 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
   }
 
   Future<void> _handleToggleStarMessage(ClubMessage message) async {
+    // Provide immediate UI feedback by updating local state
+    setState(() {
+      _localIsStarred = !_localIsStarred;
+    });
+    
     try {
       if (message.starred.isStarred) {
         await ChatApiService.unstarMessage(widget.clubId, message.id);
@@ -426,21 +452,19 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
         await ChatApiService.starMessage(widget.clubId, message.id);
       }
       
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message.starred.isStarred ? 'Message unstarred' : 'Message starred'),
-            duration: Duration(seconds: 1),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
+      // Success - the UI already shows the updated state
+      debugPrint('✅ Star toggled successfully for message: ${message.id}');
     } catch (e) {
       debugPrint('❌ Error toggling star: $e');
+      // On error, revert the local state
+      setState(() {
+        _localIsStarred = !_localIsStarred;
+      });
+      
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to update star'),
+            content: Text('Failed to ${message.starred.isStarred ? 'unstar' : 'star'} message'),
             backgroundColor: Colors.red,
             duration: Duration(seconds: 2),
           ),
@@ -484,51 +508,10 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
     }
   }
 
-  Future<void> _handleDeleteMessage(ClubMessage message) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Delete Message?'),
-        content: Text('This message will be deleted for everyone. This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      try {
-        await ChatApiService.deleteMessage(widget.clubId, message.id);
-        
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Message deleted'),
-              duration: Duration(seconds: 1),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } catch (e) {
-        debugPrint('❌ Error deleting message: $e');
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to delete message'),
-              backgroundColor: Colors.red,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-      }
+  void _handleDeleteMessage(ClubMessage message) {
+    // Trigger selection mode and select this message
+    if (widget.onToggleSelection != null) {
+      widget.onToggleSelection!(message.id);
     }
   }
 
@@ -615,5 +598,23 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
   String _formatDateTime(DateTime dateTime) {
     final local = dateTime.toLocal();
     return '${local.day}/${local.month}/${local.year} ${local.hour}:${local.minute.toString().padLeft(2, '0')}';
+  }
+
+  /// Check if the current user can delete this message
+  /// Returns true if:
+  /// 1. User has general delete permissions (canDeleteMessages - for admins/owners), OR
+  /// 2. It's the user's own message
+  bool _canDeleteThisMessage() {
+    // Admins and owners can delete any message
+    if (widget.canDeleteMessages) {
+      return true;
+    }
+
+    // Users can always delete their own messages
+    if (widget.isOwn) {
+      return true;
+    }
+    
+    return false;
   }
 }
