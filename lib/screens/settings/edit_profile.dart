@@ -27,6 +27,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _cityController = TextEditingController();
   
   bool _isLoading = false;
+  bool _isUploading = false;
   String? _selectedState;
   String? _selectedGender;
   DateTime? _selectedDateOfBirth;
@@ -445,28 +446,67 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _uploadProfilePicture(UserProvider userProvider) async {
-    if (_selectedImage == null) return;
-
     try {
-      // Convert File to PlatformFile for upload
+      if (_selectedImage == null) return;
+
+      // Show upload loading state
+      if (mounted) {
+        setState(() {
+          _isUploading = true;
+        });
+      }
+
+      // Convert File to bytes for upload (following message input pattern)
       final bytes = await _selectedImage!.readAsBytes();
+      
+      // Create PlatformFile following the exact pattern from SelfSendingMessageBubble
       final platformFile = PlatformFile(
         name: 'profile_picture.jpg',
         size: bytes.length,
         bytes: bytes,
-        path: _selectedImage!.path,
+        path: null, // Use bytes instead of path for consistency
       );
 
-      // Upload image to /upload endpoint
+      // Step 1: Upload file to /upload endpoint
       final imageUrl = await ApiService.uploadFile(platformFile);
+
       if (imageUrl != null) {
-        // Update profile picture using /profile/picture endpoint
+        // Step 2: Update profile picture via PUT /profile/picture endpoint
         await userProvider.updateProfilePicture(imageUrl);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Profile picture updated successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          
+          // Clear selected image after successful upload
+          setState(() {
+            _selectedImage = null;
+          });
+        }
       } else {
-        throw Exception('Failed to upload profile picture');
+        throw Exception('Failed to upload image to server - no URL returned');
       }
     } catch (e) {
-      throw Exception('Profile picture upload failed: $e');
+      debugPrint('Error uploading profile picture: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update profile picture: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      rethrow; // Re-throw to be handled by _updateProfile
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+        });
+      }
     }
   }
 
@@ -712,7 +752,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           Container(
             margin: EdgeInsets.only(right: 8),
             child: TextButton(
-              onPressed: _isLoading ? null : _updateProfile,
+              onPressed: (_isLoading || _isUploading) ? null : _updateProfile,
               style: TextButton.styleFrom(
                 backgroundColor: AppTheme.primaryBlue,
                 foregroundColor: Colors.white,
@@ -721,7 +761,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
                 padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               ),
-              child: _isLoading
+              child: (_isLoading || _isUploading)
                   ? SizedBox(
                       height: 16,
                       width: 16,
@@ -762,91 +802,115 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
                 child: Padding(
                   padding: EdgeInsets.all(16),
-                  child: Column(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Profile Picture
                       Stack(
                         children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Theme.of(context).shadowColor.withOpacity(0.1),
-                                  blurRadius: 20,
-                                  offset: Offset(0, 8),
-                                ),
-                              ],
-                            ),
-                            child: _selectedImage != null
-                                ? CircleAvatar(
-                                    radius: 50,
-                                    backgroundImage: FileImage(_selectedImage!),
-                                  )
-                                : SVGAvatar(
-                                    imageUrl: user?.profilePicture,
-                                    size: 100,
-                                    backgroundColor: AppTheme.primaryBlue,
-                                    child: user?.profilePicture == null
-                                        ? Text(
-                                            user?.name.isNotEmpty == true
-                                                ? user!.name[0].toUpperCase()
-                                                : 'U',
-                                            style: TextStyle(
-                                              fontSize: 40,
-                                              fontWeight: FontWeight.w400,
-                                              color: Colors.white,
-                                            ),
-                                          )
-                                        : null,
-                                  ),
-                          ),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
+                          GestureDetector(
+                            onTap: _isUploading ? null : _showImagePickerDialog,
                             child: Container(
                               decoration: BoxDecoration(
-                                color: AppTheme.primaryBlue,
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
-                                    blurRadius: 8,
-                                    offset: Offset(0, 2),
+                                    color: Theme.of(context).shadowColor.withOpacity(0.1),
+                                    blurRadius: 20,
+                                    offset: Offset(0, 8),
                                   ),
                                 ],
                               ),
-                              child: IconButton(
-                                onPressed: _showImagePickerDialog,
-                                icon: Icon(
-                                  Icons.camera_alt,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                                constraints: BoxConstraints(
-                                  minWidth: 40,
-                                  minHeight: 40,
-                                ),
-                                padding: EdgeInsets.zero,
+                              child: _selectedImage != null
+                                  ? CircleAvatar(
+                                      radius: 40,
+                                      backgroundImage: FileImage(_selectedImage!),
+                                    )
+                                  : SVGAvatar(
+                                      imageUrl: user?.profilePicture,
+                                      size: 80,
+                                      backgroundColor: AppTheme.primaryBlue,
+                                      child: user?.profilePicture == null
+                                          ? Text(
+                                              user?.name.isNotEmpty == true
+                                                  ? user!.name[0].toUpperCase()
+                                                  : 'U',
+                                              style: TextStyle(
+                                                fontSize: 32,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.white,
+                                              ),
+                                            )
+                                          : null,
+                                    ),
+                            ),
+                          ),
+                          Positioned(
+                            bottom: -12,
+                            right: -12,
+                            child: IconButton(
+                              onPressed: _isUploading ? null : _showImagePickerDialog,
+                              icon: _isUploading
+                                  ? SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Theme.of(context).brightness == Brightness.dark
+                                            ? Colors.white
+                                            : AppTheme.primaryBlue,
+                                      ),
+                                    )
+                                  : Icon(
+                                      Icons.camera_alt,
+                                      color: Theme.of(context).brightness == Brightness.dark
+                                          ? Colors.white
+                                          : AppTheme.primaryBlue,
+                                      size: 24,
+                                    ),
+                              constraints: BoxConstraints(
+                                minWidth: 32,
+                                minHeight: 32,
                               ),
+                              padding: EdgeInsets.zero,
                             ),
                           ),
                         ],
                       ),
-                      SizedBox(height: 16),
-                      Text(
-                        user?.phoneNumber ?? '',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppTheme.primaryBlue,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Phone number cannot be changed',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(context).textTheme.bodySmall?.color,
+                      
+                      SizedBox(width: 20),
+                      
+                      // User Details
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              user?.name ?? 'User',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              user?.phoneNumber ?? '',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Theme.of(context).textTheme.bodyMedium?.color,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Phone number cannot be changed',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context).textTheme.bodySmall?.color,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
