@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
 import '../models/club.dart';
 import '../services/auth_service.dart';
@@ -7,7 +9,7 @@ import '../services/api_service.dart';
 class UserProvider with ChangeNotifier {
   User? _user;
   bool _isLoading = false;
-  
+
   // Session cache for club memberships
   List<ClubMembership>? _cachedMemberships;
   DateTime? _cacheTimestamp;
@@ -15,42 +17,43 @@ class UserProvider with ChangeNotifier {
 
   User? get user => _user;
   bool get isLoading => _isLoading;
-  
+
   /// Get cached memberships if available and not expired
-  List<ClubMembership>? get cachedMemberships => _isCacheValid ? _cachedMemberships : null;
-  
+  List<ClubMembership>? get cachedMemberships =>
+      _isCacheValid ? _cachedMemberships : null;
+
   /// Check if the cache is still valid
   bool get _isCacheValid {
-    return _cachedMemberships != null && 
-           _cacheTimestamp != null && 
-           DateTime.now().difference(_cacheTimestamp!) < _cacheValidDuration;
+    return _cachedMemberships != null &&
+        _cacheTimestamp != null &&
+        DateTime.now().difference(_cacheTimestamp!) < _cacheValidDuration;
   }
 
-  Future<void> loadUser() async {
+  Future<void> loadUser({bool forceRefresh = false}) async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      // First try to load from cached data in ApiService
-      if (ApiService.hasUserData) {
+      if (forceRefresh || !ApiService.hasUserData) {
+        // Make fresh API call to /api/profile
+        final profileResponse = await ApiService.getProfile();
+        _user = User.fromApiResponse(profileResponse);
+      } else {
+        // Use cached data from ApiService
         final cachedUserData = ApiService.cachedUserData!;
         _user = User.fromJson(cachedUserData);
-      } else {
-        // Fallback to API call if no cached data
-        final userData = await AuthService.getCurrentUser();
-        
-        // Handle different response formats
-        if (userData.containsKey('data') && userData['data'] != null) {
-          _user = User.fromJson(userData['data']);
-        } else if (userData.containsKey('user') && userData['user'] != null) {
-          _user = User.fromJson(userData['user']);
-        } else {
-          // Assume the response itself is the user data
-          _user = User.fromJson(userData);
-        }
       }
     } catch (e) {
-      print('Error loading user: $e');
+      print('Error loading user profile: $e');
+      // Try fallback to cached data if API call fails
+      if (!forceRefresh && ApiService.hasUserData) {
+        try {
+          final cachedUserData = ApiService.cachedUserData!;
+          _user = User.fromJson(cachedUserData);
+        } catch (cacheError) {
+          print('Error loading cached user data: $cacheError');
+        }
+      }
     }
 
     _isLoading = false;
@@ -59,11 +62,49 @@ class UserProvider with ChangeNotifier {
 
   Future<void> updateProfile(Map<String, dynamic> data) async {
     try {
-      final response = await ApiService.put('/profile', data);
-      _user = User.fromJson(response);
+      // Filter data to only include allowed fields
+      final allowedFields = {
+        'name', 'email', 'country', 'city', 'state', 
+        'bio', 'dob', 'gender', 'emergencyContact'
+      };
+      
+      final filteredData = <String, dynamic>{};
+      for (final entry in data.entries) {
+        if (allowedFields.contains(entry.key)) {
+          filteredData[entry.key] = entry.value;
+        }
+      }
+      
+      final response = await ApiService.put('/profile', filteredData);
+      _user = User.fromApiResponse(response);
       notifyListeners();
+
+      // Update cached data in ApiService
+      if (response['user'] != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('userData', json.encode(response['user']));
+      }
     } catch (e) {
-      throw e;
+      rethrow;
+    }
+  }
+
+  /// Update profile picture separately
+  Future<void> updateProfilePicture(String profilePictureUrl) async {
+    try {
+      final response = await ApiService.put('/profile/picture', {
+        'profilePicture': profilePictureUrl,
+      });
+      _user = User.fromApiResponse(response);
+      notifyListeners();
+
+      // Update cached data in ApiService
+      if (response['user'] != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('userData', json.encode(response['user']));
+      }
+    } catch (e) {
+      rethrow;
     }
   }
 
@@ -72,31 +113,31 @@ class UserProvider with ChangeNotifier {
     _clearCache();
     notifyListeners();
   }
-  
+
   /// Clear the membership cache
   void _clearCache() {
     _cachedMemberships = null;
     _cacheTimestamp = null;
   }
-  
+
   /// Manually clear the membership cache (useful for forced refresh)
   void clearMembershipCache() {
     _clearCache();
     notifyListeners();
   }
-  
+
   /// Load and cache club memberships
   Future<List<ClubMembership>> _loadAndCacheMemberships() async {
     try {
       List<dynamic> clubsData = [];
-      
+
       // First try to load from cached data in ApiService
       if (ApiService.hasClubsData) {
         clubsData = ApiService.cachedClubsData!;
       } else {
         // Fallback to API call if no cached data
         final response = await ApiService.get('/my/clubs');
-        
+
         // Handle different response formats
         final data = response['data'];
         if (data is List) {
@@ -105,14 +146,16 @@ class UserProvider with ChangeNotifier {
           clubsData = [data];
         }
       }
-      
+
       // Parse memberships
-      final memberships = clubsData.map((clubData) => ClubMembership.fromJson(clubData)).toList();
-      
+      final memberships = clubsData
+          .map((clubData) => ClubMembership.fromJson(clubData))
+          .toList();
+
       // Cache the results
       _cachedMemberships = memberships;
       _cacheTimestamp = DateTime.now();
-      
+
       return memberships;
     } catch (e) {
       print('Error loading memberships: $e');
@@ -122,7 +165,7 @@ class UserProvider with ChangeNotifier {
 
   /// Get the user's role for a specific club
   /// Returns the role string (e.g., 'OWNER', 'ADMIN', 'MEMBER') or null if not found
-  /// 
+  ///
   /// This method uses session caching to improve performance
   Future<String?> getRoleForClub(String clubId) async {
     try {
@@ -133,7 +176,7 @@ class UserProvider with ChangeNotifier {
       } else {
         memberships = await _loadAndCacheMemberships();
       }
-      
+
       // Find the specific club membership
       try {
         final membership = memberships.firstWhere(
@@ -151,7 +194,10 @@ class UserProvider with ChangeNotifier {
 
   /// Get the user's role for a specific club from a provided list of memberships
   /// This is more efficient when you already have the club memberships loaded
-  String? getRoleForClubFromMemberships(String clubId, List<ClubMembership> memberships) {
+  String? getRoleForClubFromMemberships(
+    String clubId,
+    List<ClubMembership> memberships,
+  ) {
     try {
       final membership = memberships.firstWhere(
         (membership) => membership.club.id == clubId,
@@ -173,7 +219,11 @@ class UserProvider with ChangeNotifier {
 
   /// Check if the user has a specific role in a club from provided memberships
   /// More efficient when memberships are already loaded
-  bool hasRoleInClubFromMemberships(String clubId, List<String> allowedRoles, List<ClubMembership> memberships) {
+  bool hasRoleInClubFromMemberships(
+    String clubId,
+    List<String> allowedRoles,
+    List<ClubMembership> memberships,
+  ) {
     final userRole = getRoleForClubFromMemberships(clubId, memberships);
     return userRole != null && allowedRoles.contains(userRole.toUpperCase());
   }
@@ -195,7 +245,9 @@ class UserProvider with ChangeNotifier {
 
   /// Get all cached memberships, loading them if necessary
   /// This is useful when you need access to all club memberships
-  Future<List<ClubMembership>> getMemberships({bool forceRefresh = false}) async {
+  Future<List<ClubMembership>> getMemberships({
+    bool forceRefresh = false,
+  }) async {
     if (forceRefresh || !_isCacheValid) {
       return await _loadAndCacheMemberships();
     }

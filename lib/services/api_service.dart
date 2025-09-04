@@ -11,9 +11,9 @@ import '../config/app_config.dart';
 class ApiException implements Exception {
   final String message;
   final String rawResponse;
-  
+
   ApiException(this.message, this.rawResponse);
-  
+
   @override
   String toString() => message;
 }
@@ -28,7 +28,7 @@ class ApiService {
   static Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString('token');
-    
+
     // Load cached user and clubs data
     final userDataString = prefs.getString('userData');
     if (userDataString != null) {
@@ -38,7 +38,7 @@ class ApiService {
         debugPrint('Error loading cached user data: $e');
       }
     }
-    
+
     final clubsDataString = prefs.getString('clubsData');
     if (clubsDataString != null) {
       try {
@@ -50,17 +50,21 @@ class ApiService {
     }
   }
 
-  static Future<void> setToken(String token, {Map<String, dynamic>? userData, List<Map<String, dynamic>>? clubsData}) async {
+  static Future<void> setToken(
+    String token, {
+    Map<String, dynamic>? userData,
+    List<Map<String, dynamic>>? clubsData,
+  }) async {
     _token = token;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('token', token);
-    
+
     // Store user data if provided
     if (userData != null) {
       _userData = userData;
       await prefs.setString('userData', json.encode(userData));
     }
-    
+
     // Store clubs data if provided
     if (clubsData != null) {
       _clubsData = clubsData;
@@ -201,6 +205,24 @@ class ApiService {
         throw Exception('API Error (${response.statusCode}): ${response.body}');
       }
     }
+  }
+
+  /// Get user profile data
+  static Future<Map<String, dynamic>> getProfile() async {
+    if (AppConfig.enableDebugPrints) {
+      debugPrint('🔵 Fetching user profile from /profile');
+    }
+    final response = await get('/profile');
+
+    // Update cached user data if successful
+    if (response['user'] != null) {
+      _userData = response['user'];
+      print('🔵 User profile fetched: $_userData');
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('userData', json.encode(_userData));
+    }
+
+    return response;
   }
 
   /// Upload a file and return the URL

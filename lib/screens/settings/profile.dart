@@ -1,35 +1,46 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/user_provider.dart';
-import '../../providers/club_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../services/auth_service.dart';
-import '../../utils/theme.dart';
-import '../../utils/dialogs.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/svg_avatar.dart';
 import '../auth/login.dart';
 import 'edit_profile.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  ProfileScreenState createState() => ProfileScreenState();
+}
+
+class ProfileScreenState extends State<ProfileScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Load fresh profile data when screen loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      userProvider.loadUser(forceRefresh: true);
+    });
+  }
+
+  Future<void> _refreshProfile(BuildContext context) async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    await userProvider.loadUser(forceRefresh: true);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: DetailAppBar(
         pageTitle: 'Profile',
-        customActions: [
-          IconButton(
-            icon: Icon(Icons.home_outlined),
-            onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
-            tooltip: 'Go to Home',
-          ),
-        ],
       ),
-      body: Consumer3<UserProvider, ClubProvider, ThemeProvider>(
-        builder: (context, userProvider, clubProvider, themeProvider, child) {
+      body: Consumer2<UserProvider, ThemeProvider>(
+        builder: (context, userProvider, themeProvider, child) {
           final user = userProvider.user;
-          final currentClub = clubProvider.currentClub;
 
           if (user == null) {
             return Center(
@@ -40,357 +51,215 @@ class ProfileScreen extends StatelessWidget {
             );
           }
 
-          return SingleChildScrollView(
-            padding: EdgeInsets.all(16),
-            child: Column(
+          return RefreshIndicator(
+            onRefresh: () => _refreshProfile(context),
+            child: SingleChildScrollView(
+              padding: EdgeInsets.zero,
+              physics: AlwaysScrollableScrollPhysics(),
+              child: Column(
               children: [
-                // Profile Header
+                // Profile Header Section
                 Container(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Theme.of(context).shadowColor.withOpacity(0.08),
-                        blurRadius: 20,
-                        offset: Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Column(
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Theme.of(context).shadowColor.withOpacity(0.1),
-                                blurRadius: 20,
-                                offset: Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          child: SVGAvatar(
-                            imageUrl: user.profilePicture,
-                            size: 100,
-                            backgroundColor: Theme.of(context).colorScheme.primary,
-                            child: user.profilePicture == null
-                                ? Text(
-                                    user.name.isNotEmpty
-                                        ? user.name[0].toUpperCase()
-                                        : 'U',
-                                    style: TextStyle(
-                                      fontSize: 40,
-                                      fontWeight: FontWeight.w400,
-                                      color: Theme.of(context).colorScheme.onPrimary,
-                                    ),
-                                  )
-                                : null,
-                          ),
-                        ),
-                        SizedBox(height: 20),
-                        Text(
-                          user.name,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Text(
-                            user.phoneNumber,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(context).colorScheme.primary,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        ),
-                        if (user.email != null) ...[
-                          SizedBox(height: 8),
-                          Text(
-                            user.email!,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(context).textTheme.bodySmall?.color,
-                            ),
-                          ),
-                        ],
-                        SizedBox(height: 20),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => EditProfileScreen(),
-                                ),
-                              );
-                            },
-                            icon: Icon(Icons.edit, size: 18),
-                            label: Text('Edit Profile'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(context).colorScheme.primary,
-                              foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                              padding: EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              elevation: 0,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                SizedBox(height: 20),
-
-                // Account Stats
-                Container(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Theme.of(context).dividerColor.withOpacity(0.3),
-                      width: 0.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Theme.of(context).shadowColor.withOpacity(0.04),
-                        blurRadius: 8,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                Icons.analytics,
-                                color: Theme.of(context).colorScheme.primary,
-                                size: 20,
-                              ),
-                            ),
-                            SizedBox(width: 12),
-                            Text(
-                              'Account Overview',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w400,
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 20),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildStatCard(
-                                'Total Balance',
-                                '₹${user.balance.toStringAsFixed(0)}',
-                                Icons.account_balance_wallet,
-                                AppTheme.successGreen,
-                              ),
-                            ),
-                            SizedBox(width: 16),
-                            Expanded(
-                              child: _buildStatCard(
-                                'Total Spent',
-                                '₹${user.totalExpenses.toStringAsFixed(0)}',
-                                Icons.receipt,
-                                AppTheme.warningOrange,
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (currentClub != null) ...[
-                          SizedBox(height: 16),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildStatCard(
-                                  'Club Points',
-                                  '${currentClub.points}',
-                                  Icons.star,
-                                  AppTheme.cricketGreen,
-                                ),
-                              ),
-                              SizedBox(width: 16),
-                              Expanded(
-                                child: _buildStatCard(
-                                  'Club Role',
-                                  currentClub.role,
-                                  Icons.person,
-                                  AppTheme.lightBlue,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-
-                SizedBox(height: 20),
-
-                // Profile Status
-                Container(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Theme.of(context).dividerColor.withOpacity(0.3),
-                      width: 0.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Theme.of(context).shadowColor.withOpacity(0.04),
-                        blurRadius: 8,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                Icons.verified_user,
-                                color: Theme.of(context).colorScheme.primary,
-                                size: 20,
-                              ),
-                            ),
-                            SizedBox(width: 12),
-                            Text(
-                              'Profile Status',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w400,
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 20),
-                        _buildStatusRow(
-                          'Phone Verified',
-                          user.phoneNumber.isNotEmpty,
-                          Icons.phone,
-                        ),
-                        _buildStatusRow(
-                          'Profile Complete',
-                          user.isProfileComplete,
-                          Icons.person,
-                        ),
-                        _buildStatusRow(
-                          'Account Verified',
-                          user.isVerified,
-                          Icons.verified_user,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                SizedBox(height: 20),
-
-                // Settings
-                Container(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Theme.of(context).dividerColor.withOpacity(0.3),
-                      width: 0.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Theme.of(context).shadowColor.withOpacity(0.04),
-                        blurRadius: 8,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  padding: EdgeInsets.fromLTRB(24, 24, 24, 32),
                   child: Column(
                     children: [
-                      _buildThemeSettingsItem(themeProvider),
-                      Divider(
-                        height: 1,
-                        color: Theme.of(context).dividerColor.withOpacity(0.3),
+                      // Profile Picture
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Theme.of(context).shadowColor.withOpacity(0.1),
+                              blurRadius: 20,
+                              offset: Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: SVGAvatar(
+                          imageUrl: user.profilePicture,
+                          size: 80,
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          child: user.profilePicture == null
+                              ? Text(
+                                  user.name.isNotEmpty
+                                      ? user.name[0].toUpperCase()
+                                      : 'U',
+                                  style: TextStyle(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.w600,
+                                    color: Theme.of(context).colorScheme.onPrimary,
+                                  ),
+                                )
+                              : null,
+                        ),
                       ),
-                      _buildSettingsItem(
+                      
+                      SizedBox(height: 16),
+                      
+                      // User Name
+                      Text(
+                        user.name,
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                      
+                      SizedBox(height: 4),
+                      
+                      // Phone Number
+                      Text(
+                        '@${user.phoneNumber}',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Theme.of(context).textTheme.bodyMedium?.color,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Settings List
+                Container(
+                  color: Theme.of(context).cardColor,
+                  child: Column(
+                    children: [
+                      // Personal Information Section
+                      _buildExpandableSection(
+                        icon: Icons.person_outline,
+                        title: 'Personal information',
+                        isExpanded: true,
+                        onTap: () async {
+                          final userProvider = Provider.of<UserProvider>(context, listen: false);
+                          final result = await Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => EditProfileScreen(),
+                            ),
+                          );
+                          
+                          // Refresh profile data when returning from edit screen
+                          if (result == true && mounted) {
+                            await userProvider.loadUser(forceRefresh: true);
+                          }
+                        },
+                        children: [
+                          _buildProfileInfoItem('Name', user.name),
+                          if (user.email != null)
+                            _buildProfileInfoItem('Email', user.email!),
+                          _buildProfileInfoItem('Phone', user.phoneNumber),
+                          if (user.city != null && user.state != null)
+                            _buildProfileInfoItem('Location', '${user.city}, ${user.state}'),
+                          if (user.dateOfBirth != null)
+                            _buildProfileInfoItem('Date of Birth', '${user.dateOfBirth!.day}/${user.dateOfBirth!.month}/${user.dateOfBirth!.year}'),
+                        ],
+                      ),
+                      
+                      Divider(height: 1, color: Theme.of(context).dividerColor.withOpacity(0.3)),
+                      
+                      // Login and Security
+                      _buildExpandableSection(
+                        icon: Icons.security,
+                        title: 'Login and security',
+                        isExpanded: false,
+                        onTap: () {
+                          // TODO: Navigate to security settings
+                        },
+                      ),
+                      
+                      Divider(height: 1, color: Theme.of(context).dividerColor.withOpacity(0.3)),
+                      
+                      // Theme Setting
+                      _buildExpandableSection(
+                        icon: Icons.palette_outlined,
+                        title: 'Theme',
+                        isExpanded: false,
+                        onTap: () {
+                          _showThemeDialog(context, themeProvider);
+                        },
+                      ),
+                      
+                      Divider(height: 1, color: Theme.of(context).dividerColor.withOpacity(0.3)),
+                      
+                      // Notifications
+                      _buildExpandableSection(
                         icon: Icons.notifications_outlined,
                         title: 'Notifications',
+                        isExpanded: false,
                         onTap: () {
-                          // TODO: Navigate to notifications settings
+                          Navigator.of(context).pushNamed('/notifications');
                         },
                       ),
-                      Divider(
-                        height: 1,
-                        color: Theme.of(context).dividerColor.withOpacity(0.3),
-                      ),
-                      _buildSettingsItem(
-                        icon: Icons.help_outline,
-                        title: 'Help & Support',
+                      
+                      Divider(height: 1, color: Theme.of(context).dividerColor.withOpacity(0.3)),
+                      
+                      // Share the app
+                      _buildExpandableSection(
+                        icon: Icons.share,
+                        title: 'Share Duggy',
+                        isExpanded: false,
                         onTap: () {
-                          // TODO: Navigate to help
+                          _shareApp(context);
                         },
                       ),
-                      Divider(
-                        height: 1,
-                        color: Theme.of(context).dividerColor.withOpacity(0.3),
-                      ),
-                      _buildSettingsItem(
-                        icon: Icons.info_outline,
-                        title: 'About',
-                        onTap: () {
-                          AppDialogs.showAboutDialog(context);
-                        },
-                      ),
-                      Divider(
-                        height: 1,
-                        color: Theme.of(context).dividerColor.withOpacity(0.3),
-                      ),
+                      
+                      Divider(height: 1, color: Theme.of(context).dividerColor.withOpacity(0.3)),
+                      
+                      // Log Out
                       _buildSettingsItem(
                         icon: Icons.logout,
-                        title: 'Logout',
-                        titleColor: Theme.of(context).colorScheme.error,
+                        title: 'Log Out',
                         onTap: () => _showLogoutDialog(context),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                SizedBox(height: 32),
+                
+                // Member ID and Version
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Member ID',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              Text(
+                                user.id,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Icon(
+                                Icons.copy,
+                                size: 16,
+                                color: Theme.of(context).textTheme.bodyMedium?.color,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 32),
+                      Text(
+                        'Version: 1.0.0',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
+                        ),
                       ),
                     ],
                   ),
@@ -399,105 +268,104 @@ class ProfileScreen extends StatelessWidget {
                 SizedBox(height: 32),
               ],
             ),
+            ),
           );
         },
       ),
     );
   }
 
-  Widget _buildStatCard(
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
+  Widget _buildExpandableSection({
+    required IconData icon,
+    required String title,
+    required bool isExpanded,
+    VoidCallback? onTap,
+    List<Widget>? children,
+  }) {
     return Builder(
-      builder: (context) => Container(
-        padding: EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.2), width: 0.5),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 28),
-            SizedBox(height: 12),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w400,
-                color: Theme.of(context).colorScheme.onSurface,
+      builder: (context) => Column(
+        children: [
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Icon(
+                      icon,
+                      color: Theme.of(context).textTheme.bodyMedium?.color,
+                      size: 24,
+                    ),
+                    SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                    if (children != null && isExpanded)
+                      GestureDetector(
+                        onTap: onTap,
+                        child: Text(
+                          'Edit',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      )
+                    else
+                      Icon(
+                        Icons.chevron_right,
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
+                        size: 20,
+                      ),
+                  ],
+                ),
               ),
             ),
-            SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12, 
-                color: Theme.of(context).textTheme.bodySmall?.color,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+          ),
+          if (isExpanded && children != null) ...children,
+        ],
       ),
     );
   }
 
-  Widget _buildStatusRow(String label, bool isComplete, IconData icon) {
+  Widget _buildProfileInfoItem(String label, String value) {
     return Builder(
-      builder: (context) => Container(
-        margin: EdgeInsets.only(bottom: 16),
-        padding: EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isComplete
-              ? AppTheme.successGreen.withOpacity(0.1)
-              : Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isComplete
-                ? AppTheme.successGreen.withOpacity(0.3)
-                : Theme.of(context).dividerColor.withOpacity(0.3),
-            width: 0.5,
-          ),
-        ),
+      builder: (context) => Padding(
+        padding: EdgeInsets.symmetric(horizontal: 56, vertical: 8),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: isComplete
-                    ? AppTheme.successGreen.withOpacity(0.2)
-                    : Theme.of(context).dividerColor.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                icon,
-                color: isComplete
-                    ? AppTheme.successGreen
-                    : Theme.of(context).textTheme.bodySmall?.color,
-                size: 20,
-              ),
-            ),
-            SizedBox(width: 12),
             Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w400,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Theme.of(context).textTheme.bodySmall?.color,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            Icon(
-              isComplete ? Icons.check_circle : Icons.radio_button_unchecked,
-              color: isComplete
-                  ? AppTheme.successGreen
-                  : Theme.of(context).textTheme.bodySmall?.color,
-              size: 20,
             ),
           ],
         ),
@@ -558,61 +426,131 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildThemeSettingsItem(ThemeProvider themeProvider) {
-    return Builder(
-      builder: (context) => Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _showThemeDialog(context, themeProvider),
-          child: Padding(
-            padding: EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    themeProvider.themeModeIcon,
-                    color: Theme.of(context).colorScheme.primary,
-                    size: 20,
-                  ),
-                ),
-                SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Theme',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w400,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        themeProvider.themeModeText,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(context).textTheme.bodySmall?.color,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.chevron_right,
-                  color: Theme.of(context).textTheme.bodySmall?.color,
-                  size: 20,
-                ),
-              ],
+  void _showThemeDialog(BuildContext context, ThemeProvider themeProvider) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: Theme.of(context).dialogBackgroundColor,
+        title: Text(
+          'Choose Theme',
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildThemeDialogOption(
+              'Light',
+              Icons.light_mode,
+              AppThemeMode.light,
+              themeProvider,
+              context,
             ),
+            _buildThemeDialogOption(
+              'Dark',
+              Icons.dark_mode,
+              AppThemeMode.dark,
+              themeProvider,
+              context,
+            ),
+            _buildThemeDialogOption(
+              'System',
+              Icons.settings_brightness,
+              AppThemeMode.system,
+              themeProvider,
+              context,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildThemeDialogOption(
+    String label,
+    IconData icon,
+    AppThemeMode mode,
+    ThemeProvider themeProvider,
+    BuildContext context,
+  ) {
+    final isSelected = themeProvider.themeMode == mode;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          themeProvider.setThemeMode(mode);
+          Navigator.of(context).pop();
+        },
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                color: isSelected 
+                    ? Theme.of(context).colorScheme.primary 
+                    : Theme.of(context).textTheme.bodyMedium?.color,
+              ),
+              SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: isSelected 
+                        ? Theme.of(context).colorScheme.primary 
+                        : Theme.of(context).colorScheme.onSurface,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                ),
+              ),
+              if (isSelected)
+                Icon(
+                  Icons.check,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+            ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _shareApp(BuildContext context) {
+    // Simple share implementation without external packages
+    // In a real app, you'd use share_plus package
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: Theme.of(context).dialogBackgroundColor,
+        title: Text(
+          'Share Duggy',
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+        ),
+        content: Text(
+          'Tell your friends about Duggy - the best cricket club management app!',
+          style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Here you would implement actual sharing
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Sharing feature will be implemented soon!'),
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                ),
+              );
+            },
+            child: Text('Share'),
+          ),
+        ],
       ),
     );
   }
@@ -666,158 +604,8 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  void _showThemeDialog(BuildContext context, ThemeProvider themeProvider) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        backgroundColor: Theme.of(context).dialogBackgroundColor,
-        title: Row(
-          children: [
-            Container(
-              padding: EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                Icons.palette_outlined,
-                color: Theme.of(context).colorScheme.primary,
-                size: 20,
-              ),
-            ),
-            SizedBox(width: 12),
-            Text(
-              'Choose Theme',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface,
-                fontSize: 12,
-                fontWeight: FontWeight.w400,
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: AppThemeMode.values.map((mode) {
-            final isSelected = themeProvider.themeMode == mode;
-            return Container(
-              margin: EdgeInsets.only(bottom: 8),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () {
-                    themeProvider.setThemeMode(mode);
-                    Navigator.of(context).pop();
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: isSelected 
-                          ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
-                          : null,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isSelected
-                            ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
-                            : Theme.of(context).dividerColor.withOpacity(0.3),
-                        width: 0.5,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? Theme.of(context).colorScheme.primary.withOpacity(0.2)
-                                : Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            _getThemeModeIcon(mode),
-                            color: isSelected
-                                ? Theme.of(context).colorScheme.primary
-                                : Theme.of(context).colorScheme.primary.withOpacity(0.7),
-                            size: 20,
-                          ),
-                        ),
-                        SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _getThemeModeText(mode),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w400,
-                                  color: isSelected
-                                      ? Theme.of(context).colorScheme.primary
-                                      : Theme.of(context).colorScheme.onSurface,
-                                ),
-                              ),
-                              SizedBox(height: 2),
-                              Text(
-                                _getThemeModeDescription(mode),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Theme.of(context).textTheme.bodySmall?.color,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (isSelected)
-                          Icon(
-                            Icons.check_circle,
-                            color: Theme.of(context).colorScheme.primary,
-                            size: 20,
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ),
-    );
-  }
 
-  IconData _getThemeModeIcon(AppThemeMode mode) {
-    switch (mode) {
-      case AppThemeMode.light:
-        return Icons.light_mode;
-      case AppThemeMode.dark:
-        return Icons.dark_mode;
-      case AppThemeMode.system:
-        return Icons.settings_brightness;
-    }
-  }
 
-  String _getThemeModeText(AppThemeMode mode) {
-    switch (mode) {
-      case AppThemeMode.light:
-        return 'Light';
-      case AppThemeMode.dark:
-        return 'Dark';
-      case AppThemeMode.system:
-        return 'System';
-    }
-  }
 
-  String _getThemeModeDescription(AppThemeMode mode) {
-    switch (mode) {
-      case AppThemeMode.light:
-        return 'Always use light theme';
-      case AppThemeMode.dark:
-        return 'Always use dark theme';
-      case AppThemeMode.system:
-        return 'Follow system setting';
-    }
-  }
 
 }
