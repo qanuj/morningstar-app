@@ -63,9 +63,6 @@ class MessageBubbleFactory extends StatelessWidget {
       return _buildDeletedMessage(context);
     }
 
-    // Determine message type and render appropriate bubble
-    debugPrint('🏭 MessageBubbleFactory: messageId=${message.id}, messageType=${message.messageType}, document=${message.document != null ? 'present' : 'null'}, isDeleted=$isDeleted');
-    
     if (message.messageType == 'audio' && message.audio != null) {
       // AUDIO MESSAGE: Just audio player
       return AudioMessageBubble(
@@ -139,11 +136,7 @@ class MessageBubbleFactory extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.block,
-              size: 16,
-              color: Colors.grey[600],
-            ),
+            Icon(Icons.block, size: 16, color: Colors.grey[600]),
             SizedBox(width: 8),
             Flexible(
               child: Text(

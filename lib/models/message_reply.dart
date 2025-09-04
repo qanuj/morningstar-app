@@ -14,12 +14,25 @@ class MessageReply {
   });
 
   factory MessageReply.fromJson(Map<String, dynamic> json) {
+    // Handle nested content structure from server
+    String messageContent = '';
+    String? messageType;
+    
+    final content = json['content'];
+    if (content is String) {
+      messageContent = content;
+      messageType = json['messageType'];
+    } else if (content is Map<String, dynamic>) {
+      messageContent = content['body'] ?? content['text'] ?? '';
+      messageType = content['type'] ?? json['messageType'];
+    }
+    
     return MessageReply(
       messageId: json['messageId'] ?? '',
       senderId: json['senderId'] ?? '',
       senderName: json['senderName'] ?? '',
-      content: json['content'] ?? '',
-      messageType: json['messageType'],
+      content: messageContent,
+      messageType: messageType,
     );
   }
 

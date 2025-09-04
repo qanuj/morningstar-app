@@ -94,11 +94,9 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
     if (oldWidget.message.starred.isStarred !=
         widget.message.starred.isStarred) {
       _localIsStarred = widget.message.starred.isStarred;
-      debugPrint('🌟 Updated local starred state: $_localIsStarred');
     }
     if (oldWidget.message.reactions != widget.message.reactions) {
       _localReactions = List.from(widget.message.reactions);
-      debugPrint('⚡ Updated local reactions: ${_localReactions.length} reactions');
     }
   }
 
@@ -396,14 +394,16 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
     if (hasThisReaction) {
       // Toggle off: User clicked emoji they already have - remove their reaction
       setState(() {
-        _localReactions.removeWhere((r) => 
-          r.emoji == emoji && r.users.any((u) => u.userId == user.id)
+        _localReactions.removeWhere(
+          (r) => r.emoji == emoji && r.users.any((u) => u.userId == user.id),
         );
-        
+
         // Also remove user from other emoji reactions if they exist
         for (int i = 0; i < _localReactions.length; i++) {
           final reaction = _localReactions[i];
-          final updatedUsers = reaction.users.where((u) => u.userId != user.id).toList();
+          final updatedUsers = reaction.users
+              .where((u) => u.userId != user.id)
+              .toList();
           if (updatedUsers.length != reaction.users.length) {
             if (updatedUsers.isEmpty) {
               _localReactions.removeAt(i);
@@ -443,11 +443,13 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
       // Add/Replace: User clicked new emoji - let server handle replacement logic
       final newReaction = MessageReaction(
         emoji: emoji,
-        users: [ReactionUser(
-          userId: user.id, 
-          name: user.name,
-          profilePicture: user.profilePicture,
-        )],
+        users: [
+          ReactionUser(
+            userId: user.id,
+            name: user.name,
+            profilePicture: user.profilePicture,
+          ),
+        ],
         count: 1,
       );
 
@@ -456,7 +458,9 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
         // Remove user from any existing reactions
         for (int i = 0; i < _localReactions.length; i++) {
           final reaction = _localReactions[i];
-          final updatedUsers = reaction.users.where((u) => u.userId != user.id).toList();
+          final updatedUsers = reaction.users
+              .where((u) => u.userId != user.id)
+              .toList();
           if (updatedUsers.length != reaction.users.length) {
             if (updatedUsers.isEmpty) {
               _localReactions.removeAt(i);
@@ -473,14 +477,16 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
         }
 
         // Add new reaction
-        final existingEmojiIndex = _localReactions.indexWhere((r) => r.emoji == emoji);
+        final existingEmojiIndex = _localReactions.indexWhere(
+          (r) => r.emoji == emoji,
+        );
         if (existingEmojiIndex != -1) {
           // Add to existing emoji reaction
           final existing = _localReactions[existingEmojiIndex];
           final updatedUsers = [
             ...existing.users,
             ReactionUser(
-              userId: user.id, 
+              userId: user.id,
               name: user.name,
               profilePicture: user.profilePicture,
             ),
@@ -498,7 +504,11 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
       });
 
       try {
-        await ChatApiService.addReaction(widget.clubId, message.id, newReaction);
+        await ChatApiService.addReaction(
+          widget.clubId,
+          message.id,
+          newReaction,
+        );
         debugPrint('✅ Reaction added successfully');
       } catch (e) {
         debugPrint('❌ Error adding reaction: $e');
@@ -684,10 +694,8 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       isScrollControlled: true,
-      builder: (context) => MessageInfoSheet(
-        message: message,
-        clubMembers: widget.clubMembers,
-      ),
+      builder: (context) =>
+          MessageInfoSheet(message: message, clubMembers: widget.clubMembers),
     );
   }
 

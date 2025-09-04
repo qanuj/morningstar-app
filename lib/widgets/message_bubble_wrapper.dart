@@ -54,6 +54,9 @@ class MessageBubbleWrapper extends StatelessWidget {
   // Utility functions
   final Function(ClubMessage message) isCurrentlyPinned;
 
+  // Reply tap callback
+  final Function(String messageId)? onReplyTap;
+
   const MessageBubbleWrapper({
     super.key,
     required this.message,
@@ -78,6 +81,7 @@ class MessageBubbleWrapper extends StatelessWidget {
     this.canDeleteMessages = false,
     this.clubMembers = const [],
     required this.isCurrentlyPinned,
+    this.onReplyTap,
   });
 
   @override
@@ -118,8 +122,7 @@ class MessageBubbleWrapper extends StatelessWidget {
                       // Reply icon background (shown during slide)
                       if (isSliding && slidingMessageId == message.id)
                         Positioned(
-                          right: isOwn ? null : 10,
-                          left: isOwn ? 10 : null,
+                          left: 10,
                           top: 0,
                           bottom: 0,
                           child: AnimatedContainer(
@@ -131,14 +134,14 @@ class MessageBubbleWrapper extends StatelessWidget {
                             ),
                             alignment: Alignment.center,
                             child: AnimatedScale(
-                              scale: slideOffset > 50.0 ? 1.2 : 1.0,
+                              scale: slideOffset > 40.0 ? 1.2 : 1.0,
                               duration: const Duration(milliseconds: 100),
                               child: Icon(
                                 Icons.reply,
                                 color: const Color(
-                                  0xFF06aeff,
-                                ).withOpacity(slideOffset > 50.0 ? 1.0 : 0.7),
-                                size: slideOffset > 50.0 ? 32 : 28,
+                                  0xFF06aeef,
+                                ).withOpacity(slideOffset > 40.0 ? 1.0 : 0.7),
+                                size: slideOffset > 40.0 ? 32 : 28,
                               ),
                             ),
                           ),
@@ -147,9 +150,7 @@ class MessageBubbleWrapper extends StatelessWidget {
                       // Message content with slide animation
                       Transform.translate(
                         offset: Offset(
-                          slidingMessageId == message.id
-                              ? (isOwn ? -slideOffset : slideOffset)
-                              : 0.0,
+                          slidingMessageId == message.id ? slideOffset : 0.0,
                           0.0,
                         ),
                         child: Column(
@@ -158,8 +159,16 @@ class MessageBubbleWrapper extends StatelessWidget {
                               : CrossAxisAlignment.start,
                           children: [
                             // Reply info (if this message is a reply)
-                            if (message.replyTo != null)
+                            if (message.replyTo != null) ...[
                               _buildReplyInfo(context, message.replyTo!, isOwn),
+                            ] else if (message.content.isNotEmpty) ...[
+                              // Debug: Log when a message has no reply
+                              Builder(
+                                builder: (context) {
+                                  return SizedBox.shrink();
+                                },
+                              ),
+                            ],
 
                             GestureDetector(
                               // Gesture handling moved to individual bubbles
@@ -332,43 +341,56 @@ class MessageBubbleWrapper extends StatelessWidget {
   }
 
   Widget _buildReplyInfo(BuildContext context, MessageReply reply, bool isOwn) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+    return GestureDetector(
+      onTap: () {
+        if (onReplyTap != null) {
+          onReplyTap!(reply.messageId);
+        }
+      },
       child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: (Theme.of(context).brightness == Brightness.dark
-              ? Colors.white.withOpacity(0.1)
-              : Colors.black.withOpacity(0.1)),
-          borderRadius: BorderRadius.circular(6),
-          border: const Border(
-            left: BorderSide(color: Color(0xFF06aeef), width: 3),
+        // Remove bottom margin to eliminate gap with message bubble
+        margin: EdgeInsets.zero,
+        width: double.infinity, // Ensure same width as message bubble
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: (Theme.of(context).brightness == Brightness.dark
+                ? Colors.white.withOpacity(0.1)
+                : Colors.black.withOpacity(0.1)),
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(6),
+              topRight: Radius.circular(6),
+              // No bottom radius to connect with message bubble
+            ),
+            border: const Border(
+              left: BorderSide(color: Color(0xFF06aeef), width: 3),
+            ),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              reply.senderName,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF06aeef),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                reply.senderName,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF06aeef),
+                ),
               ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              reply.content,
-              style: TextStyle(
-                fontSize: 13,
-                color: (Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white.withOpacity(0.8)
-                    : Colors.black.withOpacity(0.6)),
+              const SizedBox(height: 2),
+              Text(
+                reply.content,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: (Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white.withOpacity(0.8)
+                      : Colors.black.withOpacity(0.6)),
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

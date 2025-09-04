@@ -202,24 +202,18 @@ class ClubMessage {
             }
             break;
           case 'text':
-            // Text messages with images will be handled in the general images parsing below
-            print(
-              '🔍 ClubMessage.fromJson: Parsing text message with content = $content',
-            );
             break;
           case 'link':
-            print('🔗 ClubMessage.fromJson: Parsing link message with content = $content');
             if (content['url'] != null) {
               // Handle both old format (thumbnail) and new format (images array)
               String? linkImage;
-              if (content['images'] is List && (content['images'] as List).isNotEmpty) {
+              if (content['images'] is List &&
+                  (content['images'] as List).isNotEmpty) {
                 linkImage = (content['images'] as List).first;
-                print('🔗 ClubMessage.fromJson: Found link image from images array: $linkImage');
               } else if (content['thumbnail'] != null) {
                 linkImage = content['thumbnail'];
-                print('🔗 ClubMessage.fromJson: Found link image from thumbnail: $linkImage');
               }
-              
+
               linkMeta = [
                 LinkMetadata(
                   url: content['url'],
@@ -230,8 +224,12 @@ class ClubMessage {
                   favicon: content['favicon'],
                 ),
               ];
-              print('🔗 ClubMessage.fromJson: Created linkMeta with ${linkMeta.length} items');
-              print('🔗 ClubMessage.fromJson: LinkMeta title: ${linkMeta.first.title}');
+              print(
+                '🔗 ClubMessage.fromJson: Created linkMeta with ${linkMeta.length} items',
+              );
+              print(
+                '🔗 ClubMessage.fromJson: LinkMeta title: ${linkMeta.first.title}',
+              );
             } else {
               print('🔗 ClubMessage.fromJson: No URL found in link content');
             }
@@ -264,7 +262,9 @@ class ClubMessage {
       }
 
       // Parse images array (as URLs) - for text messages and other non-link types
-      if (content['images'] is List && messageType != 'link' && images.isEmpty) {
+      if (content['images'] is List &&
+          messageType != 'link' &&
+          images.isEmpty) {
         images = (content['images'] as List)
             .map((url) => url as String)
             .toList();
@@ -352,6 +352,9 @@ class ClubMessage {
     MessageReply? replyTo;
     if (json['replyTo'] is Map<String, dynamic>) {
       replyTo = MessageReply.fromJson(json['replyTo'] as Map<String, dynamic>);
+      debugPrint(
+        '🔗 ClubMessage.fromJson: Parsed reply - ${replyTo.senderName}: "${replyTo.content}"',
+      );
     }
 
     // Parse pin information
@@ -473,13 +476,13 @@ class ClubMessage {
     // Parse deliveredTo and readBy arrays
     List<Map<String, dynamic>> deliveredToList = [];
     List<Map<String, dynamic>> readByList = [];
-    
+
     if (json['deliveredTo'] is List) {
       deliveredToList = (json['deliveredTo'] as List)
           .map((item) => item as Map<String, dynamic>)
           .toList();
     }
-    
+
     if (json['readBy'] is List) {
       readByList = (json['readBy'] as List)
           .map((item) => item as Map<String, dynamic>)
@@ -564,10 +567,7 @@ class ClubMessage {
       };
     } else if (messageType == 'emoji') {
       // For emoji messages, format content as emojiSchema structure
-      contentJson = {
-        'type': 'emoji',
-        'body': content,
-      };
+      contentJson = {'type': 'emoji', 'body': content};
     } else {
       contentJson = content;
     }

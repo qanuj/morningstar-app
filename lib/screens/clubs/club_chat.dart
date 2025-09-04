@@ -73,6 +73,11 @@ class ClubChatScreenState extends State<ClubChatScreen>
   // Bottom refresh debounce timer
   Timer? _bottomRefreshTimer;
 
+  // Audio recording pull gesture state
+  bool _isPullingForAudio = false;
+  double _audioRecordingPullProgress = 0.0;
+  static const double _audioRecordingPullThreshold = 100.0;
+
   @override
   void initState() {
     super.initState();
@@ -175,12 +180,18 @@ class ClubChatScreenState extends State<ClubChatScreen>
       }
     } catch (e) {
       debugPrint('❌ Error loading messages: $e');
-      _error = 'Unable to load messages. Please check your connection.';
-      setState(() => _isLoading = false);
+      // Try to load from server directly if local storage fails
+      try {
+        await _syncMessagesFromServer(forceSync: true);
+      } catch (syncError) {
+        debugPrint('❌ Error syncing from server: $syncError');
+        _error = 'Unable to load messages. Please check your connection.';
+        setState(() => _isLoading = false);
 
-      // Stop refresh animation on error and reset to 0
-      _refreshAnimationController.stop();
-      _refreshAnimationController.reset();
+        // Stop refresh animation on error and reset to 0
+        _refreshAnimationController.stop();
+        _refreshAnimationController.reset();
+      }
     }
   }
 
@@ -502,9 +513,11 @@ class ClubChatScreenState extends State<ClubChatScreen>
     List<ClubMessage> serverMessages, {
     bool showNotifications = true,
   }) async {
-    final newMessages = comparison['new'] as List<ClubMessage>;
-    final updatedMessages = comparison['updated'] as List<ClubMessage>;
-    final deletedMessageIds = comparison['deleted'] as List<String>;
+    final newMessages = (comparison['new'] as List? ?? []).cast<ClubMessage>();
+    final updatedMessages = (comparison['updated'] as List? ?? [])
+        .cast<ClubMessage>();
+    final deletedMessageIds = (comparison['deleted'] as List? ?? [])
+        .cast<String>();
 
     // Create a working copy of current messages
     final updatedMessagesList = List<ClubMessage>.from(_messages);
@@ -612,13 +625,24 @@ class ClubChatScreenState extends State<ClubChatScreen>
       if (response != null &&
           (response['success'] == true || response['messages'] != null)) {
         final List<dynamic> messageData = response['messages'] ?? [];
-        final serverMessages = messageData.map((json) {
-          final message = ClubMessage.fromJson(json as Map<String, dynamic>);
-          debugPrint(
-            '📡 Server message ${message.id}: status = ${message.status.toString().split('.').last}',
-          );
-          return message;
-        }).toList();
+        final serverMessages = <ClubMessage>[];
+
+        for (final json in messageData) {
+          try {
+            if (json is Map<String, dynamic>) {
+              final message = ClubMessage.fromJson(json);
+              debugPrint(
+                '📡 Server message ${message.id}: status = ${message.status.toString().split('.').last}',
+              );
+              serverMessages.add(message);
+            }
+          } catch (e) {
+            debugPrint('❌ Error parsing message: $e');
+            debugPrint('❌ Problem JSON: $json');
+            // Skip this message but continue processing others
+            continue;
+          }
+        }
 
         // Compare messages to identify changes
         final comparison = MessageStorageService.compareMessages(
@@ -680,8 +704,13 @@ class ClubChatScreenState extends State<ClubChatScreen>
 
         debugPrint('✅ Sync completed successfully');
       } else {
-        _error = response?['message'] ?? 'Failed to load messages';
-        setState(() {});
+        final errorMessage = response?['message'];
+        _error = errorMessage is String
+            ? errorMessage
+            : 'Failed to load messages';
+        if (mounted) {
+          setState(() {});
+        }
       }
     } catch (e) {
       debugPrint('❌ Error syncing messages from server: $e');
@@ -705,63 +734,65 @@ class ClubChatScreenState extends State<ClubChatScreen>
       widget.club.id,
     );
 
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Container(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: Icon(
-                isOfflineMode ? Icons.wifi_off : Icons.wifi,
-                color: isOfflineMode ? Colors.orange : Colors.green,
+    if (mounted) {
+      showModalBottomSheet(
+        context: context,
+        builder: (context) => Container(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(
+                  isOfflineMode ? Icons.wifi_off : Icons.wifi,
+                  color: isOfflineMode ? Colors.orange : Colors.green,
+                ),
+                title: Text(
+                  isOfflineMode ? 'Offline Mode: ON' : 'Offline Mode: OFF',
+                ),
+                subtitle: Text(
+                  isOfflineMode
+                      ? 'No background sync, tap refresh to update'
+                      : 'Background sync enabled',
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _toggleOfflineMode(!isOfflineMode);
+                },
               ),
-              title: Text(
-                isOfflineMode ? 'Offline Mode: ON' : 'Offline Mode: OFF',
+              ListTile(
+                leading: Icon(Icons.info_outline),
+                title: Text('Storage Info'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showStorageInfo();
+                },
               ),
-              subtitle: Text(
-                isOfflineMode
-                    ? 'No background sync, tap refresh to update'
-                    : 'Background sync enabled',
+              ListTile(
+                leading: Icon(Icons.download),
+                title: Text('Download All Media'),
+                subtitle: Text(
+                  'Download images, audio, and documents for offline use',
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _downloadAllMedia();
+                },
               ),
-              onTap: () {
-                Navigator.pop(context);
-                _toggleOfflineMode(!isOfflineMode);
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.info_outline),
-              title: Text('Storage Info'),
-              onTap: () {
-                Navigator.pop(context);
-                _showStorageInfo();
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.download),
-              title: Text('Download All Media'),
-              subtitle: Text(
-                'Download images, audio, and documents for offline use',
+              ListTile(
+                leading: Icon(Icons.clear_all),
+                title: Text('Clear Local Data'),
+                subtitle: Text('Clear messages and downloaded media'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _clearLocalData();
+                },
               ),
-              onTap: () {
-                Navigator.pop(context);
-                _downloadAllMedia();
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.clear_all),
-              title: Text('Clear Local Data'),
-              subtitle: Text('Clear messages and downloaded media'),
-              onTap: () {
-                Navigator.pop(context);
-                _clearLocalData();
-              },
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    }
   }
 
   Future<void> _toggleOfflineMode(bool enabled) async {
@@ -821,73 +852,75 @@ class ClubChatScreenState extends State<ClubChatScreen>
 
     final mediaInfo = storageInfo['media'] as Map<String, dynamic>? ?? {};
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Storage Information'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '📱 OFFLINE STATUS',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'Offline Mode: ${storageInfo['isOfflineMode'] ? 'ON' : 'OFF'}',
-              ),
-              SizedBox(height: 16),
-
-              Text(
-                '💬 MESSAGES',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Text('Count: ${storageInfo['messageCount']}'),
-              Text('Last Sync: ${storageInfo['lastSync'] ?? 'Never'}'),
-              Text('Needs Sync: ${storageInfo['needsSync']}'),
-              if (storageInfo['lastMessageAt'] != null)
-                Text('Latest: ${storageInfo['lastMessageAt']}'),
-              SizedBox(height: 8),
-              Text(
-                '📧 Delivered: ${storageInfo['deliveredCount'] ?? 0}',
-                style: TextStyle(fontSize: 12, color: Colors.green[700]),
-              ),
-              Text(
-                '👁️ Read: ${storageInfo['readCount'] ?? 0}',
-                style: TextStyle(fontSize: 12, color: Colors.blue[700]),
-              ),
-              SizedBox(height: 16),
-
-              Text(
-                '💾 MEDIA CACHE',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Text('Files: ${mediaInfo['totalFiles'] ?? 0}'),
-              if (mediaInfo['totalSizeMB'] != null)
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Storage Information'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  'Size: ${(mediaInfo['totalSizeMB'] as double).toStringAsFixed(1)} MB',
+                  '📱 OFFLINE STATUS',
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-              if (mediaInfo['byType'] != null) ...[
                 SizedBox(height: 8),
-                ...((mediaInfo['byType'] as Map<String, dynamic>).entries.map(
-                  (e) => Text('${e.key}: ${e.value}'),
-                )),
+                Text(
+                  'Offline Mode: ${storageInfo['isOfflineMode'] ? 'ON' : 'OFF'}',
+                ),
+                SizedBox(height: 16),
+
+                Text(
+                  '💬 MESSAGES',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 8),
+                Text('Count: ${storageInfo['messageCount']}'),
+                Text('Last Sync: ${storageInfo['lastSync'] ?? 'Never'}'),
+                Text('Needs Sync: ${storageInfo['needsSync']}'),
+                if (storageInfo['lastMessageAt'] != null)
+                  Text('Latest: ${storageInfo['lastMessageAt']}'),
+                SizedBox(height: 8),
+                Text(
+                  '📧 Delivered: ${storageInfo['deliveredCount'] ?? 0}',
+                  style: TextStyle(fontSize: 12, color: Colors.green[700]),
+                ),
+                Text(
+                  '👁️ Read: ${storageInfo['readCount'] ?? 0}',
+                  style: TextStyle(fontSize: 12, color: Colors.blue[700]),
+                ),
+                SizedBox(height: 16),
+
+                Text(
+                  '💾 MEDIA CACHE',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 8),
+                Text('Files: ${mediaInfo['totalFiles'] ?? 0}'),
+                if (mediaInfo['totalSizeMB'] != null)
+                  Text(
+                    'Size: ${(mediaInfo['totalSizeMB'] as double).toStringAsFixed(1)} MB',
+                  ),
+                if (mediaInfo['byType'] != null) ...[
+                  SizedBox(height: 8),
+                  ...((mediaInfo['byType'] as Map<String, dynamic>).entries.map(
+                    (e) => Text('${e.key}: ${e.value}'),
+                  )),
+                ],
               ],
-            ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Close'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Close'),
-          ),
-        ],
-      ),
-    );
+      );
+    }
   }
 
   Future<void> _clearLocalData() async {
@@ -1078,23 +1111,24 @@ class ClubChatScreenState extends State<ClubChatScreen>
     ClubMessage message,
     bool isOwn,
   ) {
-    // Only allow slide-to-reply for non-own messages (swipe right) and own messages (swipe left)
+    // Allow slide-to-reply for all messages - swipe right to reply
     final delta = details.delta.dx;
-    final threshold = 30.0; // Minimum slide distance to trigger reply
+    final threshold = 20.0; // Minimum slide distance to trigger reply
+
+    // Accumulate the slide offset for smooth animation
+    final newOffset = (_slideOffset + delta).clamp(0.0, 100.0);
 
     setState(() {
-      if (isOwn && delta < 0) {
-        // Own messages: slide left to reply
-        _slideOffset = delta.abs().clamp(0.0, 80.0);
-        _isSliding = _slideOffset > threshold;
-        _slidingMessageId = message.id;
-      } else if (!isOwn && delta > 0) {
-        // Other messages: slide right to reply
-        _slideOffset = delta.clamp(0.0, 80.0);
-        _isSliding = _slideOffset > threshold;
-        _slidingMessageId = message.id;
-      }
+      _slideOffset = newOffset;
+      _isSliding = _slideOffset > threshold;
+      _slidingMessageId = message.id;
     });
+
+    if (_isSliding) {
+      debugPrint(
+        '➡️ Slide active: offset=$_slideOffset for message: ${message.content}',
+      );
+    }
   }
 
   void _handleSlideEnd(
@@ -1102,10 +1136,19 @@ class ClubChatScreenState extends State<ClubChatScreen>
     ClubMessage message,
     bool isOwn,
   ) {
-    if (_isSliding && _slidingMessageId == message.id && _slideOffset > 50.0) {
+    debugPrint(
+      '🔄 _handleSlideEnd: isSliding=$_isSliding, slideOffset=$_slideOffset, messageId=${message.id}',
+    );
+
+    if (_isSliding && _slidingMessageId == message.id && _slideOffset > 40.0) {
       // Trigger reply if user slid far enough
+      debugPrint('✅ Triggering reply for message: ${message.content}');
       HapticFeedback.selectionClick();
       _setReply(message);
+    } else {
+      debugPrint(
+        '❌ Reply not triggered: isSliding=$_isSliding, slideOffset=$_slideOffset',
+      );
     }
 
     // Reset slide state
@@ -1117,6 +1160,9 @@ class ClubChatScreenState extends State<ClubChatScreen>
   }
 
   void _setReply(ClubMessage message) {
+    debugPrint(
+      '📝 _setReply called for message: ${message.content} from ${message.senderName}',
+    );
     setState(() {
       _replyingTo = MessageReply(
         messageId: message.id,
@@ -1126,7 +1172,13 @@ class ClubChatScreenState extends State<ClubChatScreen>
         messageType: message.messageType,
       );
     });
-    _textFieldFocusNode.requestFocus();
+    debugPrint('📝 Reply state set: $_replyingTo');
+    // Only request focus after a small delay to ensure smooth transition
+    Future.delayed(Duration(milliseconds: 300), () {
+      if (mounted && _replyingTo != null) {
+        _textFieldFocusNode.requestFocus();
+      }
+    });
   }
 
   void _toggleSelection(String messageId) {
@@ -1198,21 +1250,20 @@ class ClubChatScreenState extends State<ClubChatScreen>
   }
 
   void _handleNewMessage(ClubMessage tempMessage) {
-    print(
+    debugPrint(
       '🔍 ClubChat: _handleNewMessage called with tempMessage id: ${tempMessage.id}',
     );
-    print('🔍 ClubChat: tempMessage status: ${tempMessage.status}');
-    print('🔍 ClubChat: tempMessage images: ${tempMessage.images}');
-    print('🔍 ClubChat: tempMessage messageType: ${tempMessage.messageType}');
+    debugPrint('🔍 ClubChat: tempMessage replyTo: ${tempMessage.replyTo}');
+    debugPrint('🔍 ClubChat: _replyingTo state: $_replyingTo');
 
     final userProvider = context.read<UserProvider>();
     final user = userProvider.user;
     if (user == null) {
-      print('🔍 ClubChat: User is null, returning');
+      debugPrint('🔍 ClubChat: User is null, returning');
       return;
     }
 
-    print('🔍 ClubChat: User found: ${user.name} (${user.id})');
+    debugPrint('🔍 ClubChat: User found: ${user.name} (${user.id})');
 
     // Fill in user information
     final message = ClubMessage(
@@ -1244,8 +1295,9 @@ class ClubChatScreenState extends State<ClubChatScreen>
       replyTo: _replyingTo, // Add reply if replying
     );
 
-    print('🔍 ClubChat: Created final message with status: ${message.status}');
-    print('🔍 ClubChat: Final message images: ${message.images}');
+    debugPrint(
+      '🔍 ClubChat: Created final message with replyTo: ${message.replyTo}',
+    );
 
     // Clear reply state
     _cancelReply();
@@ -1255,16 +1307,40 @@ class ClubChatScreenState extends State<ClubChatScreen>
       _messages.add(message);
     });
 
-    print(
+    debugPrint(
       '🔍 ClubChat: Added message to _messages list. Total messages: ${_messages.length}',
     );
-    print('🔍 ClubChat: Last message status: ${_messages.last.status}');
+  }
+
+  Future<void> _triggerAudioRecordingFromPull() async {
+    HapticFeedback.heavyImpact();
+    debugPrint('🎤 Triggering audio recording from pull gesture');
+
+    // Immediately hide the indicator when recording is triggered
+    _resetAudioPullState();
+
+    // Start audio recording via the audio widget
+    final audioWidgetState = _audioRecordingKey.currentState;
+    if (audioWidgetState != null && !audioWidgetState.isRecording) {
+      try {
+        // Start recording programmatically using the new public method
+        await audioWidgetState.startRecordingProgrammatically();
+        debugPrint('✅ Audio recording started successfully from pull gesture');
+      } catch (e) {
+        debugPrint('❌ Error starting audio recording: $e');
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+    final footerHeight = 80.0; // Approximate height of message input footer
+
     return Scaffold(
-      resizeToAvoidBottomInset: true,
+      resizeToAvoidBottomInset: false,
+      backgroundColor: Colors.transparent,
       appBar: ChatAppBar(
         club: widget.club,
         isSelectionMode: _isSelectionMode,
@@ -1280,42 +1356,150 @@ class ClubChatScreenState extends State<ClubChatScreen>
         },
         onShowMoreOptions: _showMoreOptions,
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Messages List - Takes all available space
-            Expanded(
-              child: SizedBox(
-                width: double.infinity,
-                child: GestureDetector(
-                  onTap: () {
-                    // Close keyboard when tapping in messages area
-                    FocusScope.of(context).unfocus();
-                  },
-                  behavior: HitTestBehavior.opaque,
-                  child: _error != null
-                      ? _buildErrorState(_error!)
-                      : _messages.isEmpty
-                      ? _buildEmptyState()
-                      : _buildMessagesList(),
+      body: Stack(
+        children: [
+          // Fixed background that never moves
+          Positioned.fill(
+            child: Image.asset(
+              isDarkTheme
+                  ? 'assets/images/chat-bg-dark.png'
+                  : 'assets/images/chat-bg-light.png',
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+            ),
+          ),
+
+          // Messages area that adjusts for keyboard
+          SafeArea(
+            child: Column(
+              children: [
+                // Messages List - Takes all available space above input
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      bottom: keyboardHeight + footerHeight,
+                    ),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: GestureDetector(
+                        onTap: () {
+                          // Close keyboard when tapping in messages area
+                          FocusScope.of(context).unfocus();
+                        },
+                        behavior: HitTestBehavior.opaque,
+                        child: _error != null
+                            ? _buildErrorState(_error!)
+                            : _messages.isEmpty
+                            ? _buildEmptyState()
+                            : _buildMessagesList(),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Circular progress indicator for pull-to-record (overlay)
+          // Only show if pulling for audio and not already recording
+          if (_isPullingForAudio &&
+              !(_audioRecordingKey.currentState?.isRecording ?? false))
+            Positioned(
+              bottom: keyboardHeight + 100,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Circular progress with mic icon - no container
+                    SizedBox(
+                      width: 50,
+                      height: 50,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          // Circular progress indicator
+                          CircularProgressIndicator(
+                            value: _audioRecordingPullProgress,
+                            strokeWidth: 3,
+                            backgroundColor: Colors.grey.withOpacity(0.3),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              _audioRecordingPullProgress >= 1.0
+                                  ? Colors.green
+                                  : Color(0xFF06aeef),
+                            ),
+                          ),
+                          // Microphone icon
+                          Icon(
+                            Icons.mic,
+                            color: _audioRecordingPullProgress >= 1.0
+                                ? Colors.green
+                                : Color(0xFF06aeef),
+                            size: 20,
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    // Text below the circle in single line
+                    Text(
+                      _audioRecordingPullProgress >= 1.0
+                          ? 'Recording!'
+                          : 'Pull to record',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDarkTheme
+                            ? Colors.white70
+                            : Colors.black87,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
 
-            // Reply preview (if replying to a message)
-            if (_replyingTo != null) _buildReplyPreview(),
+          // Footer with reply preview and input - always at bottom
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: keyboardHeight,
+            child: Container(
+              decoration: BoxDecoration(
+                color: isDarkTheme ? Color(0xFF1e2428) : Colors.white,
+                border: Border(
+                  top: BorderSide(
+                    color: isDarkTheme
+                        ? Colors.grey[700]!.withOpacity(0.3)
+                        : Colors.grey[300]!.withOpacity(0.5),
+                    width: 0.5,
+                  ),
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Reply preview (if replying to a message)
+                  if (_replyingTo != null) _buildReplyPreview(),
 
-            // Message Input - Sticks to bottom footer
-            MessageInput(
-              messageController: _messageController,
-              textFieldFocusNode: _textFieldFocusNode,
-              clubId: widget.club.id,
-              audioRecordingKey: _audioRecordingKey,
-              onSendMessage: _handleNewMessage,
-              upiId: widget.club.upiId,
+                  // Message Input - Fixed at bottom
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    child: MessageInput(
+                      messageController: _messageController,
+                      textFieldFocusNode: _textFieldFocusNode,
+                      clubId: widget.club.id,
+                      audioRecordingKey: _audioRecordingKey,
+                      onSendMessage: _handleNewMessage,
+                      upiId: widget.club.upiId,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1414,6 +1598,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
                         onReactionRemoved: _handleReactionRemoved,
                         canPinMessages: _cachedCanPinMessages ?? false,
                         isCurrentlyPinned: _isCurrentlyPinned,
+                        onReplyTap: _scrollToMessage,
                       ),
                     ),
                   );
@@ -1432,20 +1617,66 @@ class ClubChatScreenState extends State<ClubChatScreen>
     await _loadMessages();
   }
 
-  // Handle scroll notifications for bottom refresh detection
+  // Handle scroll notifications for bottom refresh detection and audio recording pull
   bool _handleScrollNotification(ScrollNotification notification) {
-    if (notification is ScrollEndNotification) {
+    if (notification is ScrollUpdateNotification) {
       final scrollPosition = notification.metrics.pixels;
       final maxScroll = notification.metrics.maxScrollExtent;
 
-      // Check if user scrolled to the very bottom (with a small threshold)
-      if (scrollPosition >= maxScroll - 50) {
+      // Check if user is overscrolling at the bottom (beyond max scroll)
+      // Only allow pull-to-record if not already recording
+      if (scrollPosition > maxScroll &&
+          !(_audioRecordingKey.currentState?.isRecording ?? false)) {
+        final overscroll = scrollPosition - maxScroll;
+        final showThreshold = 30.0; // Require 30px overscroll before showing
+
+        setState(() {
+          _isPullingForAudio = overscroll > showThreshold;
+          // Calculate progress from the show threshold, not from zero
+          _audioRecordingPullProgress = _isPullingForAudio
+              ? ((overscroll - showThreshold) /
+                        (_audioRecordingPullThreshold - showThreshold))
+                    .clamp(0.0, 1.0)
+              : 0.0;
+        });
+
+        if (_audioRecordingPullProgress >= 1.0) {
+          // Trigger audio recording when pull is complete
+          _triggerAudioRecordingFromPull();
+        }
+      } else {
+        // Reset pull state when not overscrolling or when recording is active
+        if (_isPullingForAudio) {
+          _resetAudioPullState();
+        }
+      }
+    } else if (notification is ScrollEndNotification) {
+      final scrollPosition = notification.metrics.pixels;
+      final maxScroll = notification.metrics.maxScrollExtent;
+
+      // Regular bottom refresh for message sync (only if not in audio pull mode and not recording)
+      if (scrollPosition >= maxScroll - 50 &&
+          !_isPullingForAudio &&
+          !(_audioRecordingKey.currentState?.isRecording ?? false)) {
         debugPrint('🔄 Bottom pull detected, refreshing messages...');
         _handleBottomRefresh();
+      }
+
+      // Reset pull state on scroll end (user let go) - but only if not recording
+      if (_isPullingForAudio &&
+          !(_audioRecordingKey.currentState?.isRecording ?? false)) {
+        _resetAudioPullState();
       }
     }
 
     return false; // Allow other listeners to receive the notification
+  }
+
+  void _resetAudioPullState() {
+    setState(() {
+      _isPullingForAudio = false;
+      _audioRecordingPullProgress = 0.0;
+    });
   }
 
   // Handle bottom pull refresh with debouncing
@@ -1492,16 +1723,17 @@ class ClubChatScreenState extends State<ClubChatScreen>
   Widget _buildReplyPreview() {
     if (_replyingTo == null) return SizedBox.shrink();
 
+    final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(12),
+      padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
       decoration: BoxDecoration(
-        color: Theme.of(context).brightness == Brightness.dark
-            ? Color(0xFF1e2428)
-            : Colors.white,
         border: Border(
-          top: BorderSide(
-            color: Theme.of(context).dividerColor.withOpacity(0.3),
+          bottom: BorderSide(
+            color: isDarkTheme
+                ? Colors.grey[700]!.withOpacity(0.3)
+                : Colors.grey[300]!.withOpacity(0.5),
             width: 0.5,
           ),
         ),
@@ -1921,21 +2153,41 @@ class ClubChatScreenState extends State<ClubChatScreen>
   }
 
   void _scrollToMessage(String messageId) {
+    debugPrint('🎯 Attempting to scroll to message: $messageId');
+
     // Sort messages by creation time to match the ListView order
     final allMessages = List<ClubMessage>.from(_messages);
     allMessages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
     final sortedIndex = allMessages.indexWhere((m) => m.id == messageId);
-    if (sortedIndex == -1) return;
+    if (sortedIndex == -1) {
+      debugPrint('❌ Message not found: $messageId');
+      return;
+    }
+
+    // Highlight the message temporarily
+    setState(() {
+      _highlightedMessageId = messageId;
+    });
+
+    // Clear highlight after 3 seconds
+    _highlightTimer?.cancel();
+    _highlightTimer = Timer(Duration(seconds: 3), () {
+      setState(() {
+        _highlightedMessageId = null;
+      });
+    });
 
     // Calculate scroll position with better handling for end messages
     final itemHeight = 100.0; // Approximate height per message
     final targetOffset = sortedIndex * itemHeight;
     final maxScrollExtent = _scrollController.position.maxScrollExtent;
-    
+
     // Ensure we don't scroll beyond the maximum extent
-    final adjustedOffset = targetOffset > maxScrollExtent ? maxScrollExtent : targetOffset;
-    
+    final adjustedOffset = targetOffset > maxScrollExtent
+        ? maxScrollExtent
+        : targetOffset;
+
     // For messages at the very end, scroll to bottom with some padding
     final isNearEnd = sortedIndex >= allMessages.length - 3;
     final finalOffset = isNearEnd ? maxScrollExtent : adjustedOffset;
@@ -1945,6 +2197,8 @@ class ClubChatScreenState extends State<ClubChatScreen>
       duration: Duration(milliseconds: 500),
       curve: Curves.easeInOut,
     );
+
+    debugPrint('✅ Scrolling to message at index $sortedIndex');
   }
 
   void _highlightMessage(String messageId) {
@@ -1961,7 +2215,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
         });
       }
     });
-    
+
     debugPrint('🎯 Highlighted message: $messageId');
   }
 }
