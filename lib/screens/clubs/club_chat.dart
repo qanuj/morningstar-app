@@ -77,6 +77,8 @@ class ClubChatScreenState extends State<ClubChatScreen>
   bool _isPullingForAudio = false;
   double _audioRecordingPullProgress = 0.0;
   static const double _audioRecordingPullThreshold = 100.0;
+  bool _canActivateRecording = false; // Only true if tapped in bottom 20%
+  bool _isInRecordingMode = false; // True during entire recording flow
 
   @override
   void initState() {
@@ -1382,6 +1384,28 @@ class ClubChatScreenState extends State<ClubChatScreen>
                     child: SizedBox(
                       width: double.infinity,
                       child: GestureDetector(
+                        onPanStart: (details) {
+                          // Track where the pan/scroll gesture starts
+                          final messagesHeight = MediaQuery.of(context).size.height - 
+                              MediaQuery.of(context).padding.top - 
+                              MediaQuery.of(context).padding.bottom -
+                              keyboardHeight - footerHeight;
+                          final startY = details.localPosition.dy;
+                          final bottom30Percent = messagesHeight * 0.7; // 70% from top = bottom 30%
+                          
+                          setState(() {
+                            _canActivateRecording = startY > bottom30Percent;
+                          });
+                          
+                          debugPrint('🎯 Pan gesture started at ${startY}px, bottom 30% starts at ${bottom30Percent}px, can activate: $_canActivateRecording');
+                        },
+                        onPanEnd: (details) {
+                          // Reset recording activation when pan gesture ends
+                          setState(() {
+                            _canActivateRecording = false;
+                          });
+                          debugPrint('🎯 Pan gesture ended, recording activation reset');
+                        },
                         onTap: () {
                           // Close keyboard when tapping in messages area
                           FocusScope.of(context).unfocus();
@@ -1442,11 +1466,13 @@ class ClubChatScreenState extends State<ClubChatScreen>
                       ),
                     ),
                     SizedBox(height: 8),
-                    // Text below the circle in single line
+                    // Text below the circle in single line - three states
                     Text(
                       _audioRecordingPullProgress >= 1.0
-                          ? 'Recording!'
-                          : 'Pull to record',
+                          ? 'Release to talk'
+                          : _isInRecordingMode
+                            ? 'Keep holding to talk'
+                            : 'Swipe up to talk',
                       style: TextStyle(
                         fontSize: 12,
                         color: isDarkTheme ? Colors.white70 : Colors.black87,
@@ -1481,18 +1507,19 @@ class ClubChatScreenState extends State<ClubChatScreen>
                   // Reply preview (if replying to a message)
                   if (_replyingTo != null) _buildReplyPreview(),
 
-                  // Message Input - Fixed at bottom
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                    child: MessageInput(
-                      messageController: _messageController,
-                      textFieldFocusNode: _textFieldFocusNode,
-                      clubId: widget.club.id,
-                      audioRecordingKey: _audioRecordingKey,
-                      onSendMessage: _handleNewMessage,
-                      upiId: widget.club.upiId,
+                  // Message Input - Fixed at bottom (hidden during recording mode)
+                  if (!_isInRecordingMode)
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      child: MessageInput(
+                        messageController: _messageController,
+                        textFieldFocusNode: _textFieldFocusNode,
+                        clubId: widget.club.id,
+                        audioRecordingKey: _audioRecordingKey,
+                        onSendMessage: _handleNewMessage,
+                        upiId: widget.club.upiId,
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -1622,10 +1649,11 @@ class ClubChatScreenState extends State<ClubChatScreen>
       final maxScroll = notification.metrics.maxScrollExtent;
 
       // Check if user is overscrolling at the bottom (beyond max scroll)
-      // Only allow pull-to-record if not already recording
+      // Only allow pull-to-record if user tapped in bottom 20% first and not already recording
       // Require minimum overscroll to distinguish from just reaching bottom
       final minOverscrollRequired = 8.0;
       if (scrollPosition > maxScroll + minOverscrollRequired &&
+          _canActivateRecording &&
           !(_audioRecordingKey.currentState?.isRecording ?? false)) {
         final overscroll = scrollPosition - maxScroll;
         final showThreshold =
@@ -1636,6 +1664,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
 
         setState(() {
           _isPullingForAudio = overscroll > showThreshold;
+          _isInRecordingMode = overscroll > 5.0; // Enter recording mode with minimal pull
           // Calculate progress from the show threshold, not from zero
           _audioRecordingPullProgress = _isPullingForAudio
               ? ((overscroll - showThreshold) /
@@ -1650,7 +1679,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
         }
       } else {
         // Reset pull state when not overscrolling or when recording is active
-        if (_isPullingForAudio) {
+        if (_isPullingForAudio || _isInRecordingMode) {
           _resetAudioPullState();
         }
       }
@@ -1680,6 +1709,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
     setState(() {
       _isPullingForAudio = false;
       _audioRecordingPullProgress = 0.0;
+      _isInRecordingMode = false;
     });
   }
 
