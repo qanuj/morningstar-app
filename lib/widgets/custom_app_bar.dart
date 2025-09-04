@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../widgets/duggy_logo.dart';
 import '../screens/news/notifications.dart';
 import '../screens/clubs/clubs.dart';
 
@@ -127,50 +126,26 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   Widget _buildTitle(BuildContext context) {
     if (subtitle != null) {
-      // Show main title (Duggy) + subtitle (page name)
-      return Row(
-        children: [
-          DuggyLogoVariant.small(
-            color: Theme.of(context).appBarTheme.foregroundColor,
-          ),
-          Text(
-            title,
-            style: TextStyle(
-              color: Theme.of(context).appBarTheme.foregroundColor,
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.2,
-            ),
-          ),
-          SizedBox(width: 8),
-          Text(
-            subtitle!,
-            style: TextStyle(
-              color: Theme.of(context).appBarTheme.foregroundColor?.withOpacity(0.8),
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              letterSpacing: 0.1,
-            ),
-          ),
-        ],
+      // Show subtitle as the main title
+      return Text(
+        subtitle!,
+        style: TextStyle(
+          color: Theme.of(context).appBarTheme.foregroundColor,
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.2,
+        ),
       );
     } else {
-      // Show only main title with logo
-      return Row(
-        children: [
-          DuggyLogoVariant.small(
-            color: Theme.of(context).appBarTheme.foregroundColor,
-          ),
-          Text(
-            title,
-            style: TextStyle(
-              color: Theme.of(context).appBarTheme.foregroundColor,
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.2,
-            ),
-          ),
-        ],
+      // Show only the title
+      return Text(
+        title,
+        style: TextStyle(
+          color: Theme.of(context).appBarTheme.foregroundColor,
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.2,
+        ),
       );
     }
   }
@@ -251,7 +226,7 @@ class HomeAppBar extends CustomAppBar {
     super.key,
     super.onDrawerTap,
   }) : super(
-          title: 'Duggy',
+          title: 'Home',
           showNotifications: true,
           showClubSwitch: true,
         );
@@ -265,7 +240,7 @@ class PageAppBar extends CustomAppBar {
     super.showNotifications = true,
     super.customActions,
   }) : super(
-          title: 'Duggy',
+          title: '',
           subtitle: pageName,
         );
 }
