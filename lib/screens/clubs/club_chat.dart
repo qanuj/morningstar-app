@@ -1449,9 +1449,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
                           : 'Pull to record',
                       style: TextStyle(
                         fontSize: 12,
-                        color: isDarkTheme
-                            ? Colors.white70
-                            : Colors.black87,
+                        color: isDarkTheme ? Colors.white70 : Colors.black87,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -1625,10 +1623,16 @@ class ClubChatScreenState extends State<ClubChatScreen>
 
       // Check if user is overscrolling at the bottom (beyond max scroll)
       // Only allow pull-to-record if not already recording
-      if (scrollPosition > maxScroll &&
+      // Require minimum overscroll to distinguish from just reaching bottom
+      final minOverscrollRequired = 8.0;
+      if (scrollPosition > maxScroll + minOverscrollRequired &&
           !(_audioRecordingKey.currentState?.isRecording ?? false)) {
         final overscroll = scrollPosition - maxScroll;
-        final showThreshold = 30.0; // Require 30px overscroll before showing
+        final showThreshold =
+            30.0 +
+            minOverscrollRequired; // 38px total: 8px buffer + 30px to show
+
+        debugPrint('🎤 Overscroll detected: ${overscroll}px beyond bottom');
 
         setState(() {
           _isPullingForAudio = overscroll > showThreshold;
