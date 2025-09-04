@@ -20,6 +20,11 @@ class TransactionsScreenState extends State<TransactionsScreen> {
   String _selectedPeriod = 'all';
   String _searchQuery = '';
   String? _selectedClubId;
+  
+  // Temporary filter state for the filter sheet (before Apply is pressed)
+  String _tempSelectedType = 'all';
+  String _tempSelectedPeriod = 'all';
+  String? _tempSelectedClubId;
   final TextEditingController _searchController = TextEditingController();
   bool _isSearchExpanded = false;
 
@@ -28,7 +33,7 @@ class TransactionsScreenState extends State<TransactionsScreen> {
   final PageController _balancePageController = PageController();
   int _currentBalanceIndex = 0;
 
-  // Sample club balances - in real app this would come from API
+  // Club balances from API
   List<Map<String, dynamic>> _clubBalances = [
     {
       'id': 'all',
@@ -37,23 +42,52 @@ class TransactionsScreenState extends State<TransactionsScreen> {
       'credits': 0.0,
       'debits': 0.0,
       'balance': 0.0,
+      'currency': 'Multi',
     },
   ];
+  
+  // User's actual clubs from /me/clubs API
+  List<Map<String, dynamic>> _userClubs = [];
 
-  // Pagination
+  // Infinite scroll
+  final ScrollController _scrollController = ScrollController();
+  bool _isLoadingMore = false;
+  bool _hasMoreData = true;
   int _currentPage = 1;
-  int _totalPages = 1;
-  bool _hasNextPage = false;
-  bool _hasPrevPage = false;
 
   @override
   void initState() {
     super.initState();
+    _loadUserClubs();
     _loadTransactions();
+    _scrollController.addListener(_onScroll);
+  }
+  
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200 &&
+        !_isLoadingMore && _hasMoreData) {
+      _loadMoreTransactions();
+    }
+  }
+
+  Future<void> _loadUserClubs() async {
+    try {
+      final response = await ApiService.get('/me/clubs');
+      setState(() {
+        _userClubs = (response['clubs'] as List<dynamic>? ?? [])
+            .map((club) => club as Map<String, dynamic>)
+            .toList();
+      });
+    } catch (e) {
+      // Handle error silently - fall back to existing logic
+      // Error loading user clubs, will use fallback logic
+    }
   }
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -61,6 +95,7 @@ class TransactionsScreenState extends State<TransactionsScreen> {
   Future<void> _loadTransactions({bool isRefresh = false}) async {
     if (isRefresh) {
       _currentPage = 1;
+      _hasMoreData = true;
     }
 
     setState(() => _isLoading = true);
@@ -94,16 +129,19 @@ class TransactionsScreenState extends State<TransactionsScreen> {
       final response = await ApiService.get('/transactions?$queryString');
 
       setState(() {
-        _transactions = (response['transactions'] as List)
+        final newTransactions = (response['transactions'] as List)
             .map((tx) => Transaction.fromJson(tx))
             .toList();
-
-        // Update pagination info
+            
+        if (isRefresh || _currentPage == 1) {
+          _transactions = newTransactions;
+        } else {
+          _transactions.addAll(newTransactions);
+        }
+        
+        // Update infinite scroll info
         final pagination = response['pagination'];
-        _currentPage = pagination['currentPage'];
-        _totalPages = pagination['totalPages'];
-        _hasNextPage = pagination['hasNextPage'];
-        _hasPrevPage = pagination['hasPrevPage'];
+        _hasMoreData = pagination['hasNextPage'] ?? false;
 
         // Update summary and club balances from API response
         final summary = response['summary'];
@@ -144,7 +182,7 @@ class TransactionsScreenState extends State<TransactionsScreen> {
       'credits': totalCredits,
       'debits': totalDebits,
       'balance': totalBalance,
-      'currency': 'Multi', // Indicate multiple currencies
+      'currency': 'Multi', // Indicate multiple currencies but default to INR
     });
 
     // Add individual club balances from API
@@ -222,20 +260,54 @@ class TransactionsScreenState extends State<TransactionsScreen> {
 
   void _applyFilters() {
     _currentPage = 1;
+    _hasMoreData = true;
     _loadTransactions();
   }
 
-  void _loadNextPage() {
-    if (_hasNextPage) {
+  Future<void> _loadMoreTransactions() async {
+    if (_isLoadingMore || !_hasMoreData) return;
+    
+    setState(() => _isLoadingMore = true);
+    
+    try {
       _currentPage++;
-      _loadTransactions();
-    }
-  }
-
-  void _loadPreviousPage() {
-    if (_hasPrevPage) {
-      _currentPage--;
-      _loadTransactions();
+      final queryParams = <String, String>{
+        'page': _currentPage.toString(),
+        'limit': '20',
+      };
+      
+      if (_selectedType != 'all') {
+        queryParams['type'] = _selectedType;
+      }
+      if (_selectedPeriod != 'all') {
+        queryParams['period'] = _selectedPeriod;
+      }
+      if (_searchQuery.isNotEmpty) {
+        queryParams['search'] = _searchQuery;
+      }
+      if (_selectedClubId != null) {
+        queryParams['clubId'] = _selectedClubId!;
+      }
+      
+      final queryString = queryParams.entries
+          .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
+          .join('&');
+      
+      final response = await ApiService.get('/transactions?$queryString');
+      
+      setState(() {
+        final newTransactions = (response['transactions'] as List)
+            .map((tx) => Transaction.fromJson(tx))
+            .toList();
+        _transactions.addAll(newTransactions);
+        
+        final pagination = response['pagination'];
+        _hasMoreData = pagination['hasNextPage'] ?? false;
+      });
+    } catch (e) {
+      setState(() => _currentPage--); // Rollback page increment on error
+    } finally {
+      setState(() => _isLoadingMore = false);
     }
   }
 
@@ -383,6 +455,7 @@ class TransactionsScreenState extends State<TransactionsScreen> {
                 ),
               )
             : ListView(
+                controller: _scrollController,
                 children: [
                   // Scrollable Balance Card
                   _buildBalanceCard(),
@@ -534,49 +607,99 @@ class TransactionsScreenState extends State<TransactionsScreen> {
 
 
   void _showFilterBottomSheet() {
+    // Initialize temporary filters with current values
+    setState(() {
+      _tempSelectedType = _selectedType;
+      _tempSelectedPeriod = _selectedPeriod;
+      _tempSelectedClubId = _selectedClubId;
+    });
+
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        minChildSize: 0.5,
-        maxChildSize: 0.9,
-        builder: (context, scrollController) => Container(
-          padding: EdgeInsets.all(24),
-          child: SingleChildScrollView(
-            controller: scrollController,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-            Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.filter_list,
-                    color: Theme.of(context).colorScheme.primary,
-                    size: 20,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+        height: MediaQuery.of(context).size.height * 0.75,
+        child: Column(
+          children: [
+            // Fixed header with title and apply button
+            Container(
+              padding: EdgeInsets.fromLTRB(24, 20, 24, 16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                border: Border(
+                  bottom: BorderSide(
+                    color: Theme.of(context).dividerColor.withOpacity(0.2),
+                    width: 1,
                   ),
                 ),
-                SizedBox(width: 12),
-                Text(
-                  'Filter Transactions',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                    color: Theme.of(context).textTheme.headlineSmall?.color,
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.filter_list,
+                      color: Theme.of(context).colorScheme.primary,
+                      size: 20,
+                    ),
                   ),
-                ),
-              ],
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Filter Transactions',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).textTheme.headlineSmall?.color,
+                      ),
+                    ),
+                  ),
+                  // Apply Button
+                  ElevatedButton(
+                    onPressed: () {
+                      // Apply the temporary filters to actual filters
+                      setState(() {
+                        _selectedType = _tempSelectedType;
+                        _selectedPeriod = _tempSelectedPeriod;
+                        _selectedClubId = _tempSelectedClubId;
+                      });
+                      Navigator.pop(context);
+                      _applyFilters();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      'Apply',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            SizedBox(height: 24),
+            
+            // Scrollable filter content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
 
             // Type Filter
             Text(
@@ -590,11 +713,11 @@ class TransactionsScreenState extends State<TransactionsScreen> {
             SizedBox(height: 12),
             Row(
               children: [
-                _buildFilterChip('All', 'all', _selectedType),
+                _buildTempFilterChip('All', 'all', _tempSelectedType, setModalState, 'type'),
                 SizedBox(width: 8),
-                _buildFilterChip('Credit', 'CREDIT', _selectedType),
+                _buildTempFilterChip('Credit', 'CREDIT', _tempSelectedType, setModalState, 'type'),
                 SizedBox(width: 8),
-                _buildFilterChip('Debit', 'DEBIT', _selectedType),
+                _buildTempFilterChip('Debit', 'DEBIT', _tempSelectedType, setModalState, 'type'),
               ],
             ),
             SizedBox(height: 24),
@@ -613,11 +736,11 @@ class TransactionsScreenState extends State<TransactionsScreen> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                _buildFilterChip('All', 'all', _selectedPeriod),
-                _buildFilterChip('Week', 'week', _selectedPeriod),
-                _buildFilterChip('Month', 'month', _selectedPeriod),
-                _buildFilterChip('3 Months', '3months', _selectedPeriod),
-                _buildFilterChip('Year', 'year', _selectedPeriod),
+                _buildTempFilterChip('All', 'all', _tempSelectedPeriod, setModalState, 'period'),
+                _buildTempFilterChip('Week', 'week', _tempSelectedPeriod, setModalState, 'period'),
+                _buildTempFilterChip('Month', 'month', _tempSelectedPeriod, setModalState, 'period'),
+                _buildTempFilterChip('3 Months', '3months', _tempSelectedPeriod, setModalState, 'period'),
+                _buildTempFilterChip('Year', 'year', _tempSelectedPeriod, setModalState, 'period'),
               ],
             ),
             SizedBox(height: 24),
@@ -636,40 +759,58 @@ class TransactionsScreenState extends State<TransactionsScreen> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                _buildClubFilterChip('All Clubs', null),
+                _buildTempClubFilterChip('All Clubs', null, setModalState),
                 ..._clubBalances
                     .where((club) => club['id'] != 'all')
-                    .map((club) => _buildClubFilterChip(club['name'], club['id'])),
+                    .map((club) => _buildTempClubFilterChip(club['name'], club['id'], setModalState)),
               ],
             ),
-            SizedBox(height: 32),
-
-            // Apply Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _applyFilters();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+            SizedBox(height: 24), // Space at the bottom for better scrolling
+                    ],
                   ),
-                  elevation: 0,
-                ),
-                child: Text(
-                  'Apply Filters',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
                 ),
               ),
-            ),
-              ],
-            ),
+            ],
           ),
+        ),
+      ),
+    );
+  }
+
+  // Method for temporary filter chips in the modal (before Apply is pressed)
+  Widget _buildTempFilterChip(String label, String value, String currentValue, 
+      Function setModalState, String filterType) {
+    final isSelected = currentValue == value;
+    return FilterChip(
+      label: Text(
+        label,
+        style: TextStyle(
+          fontWeight: FontWeight.w400,
+          color: isSelected
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).textTheme.bodyLarge?.color,
+        ),
+      ),
+      selected: isSelected,
+      onSelected: (selected) {
+        setModalState(() {
+          if (filterType == 'period') {
+            _tempSelectedPeriod = value;
+          } else if (filterType == 'type') {
+            _tempSelectedType = value;
+          }
+        });
+      },
+      selectedColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+      backgroundColor: Theme.of(context).dialogBackgroundColor,
+      checkmarkColor: Theme.of(context).colorScheme.primary,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: isSelected
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).dividerColor.withOpacity(0.3),
+          width: 1,
         ),
       ),
     );
@@ -706,6 +847,75 @@ class TransactionsScreenState extends State<TransactionsScreen> {
       checkmarkColor: Theme.of(context).colorScheme.primary,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: isSelected
+              ? Theme.of(context).colorScheme.primary.withOpacity(0.5)
+              : Theme.of(context).dividerColor.withOpacity(0.3),
+          width: 0.5,
+        ),
+      ),
+    );
+  }
+
+  // Method for temporary club filter chips in the modal (before Apply is pressed)
+  Widget _buildTempClubFilterChip(String label, String? clubId, Function setModalState) {
+    final isSelected = _tempSelectedClubId == clubId;
+    
+    // Find the club data to get the logo
+    final club = clubId == null 
+        ? null 
+        : _clubBalances.firstWhere(
+            (club) => club['id'] == clubId, 
+            orElse: () => <String, dynamic>{},
+          );
+    
+    return FilterChip(
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (club != null && club['logo'] != null) ...[
+            SVGAvatar(
+              imageUrl: club['logo'],
+              size: 16,
+              backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+              fallbackIcon: Icons.account_balance,
+              iconSize: 8,
+            ),
+            SizedBox(width: 6),
+          ] else if (clubId == null) ...[
+            Icon(
+              Icons.all_inclusive,
+              size: 14,
+              color: isSelected
+                  ? Theme.of(context).colorScheme.onPrimary
+                  : Theme.of(context).textTheme.bodyLarge?.color,
+            ),
+            SizedBox(width: 4),
+          ],
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.w400,
+              fontSize: 11,
+              color: isSelected
+                  ? Theme.of(context).colorScheme.onPrimary
+                  : Theme.of(context).textTheme.bodyLarge?.color,
+            ),
+          ),
+        ],
+      ),
+      selected: isSelected,
+      onSelected: (selected) {
+        setModalState(() {
+          _tempSelectedClubId = selected ? clubId : null;
+        });
+      },
+      backgroundColor: Theme.of(context).cardColor,
+      selectedColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+      side: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.3)),
+      checkmarkColor: Theme.of(context).colorScheme.primary,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
         side: BorderSide(
           color: isSelected
               ? Theme.of(context).colorScheme.primary.withOpacity(0.5)
@@ -815,8 +1025,31 @@ class TransactionsScreenState extends State<TransactionsScreen> {
   }
 
   Widget _buildBalanceCard() {
+    // Use actual user clubs from API, fallback to balance clubs if not loaded yet
+    final userClubCount = _userClubs.isNotEmpty ? _userClubs.length : 
+                         _clubBalances.where((club) => club['id'] != 'all').length;
+    final hasOnlyOneClub = userClubCount == 1;
+    
+    // If club filter is applied, show only that club's balance
+    List<Map<String, dynamic>> displayBalances;
+    if (_selectedClubId != null) {
+      // Find the specific club and show only that club's balance
+      displayBalances = _clubBalances.where((club) => club['id'] == _selectedClubId).toList();
+    } else if (hasOnlyOneClub) {
+      // If user has only one club, show only that club (no total balance)
+      displayBalances = _clubBalances.where((club) => club['id'] != 'all').toList();
+    } else {
+      // Show all balances when no filter is applied and user has multiple clubs
+      displayBalances = _clubBalances;
+    }
+    
+    // If no balances to show, return empty container
+    if (displayBalances.isEmpty) {
+      displayBalances = [_clubBalances.first]; // Fallback to total balance
+    }
+    
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      margin: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
@@ -830,140 +1063,34 @@ class TransactionsScreenState extends State<TransactionsScreen> {
       ),
       child: Column(
         children: [
-          SizedBox(
-            height: 140, // Fixed height for PageView
-            child: PageView.builder(
-              controller: _balancePageController,
-              onPageChanged: (index) {
-                setState(() {
-                  _currentBalanceIndex = index;
-                });
-              },
-              itemCount: _clubBalances.length,
-              itemBuilder: (context, index) {
-                final club = _clubBalances[index];
-                return Padding(
-                  padding: EdgeInsets.all(12),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Club Info Row
-                      Row(
-                        children: [
-                          if (club['logo'] != null) ...[
-                            SVGAvatar(
-                              imageUrl: club['logo'],
-                              size: 24,
-                              backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                              fallbackIcon: Icons.account_balance,
-                              iconSize: 12,
-                            ),
-                            SizedBox(width: 8),
-                          ],
-                          Expanded(
-                            child: Text(
-                              club['name'],
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 6),
-                      
-                      // Balance Amount
-                      Text(
-                        _formatCurrencyAmount(club['balance'], club['currency']),
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700,
-                          color: club['balance'] >= 0 
-                              ? AppTheme.successGreen 
-                              : AppTheme.errorRed,
-                        ),
-                      ),
-                      Text(
-                        club['id'] == 'all' ? 'Total Balance' : 'Club Balance',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Theme.of(context).textTheme.bodyMedium?.color,
-                        ),
-                      ),
-                      SizedBox(height: 6),
-                      
-                      // Credits and Debits Row
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              children: [
-                                Text(
-                                  _formatCurrencyAmount(club['credits'], club['currency']),
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppTheme.successGreen,
-                                  ),
-                                ),
-                                Text(
-                                  'Credits',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: Theme.of(context).textTheme.bodySmall?.color,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            width: 1,
-                            height: 20,
-                            color: Theme.of(context).dividerColor.withOpacity(0.3),
-                          ),
-                          Expanded(
-                            child: Column(
-                              children: [
-                                Text(
-                                  _formatCurrencyAmount(club['debits'], club['currency']),
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppTheme.errorRed,
-                                  ),
-                                ),
-                                Text(
-                                  'Debits',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: Theme.of(context).textTheme.bodySmall?.color,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
+          // Use flexible container instead of fixed height to avoid Android overflow
+          displayBalances.length == 1 
+            ? _buildSingleBalanceCard(displayBalances.first) // Show single card when filtered
+            : SizedBox(
+                height: 120, // Keep fixed height only for PageView
+                child: PageView.builder( // Show PageView when showing all balances
+                    controller: _balancePageController,
+                    onPageChanged: (index) {
+                      setState(() {
+                        _currentBalanceIndex = index;
+                      });
+                    },
+                    itemCount: displayBalances.length,
+                    itemBuilder: (context, index) {
+                      final club = displayBalances[index];
+                      return _buildSingleBalanceCard(club);
+                    },
+                ),
+              ),
           
           // Page indicators
-          if (_clubBalances.length > 1)
+          if (displayBalances.length > 1)
             Padding(
               padding: EdgeInsets.only(bottom: 12),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(
-                  _clubBalances.length,
+                  displayBalances.length,
                   (index) => Container(
                     width: 8,
                     height: 8,
@@ -978,6 +1105,144 @@ class TransactionsScreenState extends State<TransactionsScreen> {
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSingleBalanceCard(Map<String, dynamic> club) {
+    // Use actual user clubs from API to determine if pin should be shown
+    final userClubCount = _userClubs.isNotEmpty ? _userClubs.length : 
+                         _clubBalances.where((club) => club['id'] != 'all').length;
+    final hasMultipleClubs = userClubCount > 1;
+    
+    return Padding(
+      padding: EdgeInsets.all(8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Club Info Row
+          Row(
+            children: [
+              if (club['logo'] != null) ...[
+                SVGAvatar(
+                  imageUrl: club['logo'],
+                  size: 24,
+                  backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                  fallbackIcon: Icons.account_balance,
+                  iconSize: 12,
+                ),
+                SizedBox(width: 8),
+              ],
+              Expanded(
+                child: Text(
+                  club['name'],
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              // Pin icon to apply club filter (only show for individual clubs when user has multiple clubs)
+              if (club['id'] != 'all' && hasMultipleClubs)
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedClubId = _selectedClubId == club['id'] ? null : club['id'];
+                    });
+                    _applyFilters();
+                  },
+                  child: Padding(
+                    padding: EdgeInsets.all(4),
+                    child: Icon(
+                      _selectedClubId == club['id'] ? Icons.push_pin : Icons.push_pin_outlined,
+                      size: 16,
+                      color: _selectedClubId == club['id']
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          SizedBox(height: 4),
+          
+          // Balance Amount
+          Text(
+            _formatCurrencyAmount(club['balance'], club['currency']),
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: club['balance'] >= 0 
+                  ? AppTheme.successGreen 
+                  : AppTheme.errorRed,
+            ),
+          ),
+          Text(
+            club['id'] == 'all' ? 'Total Balance' : 'Club Balance',
+            style: TextStyle(
+              fontSize: 10,
+              color: Theme.of(context).textTheme.bodyMedium?.color,
+            ),
+          ),
+          SizedBox(height: 4),
+          
+          // Credits and Debits Row
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  children: [
+                    Text(
+                      _formatCurrencyAmount(club['credits'], club['currency']),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.successGreen,
+                      ),
+                    ),
+                    Text(
+                      'Credits',
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: Theme.of(context).textTheme.bodySmall?.color,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                width: 1,
+                height: 20,
+                color: Theme.of(context).dividerColor.withOpacity(0.3),
+              ),
+              Expanded(
+                child: Column(
+                  children: [
+                    Text(
+                      _formatCurrencyAmount(club['debits'], club['currency']),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.errorRed,
+                      ),
+                    ),
+                    Text(
+                      'Debits',
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: Theme.of(context).textTheme.bodySmall?.color,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -1001,72 +1266,68 @@ class TransactionsScreenState extends State<TransactionsScreen> {
       }
     }
 
-    // Add pagination widget at the end
-    if (_totalPages > 1) {
-      items.add(_buildPaginationWidget());
+    // Add loading indicator at the bottom for infinite scroll
+    if (_isLoadingMore) {
+      items.add(_buildLoadingMoreIndicator());
+    } else if (!_hasMoreData && _transactions.isNotEmpty) {
+      items.add(_buildEndOfListIndicator());
     }
 
     return items;
   }
 
-  Widget _buildPaginationWidget() {
-    if (_totalPages <= 1) return SizedBox.shrink();
+  Widget _buildLoadingMoreIndicator() {
 
     return Container(
-      padding: EdgeInsets.all(16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          ElevatedButton(
-            onPressed: _hasPrevPage ? _loadPreviousPage : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _hasPrevPage
-                  ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context).disabledColor,
-              foregroundColor: Theme.of(context).colorScheme.onPrimary,
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              elevation: 0,
+      padding: EdgeInsets.symmetric(vertical: 20),
+      child: Center(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Theme.of(context).colorScheme.primary,
+              ),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.chevron_left, size: 20),
-                SizedBox(width: 4),
-                Text('Previous', style: TextStyle(fontSize: 12)),
-              ],
+            SizedBox(width: 12),
+            Text(
+              'Loading more transactions...',
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).textTheme.bodyMedium?.color,
+              ),
             ),
-          ),
-          
-          Text(
-            'Page $_currentPage of $_totalPages',
-            style: TextStyle(
-              fontSize: 12,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEndOfListIndicator() {
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 20),
+      child: Center(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.check_circle_outline,
+              size: 16,
               color: Theme.of(context).textTheme.bodyMedium?.color,
             ),
-          ),
-          
-          ElevatedButton(
-            onPressed: _hasNextPage ? _loadNextPage : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _hasNextPage
-                  ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context).disabledColor,
-              foregroundColor: Theme.of(context).colorScheme.onPrimary,
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              elevation: 0,
+            SizedBox(width: 8),
+            Text(
+              'All transactions loaded',
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).textTheme.bodyMedium?.color,
+              ),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Next', style: TextStyle(fontSize: 12)),
-                SizedBox(width: 4),
-                Icon(Icons.chevron_right, size: 20),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1145,7 +1406,7 @@ class TransactionsScreenState extends State<TransactionsScreen> {
       case 'INR':
         return '₹${amount.toStringAsFixed(2)}';
       case 'Multi':
-        return amount.toStringAsFixed(2); // No currency symbol for multi-currency totals
+        return '₹${amount.toStringAsFixed(2)}'; // Fallback to INR for multi-currency totals
       default:
         return '₹${amount.toStringAsFixed(2)}'; // Default to INR
     }
