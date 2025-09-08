@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../models/club.dart';
 import '../../services/api_service.dart';
-import '../../widgets/custom_app_bar.dart';
 import '../../widgets/svg_avatar.dart';
 import '../transactions/transaction_create_screen.dart';
 
@@ -542,26 +542,73 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
               ],
               backgroundColor: Color(0xFF003f9b), // Brand blue
               foregroundColor: Colors.white,
-              elevation: 1,
+              elevation: 0,
             )
           : AppBar(
-              title: Text('${widget.club.name} Members'),
-              backgroundColor: Color(0xFF003f9b), // Brand blue
-              foregroundColor: Colors.white,
-              elevation: 1,
+              backgroundColor: const Color(0xFF003f9b),
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+              title: Row(
+                children: [
+                  // Club Logo
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: widget.club.logo != null && widget.club.logo!.isNotEmpty
+                          ? _buildClubLogo()
+                          : _buildDefaultClubLogo(),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Club Name and Subtitle
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.club.name,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          'Members',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.8),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
               actions: [
                 IconButton(
-                  icon: Icon(Icons.search),
+                  icon: Icon(Icons.search, color: Colors.white),
                   onPressed: () => _showSearchDialog(),
                   tooltip: 'Search Members',
                 ),
                 IconButton(
-                  icon: Icon(Icons.filter_list),
+                  icon: Icon(Icons.filter_list, color: Colors.white),
                   onPressed: () => _showFilterDialog(),
                   tooltip: 'Filter Members',
                 ),
                 IconButton(
-                  icon: Icon(Icons.more_vert),
+                  icon: Icon(Icons.more_vert, color: Colors.white),
                   onPressed: _showBulkActionsBottomSheet,
                   tooltip: 'More Actions',
                 ),
@@ -626,54 +673,54 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     );
   }
 
-  Widget _buildLoadingIndicator() {
-    return Center(
-      child: CircularProgressIndicator(
-        strokeWidth: 3,
-        color: Theme.of(context).primaryColor,
-      ),
-    );
-  }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: Theme.of(context).primaryColor.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              _searchQuery.isNotEmpty ? Icons.search_off : Icons.people_outline,
-              size: 64,
-              color: Theme.of(context).primaryColor,
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(), // Enable pull-to-refresh on empty state
+      children: [
+        SizedBox(
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: EdgeInsets.all(32),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).primaryColor.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    _searchQuery.isNotEmpty ? Icons.search_off : Icons.people_outline,
+                    size: 64,
+                    color: Theme.of(context).primaryColor,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  _searchQuery.isNotEmpty ? 'No members found' : 'No members yet',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w400,
+                    color: Theme.of(context).textTheme.titleLarge?.color,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _searchQuery.isNotEmpty 
+                      ? 'Try adjusting your search terms or filters'
+                      : 'Club members will appear here once they join',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Theme.of(context).textTheme.bodySmall?.color,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 24),
-          Text(
-            _searchQuery.isNotEmpty ? 'No members found' : 'No members yet',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w400,
-              color: Theme.of(context).textTheme.titleLarge?.color,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _searchQuery.isNotEmpty 
-                ? 'Try adjusting your search terms or filters'
-                : 'Club members will appear here once they join',
-            style: TextStyle(
-              fontSize: 16,
-              color: Theme.of(context).textTheme.bodySmall?.color,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -683,6 +730,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
       return ListView(
         controller: _scrollController,
         padding: EdgeInsets.zero,
+        physics: const AlwaysScrollableScrollPhysics(), // Enable pull-to-refresh on loading state
         children: [
           SizedBox(
             height: MediaQuery.of(context).size.height * 0.6,
@@ -713,6 +761,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     return ListView.builder(
       controller: _scrollController,
       padding: EdgeInsets.zero,
+      physics: const AlwaysScrollableScrollPhysics(), // Enable pull-to-refresh even with few items
       itemCount: _filteredMembers.length + (_isLoadingMore ? 1 : 0),
       itemBuilder: (context, index) {
         if (index == _filteredMembers.length) {
@@ -1200,6 +1249,49 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
             child: Text('Apply'),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildClubLogo() {
+    // Check if the URL is an SVG
+    if (widget.club.logo!.toLowerCase().contains('.svg') || 
+        widget.club.logo!.toLowerCase().contains('svg?')) {
+      return SvgPicture.network(
+        widget.club.logo!,
+        fit: BoxFit.cover,
+        placeholderBuilder: (context) => _buildDefaultClubLogo(),
+      );
+    } else {
+      // Regular image (PNG, JPG, etc.)
+      return Image.network(
+        widget.club.logo!,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return _buildDefaultClubLogo();
+        },
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return _buildDefaultClubLogo();
+        },
+      );
+    }
+  }
+
+  Widget _buildDefaultClubLogo() {
+    return Container(
+      color: Theme.of(context).primaryColor.withOpacity(0.1),
+      child: Center(
+        child: Text(
+          widget.club.name.isNotEmpty
+              ? widget.club.name.substring(0, 1).toUpperCase()
+              : 'C',
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
       ),
     );
   }

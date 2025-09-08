@@ -18,6 +18,7 @@ class Club {
   final String? upiIdDescription;
   final String upiIdCurrency;
   final bool? isActive;
+  final int? membersCount;
 
   Club({
     required this.id,
@@ -38,6 +39,7 @@ class Club {
     this.upiIdDescription,
     required this.upiIdCurrency,
     this.isActive,
+    this.membersCount,
   });
 
   factory Club.fromJson(Map<String, dynamic> json) {
@@ -60,6 +62,7 @@ class Club {
       upiIdDescription: json['upiIdDescription'],
       upiIdCurrency: json['upiIdCurrency'] ?? json['membershipFeeCurrency'] ?? 'INR',
       isActive: json['isActive'],
+      membersCount: json['_count']?['members'] ?? json['membersCount'],
     );
   }
 }

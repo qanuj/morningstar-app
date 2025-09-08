@@ -83,6 +83,12 @@ class ApiService {
     await prefs.remove('clubId');
   }
 
+  static Future<void> clearClubsCache() async {
+    _clubsData = null;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('clubsData');
+  }
+
   static Map<String, String> get headers => {
     'Content-Type': 'application/json',
     if (_token != null) 'Authorization': 'Bearer $_token',

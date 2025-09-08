@@ -6,6 +6,7 @@ import '../../widgets/custom_app_bar.dart';
 import '../../widgets/svg_avatar.dart';
 import 'enhanced_club_members.dart';
 import 'club_transactions.dart';
+import 'club_settings.dart';
 
 class ManageClubScreen extends StatefulWidget {
   final Club club;
@@ -34,7 +35,7 @@ class ManageClubScreenState extends State<ManageClubScreen> {
 
   Future<void> _refreshClub(BuildContext context) async {
     final clubProvider = Provider.of<ClubProvider>(context, listen: false);
-    await clubProvider.loadClubs();
+    await clubProvider.refreshClubs();
   }
 
   @override
@@ -44,7 +45,14 @@ class ManageClubScreenState extends State<ManageClubScreen> {
       appBar: DetailAppBar(pageTitle: 'Manage Club'),
       body: Consumer<ClubProvider>(
         builder: (context, clubProvider, child) {
-          final club = widget.club;
+          // Find the specific club being managed from the provider's clubs list
+          // This ensures we get updated data after settings changes
+          final clubs = clubProvider.clubs;
+          final updatedClub = clubs
+              .where((membership) => membership.club.id == widget.club.id)
+              .map((membership) => membership.club)
+              .firstOrNull;
+          final club = updatedClub ?? widget.club;
 
           return RefreshIndicator(
             onRefresh: () => _refreshClub(context),
@@ -287,7 +295,11 @@ class ManageClubScreenState extends State<ManageClubScreen> {
                           title: 'Club Settings',
                           subtitle: 'Manage club information & preferences',
                           onTap: () {
-                            // TODO: Navigate to club settings
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => ClubSettingsScreen(club: club),
+                              ),
+                            );
                           },
                         ),
 
@@ -382,7 +394,7 @@ class ManageClubScreenState extends State<ManageClubScreen> {
                               ),
                             ),
                             Text(
-                              'N/A', // TODO: Add member count from API
+                              club.membersCount?.toString() ?? 'N/A',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Theme.of(
