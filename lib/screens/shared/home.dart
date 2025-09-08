@@ -9,6 +9,7 @@ import '../../providers/conversation_provider.dart';
 import '../../models/club.dart';
 import '../../models/conversation.dart';
 import '../clubs/clubs.dart';
+import '../manage/manage.dart';
 import '../matches/matches.dart';
 import 'chat_detail.dart';
 import '../wallet/transactions.dart';
@@ -43,13 +44,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Widget> get _screens => [
     ConversationsScreen(), // News (using conversations for announcements)
+    ManageScreen(), // Manage (club management)
     ClubsScreen(), // Clubs
     MatchesScreen(), // Matches
     TransactionsScreen(), // Wallet (transactions)  
     ProfileScreen(), // Settings (profile)
   ];
 
-  final List<String> _titles = ['News', 'Clubs', 'Matches', 'Wallet', 'Settings'];
+  final List<String> _titles = ['News', 'Manage', 'Clubs', 'Matches', 'Wallet', 'Settings'];
 
   void _onBottomNavTap(int index) {
     setState(() {
@@ -134,6 +136,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: _buildConversationIcon(conversationProvider.totalUnreadCount, false),
                 activeIcon: _buildConversationIcon(conversationProvider.totalUnreadCount, true),
                 label: 'News',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.admin_panel_settings_outlined),
+                activeIcon: Icon(Icons.admin_panel_settings),
+                label: 'Manage',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.group_outlined),

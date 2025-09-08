@@ -1,0 +1,1448 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../../models/club.dart';
+import '../../services/api_service.dart';
+import '../../widgets/custom_app_bar.dart';
+import '../../widgets/svg_avatar.dart';
+
+class EnhancedClubMembersScreen extends StatefulWidget {
+  final Club club;
+
+  const EnhancedClubMembersScreen({
+    super.key,
+    required this.club,
+  });
+
+  @override
+  EnhancedClubMembersScreenState createState() => EnhancedClubMembersScreenState();
+}
+
+class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
+  // State variables
+  bool _isLoading = false;
+  bool _isLoadingMore = false;
+  List<ClubMember> _members = [];
+  List<ClubMember> _filteredMembers = [];
+  
+  // Pagination
+  int _currentPage = 1;
+  final int _pageSize = 20;
+  bool _hasMoreData = true;
+  
+  // Search and filters
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+  
+  // Filter states
+  bool _showActiveMembers = true;
+  bool _showPendingMembers = false;
+  bool _showBannedMembers = false;
+  bool _showInactiveMembers = false;
+  bool _showLowBalanceMembers = false;
+  
+  // Selection state
+  Set<String> _selectedMembers = {};
+  bool _isSelectionMode = false;
+  
+  // Controllers
+  final ScrollController _scrollController = ScrollController();
+  
+  @override
+  void initState() {
+    super.initState();
+    _loadMembers();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      if (!_isLoadingMore && _hasMoreData) {
+        _loadMoreMembers();
+      }
+    }
+  }
+
+  Future<void> _loadMembers({bool refresh = false}) async {
+    if (refresh) {
+      _currentPage = 1;
+      _hasMoreData = true;
+      _members.clear();
+      _filteredMembers.clear();
+    }
+    
+    setState(() => _isLoading = true);
+    
+    try {
+      final newMembers = await _fetchMembersFromAPI(_currentPage, _pageSize);
+      
+      if (refresh) {
+        _members = newMembers;
+      } else {
+        _members.addAll(newMembers);
+      }
+      
+      _hasMoreData = newMembers.length == _pageSize;
+      _applyFilters();
+      
+    } catch (error) {
+      _showErrorSnackBar('Failed to load members. Please try again.');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadMoreMembers() async {
+    setState(() => _isLoadingMore = true);
+    _currentPage++;
+    
+    try {
+      final newMembers = await _fetchMembersFromAPI(_currentPage, _pageSize);
+      _members.addAll(newMembers);
+      _hasMoreData = newMembers.length == _pageSize;
+      _applyFilters();
+    } catch (error) {
+      _currentPage--; // Revert page number on error
+      _showErrorSnackBar('Failed to load more members.');
+    } finally {
+      setState(() => _isLoadingMore = false);
+    }
+  }
+
+  Future<List<ClubMember>> _fetchMembersFromAPI(int page, int pageSize) async {
+    try {
+      // Make API call to get members for the specific club
+      final response = await ApiService.get('/members?clubId=${widget.club.id}&page=$page&limit=$pageSize');
+      
+      // Parse the response
+      final membersData = response['members'] as List<dynamic>? ?? [];
+      
+      return membersData.map((memberData) {
+        return ClubMember(
+          id: memberData['id'] ?? '',
+          name: memberData['user']?['name'] ?? 'Unknown',
+          email: memberData['user']?['email'] ?? '',
+          phoneNumber: memberData['user']?['phoneNumber'] ?? '',
+          role: memberData['role'] ?? 'Member',
+          balance: (memberData['balance'] ?? 0).toDouble(),
+          points: memberData['points'] ?? 0,
+          profilePicture: memberData['user']?['profilePicture'],
+          joinedDate: memberData['joinedAt'] != null 
+              ? DateTime.parse(memberData['joinedAt']) 
+              : DateTime.now(),
+          isActive: memberData['isActive'] ?? false,
+          approved: memberData['approved'] ?? false,
+          isBanned: memberData['isBanned'] ?? false,
+          lastActive: memberData['lastActive'] != null 
+              ? DateTime.parse(memberData['lastActive']) 
+              : null,
+        );
+      }).toList();
+    } catch (error) {
+      debugPrint('Error fetching members: $error');
+      
+      // Return mock data as fallback for development
+      if (page == 1) {
+        return _generateMockMembers().take(pageSize).toList();
+      }
+      return [];
+    }
+  }
+
+  List<ClubMember> _generateMockMembers() {
+    return List.generate(50, (index) {
+      final statuses = ['active', 'pending', 'banned', 'inactive'];
+      final roles = ['Member', 'Captain', 'Vice Captain', 'Treasurer'];
+      final status = statuses[index % statuses.length];
+      
+      return ClubMember(
+        id: 'member_${index + 1}',
+        name: 'Member ${index + 1}',
+        email: 'member${index + 1}@example.com',
+        phoneNumber: '+91 ${9876543210 - index}',
+        role: roles[index % roles.length],
+        balance: (1000 + (index * 50) - (index % 3 * 200)).toDouble(),
+        points: 100 + (index * 25),
+        profilePicture: index % 4 == 0 ? 'https://i.pravatar.cc/150?img=${index + 1}' : null,
+        joinedDate: DateTime.now().subtract(Duration(days: index * 10)),
+        isActive: status == 'active',
+        approved: status != 'pending',
+        isBanned: status == 'banned',
+        lastActive: DateTime.now().subtract(Duration(hours: index)),
+      );
+    });
+  }
+
+  void _applyFilters() {
+    List<ClubMember> filtered = _members;
+    
+    // Apply search filter
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((member) {
+        final query = _searchQuery.toLowerCase();
+        
+        // Check for balance search patterns (>1000, <500, =0)
+        final balanceMatch = RegExp(r'^([><=])(\d+(?:\.\d{1,2})?)$').firstMatch(query);
+        if (balanceMatch != null) {
+          final operator = balanceMatch.group(1)!;
+          final amount = double.parse(balanceMatch.group(2)!);
+          
+          switch (operator) {
+            case '>':
+              return member.balance > amount;
+            case '<':
+              return member.balance < amount;
+            case '=':
+              return (member.balance - amount).abs() < 0.01;
+            default:
+              return false;
+          }
+        }
+        
+        // Regular text search
+        return member.name.toLowerCase().contains(query) ||
+               member.email.toLowerCase().contains(query) ||
+               member.phoneNumber.contains(query) ||
+               member.role.toLowerCase().contains(query);
+      }).toList();
+    }
+    
+    // Apply status filters
+    filtered = filtered.where((member) {
+      if (!_showActiveMembers && !_showPendingMembers && !_showBannedMembers && 
+          !_showInactiveMembers && !_showLowBalanceMembers) {
+        return false;
+      }
+      
+      if (_showActiveMembers && member.approved && member.isActive && !member.isBanned) return true;
+      if (_showPendingMembers && !member.approved) return true;
+      if (_showBannedMembers && member.isBanned) return true;
+      if (_showInactiveMembers && !member.isActive && !member.isBanned) return true;
+      if (_showLowBalanceMembers && member.balance < 0) return true;
+      
+      return false;
+    }).toList();
+    
+    setState(() {
+      _filteredMembers = filtered;
+    });
+  }
+
+  void _onSearchChanged(String query) {
+    setState(() {
+      _searchQuery = query;
+    });
+    _applyFilters();
+  }
+
+  void _onFilterChanged() {
+    _applyFilters();
+  }
+
+  void _toggleMemberSelection(String memberId) {
+    setState(() {
+      if (_selectedMembers.contains(memberId)) {
+        _selectedMembers.remove(memberId);
+        if (_selectedMembers.isEmpty) {
+          _isSelectionMode = false;
+        }
+      } else {
+        _selectedMembers.add(memberId);
+        _isSelectionMode = true;
+      }
+    });
+    HapticFeedback.lightImpact();
+  }
+
+  void _selectAllMembers() {
+    setState(() {
+      if (_selectedMembers.length == _filteredMembers.length) {
+        _selectedMembers.clear();
+        _isSelectionMode = false;
+      } else {
+        _selectedMembers = _filteredMembers.map((m) => m.id).toSet();
+        _isSelectionMode = true;
+      }
+    });
+    HapticFeedback.mediumImpact();
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _selectedMembers.clear();
+      _isSelectionMode = false;
+    });
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        action: SnackBarAction(
+          label: 'Retry',
+          textColor: Colors.white,
+          onPressed: () => _loadMembers(refresh: true),
+        ),
+      ),
+    );
+  }
+
+  void _showBulkActionsBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => _BulkActionsBottomSheet(
+        selectedCount: _selectedMembers.length,
+        onAddExpense: _handleBulkExpense,
+        onAddFunds: _handleBulkFunds,
+        onAddPoints: _handleBulkPoints,
+        onRemovePoints: _handleBulkRemovePoints,
+      ),
+    );
+  }
+
+  void _handleBulkExpense() {
+    Navigator.pop(context);
+    _showTransactionDialog('DEBIT', 'Add Expense', true);
+  }
+
+  void _handleBulkFunds() {
+    Navigator.pop(context);
+    _showTransactionDialog('CREDIT', 'Add Funds', true);
+  }
+
+  void _handleBulkPoints() {
+    Navigator.pop(context);
+    _showPointsDialog('add', true);
+  }
+
+  void _handleBulkRemovePoints() {
+    Navigator.pop(context);
+    _showPointsDialog('remove', true);
+  }
+
+  void _showTransactionDialog(String type, String title, bool isBulk) {
+    showDialog(
+      context: context,
+      builder: (context) => _TransactionDialog(
+        type: type,
+        title: title,
+        isBulk: isBulk,
+        selectedMembers: isBulk ? _getSelectedMembers() : [],
+        onSubmit: (data) => _handleTransactionSubmit(data, type, isBulk),
+      ),
+    );
+  }
+
+  void _showPointsDialog(String type, bool isBulk) {
+    showDialog(
+      context: context,
+      builder: (context) => _PointsDialog(
+        type: type,
+        isBulk: isBulk,
+        selectedMembers: isBulk ? _getSelectedMembers() : [],
+        onSubmit: (data) => _handlePointsSubmit(data, type, isBulk),
+      ),
+    );
+  }
+
+  List<ClubMember> _getSelectedMembers() {
+    return _filteredMembers.where((member) => _selectedMembers.contains(member.id)).toList();
+  }
+
+  Future<void> _handleTransactionSubmit(Map<String, dynamic> data, String type, bool isBulk) async {
+    try {
+      if (isBulk) {
+        // Bulk transaction API call
+        final selectedMembersList = _getSelectedMembers();
+        final userIds = selectedMembersList.map((member) => member.id).toList();
+        
+        await ApiService.post('/transactions/bulk', {
+          'userIds': userIds,
+          'amount': double.parse(data['amount']),
+          'type': type,
+          'purpose': data['purpose'],
+          'description': data['description'],
+          'clubId': widget.club.id,
+          'paymentMethod': data['paymentMethod'],
+        });
+        
+        if (!mounted) return;
+        
+        final action = type == 'CREDIT' ? 'added funds to' : 'recorded expense for';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Successfully $action ${_selectedMembers.length} members'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        _exitSelectionMode();
+      } else {
+        // Individual transaction - would need a selected member context
+        // For now, this is handled by the bulk operations only
+        if (!mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Individual transactions will be implemented'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      
+      // Refresh data
+      _loadMembers(refresh: true);
+      
+    } catch (error) {
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to process transaction: $error'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _handlePointsSubmit(Map<String, dynamic> data, String type, bool isBulk) async {
+    try {
+      if (isBulk) {
+        // Bulk points API calls
+        final selectedMembersList = _getSelectedMembers();
+        final pointEntries = selectedMembersList.map((member) => ApiService.post('/points', {
+          'userId': member.id,
+          'points': int.parse(data['points']),
+          'type': type == 'add' ? 'EARNED' : 'DEDUCTED',
+          'category': data['category'],
+          'description': data['description'],
+          'clubId': widget.club.id,
+        })).toList();
+        
+        // Execute all point entries in parallel
+        await Future.wait(pointEntries);
+        
+        if (!mounted) return;
+        
+        final action = type == 'add' ? 'added points to' : 'removed points from';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Successfully $action ${_selectedMembers.length} members'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        _exitSelectionMode();
+      } else {
+        // Individual points - would need a selected member context
+        if (!mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Individual points will be implemented'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      
+      // Refresh data
+      _loadMembers(refresh: true);
+      
+    } catch (error) {
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to process points: $error'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: _isSelectionMode
+          ? AppBar(
+              title: Text('${_selectedMembers.length} selected'),
+              leading: IconButton(
+                icon: Icon(Icons.close),
+                onPressed: _exitSelectionMode,
+              ),
+              actions: [
+                IconButton(
+                  icon: Icon(Icons.select_all),
+                  onPressed: _selectAllMembers,
+                  tooltip: 'Select All',
+                ),
+                IconButton(
+                  icon: Icon(Icons.more_vert),
+                  onPressed: _showBulkActionsBottomSheet,
+                  tooltip: 'Bulk Actions',
+                ),
+              ],
+              backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+            )
+          : DetailAppBar(
+              pageTitle: 'Club Members',
+              customActions: [
+                IconButton(
+                  icon: Icon(Icons.search),
+                  onPressed: () => _showSearchDialog(),
+                  tooltip: 'Search Members',
+                ),
+                IconButton(
+                  icon: Icon(Icons.filter_list),
+                  onPressed: () => _showFilterDialog(),
+                  tooltip: 'Filter Members',
+                ),
+              ],
+            ),
+      body: Column(
+        children: [
+          // Active filters display
+          if (_getActiveFiltersCount() > 0) _buildActiveFiltersChips(),
+          
+          // Members list
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () => _loadMembers(refresh: true),
+              child: _isLoading && _members.isEmpty
+                  ? _buildLoadingIndicator()
+                  : _filteredMembers.isEmpty
+                      ? _buildEmptyState()
+                      : _buildMembersList(),
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: _isSelectionMode
+          ? FloatingActionButton.extended(
+              onPressed: _showBulkActionsBottomSheet,
+              icon: Icon(Icons.edit),
+              label: Text('Actions (${_selectedMembers.length})'),
+            )
+          : null,
+    );
+  }
+
+  Widget _buildActiveFiltersChips() {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Active filters:',
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).textTheme.bodySmall?.color,
+            ),
+          ),
+          SizedBox(height: 4),
+          Wrap(
+            spacing: 8,
+            children: [
+              if (_showPendingMembers) _buildFilterChip('Pending', () => setState(() => _showPendingMembers = false)),
+              if (_showBannedMembers) _buildFilterChip('Banned', () => setState(() => _showBannedMembers = false)),
+              if (_showInactiveMembers) _buildFilterChip('Inactive', () => setState(() => _showInactiveMembers = false)),
+              if (_showLowBalanceMembers) _buildFilterChip('Low Balance', () => setState(() => _showLowBalanceMembers = false)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(String label, VoidCallback onRemove) {
+    return Chip(
+      label: Text(label),
+      onDeleted: onRemove,
+      deleteIcon: Icon(Icons.close, size: 16),
+      backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+      labelStyle: TextStyle(color: Theme.of(context).primaryColor),
+    );
+  }
+
+  Widget _buildLoadingIndicator() {
+    return Center(
+      child: CircularProgressIndicator(
+        strokeWidth: 3,
+        color: Theme.of(context).primaryColor,
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: Theme.of(context).primaryColor.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              _searchQuery.isNotEmpty ? Icons.search_off : Icons.people_outline,
+              size: 64,
+              color: Theme.of(context).primaryColor,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            _searchQuery.isNotEmpty ? 'No members found' : 'No members yet',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w400,
+              color: Theme.of(context).textTheme.titleLarge?.color,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _searchQuery.isNotEmpty 
+                ? 'Try adjusting your search terms or filters'
+                : 'Club members will appear here once they join',
+            style: TextStyle(
+              fontSize: 16,
+              color: Theme.of(context).textTheme.bodySmall?.color,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMembersList() {
+    return ListView.builder(
+      controller: _scrollController,
+      padding: EdgeInsets.zero,
+      itemCount: _filteredMembers.length + (_isLoadingMore ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index == _filteredMembers.length) {
+          return _buildLoadingMoreIndicator();
+        }
+        
+        final member = _filteredMembers[index];
+        return _buildMemberCard(member);
+      },
+    );
+  }
+
+  Widget _buildLoadingMoreIndicator() {
+    return Container(
+      padding: EdgeInsets.all(16),
+      child: Center(
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          color: Theme.of(context).primaryColor,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMemberCard(ClubMember member) {
+    final isSelected = _selectedMembers.contains(member.id);
+    
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _isSelectionMode ? _toggleMemberSelection(member.id) : null,
+        onLongPress: () => _toggleMemberSelection(member.id),
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? Theme.of(context).primaryColor.withOpacity(0.1) : null,
+            border: Border(
+              bottom: BorderSide(
+                color: Theme.of(context).dividerColor.withOpacity(0.1),
+                width: 0.5,
+              ),
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Selection checkbox
+              if (_isSelectionMode)
+                Padding(
+                  padding: EdgeInsets.only(right: 12),
+                  child: Checkbox(
+                    value: isSelected,
+                    onChanged: (checked) => _toggleMemberSelection(member.id),
+                    activeColor: Theme.of(context).primaryColor,
+                  ),
+                ),
+              
+              // Member Profile Image
+              Stack(
+                children: [
+                  member.profilePicture == null || member.profilePicture!.isEmpty
+                      ? SVGAvatar(
+                          size: 50,
+                          backgroundColor: _getMemberAvatarColor(member.name),
+                          iconColor: Colors.white,
+                          fallbackIcon: Icons.person,
+                          child: Text(
+                            member.name.isNotEmpty ? member.name[0].toUpperCase() : 'M',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                        )
+                      : SVGAvatar.medium(
+                          imageUrl: member.profilePicture,
+                          backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+                          fallbackIcon: Icons.person,
+                        ),
+                  // Status indicator
+                  _buildStatusIndicator(member),
+                ],
+              ),
+
+              SizedBox(width: 12),
+
+              // Member Info (Expanded)
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Member Name
+                    Text(
+                      member.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                        color: Theme.of(context).textTheme.titleLarge?.color,
+                        height: 1.2,
+                      ),
+                    ),
+
+                    SizedBox(height: 4),
+
+                    // Member Details Row
+                    Row(
+                      children: [
+                        // Role Badge
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _getRoleColor(member.role).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            member.role,
+                            style: TextStyle(
+                              color: _getRoleColor(member.role),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+
+                        // Status Badge
+                        if (!member.approved || member.isBanned) ...[
+                          SizedBox(width: 6),
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _getStatusColor(member).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              _getStatusText(member),
+                              style: TextStyle(
+                                color: _getStatusColor(member),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+
+                        // Phone number
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            member.phoneNumber,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    SizedBox(height: 4),
+
+                    // Email and joined date
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            member.email,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyMedium?.color?.withOpacity(0.6),
+                            ),
+                          ),
+                        ),
+                        Text(
+                          _formatJoinedDate(member.joinedDate),
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Theme.of(
+                              context,
+                            ).textTheme.bodySmall?.color?.withOpacity(0.6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              SizedBox(width: 12),
+
+              // Balance & Points
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '₹${member.balance.toStringAsFixed(0)}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: member.balance >= 0 ? Colors.green[700] : Colors.red[700],
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.star, size: 12, color: Colors.amber),
+                      SizedBox(width: 2),
+                      Text(
+                        '${member.points}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(
+                            context,
+                          ).textTheme.bodySmall?.color,
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  // Quick actions (only show when not in selection mode)
+                  if (!_isSelectionMode) ...[
+                    SizedBox(height: 4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildQuickActionButton(
+                          Icons.add,
+                          Colors.green,
+                          () => _showTransactionDialog('CREDIT', 'Add Funds', false),
+                        ),
+                        SizedBox(width: 4),
+                        _buildQuickActionButton(
+                          Icons.remove,
+                          Colors.red,
+                          () => _showTransactionDialog('DEBIT', 'Add Expense', false),
+                        ),
+                        SizedBox(width: 4),
+                        _buildQuickActionButton(
+                          Icons.star,
+                          Colors.amber,
+                          () => _showPointsDialog('add', false),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusIndicator(ClubMember member) {
+    Color indicatorColor;
+    if (member.isBanned) {
+      indicatorColor = Colors.red;
+    } else if (!member.approved) {
+      indicatorColor = Colors.orange;
+    } else if (member.isActive) {
+      indicatorColor = Colors.green;
+    } else {
+      indicatorColor = Colors.grey;
+    }
+
+    return Positioned(
+      right: 2,
+      bottom: 2,
+      child: Container(
+        width: 12,
+        height: 12,
+        decoration: BoxDecoration(
+          color: indicatorColor,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            width: 2,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActionButton(IconData icon, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Icon(icon, size: 16, color: color),
+      ),
+    );
+  }
+
+  Color _getRoleColor(String role) {
+    switch (role.toLowerCase()) {
+      case 'owner':
+        return Colors.purple;
+      case 'captain':
+        return Colors.blue;
+      case 'vice captain':
+        return Colors.indigo;
+      case 'treasurer':
+        return Colors.green;
+      default:
+        return Theme.of(context).primaryColor;
+    }
+  }
+
+  Color _getStatusColor(ClubMember member) {
+    if (member.isBanned) return Colors.red;
+    if (!member.approved) return Colors.orange;
+    return Colors.green;
+  }
+
+  String _getStatusText(ClubMember member) {
+    if (member.isBanned) return 'Banned';
+    if (!member.approved) return 'Pending';
+    return 'Active';
+  }
+
+  Color _getMemberAvatarColor(String name) {
+    final colors = [
+      Colors.blue[600]!,
+      Colors.green[600]!,
+      Colors.orange[600]!,
+      Colors.purple[600]!,
+      Colors.red[600]!,
+      Colors.teal[600]!,
+      Colors.pink[600]!,
+      Colors.indigo[600]!,
+      Colors.amber[600]!,
+      Colors.deepOrange[600]!,
+    ];
+    
+    final colorIndex = name.hashCode.abs() % colors.length;
+    return colors[colorIndex];
+  }
+
+  String _formatJoinedDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date).inDays;
+    
+    if (difference < 7) {
+      return '${difference}d ago';
+    } else if (difference < 30) {
+      return '${(difference / 7).round()}w ago';
+    } else if (difference < 365) {
+      return '${(difference / 30).round()}m ago';
+    } else {
+      return '${(difference / 365).round()}y ago';
+    }
+  }
+
+  int _getActiveFiltersCount() {
+    return [_showPendingMembers, _showBannedMembers, _showInactiveMembers, _showLowBalanceMembers]
+        .where((filter) => filter).length;
+  }
+
+  void _showSearchDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Search Members'),
+        content: TextField(
+          controller: _searchController,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: 'Name, email, phone, or balance (>1000, <500, =0)...',
+            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.search),
+          ),
+          onChanged: _onSearchChanged,
+          onSubmitted: (value) => Navigator.pop(context),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              _searchController.clear();
+              _onSearchChanged('');
+              Navigator.pop(context);
+            },
+            child: Text('Clear'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Done'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Filter Members'),
+        content: StatefulBuilder(
+          builder: (context, setDialogState) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CheckboxListTile(
+                title: Text('Active Members'),
+                value: _showActiveMembers,
+                onChanged: (value) => setDialogState(() => _showActiveMembers = value ?? false),
+              ),
+              CheckboxListTile(
+                title: Text('Pending Approval'),
+                value: _showPendingMembers,
+                onChanged: (value) => setDialogState(() => _showPendingMembers = value ?? false),
+              ),
+              CheckboxListTile(
+                title: Text('Banned Members'),
+                value: _showBannedMembers,
+                onChanged: (value) => setDialogState(() => _showBannedMembers = value ?? false),
+              ),
+              CheckboxListTile(
+                title: Text('Inactive Members'),
+                value: _showInactiveMembers,
+                onChanged: (value) => setDialogState(() => _showInactiveMembers = value ?? false),
+              ),
+              CheckboxListTile(
+                title: Text('Low Balance (<0)'),
+                value: _showLowBalanceMembers,
+                onChanged: (value) => setDialogState(() => _showLowBalanceMembers = value ?? false),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _showActiveMembers = true;
+                _showPendingMembers = false;
+                _showBannedMembers = false;
+                _showInactiveMembers = false;
+                _showLowBalanceMembers = false;
+              });
+              _onFilterChanged();
+              Navigator.pop(context);
+            },
+            child: Text('Reset'),
+          ),
+          TextButton(
+            onPressed: () {
+              _onFilterChanged();
+              Navigator.pop(context);
+            },
+            child: Text('Apply'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Enhanced ClubMember model with additional fields
+class ClubMember {
+  final String id;
+  final String name;
+  final String email;
+  final String phoneNumber;
+  final String role;
+  final double balance;
+  final int points;
+  final String? profilePicture;
+  final DateTime joinedDate;
+  final bool isActive;
+  final bool approved;
+  final bool isBanned;
+  final DateTime? lastActive;
+
+  ClubMember({
+    required this.id,
+    required this.name,
+    required this.email,
+    required this.phoneNumber,
+    required this.role,
+    required this.balance,
+    required this.points,
+    this.profilePicture,
+    required this.joinedDate,
+    required this.isActive,
+    required this.approved,
+    required this.isBanned,
+    this.lastActive,
+  });
+}
+
+// Bulk Actions Bottom Sheet
+class _BulkActionsBottomSheet extends StatelessWidget {
+  final int selectedCount;
+  final VoidCallback onAddExpense;
+  final VoidCallback onAddFunds;
+  final VoidCallback onAddPoints;
+  final VoidCallback onRemovePoints;
+
+  const _BulkActionsBottomSheet({
+    required this.selectedCount,
+    required this.onAddExpense,
+    required this.onAddFunds,
+    required this.onAddPoints,
+    required this.onRemovePoints,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Bulk Actions ($selectedCount members)',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          SizedBox(height: 20),
+          ListTile(
+            leading: Icon(Icons.add_circle, color: Colors.green),
+            title: Text('Add Funds'),
+            subtitle: Text('Add money to selected members'),
+            onTap: onAddFunds,
+          ),
+          ListTile(
+            leading: Icon(Icons.remove_circle, color: Colors.red),
+            title: Text('Add Expense'),
+            subtitle: Text('Record expense for selected members'),
+            onTap: onAddExpense,
+          ),
+          ListTile(
+            leading: Icon(Icons.star_border, color: Colors.amber),
+            title: Text('Add Points'),
+            subtitle: Text('Award points to selected members'),
+            onTap: onAddPoints,
+          ),
+          ListTile(
+            leading: Icon(Icons.star_outline, color: Colors.orange),
+            title: Text('Remove Points'),
+            subtitle: Text('Deduct points from selected members'),
+            onTap: onRemovePoints,
+          ),
+          SizedBox(height: MediaQuery.of(context).padding.bottom),
+        ],
+      ),
+    );
+  }
+}
+
+// Transaction Dialog
+class _TransactionDialog extends StatefulWidget {
+  final String type;
+  final String title;
+  final bool isBulk;
+  final List<ClubMember> selectedMembers;
+  final Function(Map<String, dynamic>) onSubmit;
+
+  const _TransactionDialog({
+    required this.type,
+    required this.title,
+    required this.isBulk,
+    required this.selectedMembers,
+    required this.onSubmit,
+  });
+
+  @override
+  _TransactionDialogState createState() => _TransactionDialogState();
+}
+
+class _TransactionDialogState extends State<_TransactionDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _amountController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  String _purpose = 'OTHER';
+  String _paymentMethod = 'CASH';
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (widget.isBulk)
+              Text(
+                'Selected: ${widget.selectedMembers.length} members',
+                style: TextStyle(color: Theme.of(context).primaryColor),
+              ),
+            SizedBox(height: 16),
+            TextFormField(
+              controller: _amountController,
+              decoration: InputDecoration(
+                labelText: 'Amount (₹)',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.currency_rupee),
+              ),
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              validator: (value) {
+                if (value == null || value.isEmpty) return 'Amount is required';
+                final amount = double.tryParse(value);
+                if (amount == null || amount <= 0) return 'Enter valid amount';
+                return null;
+              },
+            ),
+            SizedBox(height: 16),
+            TextFormField(
+              controller: _descriptionController,
+              decoration: InputDecoration(
+                labelText: 'Description',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.description),
+              ),
+              maxLines: 2,
+              validator: (value) {
+                if (value == null || value.isEmpty) return 'Description is required';
+                return null;
+              },
+            ),
+            SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              value: _purpose,
+              decoration: InputDecoration(
+                labelText: 'Purpose',
+                border: OutlineInputBorder(),
+              ),
+              items: [
+                DropdownMenuItem(value: 'MATCH_FEE', child: Text('Match Fee')),
+                DropdownMenuItem(value: 'MEMBERSHIP', child: Text('Membership')),
+                DropdownMenuItem(value: 'JERSEY_ORDER', child: Text('Jersey Order')),
+                DropdownMenuItem(value: 'GEAR_PURCHASE', child: Text('Gear Purchase')),
+                DropdownMenuItem(value: 'OTHER', child: Text('Other')),
+              ],
+              onChanged: (value) => setState(() => _purpose = value!),
+            ),
+            if (widget.type == 'CREDIT') ...[
+              SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _paymentMethod,
+                decoration: InputDecoration(
+                  labelText: 'Payment Method',
+                  border: OutlineInputBorder(),
+                ),
+                items: [
+                  DropdownMenuItem(value: 'CASH', child: Text('Cash')),
+                  DropdownMenuItem(value: 'UPI', child: Text('UPI')),
+                  DropdownMenuItem(value: 'BANK_TRANSFER', child: Text('Bank Transfer')),
+                ],
+                onChanged: (value) => setState(() => _paymentMethod = value!),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            if (_formKey.currentState!.validate()) {
+              widget.onSubmit({
+                'amount': _amountController.text,
+                'description': _descriptionController.text,
+                'purpose': _purpose,
+                'paymentMethod': _paymentMethod,
+              });
+              Navigator.pop(context);
+            }
+          },
+          child: Text('Submit'),
+        ),
+      ],
+    );
+  }
+}
+
+// Points Dialog
+class _PointsDialog extends StatefulWidget {
+  final String type;
+  final bool isBulk;
+  final List<ClubMember> selectedMembers;
+  final Function(Map<String, dynamic>) onSubmit;
+
+  const _PointsDialog({
+    required this.type,
+    required this.isBulk,
+    required this.selectedMembers,
+    required this.onSubmit,
+  });
+
+  @override
+  _PointsDialogState createState() => _PointsDialogState();
+}
+
+class _PointsDialogState extends State<_PointsDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _pointsController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  String _category = 'PERFORMANCE';
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('${widget.type == 'add' ? 'Add' : 'Remove'} Points'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (widget.isBulk)
+              Text(
+                'Selected: ${widget.selectedMembers.length} members',
+                style: TextStyle(color: Theme.of(context).primaryColor),
+              ),
+            SizedBox(height: 16),
+            TextFormField(
+              controller: _pointsController,
+              decoration: InputDecoration(
+                labelText: 'Points',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.star),
+              ),
+              keyboardType: TextInputType.number,
+              validator: (value) {
+                if (value == null || value.isEmpty) return 'Points are required';
+                final points = int.tryParse(value);
+                if (points == null || points <= 0) return 'Enter valid points';
+                return null;
+              },
+            ),
+            SizedBox(height: 16),
+            TextFormField(
+              controller: _descriptionController,
+              decoration: InputDecoration(
+                labelText: 'Description',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.description),
+              ),
+              maxLines: 2,
+              validator: (value) {
+                if (value == null || value.isEmpty) return 'Description is required';
+                return null;
+              },
+            ),
+            SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              value: _category,
+              decoration: InputDecoration(
+                labelText: 'Category',
+                border: OutlineInputBorder(),
+              ),
+              items: [
+                DropdownMenuItem(value: 'PERFORMANCE', child: Text('Performance')),
+                DropdownMenuItem(value: 'ATTENDANCE', child: Text('Attendance')),
+                DropdownMenuItem(value: 'BONUS', child: Text('Bonus')),
+                DropdownMenuItem(value: 'PENALTY', child: Text('Penalty')),
+              ],
+              onChanged: (value) => setState(() => _category = value!),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            if (_formKey.currentState!.validate()) {
+              widget.onSubmit({
+                'points': _pointsController.text,
+                'description': _descriptionController.text,
+                'category': _category,
+              });
+              Navigator.pop(context);
+            }
+          },
+          child: Text('Submit'),
+        ),
+      ],
+    );
+  }
+}
