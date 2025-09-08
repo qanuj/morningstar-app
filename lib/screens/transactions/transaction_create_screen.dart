@@ -1,0 +1,414 @@
+import 'package:flutter/material.dart';
+
+class TransactionCreateScreen extends StatefulWidget {
+  final String type;
+  final String title;
+  final bool isBulk;
+  final List<dynamic> selectedMembers;
+  final Function(Map<String, dynamic>) onSubmit;
+  
+  const TransactionCreateScreen({
+    super.key,
+    required this.type,
+    required this.title,
+    required this.isBulk,
+    required this.selectedMembers,
+    required this.onSubmit,
+  });
+  
+  @override
+  TransactionCreateScreenState createState() => TransactionCreateScreenState();
+}
+
+class TransactionCreateScreenState extends State<TransactionCreateScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _amountController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  String _purpose = 'OTHER';
+  String _paymentMethod = 'CASH';
+  bool _isSubmitting = false;
+  
+  final List<Map<String, dynamic>> _purposeOptions = [
+    {'value': 'MATCH_FEE', 'label': 'Match Fee', 'icon': Icons.sports_cricket},
+    {'value': 'MEMBERSHIP', 'label': 'Membership', 'icon': Icons.card_membership},
+    {'value': 'JERSEY_ORDER', 'label': 'Jersey Order', 'icon': Icons.shopping_cart},
+    {'value': 'GEAR_PURCHASE', 'label': 'Gear Purchase', 'icon': Icons.sports},
+    {'value': 'TRAINING', 'label': 'Training', 'icon': Icons.fitness_center},
+    {'value': 'EVENT', 'label': 'Event', 'icon': Icons.event},
+    {'value': 'FOOD_BEVERAGE', 'label': 'Food & Beverage', 'icon': Icons.restaurant},
+    {'value': 'MAINTENANCE', 'label': 'Maintenance', 'icon': Icons.build},
+    {'value': 'OTHER', 'label': 'Other', 'icon': Icons.more_horiz},
+  ];
+  
+  final List<Map<String, dynamic>> _paymentMethodOptions = [
+    {'value': 'CASH', 'label': 'Cash', 'icon': Icons.money},
+    {'value': 'UPI', 'label': 'UPI', 'icon': Icons.qr_code},
+    {'value': 'BANK_TRANSFER', 'label': 'Bank Transfer', 'icon': Icons.account_balance},
+    {'value': 'CARD', 'label': 'Card', 'icon': Icons.credit_card},
+    {'value': 'ONLINE', 'label': 'Online Payment', 'icon': Icons.computer},
+    {'value': 'CHEQUE', 'label': 'Cheque', 'icon': Icons.receipt},
+  ];
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: Text(widget.title),
+        backgroundColor: Color(0xFF003f9b), // Brand blue
+        foregroundColor: Colors.white,
+        elevation: 1,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: GestureDetector(
+        onTap: () {
+          // Dismiss keyboard when tapping outside text fields
+          FocusScope.of(context).unfocus();
+        },
+        child: Column(
+          children: [
+            // Member count header for bulk operations
+            if (widget.isBulk)
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(16),
+                color: Color(0xFF003f9b).withOpacity(0.05),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.group,
+                      color: Color(0xFF003f9b),
+                      size: 20,
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      '${widget.selectedMembers.length} members selected',
+                      style: TextStyle(
+                        color: Color(0xFF003f9b),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            
+            // Form content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Amount field
+                      TextFormField(
+                        controller: _amountController,
+                        decoration: const InputDecoration(
+                          labelText: 'Amount (₹)',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.currency_rupee),
+                          helperText: 'Enter the transaction amount',
+                        ),
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        textInputAction: TextInputAction.next,
+                        onFieldSubmitted: (value) {
+                          FocusScope.of(context).nextFocus();
+                        },
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Amount is required';
+                          }
+                          final amount = double.tryParse(value);
+                          if (amount == null || amount <= 0) {
+                            return 'Enter a valid amount greater than 0';
+                          }
+                          return null;
+                        },
+                      ),
+                      
+                      const SizedBox(height: 24),
+                      
+                      // Purpose selection
+                      Text(
+                        'Purpose',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Select the category that best describes this transaction',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _purposeOptions.map((option) {
+                          final isSelected = _purpose == option['value'];
+                          return FilterChip(
+                            label: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  option['icon'],
+                                  size: 16,
+                                  color: isSelected 
+                                      ? Theme.of(context).primaryColor 
+                                      : Colors.grey[600],
+                                ),
+                                const SizedBox(width: 6),
+                                Text(option['label']),
+                              ],
+                            ),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              setState(() {
+                                _purpose = option['value'];
+                              });
+                            },
+                            selectedColor: Theme.of(context).primaryColor.withOpacity(0.2),
+                            checkmarkColor: Theme.of(context).primaryColor,
+                          );
+                        }).toList(),
+                      ),
+                      
+                      // Payment method selection (only for CREDIT transactions)
+                      if (widget.type == 'CREDIT') ...[
+                        const SizedBox(height: 24),
+                        Text(
+                          'Payment Method',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'How was this payment received?',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: _paymentMethodOptions.map((option) {
+                            final isSelected = _paymentMethod == option['value'];
+                            return FilterChip(
+                              label: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    option['icon'],
+                                    size: 16,
+                                    color: isSelected 
+                                        ? Theme.of(context).primaryColor 
+                                        : Colors.grey[600],
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(option['label']),
+                                ],
+                              ),
+                              selected: isSelected,
+                              onSelected: (selected) {
+                                setState(() {
+                                  _paymentMethod = option['value'];
+                                });
+                              },
+                              selectedColor: Theme.of(context).primaryColor.withOpacity(0.2),
+                              checkmarkColor: Theme.of(context).primaryColor,
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                      
+                      const SizedBox(height: 24),
+                      
+                      // Description field (last field)
+                      TextFormField(
+                        controller: _descriptionController,
+                        decoration: const InputDecoration(
+                          labelText: 'Description',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.description),
+                          helperText: 'Describe the transaction purpose',
+                        ),
+                        maxLines: 1,
+                        textInputAction: TextInputAction.done,
+                        onFieldSubmitted: (value) {
+                          FocusScope.of(context).unfocus();
+                        },
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Description is required';
+                          }
+                          if (value.length < 3) {
+                            return 'Description must be at least 3 characters';
+                          }
+                          return null;
+                        },
+                      ),
+                      
+                      const SizedBox(height: 32),
+                      
+                      // Summary card for bulk operations
+                      if (widget.isBulk)
+                        Card(
+                          color: Theme.of(context).primaryColor.withOpacity(0.05),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.info_outline,
+                                      size: 20,
+                                      color: Theme.of(context).primaryColor,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Transaction Summary',
+                                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                        color: Theme.of(context).primaryColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'This ${widget.type.toLowerCase()} transaction will be applied to ${widget.selectedMembers.length} selected member${widget.selectedMembers.length == 1 ? '' : 's'}.',
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      
+                      const SizedBox(height: 100), // Space for bottom buttons
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      
+      // Bottom button bar
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: Colors.grey[200]!)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: Offset(0, -2),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _isSubmitting ? null : () => Navigator.pop(context),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Cancel'),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 2,
+                child: ElevatedButton(
+                  onPressed: _isSubmitting ? null : _submitTransaction,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFF003f9b),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: _isSubmitting
+                      ? SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : Text(
+                          widget.type == 'CREDIT' ? 'Add Funds' : 'Record Expense',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _submitTransaction() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isSubmitting = true;
+      });
+
+      try {
+        final transactionData = {
+          'amount': _amountController.text,
+          'description': _descriptionController.text,
+          'purpose': _purpose,
+          'paymentMethod': _paymentMethod,
+        };
+        
+        await widget.onSubmit(transactionData);
+        
+        if (mounted) {
+          Navigator.pop(context);
+        }
+      } catch (error) {
+        if (mounted) {
+          setState(() {
+            _isSubmitting = false;
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to process transaction: $error'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+}

@@ -4,6 +4,7 @@ import '../../models/club.dart';
 import '../../services/api_service.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/svg_avatar.dart';
+import '../transactions/transaction_create_screen.dart';
 
 class EnhancedClubMembersScreen extends StatefulWidget {
   final Club club;
@@ -332,14 +333,16 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
   }
 
   void _showTransactionDialog(String type, String title, bool isBulk) {
-    showDialog(
-      context: context,
-      builder: (context) => _TransactionDialog(
-        type: type,
-        title: title,
-        isBulk: isBulk,
-        selectedMembers: isBulk ? _getSelectedMembers() : [],
-        onSubmit: (data) => _handleTransactionSubmit(data, type, isBulk),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TransactionCreateScreen(
+          type: type,
+          title: title,
+          isBulk: isBulk,
+          selectedMembers: isBulk ? _getSelectedMembers() : [],
+          onSubmit: (data) async => await _handleTransactionSubmit(data, type, isBulk),
+        ),
       ),
     );
   }
@@ -363,42 +366,68 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
   Future<void> _handleTransactionSubmit(Map<String, dynamic> data, String type, bool isBulk) async {
     try {
       if (isBulk) {
-        // Bulk transaction API call
+        // Bulk transaction API call - matches web app implementation
         final selectedMembersList = _getSelectedMembers();
+        // Use member.id directly as it represents the user ID in our ClubMember model
         final userIds = selectedMembersList.map((member) => member.id).toList();
         
-        await ApiService.post('/transactions/bulk', {
+        final response = await ApiService.post('/transactions/bulk', {
           'userIds': userIds,
           'amount': double.parse(data['amount']),
           'type': type,
           'purpose': data['purpose'],
           'description': data['description'],
           'clubId': widget.club.id,
-          'paymentMethod': data['paymentMethod'],
+          'paymentMethod': type == 'CREDIT' ? data['paymentMethod'] : null, // No payment method for expenses
         });
         
         if (!mounted) return;
         
-        final action = type == 'CREDIT' ? 'added funds to' : 'recorded expense for';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Successfully $action ${_selectedMembers.length} members'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        // Handle partial failures like web app
+        if (response['errors'] != null && response['errors'].length > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Some transactions failed: ${response['errors'].length} out of ${response['total'] ?? _selectedMembers.length}'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        } else {
+          final action = type == 'CREDIT' ? 'added funds for' : 'recorded bulk expense for';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Successfully $action ${_selectedMembers.length} members'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
         
         _exitSelectionMode();
       } else {
-        // Individual transaction - would need a selected member context
-        // For now, this is handled by the bulk operations only
-        if (!mounted) return;
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Individual transactions will be implemented'),
-            backgroundColor: Colors.orange,
-          ),
-        );
+        // Individual transaction for a specific member
+        if (_selectedMembers.isNotEmpty) {
+          final memberId = _selectedMembers.first;
+          final member = _filteredMembers.firstWhere((m) => m.id == memberId);
+          
+          await ApiService.post('/transactions?clubId=${widget.club.id}', {
+            'userId': member.id,
+            'amount': double.parse(data['amount']),
+            'type': type,
+            'purpose': data['purpose'],
+            'description': data['description'],
+            'clubId': widget.club.id,
+            'paymentMethod': type == 'CREDIT' ? data['paymentMethod'] : null,
+          });
+          
+          if (!mounted) return;
+          
+          final action = type == 'CREDIT' ? 'added funds for' : 'recorded expense for';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Successfully $action ${member.name}'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       }
       
       // Refresh data
@@ -419,8 +448,10 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
   Future<void> _handlePointsSubmit(Map<String, dynamic> data, String type, bool isBulk) async {
     try {
       if (isBulk) {
-        // Bulk points API calls
+        // Bulk points API calls - matches web app implementation
         final selectedMembersList = _getSelectedMembers();
+        
+        // Create individual point entries for each selected member like web app
         final pointEntries = selectedMembersList.map((member) => ApiService.post('/points', {
           'userId': member.id,
           'points': int.parse(data['points']),
@@ -435,25 +466,40 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
         
         if (!mounted) return;
         
-        final action = type == 'add' ? 'added points to' : 'removed points from';
+        final action = type == 'add' ? 'added' : 'deducted';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Successfully $action ${_selectedMembers.length} members'),
+            content: Text('Successfully $action points for ${_selectedMembers.length} members'),
             backgroundColor: Colors.green,
           ),
         );
         
         _exitSelectionMode();
       } else {
-        // Individual points - would need a selected member context
-        if (!mounted) return;
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Individual points will be implemented'),
-            backgroundColor: Colors.orange,
-          ),
-        );
+        // Individual points for a specific member
+        if (_selectedMembers.isNotEmpty) {
+          final memberId = _selectedMembers.first;
+          final member = _filteredMembers.firstWhere((m) => m.id == memberId);
+          
+          await ApiService.post('/points', {
+            'userId': member.id,
+            'points': int.parse(data['points']),
+            'type': type == 'add' ? 'EARNED' : 'DEDUCTED',
+            'category': data['category'],
+            'description': data['description'],
+            'clubId': widget.club.id,
+          });
+          
+          if (!mounted) return;
+          
+          final action = type == 'add' ? 'added' : 'deducted';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Successfully $action ${data['points']} points for ${member.name}'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       }
       
       // Refresh data
@@ -494,11 +540,16 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
                   tooltip: 'Bulk Actions',
                 ),
               ],
-              backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+              backgroundColor: Color(0xFF003f9b), // Brand blue
+              foregroundColor: Colors.white,
+              elevation: 1,
             )
-          : DetailAppBar(
-              pageTitle: 'Club Members',
-              customActions: [
+          : AppBar(
+              title: Text('${widget.club.name} Members'),
+              backgroundColor: Color(0xFF003f9b), // Brand blue
+              foregroundColor: Colors.white,
+              elevation: 1,
+              actions: [
                 IconButton(
                   icon: Icon(Icons.search),
                   onPressed: () => _showSearchDialog(),
@@ -508,6 +559,11 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
                   icon: Icon(Icons.filter_list),
                   onPressed: () => _showFilterDialog(),
                   tooltip: 'Filter Members',
+                ),
+                IconButton(
+                  icon: Icon(Icons.more_vert),
+                  onPressed: _showBulkActionsBottomSheet,
+                  tooltip: 'More Actions',
                 ),
               ],
             ),
@@ -520,22 +576,15 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
           Expanded(
             child: RefreshIndicator(
               onRefresh: () => _loadMembers(refresh: true),
-              child: _isLoading && _members.isEmpty
-                  ? _buildLoadingIndicator()
-                  : _filteredMembers.isEmpty
-                      ? _buildEmptyState()
-                      : _buildMembersList(),
+              color: Color(0xFF003f9b), // Brand blue refresh indicator
+              backgroundColor: Colors.white,
+              child: _filteredMembers.isEmpty && !_isLoading
+                  ? _buildEmptyState()
+                  : _buildMembersList(),
             ),
           ),
         ],
       ),
-      floatingActionButton: _isSelectionMode
-          ? FloatingActionButton.extended(
-              onPressed: _showBulkActionsBottomSheet,
-              icon: Icon(Icons.edit),
-              label: Text('Actions (${_selectedMembers.length})'),
-            )
-          : null,
     );
   }
 
@@ -629,6 +678,38 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
   }
 
   Widget _buildMembersList() {
+    // Show initial loading state if no members are loaded yet
+    if (_isLoading && _members.isEmpty) {
+      return ListView(
+        controller: _scrollController,
+        padding: EdgeInsets.zero,
+        children: [
+          SizedBox(
+            height: MediaQuery.of(context).size.height * 0.6,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    strokeWidth: 3,
+                    color: Color(0xFF003f9b), // Brand blue
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Loading members...',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
     return ListView.builder(
       controller: _scrollController,
       padding: EdgeInsets.zero,
@@ -678,18 +759,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Selection checkbox
-              if (_isSelectionMode)
-                Padding(
-                  padding: EdgeInsets.only(right: 12),
-                  child: Checkbox(
-                    value: isSelected,
-                    onChanged: (checked) => _toggleMemberSelection(member.id),
-                    activeColor: Theme.of(context).primaryColor,
-                  ),
-                ),
-              
-              // Member Profile Image
+              // Member Profile Image with overlaid checkbox
               Stack(
                 children: [
                   member.profilePicture == null || member.profilePicture!.isEmpty
@@ -714,6 +784,29 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
                         ),
                   // Status indicator
                   _buildStatusIndicator(member),
+                  // Selection indicator overlay
+                  if (_isSelectionMode && isSelected)
+                    Positioned(
+                      top: -4,
+                      right: -4,
+                      child: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).primaryColor,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white,
+                            width: 2,
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.check,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ),
+                    ),
                 ],
               ),
 
@@ -1145,7 +1238,7 @@ class ClubMember {
   });
 }
 
-// Bulk Actions Bottom Sheet
+// Native Bulk Actions Bottom Sheet
 class _BulkActionsBottomSheet extends StatelessWidget {
   final int selectedCount;
   final VoidCallback onAddExpense;
@@ -1164,45 +1257,165 @@ class _BulkActionsBottomSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Bulk Actions ($selectedCount members)',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
+          // Handle bar
+          Container(
+            width: 32,
+            height: 4,
+            margin: EdgeInsets.only(top: 12, bottom: 8),
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
             ),
           ),
-          SizedBox(height: 20),
-          ListTile(
-            leading: Icon(Icons.add_circle, color: Colors.green),
-            title: Text('Add Funds'),
-            subtitle: Text('Add money to selected members'),
-            onTap: onAddFunds,
+          
+          // Header
+          Container(
+            padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.edit,
+                  color: Theme.of(context).primaryColor,
+                  size: 24,
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Bulk Actions',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        '$selectedCount members selected',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-          ListTile(
-            leading: Icon(Icons.remove_circle, color: Colors.red),
-            title: Text('Add Expense'),
-            subtitle: Text('Record expense for selected members'),
-            onTap: onAddExpense,
+          
+          Divider(height: 1),
+          
+          // Action items
+          Column(
+            children: [
+              _buildActionTile(
+                context,
+                icon: Icons.add_circle,
+                iconColor: Colors.green[600]!,
+                title: 'Add Funds',
+                subtitle: 'Credit money to selected members',
+                onTap: onAddFunds,
+              ),
+              _buildActionTile(
+                context,
+                icon: Icons.remove_circle,
+                iconColor: Colors.red[600]!,
+                title: 'Add Expense',
+                subtitle: 'Record expenses for selected members',
+                onTap: onAddExpense,
+              ),
+              _buildActionTile(
+                context,
+                icon: Icons.star_border,
+                iconColor: Colors.amber[600]!,
+                title: 'Award Points',
+                subtitle: 'Add points to selected members',
+                onTap: onAddPoints,
+              ),
+              _buildActionTile(
+                context,
+                icon: Icons.star_outline,
+                iconColor: Colors.orange[600]!,
+                title: 'Deduct Points',
+                subtitle: 'Remove points from selected members',
+                onTap: onRemovePoints,
+                isLast: true,
+              ),
+            ],
           ),
-          ListTile(
-            leading: Icon(Icons.star_border, color: Colors.amber),
-            title: Text('Add Points'),
-            subtitle: Text('Award points to selected members'),
-            onTap: onAddPoints,
-          ),
-          ListTile(
-            leading: Icon(Icons.star_outline, color: Colors.orange),
-            title: Text('Remove Points'),
-            subtitle: Text('Deduct points from selected members'),
-            onTap: onRemovePoints,
-          ),
-          SizedBox(height: MediaQuery.of(context).padding.bottom),
+          
+          // Safe area bottom padding
+          SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
         ],
+      ),
+    );
+  }
+  
+  Widget _buildActionTile(
+    BuildContext context, {
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    bool isLast = false,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  color: iconColor,
+                  size: 20,
+                ),
+              ),
+              SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 16,
+                color: Colors.grey[400],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
