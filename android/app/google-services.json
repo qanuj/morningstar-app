@@ -1,65 +1,26 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "duggy-cricket-app",
-    "storage_bucket": "duggy-cricket-app.appspot.com"
+    "project_number": "1067526313310",
+    "project_id": "duggy-2d72c",
+    "storage_bucket": "duggy-2d72c.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+        "mobilesdk_app_id": "1:1067526313310:android:333d317969d8af07542bcf",
         "android_client_info": {
           "package_name": "app.duggy"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "000000000000-00000000000000000000000000000000.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDummyKeyForDevelopment000000000000000"
+          "current_key": "AIzaSyBqP5kAAwwqSwDAztid3w4oaWzGvheF1TI"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "000000000000-00000000000000000000000000000000.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:1111111111111111111111",
-        "android_client_info": {
-          "package_name": "app.duggy.dev"
-        }
-      },
-      "oauth_client": [
-        {
-          "client_id": "000000000000-11111111111111111111111111111111.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyDummyKeyForDevelopment111111111111111"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "000000000000-11111111111111111111111111111111.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }
