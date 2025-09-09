@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -22,8 +24,44 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>https</string>
+		<string>http</string>
+		<string>upi</string>
+		<string>phonepe</string>
+		<string>paytm</string>
+		<string>gpay</string>
+		<string>bhim</string>
+		<string>tez</string>
+		<string>paytmmp</string>
+		<string>amazonpay</string>
+		<string>mobikwik</string>
+		<string>freecharge</string>
+	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs access to camera to record and upload videos for club activities.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app needs access to microphone to record voice messages in club chats.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>This app needs access to save photos and videos to your photo library.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs access to photo library to upload photos and videos for club activities.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>This app needs access to contacts to help you quickly add club members from your contact list.</string>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>This app needs access to send notifications to keep you updated about club activities, matches, and important announcements.</string>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+		<string>processing</string>
+		<string>remote-notification</string>
+		<string>background-fetch</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -40,46 +78,6 @@
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<key>CADisableMinimumFrameDurationOnPhone</key>
-	<true/>
-	<key>UIApplicationSupportsIndirectInputEvents</key>
-	<true/>
-	<!-- Audio recording permissions -->
-	<key>NSMicrophoneUsageDescription</key>
-	<string>This app needs access to microphone to record voice messages in club chats.</string>
-	<!-- Video recording permissions -->
-	<key>NSCameraUsageDescription</key>
-	<string>This app needs access to camera to record and upload videos for club activities.</string>
-	<!-- Photo library permissions -->
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>This app needs access to photo library to upload photos and videos for club activities.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>This app needs access to save photos and videos to your photo library.</string>
-	<!-- Audio session configuration -->
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>audio</string>
-	</array>
-	
-	<!-- URL launcher schemes -->
-	<key>LSApplicationQueriesSchemes</key>
-	<array>
-		<!-- Web URLs -->
-		<string>https</string>
-		<string>http</string>
-		<!-- UPI schemes -->
-		<string>upi</string>
-		<string>phonepe</string>
-		<string>paytm</string>
-		<string>gpay</string>
-		<string>bhim</string>
-		<!-- Common app schemes -->
-		<string>tez</string>
-		<string>paytmmp</string>
-		<string>amazonpay</string>
-		<string>mobikwik</string>
-		<string>freecharge</string>
 	</array>
 </dict>
 </plist>

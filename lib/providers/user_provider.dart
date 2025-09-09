@@ -5,6 +5,7 @@ import '../models/user.dart';
 import '../models/club.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
+import '../services/notification_service.dart';
 
 class UserProvider with ChangeNotifier {
   User? _user;
@@ -109,6 +110,9 @@ class UserProvider with ChangeNotifier {
   }
 
   void logout() {
+    // Unsubscribe from push notifications before logout
+    unsubscribeFromAllNotifications();
+    
     _user = null;
     _clearCache();
     notifyListeners();
@@ -155,6 +159,9 @@ class UserProvider with ChangeNotifier {
       // Cache the results
       _cachedMemberships = memberships;
       _cacheTimestamp = DateTime.now();
+
+      // Subscribe to notification topics for each club
+      _subscribeToClubNotifications(memberships);
 
       return memberships;
     } catch (e) {
@@ -267,6 +274,32 @@ class UserProvider with ChangeNotifier {
   Future<void> preloadMemberships() async {
     if (!_isCacheValid) {
       await _loadAndCacheMemberships();
+    }
+  }
+
+  /// Subscribe to push notification topics for user's clubs
+  Future<void> _subscribeToClubNotifications(List<ClubMembership> memberships) async {
+    try {
+      for (final membership in memberships) {
+        await NotificationService.subscribeToClubTopics(membership.club.id);
+        print('📢 Subscribed to notifications for club: ${membership.club.name}');
+      }
+    } catch (e) {
+      print('❌ Failed to subscribe to club notifications: $e');
+    }
+  }
+
+  /// Unsubscribe from notification topics (called during logout)
+  Future<void> unsubscribeFromAllNotifications() async {
+    try {
+      if (_cachedMemberships != null) {
+        for (final membership in _cachedMemberships!) {
+          await NotificationService.unsubscribeFromClubTopics(membership.club.id);
+          print('📢 Unsubscribed from notifications for club: ${membership.club.name}');
+        }
+      }
+    } catch (e) {
+      print('❌ Failed to unsubscribe from notifications: $e');
     }
   }
 }

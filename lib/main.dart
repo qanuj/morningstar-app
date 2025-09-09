@@ -1,15 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'providers/user_provider.dart';
 import 'providers/club_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/conversation_provider.dart';
 import 'screens/auth/splash.dart';
+import 'services/notification_service.dart';
 import 'utils/theme.dart';
 import 'config/app_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  try {
+    // Initialize Firebase
+    await Firebase.initializeApp();
+    print('✅ Firebase initialized successfully');
+    
+    // Initialize Push Notifications
+    await NotificationService.initialize();
+    print('✅ NotificationService initialized successfully');
+  } catch (e) {
+    print('❌ Failed to initialize Firebase or NotificationService: $e');
+  }
 
   // Log current configuration
   AppConfig.logConfig();

@@ -6,6 +6,7 @@ import '../../models/transaction.dart';
 import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/svg_avatar.dart';
+import '../../widgets/transaction_dialog_helper.dart';
 import '../../utils/theme.dart';
 
 class ClubMemberManageScreen extends StatefulWidget {
@@ -396,20 +397,56 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
   }
 
   void _showTransactionDialog(String type) {
-    showModalBottomSheet(
+    final title = type == 'CREDIT' ? 'Add Funds' : 'Add Expense';
+    TransactionDialogHelper.showMemberTransactionDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _TransactionBottomSheet(
-        member: _currentMember,
-        club: widget.club,
-        type: type,
-        onComplete: () async {
-          await _loadMemberData();
-          Navigator.pop(context);
-        },
-      ),
+      type: type,
+      title: title,
+      member: _currentMember,
+      onSubmit: (data) => _handleTransactionSubmit(data, type),
     );
+  }
+
+  Future<void> _handleTransactionSubmit(
+    Map<String, dynamic> data,
+    String type,
+  ) async {
+    try {
+      await ApiService.post('/transactions', {
+        'userId': _currentMember.id,
+        'clubId': widget.club.id,
+        'amount': double.parse(data['amount']),
+        'type': type,
+        'purpose': data['purpose'],
+        'description': data['description'],
+        if (type == 'CREDIT') 'paymentMethod': data['paymentMethod'],
+      });
+      
+      // Refresh member data after successful transaction
+      await _loadMemberData();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              type == 'CREDIT' 
+                ? 'Funds added successfully!' 
+                : 'Expense added successfully!'
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to process transaction: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _showPointsDialog(String type) {
@@ -1200,230 +1237,6 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
       return '${difference.inDays} days ago';
     } else {
       return '${date.day}/${date.month}/${date.year}';
-    }
-  }
-}
-
-// Transaction Bottom Sheet
-class _TransactionBottomSheet extends StatefulWidget {
-  final User member;
-  final Club club;
-  final String type;
-  final VoidCallback onComplete;
-
-  const _TransactionBottomSheet({
-    required this.member,
-    required this.club,
-    required this.type,
-    required this.onComplete,
-  });
-
-  @override
-  _TransactionBottomSheetState createState() => _TransactionBottomSheetState();
-}
-
-class _TransactionBottomSheetState extends State<_TransactionBottomSheet> {
-  final _formKey = GlobalKey<FormState>();
-  final _amountController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  String _purpose = 'OTHER';
-  String _paymentMethod = 'CASH';
-  bool _isProcessing = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 20,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Handle bar
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            
-            SizedBox(height: 20),
-            
-            Text(
-              widget.type == 'CREDIT' ? 'Add Funds' : 'Add Expense',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).textTheme.titleLarge?.color,
-              ),
-            ),
-            
-            SizedBox(height: 8),
-            
-            Text(
-              'For: ${widget.member.name}',
-              style: TextStyle(
-                fontSize: 16,
-                color: AppTheme.primaryBlue,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            
-            SizedBox(height: 20),
-            
-            Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  TextFormField(
-                    controller: _amountController,
-                    decoration: InputDecoration(
-                      labelText: 'Amount (₹)',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      prefixIcon: Icon(Icons.currency_rupee),
-                    ),
-                    keyboardType: TextInputType.numberWithOptions(decimal: true),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) return 'Amount is required';
-                      final amount = double.tryParse(value);
-                      if (amount == null || amount <= 0) return 'Enter valid amount';
-                      return null;
-                    },
-                  ),
-                  
-                  SizedBox(height: 16),
-                  
-                  TextFormField(
-                    controller: _descriptionController,
-                    decoration: InputDecoration(
-                      labelText: 'Description',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      prefixIcon: Icon(Icons.description),
-                    ),
-                    maxLines: 2,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) return 'Description is required';
-                      return null;
-                    },
-                  ),
-                  
-                  SizedBox(height: 16),
-                  
-                  DropdownButtonFormField<String>(
-                    value: _purpose,
-                    decoration: InputDecoration(
-                      labelText: 'Purpose',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    items: [
-                      DropdownMenuItem(value: 'MATCH_FEE', child: Text('Match Fee')),
-                      DropdownMenuItem(value: 'MEMBERSHIP', child: Text('Membership')),
-                      DropdownMenuItem(value: 'JERSEY_ORDER', child: Text('Jersey Order')),
-                      DropdownMenuItem(value: 'GEAR_PURCHASE', child: Text('Gear Purchase')),
-                      DropdownMenuItem(value: 'OTHER', child: Text('Other')),
-                    ],
-                    onChanged: (value) => setState(() => _purpose = value!),
-                  ),
-                  
-                  if (widget.type == 'CREDIT') ...[
-                    SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      value: _paymentMethod,
-                      decoration: InputDecoration(
-                        labelText: 'Payment Method',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      items: [
-                        DropdownMenuItem(value: 'CASH', child: Text('Cash')),
-                        DropdownMenuItem(value: 'UPI', child: Text('UPI')),
-                        DropdownMenuItem(value: 'BANK_TRANSFER', child: Text('Bank Transfer')),
-                      ],
-                      onChanged: (value) => setState(() => _paymentMethod = value!),
-                    ),
-                  ],
-                  
-                  SizedBox(height: 24),
-                  
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextButton(
-                          onPressed: _isProcessing ? null : () => Navigator.pop(context),
-                          child: Text('Cancel'),
-                        ),
-                      ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: _isProcessing ? null : _processTransaction,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryBlue,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                          child: _isProcessing
-                              ? SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : Text('Submit'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _processTransaction() async {
-    if (!_formKey.currentState!.validate()) return;
-    
-    setState(() => _isProcessing = true);
-    
-    try {
-      await ApiService.post('/transactions', {
-        'userId': widget.member.id,
-        'clubId': widget.club.id,
-        'amount': double.parse(_amountController.text),
-        'type': widget.type,
-        'purpose': _purpose,
-        'description': _descriptionController.text,
-        if (widget.type == 'CREDIT') 'paymentMethod': _paymentMethod,
-      });
-      
-      widget.onComplete();
-      
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to process transaction'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      setState(() => _isProcessing = false);
     }
   }
 }
