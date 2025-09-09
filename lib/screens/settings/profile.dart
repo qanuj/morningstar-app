@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'dart:io';
 import 'package:provider/provider.dart';
 import '../../providers/user_provider.dart';
@@ -22,6 +23,8 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class ProfileScreenState extends State<ProfileScreen> {
+  String _appVersion = '';
+
   @override
   void initState() {
     super.initState();
@@ -29,6 +32,14 @@ class ProfileScreenState extends State<ProfileScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       userProvider.loadUser(forceRefresh: true);
+    });
+    _loadAppVersion();
+  }
+
+  Future<void> _loadAppVersion() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    setState(() {
+      _appVersion = '${packageInfo.version}+${packageInfo.buildNumber}';
     });
   }
 
@@ -425,7 +436,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                         ),
                         SizedBox(height: 32),
                         Text(
-                          'Version: 1.0.0',
+                          _appVersion.isNotEmpty ? 'Version: $_appVersion' : 'Version: Loading...',
                           style: TextStyle(
                             fontSize: 12,
                             color: Theme.of(
