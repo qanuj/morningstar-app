@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -54,7 +53,7 @@ class _OTPScreenState extends State<OTPScreen> {
     setState(() {
       _remainingTime = seconds;
     });
-    
+
     _timer?.cancel();
     _timer = Timer.periodic(Duration(seconds: 1), (timer) {
       if (_remainingTime > 0) {
@@ -62,7 +61,7 @@ class _OTPScreenState extends State<OTPScreen> {
           _remainingTime--;
         });
       }
-      
+
       if (_remainingTime <= 0) {
         setState(() {
           _remainingTime = 0;
@@ -75,7 +74,7 @@ class _OTPScreenState extends State<OTPScreen> {
 
   Future<void> _resendOTP() async {
     setState(() => _isLoading = true);
-    
+
     try {
       await ApiService.put('/auth/sms', {'phoneNumber': widget.phoneNumber});
       ScaffoldMessenger.of(context).showSnackBar(
@@ -100,15 +99,15 @@ class _OTPScreenState extends State<OTPScreen> {
           // Continue to show normal error message
         }
       }
-      
+
       // Show error message for non-rate-limiting errors
       String errorMessage = e is ApiException ? e.message : e.toString();
-      
+
       // Remove "Exception: " prefix if present
       if (errorMessage.startsWith('Exception: ')) {
         errorMessage = errorMessage.substring(11);
       }
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(errorMessage),
@@ -117,7 +116,7 @@ class _OTPScreenState extends State<OTPScreen> {
         ),
       );
     }
-    
+
     setState(() => _isLoading = false);
   }
 
@@ -150,7 +149,8 @@ class _OTPScreenState extends State<OTPScreen> {
         final userResponse = await ApiService.get('/auth/me');
         if (userResponse.containsKey('data') && userResponse['data'] != null) {
           userData = userResponse['data'];
-        } else if (userResponse.containsKey('user') && userResponse['user'] != null) {
+        } else if (userResponse.containsKey('user') &&
+            userResponse['user'] != null) {
           userData = userResponse['user'];
         } else {
           userData = userResponse;
@@ -166,7 +166,11 @@ class _OTPScreenState extends State<OTPScreen> {
         }
 
         // Update ApiService with the fetched data
-        await ApiService.setToken(response['token'], userData: userData, clubsData: clubsData);
+        await ApiService.setToken(
+          response['token'],
+          userData: userData,
+          clubsData: clubsData,
+        );
       } catch (e) {
         debugPrint('Error fetching user/clubs data: $e');
         // Continue with login even if additional data fetch fails
@@ -402,9 +406,13 @@ class _OTPScreenState extends State<OTPScreen> {
                               ),
                               SizedBox(height: 4),
                               LinearProgressIndicator(
-                                value: _remainingTime / 60, // Assuming max 60 seconds
+                                value:
+                                    _remainingTime /
+                                    60, // Assuming max 60 seconds
                                 backgroundColor: Colors.orange.withOpacity(0.2),
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.orange,
+                                ),
                               ),
                             ],
                           )

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
 import '../models/club.dart';
-import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import '../services/notification_service.dart';
 
@@ -56,10 +55,12 @@ class UserProvider with ChangeNotifier {
         try {
           final cachedUserData = ApiService.cachedUserData!;
           _user = User.fromJson(cachedUserData);
-          
+
           // Register FCM token after successful cached user load
           if (_user != null) {
-            NotificationService.registerTokenAfterAuth(userData: {'id': _user!.id});
+            NotificationService.registerTokenAfterAuth(
+              userData: {'id': _user!.id},
+            );
           }
         } catch (cacheError) {
           print('Error loading cached user data: $cacheError');
@@ -75,17 +76,24 @@ class UserProvider with ChangeNotifier {
     try {
       // Filter data to only include allowed fields
       final allowedFields = {
-        'name', 'email', 'country', 'city', 'state', 
-        'bio', 'dob', 'gender', 'emergencyContact'
+        'name',
+        'email',
+        'country',
+        'city',
+        'state',
+        'bio',
+        'dob',
+        'gender',
+        'emergencyContact',
       };
-      
+
       final filteredData = <String, dynamic>{};
       for (final entry in data.entries) {
         if (allowedFields.contains(entry.key)) {
           filteredData[entry.key] = entry.value;
         }
       }
-      
+
       final response = await ApiService.put('/profile', filteredData);
       _user = User.fromApiResponse(response);
       notifyListeners();
@@ -122,7 +130,7 @@ class UserProvider with ChangeNotifier {
   void logout() {
     // Unsubscribe from push notifications before logout
     unsubscribeFromAllNotifications();
-    
+
     _user = null;
     _clearCache();
     notifyListeners();
@@ -288,11 +296,15 @@ class UserProvider with ChangeNotifier {
   }
 
   /// Subscribe to push notification topics for user's clubs
-  Future<void> _subscribeToClubNotifications(List<ClubMembership> memberships) async {
+  Future<void> _subscribeToClubNotifications(
+    List<ClubMembership> memberships,
+  ) async {
     try {
       for (final membership in memberships) {
         await NotificationService.subscribeToClubTopics(membership.club.id);
-        print('📢 Subscribed to notifications for club: ${membership.club.name}');
+        print(
+          '📢 Subscribed to notifications for club: ${membership.club.name}',
+        );
       }
     } catch (e) {
       print('❌ Failed to subscribe to club notifications: $e');
@@ -304,8 +316,12 @@ class UserProvider with ChangeNotifier {
     try {
       if (_cachedMemberships != null) {
         for (final membership in _cachedMemberships!) {
-          await NotificationService.unsubscribeFromClubTopics(membership.club.id);
-          print('📢 Unsubscribed from notifications for club: ${membership.club.name}');
+          await NotificationService.unsubscribeFromClubTopics(
+            membership.club.id,
+          );
+          print(
+            '📢 Unsubscribed from notifications for club: ${membership.club.name}',
+          );
         }
       }
     } catch (e) {

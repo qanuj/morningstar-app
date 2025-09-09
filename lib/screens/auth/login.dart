@@ -2,12 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
-import '../../widgets/keyboard_avoiding_wrapper.dart';
 import '../../widgets/duggy_logo.dart';
 import 'otp.dart';
-import '../../utils/theme.dart';
 
 class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
   @override
   _LoginScreenState createState() => _LoginScreenState();
 }
@@ -102,7 +102,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
 
         // Show error message for non-rate-limiting errors
-        String errorMessage = e is ApiException ? e.message : e.toString();
+        String errorMessage = e.message;
 
         // Remove "Exception: " prefix if present
         if (errorMessage.startsWith('Exception: ')) {
