@@ -1,0 +1,5 @@
+FEATURE_NAME="sharing-feature"
+BRANCH_NAME="feature/sharing-feature"
+CREATED_AT="2025-09-09T16:14:28Z"
+DESCRIPTION="Add comprehensive sharing functionality to Duggy app"
+AUTHOR="Anuj Pandey <a@e10.in>"
