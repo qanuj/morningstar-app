@@ -20,12 +20,15 @@ class ClubsScreenState extends State<ClubsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadClubs();
+    // Load clubs using cache first for faster startup
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<ClubProvider>(context, listen: false).loadClubs();
+    });
   }
 
   Future<void> _loadClubs() async {
     setState(() => _isLoading = true);
-    await Provider.of<ClubProvider>(context, listen: false).loadClubs();
+    await Provider.of<ClubProvider>(context, listen: false).refreshClubs();
     setState(() => _isLoading = false);
   }
 

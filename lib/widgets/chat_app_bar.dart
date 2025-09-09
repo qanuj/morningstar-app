@@ -7,11 +7,13 @@ import '../services/message_storage_service.dart';
 /// Handles both normal and selection modes with context-aware actions
 class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   final Club club;
+  final String? userRole;
   final bool isSelectionMode;
   final Set<String> selectedMessageIds;
   final AnimationController refreshAnimationController;
   final VoidCallback onBackPressed;
   final VoidCallback onShowClubInfo;
+  final VoidCallback? onManageClub;
   final VoidCallback onExitSelectionMode;
   final VoidCallback onDeleteSelectedMessages;
   final VoidCallback onRefreshMessages;
@@ -20,11 +22,13 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   const ChatAppBar({
     super.key,
     required this.club,
+    this.userRole,
     required this.isSelectionMode,
     required this.selectedMessageIds,
     required this.refreshAnimationController,
     required this.onBackPressed,
     required this.onShowClubInfo,
+    this.onManageClub,
     required this.onExitSelectionMode,
     required this.onDeleteSelectedMessages,
     required this.onRefreshMessages,
@@ -80,7 +84,16 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
         // Club Name and Status
         Expanded(
           child: GestureDetector(
-            onTap: onShowClubInfo,
+            onTap: () {
+              // Check if user is admin or owner
+              if (userRole?.toLowerCase() == 'admin' || userRole?.toLowerCase() == 'owner') {
+                // Show manage club if callback is provided
+                onManageClub?.call();
+              } else {
+                // Show club info for regular members
+                onShowClubInfo();
+              }
+            },
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -95,7 +108,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  'tap here for club info',
+                  _getSubtitleText(),
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.8),
                     fontSize: 13,
@@ -218,6 +231,14 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
         tooltip: 'More options',
       ),
     ];
+  }
+
+  String _getSubtitleText() {
+    if (userRole?.toLowerCase() == 'admin' || userRole?.toLowerCase() == 'owner') {
+      return 'tap here to manage club';
+    } else {
+      return 'tap here for club info';
+    }
   }
 
   @override

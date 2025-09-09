@@ -2,27 +2,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import '../../providers/user_provider.dart';
-import '../../providers/club_provider.dart';
-import '../../providers/theme_provider.dart';
 import '../../providers/conversation_provider.dart';
-import '../../models/club.dart';
-import '../../models/conversation.dart';
 import '../clubs/clubs.dart';
-import '../manage/manage.dart';
 import '../matches/matches.dart';
-import 'chat_detail.dart';
 import '../wallet/transactions.dart';
-import '../wallet/store.dart';
-import '../news/polls.dart';
 import '../settings/profile.dart';
-import '../news/notifications.dart';
-import '../wallet/my_orders.dart';
 import '../news/conversations.dart';
-import '../../utils/theme.dart';
-import '../../utils/dialogs.dart';
-import '../../widgets/duggy_logo.dart';
-import '../../widgets/custom_app_bar.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -44,14 +29,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Widget> get _screens => [
     ConversationsScreen(), // News (using conversations for announcements)
-    ManageScreen(), // Manage (club management)
     ClubsScreen(), // Clubs
     MatchesScreen(), // Matches
     TransactionsScreen(), // Wallet (transactions)  
     ProfileScreen(), // Settings (profile)
   ];
 
-  final List<String> _titles = ['News', 'Manage', 'Clubs', 'Matches', 'Wallet', 'Settings'];
 
   void _onBottomNavTap(int index) {
     setState(() {
@@ -136,11 +119,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: _buildConversationIcon(conversationProvider.totalUnreadCount, false),
                 activeIcon: _buildConversationIcon(conversationProvider.totalUnreadCount, true),
                 label: 'News',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.admin_panel_settings_outlined),
-                activeIcon: Icon(Icons.admin_panel_settings),
-                label: 'Manage',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.group_outlined),

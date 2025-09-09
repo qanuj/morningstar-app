@@ -20,6 +20,8 @@ import '../../widgets/chat_app_bar.dart';
 import '../../widgets/message_bubble_wrapper.dart';
 import '../../widgets/message_input.dart';
 import '../../widgets/chat_header.dart';
+import '../manage/manage_club.dart';
+import '../../providers/club_provider.dart';
 
 class ClubChatScreen extends StatefulWidget {
   final Club club;
@@ -1340,16 +1342,28 @@ class ClubChatScreenState extends State<ClubChatScreen>
     final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
     final footerHeight = 80.0; // Approximate height of message input footer
 
+    // Get user's membership to determine role
+    final clubProvider = Provider.of<ClubProvider>(context);
+    final membership = clubProvider.clubs
+        .where((m) => m.club.id == widget.club.id)
+        .firstOrNull;
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
       backgroundColor: Colors.transparent,
       appBar: ChatAppBar(
         club: widget.club,
+        userRole: membership?.role,
         isSelectionMode: _isSelectionMode,
         selectedMessageIds: _selectedMessageIds,
         refreshAnimationController: _refreshAnimationController,
         onBackPressed: () => Navigator.of(context).pop(),
         onShowClubInfo: _showClubInfoDialog,
+        onManageClub: membership != null && 
+            (membership.role.toLowerCase() == 'admin' || 
+             membership.role.toLowerCase() == 'owner')
+            ? () => _navigateToManageClub(membership)
+            : null,
         onExitSelectionMode: _exitSelectionMode,
         onDeleteSelectedMessages: _deleteSelectedMessages,
         onRefreshMessages: () {
@@ -1922,6 +1936,17 @@ class ClubChatScreenState extends State<ClubChatScreen>
       builder: (context) => ClubInfoDialog(
         club: widget.club,
         detailedClubInfo: _detailedClubInfo,
+      ),
+    );
+  }
+
+  void _navigateToManageClub(ClubMembership membership) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ManageClubScreen(
+          club: widget.club, 
+          membership: membership,
+        ),
       ),
     );
   }

@@ -29,7 +29,7 @@ class ManageClubScreenState extends State<ManageClubScreen> {
     // Load fresh club data when screen loads
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final clubProvider = Provider.of<ClubProvider>(context, listen: false);
-      clubProvider.loadClubs();
+      clubProvider.refreshClubs();
     });
   }
 

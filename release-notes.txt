@@ -1,0 +1,39 @@
+DUGGY - RELEASE NOTES
+====================
+
+VERSION 1.0.0 - INITIAL RELEASE (September 9, 2025)
+----------------------------------------------------
+
+Welcome to Duggy - Your complete cricket club management app!
+
+Welcome to Duggy - Your complete cricket club management app!
+
+KEY FEATURES:
+• Dashboard with balance and upcoming matches
+• Match schedules and team selections
+• Club store for merchandise shopping
+• Digital wallet and transaction history
+• Member directory and club announcements
+• Club settings and member management (Admin)
+
+WHAT'S NEW:
+• Initial release of Duggy
+• Complete member and admin features
+• Secure OTP authentication
+• Real-time data synchronization
+
+Get started: Sign up → Join club → Complete profile → Explore!
+
+GOOGLE PLAY CONSOLE SHORT VERSION (under 500 chars):
+----------------------------------------------------
+Welcome to Duggy! Complete cricket club management with dashboard, matches, store, wallet, and member features. Admins get club settings and member management. Secure OTP login with real-time sync. Sign up → Join club → Start managing!
+
+Support: support@duggy.app
+Website: https://duggy.app
+
+Cricket clubs made simple!
+
+----------------------------------------------------
+END OF VERSION 1.0.0 NOTES
+
+[Future releases will be appended below this line]

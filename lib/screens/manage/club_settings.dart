@@ -909,6 +909,7 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
                               label: 'Currency',
                               hint: 'INR',
                               onTap: _showNativeCurrencyPicker,
+                              readOnly: true,
                             ),
                           ),
                         ],
@@ -1058,6 +1059,7 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
     required String hint,
     required VoidCallback onTap,
     IconData? leadingIcon,
+    bool readOnly = false,
   }) {
     IconData icon = leadingIcon ?? (Platform.isIOS ? CupertinoIcons.chevron_down : Icons.keyboard_arrow_down);
     
@@ -1074,14 +1076,16 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
         ),
         SizedBox(height: 8),
         GestureDetector(
-          onTap: onTap,
+          onTap: readOnly ? null : onTap,
           child: Container(
             width: double.infinity,
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Theme.of(context).cardColor
-                  : Theme.of(context).scaffoldBackgroundColor,
+              color: readOnly 
+                  ? Theme.of(context).disabledColor.withOpacity(0.1)
+                  : (Theme.of(context).brightness == Brightness.dark
+                      ? Theme.of(context).cardColor
+                      : Theme.of(context).scaffoldBackgroundColor),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
                 color: Theme.of(context).dividerColor.withOpacity(0.2),
@@ -1095,17 +1099,20 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
                     value ?? hint,
                     style: TextStyle(
                       fontSize: 16,
-                      color: value != null 
-                          ? Theme.of(context).colorScheme.onSurface
-                          : Theme.of(context).hintColor,
+                      color: readOnly 
+                          ? Theme.of(context).disabledColor
+                          : (value != null 
+                              ? Theme.of(context).colorScheme.onSurface
+                              : Theme.of(context).hintColor),
                     ),
                   ),
                 ),
-                Icon(
-                  icon,
-                  size: 20,
-                  color: Theme.of(context).hintColor,
-                ),
+                if (!readOnly)
+                  Icon(
+                    icon,
+                    size: 20,
+                    color: Theme.of(context).hintColor,
+                  ),
               ],
             ),
           ),

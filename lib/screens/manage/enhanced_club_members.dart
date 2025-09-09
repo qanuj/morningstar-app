@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../models/club.dart';
+import '../../models/user.dart';
 import '../../services/api_service.dart';
 import '../../widgets/svg_avatar.dart';
 import '../transactions/transaction_create_screen.dart';
+import 'club_member_manage.dart';
 
 class EnhancedClubMembersScreen extends StatefulWidget {
   final Club club;
@@ -357,6 +359,37 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
         onSubmit: (data) => _handlePointsSubmit(data, type, isBulk),
       ),
     );
+  }
+
+  void _navigateToMemberManage(ClubMember member) async {
+    // Convert ClubMember to User for the management screen
+    final user = User(
+      id: member.id,
+      phoneNumber: member.phoneNumber,
+      name: member.name,
+      email: member.email,
+      profilePicture: member.profilePicture,
+      role: member.role.toUpperCase(),
+      isProfileComplete: true,
+      createdAt: member.joinedDate,
+      balance: member.balance,
+      lastActive: member.lastActive,
+    );
+
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ClubMemberManageScreen(
+          club: widget.club,
+          member: user,
+        ),
+      ),
+    );
+    
+    // Refresh the members list if changes were made
+    if (result == true) {
+      _loadMembers(refresh: true);
+    }
   }
 
   List<ClubMember> _getSelectedMembers() {
@@ -792,7 +825,9 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => _isSelectionMode ? _toggleMemberSelection(member.id) : null,
+        onTap: () => _isSelectionMode 
+            ? _toggleMemberSelection(member.id) 
+            : _navigateToMemberManage(member),
         onLongPress: () => _toggleMemberSelection(member.id),
         child: Container(
           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -1039,6 +1074,19 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
                   ],
                 ],
               ),
+              
+              // Navigation arrow (only show when not in selection mode)
+              if (!_isSelectionMode) ...[
+                SizedBox(width: 8),
+                Container(
+                  padding: EdgeInsets.all(4),
+                  child: Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16,
+                    color: Theme.of(context).hintColor,
+                  ),
+                ),
+              ],
             ],
           ),
         ),
