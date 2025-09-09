@@ -1,12 +1,18 @@
 // lib/config/app_config.dart
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class AppConfig {
   // Environment configuration
-  static const bool isProduction = bool.fromEnvironment(
-    'PRODUCTION',
-    defaultValue: false,
-  );
+  static bool get isProduction {
+    // First try dart-define
+    const dartDefineProduction = bool.fromEnvironment('PRODUCTION', defaultValue: false);
+    if (dartDefineProduction) return true;
+    
+    // For iOS release builds, use kReleaseMode as fallback
+    // This ensures Xcode archive builds use production
+    return kReleaseMode;
+  }
 
   // API Configuration
   static const String _developmentBaseUrl = 'http://192.168.1.43:3000/api';
@@ -16,8 +22,8 @@ class AppConfig {
       isProduction ? _productionBaseUrl : _developmentBaseUrl;
 
   // Other environment-specific configurations
-  static const bool enableLogging = !isProduction;
-  static const bool enableDebugPrints = !isProduction;
+  static bool get enableLogging => !isProduction;
+  static bool get enableDebugPrints => !isProduction;
 
   // App information
   static const String appName = 'Duggy';
