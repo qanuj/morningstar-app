@@ -269,7 +269,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
           }
 
           debugPrint(
-            '🔵 Making POST request to: https://duggy.app/api/conversations/${widget.club.id}/messages/${message.id}/delivered',
+            '🔵 Making POST request to: conversations/${widget.club.id}/messages/${message.id}/delivered',
           );
           final success = await ChatApiService.markAsDelivered(
             widget.club.id,
@@ -1386,25 +1386,32 @@ class ClubChatScreenState extends State<ClubChatScreen>
                       child: GestureDetector(
                         onPanStart: (details) {
                           // Track where the pan/scroll gesture starts
-                          final messagesHeight = MediaQuery.of(context).size.height - 
-                              MediaQuery.of(context).padding.top - 
+                          final messagesHeight =
+                              MediaQuery.of(context).size.height -
+                              MediaQuery.of(context).padding.top -
                               MediaQuery.of(context).padding.bottom -
-                              keyboardHeight - footerHeight;
+                              keyboardHeight -
+                              footerHeight;
                           final startY = details.localPosition.dy;
-                          final bottom30Percent = messagesHeight * 0.7; // 70% from top = bottom 30%
-                          
+                          final bottom30Percent =
+                              messagesHeight * 0.7; // 70% from top = bottom 30%
+
                           setState(() {
                             _canActivateRecording = startY > bottom30Percent;
                           });
-                          
-                          debugPrint('🎯 Pan gesture started at ${startY}px, bottom 30% starts at ${bottom30Percent}px, can activate: $_canActivateRecording');
+
+                          debugPrint(
+                            '🎯 Pan gesture started at ${startY}px, bottom 30% starts at ${bottom30Percent}px, can activate: $_canActivateRecording',
+                          );
                         },
                         onPanEnd: (details) {
                           // Reset recording activation when pan gesture ends
                           setState(() {
                             _canActivateRecording = false;
                           });
-                          debugPrint('🎯 Pan gesture ended, recording activation reset');
+                          debugPrint(
+                            '🎯 Pan gesture ended, recording activation reset',
+                          );
                         },
                         onTap: () {
                           // Close keyboard when tapping in messages area
@@ -1471,8 +1478,8 @@ class ClubChatScreenState extends State<ClubChatScreen>
                       _audioRecordingPullProgress >= 1.0
                           ? 'Release to talk'
                           : _isInRecordingMode
-                            ? 'Keep holding to talk'
-                            : 'Swipe up to talk',
+                          ? 'Keep holding to talk'
+                          : 'Swipe up to talk',
                       style: TextStyle(
                         fontSize: 12,
                         color: isDarkTheme ? Colors.white70 : Colors.black87,
@@ -1664,7 +1671,8 @@ class ClubChatScreenState extends State<ClubChatScreen>
 
         setState(() {
           _isPullingForAudio = overscroll > showThreshold;
-          _isInRecordingMode = overscroll > 5.0; // Enter recording mode with minimal pull
+          _isInRecordingMode =
+              overscroll > 5.0; // Enter recording mode with minimal pull
           // Calculate progress from the show threshold, not from zero
           _audioRecordingPullProgress = _isPullingForAudio
               ? ((overscroll - showThreshold) /
