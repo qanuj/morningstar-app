@@ -1,6 +1,7 @@
 // lib/models/user.dart
 class User {
   final String id;
+  final String? userId; // For club member context - the actual user ID when used as club member
   final String phoneNumber;
   final String name;
   final String? email;
@@ -27,6 +28,7 @@ class User {
 
   User({
     required this.id,
+    this.userId,
     required this.phoneNumber,
     required this.name,
     this.email,
@@ -54,6 +56,7 @@ class User {
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       id: json['id'] ?? '',
+      userId: json['userId'],
       phoneNumber: json['phoneNumber'] ?? '',
       name: json['name'] ?? '',
       email: json['email'],

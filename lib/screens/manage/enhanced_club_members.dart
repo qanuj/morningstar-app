@@ -11,13 +11,11 @@ import 'club_member_manage.dart';
 class EnhancedClubMembersScreen extends StatefulWidget {
   final Club club;
 
-  const EnhancedClubMembersScreen({
-    super.key,
-    required this.club,
-  });
+  const EnhancedClubMembersScreen({super.key, required this.club});
 
   @override
-  EnhancedClubMembersScreenState createState() => EnhancedClubMembersScreenState();
+  EnhancedClubMembersScreenState createState() =>
+      EnhancedClubMembersScreenState();
 }
 
 class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
@@ -26,30 +24,30 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
   bool _isLoadingMore = false;
   List<ClubMember> _members = [];
   List<ClubMember> _filteredMembers = [];
-  
+
   // Pagination
   int _currentPage = 1;
   final int _pageSize = 20;
   bool _hasMoreData = true;
-  
+
   // Search and filters
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
-  
+
   // Filter states
   bool _showActiveMembers = true;
   bool _showPendingMembers = false;
   bool _showBannedMembers = false;
   bool _showInactiveMembers = false;
   bool _showLowBalanceMembers = false;
-  
+
   // Selection state
   Set<String> _selectedMembers = {};
   bool _isSelectionMode = false;
-  
+
   // Controllers
   final ScrollController _scrollController = ScrollController();
-  
+
   @override
   void initState() {
     super.initState();
@@ -65,7 +63,8 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
       if (!_isLoadingMore && _hasMoreData) {
         _loadMoreMembers();
       }
@@ -79,21 +78,20 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
       _members.clear();
       _filteredMembers.clear();
     }
-    
+
     setState(() => _isLoading = true);
-    
+
     try {
       final newMembers = await _fetchMembersFromAPI(_currentPage, _pageSize);
-      
+
       if (refresh) {
         _members = newMembers;
       } else {
         _members.addAll(newMembers);
       }
-      
+
       _hasMoreData = newMembers.length == _pageSize;
       _applyFilters();
-      
     } catch (error) {
       _showErrorSnackBar('Failed to load members. Please try again.');
     } finally {
@@ -104,7 +102,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
   Future<void> _loadMoreMembers() async {
     setState(() => _isLoadingMore = true);
     _currentPage++;
-    
+
     try {
       final newMembers = await _fetchMembersFromAPI(_currentPage, _pageSize);
       _members.addAll(newMembers);
@@ -121,14 +119,19 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
   Future<List<ClubMember>> _fetchMembersFromAPI(int page, int pageSize) async {
     try {
       // Make API call to get members for the specific club
-      final response = await ApiService.get('/members?clubId=${widget.club.id}&page=$page&limit=$pageSize');
-      
+      final response = await ApiService.get(
+        '/members?clubId=${widget.club.id}&page=$page&limit=$pageSize',
+      );
+
       // Parse the response
       final membersData = response['members'] as List<dynamic>? ?? [];
-      
+
       return membersData.map((memberData) {
         return ClubMember(
           id: memberData['id'] ?? '',
+          userId:
+              memberData['userId'] ??
+              memberData['user']?['id'], // Fallback to user.id if userId is null
           name: memberData['user']?['name'] ?? 'Unknown',
           email: memberData['user']?['email'] ?? '',
           phoneNumber: memberData['user']?['phoneNumber'] ?? '',
@@ -136,20 +139,20 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
           balance: (memberData['balance'] ?? 0).toDouble(),
           points: memberData['points'] ?? 0,
           profilePicture: memberData['user']?['profilePicture'],
-          joinedDate: memberData['joinedAt'] != null 
-              ? DateTime.parse(memberData['joinedAt']) 
+          joinedDate: memberData['joinedAt'] != null
+              ? DateTime.parse(memberData['joinedAt'])
               : DateTime.now(),
           isActive: memberData['isActive'] ?? false,
           approved: memberData['approved'] ?? false,
           isBanned: memberData['isBanned'] ?? false,
-          lastActive: memberData['lastActive'] != null 
-              ? DateTime.parse(memberData['lastActive']) 
+          lastActive: memberData['lastActive'] != null
+              ? DateTime.parse(memberData['lastActive'])
               : null,
         );
       }).toList();
     } catch (error) {
       debugPrint('Error fetching members: $error');
-      
+
       // Return mock data as fallback for development
       if (page == 1) {
         return _generateMockMembers().take(pageSize).toList();
@@ -163,16 +166,19 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
       final statuses = ['active', 'pending', 'banned', 'inactive'];
       final roles = ['Member', 'Captain', 'Vice Captain', 'Treasurer'];
       final status = statuses[index % statuses.length];
-      
+
       return ClubMember(
         id: 'member_${index + 1}',
+        userId: 'user_${index + 1}',
         name: 'Member ${index + 1}',
         email: 'member${index + 1}@example.com',
         phoneNumber: '+91 ${9876543210 - index}',
         role: roles[index % roles.length],
         balance: (1000 + (index * 50) - (index % 3 * 200)).toDouble(),
         points: 100 + (index * 25),
-        profilePicture: index % 4 == 0 ? 'https://i.pravatar.cc/150?img=${index + 1}' : null,
+        profilePicture: index % 4 == 0
+            ? 'https://i.pravatar.cc/150?img=${index + 1}'
+            : null,
         joinedDate: DateTime.now().subtract(Duration(days: index * 10)),
         isActive: status == 'active',
         approved: status != 'pending',
@@ -184,18 +190,20 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
 
   void _applyFilters() {
     List<ClubMember> filtered = _members;
-    
+
     // Apply search filter
     if (_searchQuery.isNotEmpty) {
       filtered = filtered.where((member) {
         final query = _searchQuery.toLowerCase();
-        
+
         // Check for balance search patterns (>1000, <500, =0)
-        final balanceMatch = RegExp(r'^([><=])(\d+(?:\.\d{1,2})?)$').firstMatch(query);
+        final balanceMatch = RegExp(
+          r'^([><=])(\d+(?:\.\d{1,2})?)$',
+        ).firstMatch(query);
         if (balanceMatch != null) {
           final operator = balanceMatch.group(1)!;
           final amount = double.parse(balanceMatch.group(2)!);
-          
+
           switch (operator) {
             case '>':
               return member.balance > amount;
@@ -207,31 +215,39 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
               return false;
           }
         }
-        
+
         // Regular text search
         return member.name.toLowerCase().contains(query) ||
-               member.email.toLowerCase().contains(query) ||
-               member.phoneNumber.contains(query) ||
-               member.role.toLowerCase().contains(query);
+            member.email.toLowerCase().contains(query) ||
+            member.phoneNumber.contains(query) ||
+            member.role.toLowerCase().contains(query);
       }).toList();
     }
-    
+
     // Apply status filters
     filtered = filtered.where((member) {
-      if (!_showActiveMembers && !_showPendingMembers && !_showBannedMembers && 
-          !_showInactiveMembers && !_showLowBalanceMembers) {
+      if (!_showActiveMembers &&
+          !_showPendingMembers &&
+          !_showBannedMembers &&
+          !_showInactiveMembers &&
+          !_showLowBalanceMembers) {
         return false;
       }
-      
-      if (_showActiveMembers && member.approved && member.isActive && !member.isBanned) return true;
+
+      if (_showActiveMembers &&
+          member.approved &&
+          member.isActive &&
+          !member.isBanned)
+        return true;
       if (_showPendingMembers && !member.approved) return true;
       if (_showBannedMembers && member.isBanned) return true;
-      if (_showInactiveMembers && !member.isActive && !member.isBanned) return true;
+      if (_showInactiveMembers && !member.isActive && !member.isBanned)
+        return true;
       if (_showLowBalanceMembers && member.balance < 0) return true;
-      
+
       return false;
     }).toList();
-    
+
     setState(() {
       _filteredMembers = filtered;
     });
@@ -343,7 +359,8 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
           title: title,
           isBulk: isBulk,
           selectedMembers: isBulk ? _getSelectedMembers() : [],
-          onSubmit: (data) async => await _handleTransactionSubmit(data, type, isBulk),
+          onSubmit: (data) async =>
+              await _handleTransactionSubmit(data, type, isBulk),
         ),
       ),
     );
@@ -365,6 +382,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     // Convert ClubMember to User for the management screen
     final user = User(
       id: member.id,
+      userId: member.userId, // Pass the actual user ID
       phoneNumber: member.phoneNumber,
       name: member.name,
       email: member.email,
@@ -379,13 +397,11 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ClubMemberManageScreen(
-          club: widget.club,
-          member: user,
-        ),
+        builder: (context) =>
+            ClubMemberManageScreen(club: widget.club, member: user),
       ),
     );
-    
+
     // Refresh the members list if changes were made
     if (result == true) {
       _loadMembers(refresh: true);
@@ -393,17 +409,23 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
   }
 
   List<ClubMember> _getSelectedMembers() {
-    return _filteredMembers.where((member) => _selectedMembers.contains(member.id)).toList();
+    return _filteredMembers
+        .where((member) => _selectedMembers.contains(member.id))
+        .toList();
   }
 
-  Future<void> _handleTransactionSubmit(Map<String, dynamic> data, String type, bool isBulk) async {
+  Future<void> _handleTransactionSubmit(
+    Map<String, dynamic> data,
+    String type,
+    bool isBulk,
+  ) async {
     try {
       if (isBulk) {
         // Bulk transaction API call - matches web app implementation
         final selectedMembersList = _getSelectedMembers();
         // Use member.id directly as it represents the user ID in our ClubMember model
         final userIds = selectedMembersList.map((member) => member.id).toList();
-        
+
         final response = await ApiService.post('/transactions/bulk', {
           'userIds': userIds,
           'amount': double.parse(data['amount']),
@@ -411,36 +433,44 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
           'purpose': data['purpose'],
           'description': data['description'],
           'clubId': widget.club.id,
-          'paymentMethod': type == 'CREDIT' ? data['paymentMethod'] : null, // No payment method for expenses
+          'paymentMethod': type == 'CREDIT'
+              ? data['paymentMethod']
+              : null, // No payment method for expenses
         });
-        
+
         if (!mounted) return;
-        
+
         // Handle partial failures like web app
         if (response['errors'] != null && response['errors'].length > 0) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Some transactions failed: ${response['errors'].length} out of ${response['total'] ?? _selectedMembers.length}'),
+              content: Text(
+                'Some transactions failed: ${response['errors'].length} out of ${response['total'] ?? _selectedMembers.length}',
+              ),
               backgroundColor: Colors.orange,
             ),
           );
         } else {
-          final action = type == 'CREDIT' ? 'added funds for' : 'recorded bulk expense for';
+          final action = type == 'CREDIT'
+              ? 'added funds for'
+              : 'recorded bulk expense for';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Successfully $action ${_selectedMembers.length} members'),
+              content: Text(
+                'Successfully $action ${_selectedMembers.length} members',
+              ),
               backgroundColor: Colors.green,
             ),
           );
         }
-        
+
         _exitSelectionMode();
       } else {
         // Individual transaction for a specific member
         if (_selectedMembers.isNotEmpty) {
           final memberId = _selectedMembers.first;
           final member = _filteredMembers.firstWhere((m) => m.id == memberId);
-          
+
           await ApiService.post('/transactions?clubId=${widget.club.id}', {
             'userId': member.id,
             'amount': double.parse(data['amount']),
@@ -450,10 +480,12 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
             'clubId': widget.club.id,
             'paymentMethod': type == 'CREDIT' ? data['paymentMethod'] : null,
           });
-          
+
           if (!mounted) return;
-          
-          final action = type == 'CREDIT' ? 'added funds for' : 'recorded expense for';
+
+          final action = type == 'CREDIT'
+              ? 'added funds for'
+              : 'recorded expense for';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Successfully $action ${member.name}'),
@@ -462,13 +494,12 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
           );
         }
       }
-      
+
       // Refresh data
       _loadMembers(refresh: true);
-      
     } catch (error) {
       if (!mounted) return;
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to process transaction: $error'),
@@ -478,42 +509,52 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     }
   }
 
-  Future<void> _handlePointsSubmit(Map<String, dynamic> data, String type, bool isBulk) async {
+  Future<void> _handlePointsSubmit(
+    Map<String, dynamic> data,
+    String type,
+    bool isBulk,
+  ) async {
     try {
       if (isBulk) {
         // Bulk points API calls - matches web app implementation
         final selectedMembersList = _getSelectedMembers();
-        
+
         // Create individual point entries for each selected member like web app
-        final pointEntries = selectedMembersList.map((member) => ApiService.post('/points', {
-          'userId': member.id,
-          'points': int.parse(data['points']),
-          'type': type == 'add' ? 'EARNED' : 'DEDUCTED',
-          'category': data['category'],
-          'description': data['description'],
-          'clubId': widget.club.id,
-        })).toList();
-        
+        final pointEntries = selectedMembersList
+            .map(
+              (member) => ApiService.post('/points', {
+                'userId': member.id,
+                'points': int.parse(data['points']),
+                'type': type == 'add' ? 'EARNED' : 'DEDUCTED',
+                'category': data['category'],
+                'description': data['description'],
+                'clubId': widget.club.id,
+              }),
+            )
+            .toList();
+
         // Execute all point entries in parallel
         await Future.wait(pointEntries);
-        
+
         if (!mounted) return;
-        
+
         final action = type == 'add' ? 'added' : 'deducted';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Successfully $action points for ${_selectedMembers.length} members'),
+            content: Text(
+              'Successfully $action points for ${_selectedMembers.length} members',
+            ),
             backgroundColor: Colors.green,
           ),
         );
-        
+
         _exitSelectionMode();
       } else {
         // Individual points for a specific member
         if (_selectedMembers.isNotEmpty) {
           final memberId = _selectedMembers.first;
           final member = _filteredMembers.firstWhere((m) => m.id == memberId);
-          
+
           await ApiService.post('/points', {
             'userId': member.id,
             'points': int.parse(data['points']),
@@ -522,25 +563,26 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
             'description': data['description'],
             'clubId': widget.club.id,
           });
-          
+
           if (!mounted) return;
-          
+
           final action = type == 'add' ? 'added' : 'deducted';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Successfully $action ${data['points']} points for ${member.name}'),
+              content: Text(
+                'Successfully $action ${data['points']} points for ${member.name}',
+              ),
               backgroundColor: Colors.green,
             ),
           );
         }
       }
-      
+
       // Refresh data
       _loadMembers(refresh: true);
-      
     } catch (error) {
       if (!mounted) return;
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to process points: $error'),
@@ -592,11 +634,16 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
                     height: 36,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.3),
+                        width: 1,
+                      ),
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(18),
-                      child: widget.club.logo != null && widget.club.logo!.isNotEmpty
+                      child:
+                          widget.club.logo != null &&
+                              widget.club.logo!.isNotEmpty
                           ? _buildClubLogo()
                           : _buildDefaultClubLogo(),
                     ),
@@ -651,7 +698,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
         children: [
           // Active filters display
           if (_getActiveFiltersCount() > 0) _buildActiveFiltersChips(),
-          
+
           // Members list
           Expanded(
             child: RefreshIndicator(
@@ -685,10 +732,26 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
           Wrap(
             spacing: 8,
             children: [
-              if (_showPendingMembers) _buildFilterChip('Pending', () => setState(() => _showPendingMembers = false)),
-              if (_showBannedMembers) _buildFilterChip('Banned', () => setState(() => _showBannedMembers = false)),
-              if (_showInactiveMembers) _buildFilterChip('Inactive', () => setState(() => _showInactiveMembers = false)),
-              if (_showLowBalanceMembers) _buildFilterChip('Low Balance', () => setState(() => _showLowBalanceMembers = false)),
+              if (_showPendingMembers)
+                _buildFilterChip(
+                  'Pending',
+                  () => setState(() => _showPendingMembers = false),
+                ),
+              if (_showBannedMembers)
+                _buildFilterChip(
+                  'Banned',
+                  () => setState(() => _showBannedMembers = false),
+                ),
+              if (_showInactiveMembers)
+                _buildFilterChip(
+                  'Inactive',
+                  () => setState(() => _showInactiveMembers = false),
+                ),
+              if (_showLowBalanceMembers)
+                _buildFilterChip(
+                  'Low Balance',
+                  () => setState(() => _showLowBalanceMembers = false),
+                ),
             ],
           ),
         ],
@@ -706,10 +769,10 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     );
   }
 
-
   Widget _buildEmptyState() {
     return ListView(
-      physics: const AlwaysScrollableScrollPhysics(), // Enable pull-to-refresh on empty state
+      physics:
+          const AlwaysScrollableScrollPhysics(), // Enable pull-to-refresh on empty state
       children: [
         SizedBox(
           height: MediaQuery.of(context).size.height * 0.6,
@@ -724,14 +787,18 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    _searchQuery.isNotEmpty ? Icons.search_off : Icons.people_outline,
+                    _searchQuery.isNotEmpty
+                        ? Icons.search_off
+                        : Icons.people_outline,
                     size: 64,
                     color: Theme.of(context).primaryColor,
                   ),
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  _searchQuery.isNotEmpty ? 'No members found' : 'No members yet',
+                  _searchQuery.isNotEmpty
+                      ? 'No members found'
+                      : 'No members yet',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w400,
@@ -740,7 +807,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _searchQuery.isNotEmpty 
+                  _searchQuery.isNotEmpty
                       ? 'Try adjusting your search terms or filters'
                       : 'Club members will appear here once they join',
                   style: TextStyle(
@@ -763,7 +830,8 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
       return ListView(
         controller: _scrollController,
         padding: EdgeInsets.zero,
-        physics: const AlwaysScrollableScrollPhysics(), // Enable pull-to-refresh on loading state
+        physics:
+            const AlwaysScrollableScrollPhysics(), // Enable pull-to-refresh on loading state
         children: [
           SizedBox(
             height: MediaQuery.of(context).size.height * 0.6,
@@ -778,10 +846,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
                   SizedBox(height: 16),
                   Text(
                     'Loading members...',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(color: Colors.grey[600], fontSize: 16),
                   ),
                 ],
               ),
@@ -794,13 +859,14 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     return ListView.builder(
       controller: _scrollController,
       padding: EdgeInsets.zero,
-      physics: const AlwaysScrollableScrollPhysics(), // Enable pull-to-refresh even with few items
+      physics:
+          const AlwaysScrollableScrollPhysics(), // Enable pull-to-refresh even with few items
       itemCount: _filteredMembers.length + (_isLoadingMore ? 1 : 0),
       itemBuilder: (context, index) {
         if (index == _filteredMembers.length) {
           return _buildLoadingMoreIndicator();
         }
-        
+
         final member = _filteredMembers[index];
         return _buildMemberCard(member);
       },
@@ -821,18 +887,20 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
 
   Widget _buildMemberCard(ClubMember member) {
     final isSelected = _selectedMembers.contains(member.id);
-    
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => _isSelectionMode 
-            ? _toggleMemberSelection(member.id) 
+        onTap: () => _isSelectionMode
+            ? _toggleMemberSelection(member.id)
             : _navigateToMemberManage(member),
         onLongPress: () => _toggleMemberSelection(member.id),
         child: Container(
           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: isSelected ? Theme.of(context).primaryColor.withOpacity(0.1) : null,
+            color: isSelected
+                ? Theme.of(context).primaryColor.withOpacity(0.1)
+                : null,
             border: Border(
               bottom: BorderSide(
                 color: Theme.of(context).dividerColor.withOpacity(0.1),
@@ -846,14 +914,17 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
               // Member Profile Image with overlaid checkbox
               Stack(
                 children: [
-                  member.profilePicture == null || member.profilePicture!.isEmpty
+                  member.profilePicture == null ||
+                          member.profilePicture!.isEmpty
                       ? SVGAvatar(
                           size: 50,
                           backgroundColor: _getMemberAvatarColor(member.name),
                           iconColor: Colors.white,
                           fallbackIcon: Icons.person,
                           child: Text(
-                            member.name.isNotEmpty ? member.name[0].toUpperCase() : 'M',
+                            member.name.isNotEmpty
+                                ? member.name[0].toUpperCase()
+                                : 'M',
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w600,
@@ -863,34 +934,13 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
                         )
                       : SVGAvatar.medium(
                           imageUrl: member.profilePicture,
-                          backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+                          backgroundColor: Theme.of(
+                            context,
+                          ).primaryColor.withOpacity(0.1),
                           fallbackIcon: Icons.person,
                         ),
                   // Status indicator
                   _buildStatusIndicator(member),
-                  // Selection indicator overlay
-                  if (_isSelectionMode && isSelected)
-                    Positioned(
-                      top: -4,
-                      right: -4,
-                      child: Container(
-                        width: 24,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).primaryColor,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white,
-                            width: 2,
-                          ),
-                        ),
-                        child: Icon(
-                          Icons.check,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                      ),
-                    ),
                 ],
               ),
 
@@ -1025,7 +1075,9 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: member.balance >= 0 ? Colors.green[700] : Colors.red[700],
+                      color: member.balance >= 0
+                          ? Colors.green[700]
+                          : Colors.red[700],
                     ),
                   ),
                   SizedBox(height: 2),
@@ -1038,43 +1090,41 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
                         '${member.points}',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Theme.of(
-                            context,
-                          ).textTheme.bodySmall?.color,
+                          color: Theme.of(context).textTheme.bodySmall?.color,
                         ),
                       ),
                     ],
                   ),
-                  
+
                   // Quick actions (only show when not in selection mode)
                   if (!_isSelectionMode) ...[
                     SizedBox(height: 4),
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        _buildQuickActionButton(
-                          Icons.add,
-                          Colors.green,
-                          () => _showTransactionDialog('CREDIT', 'Add Funds', false),
-                        ),
+                        _buildQuickActionButton(Icons.add, Colors.green, () {
+                          _selectedMembers.clear();
+                          _selectedMembers.add(member.id);
+                          _showTransactionDialog('CREDIT', 'Add Funds', false);
+                        }),
                         SizedBox(width: 4),
-                        _buildQuickActionButton(
-                          Icons.remove,
-                          Colors.red,
-                          () => _showTransactionDialog('DEBIT', 'Add Expense', false),
-                        ),
+                        _buildQuickActionButton(Icons.remove, Colors.red, () {
+                          _selectedMembers.clear();
+                          _selectedMembers.add(member.id);
+                          _showTransactionDialog('DEBIT', 'Add Expense', false);
+                        }),
                         SizedBox(width: 4),
-                        _buildQuickActionButton(
-                          Icons.star,
-                          Colors.amber,
-                          () => _showPointsDialog('add', false),
-                        ),
+                        _buildQuickActionButton(Icons.star, Colors.amber, () {
+                          _selectedMembers.clear();
+                          _selectedMembers.add(member.id);
+                          _showPointsDialog('add', false);
+                        }),
                       ],
                     ),
                   ],
                 ],
               ),
-              
+
               // Navigation arrow (only show when not in selection mode)
               if (!_isSelectionMode) ...[
                 SizedBox(width: 8),
@@ -1124,7 +1174,11 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     );
   }
 
-  Widget _buildQuickActionButton(IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildQuickActionButton(
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -1178,7 +1232,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
       Colors.amber[600]!,
       Colors.deepOrange[600]!,
     ];
-    
+
     final colorIndex = name.hashCode.abs() % colors.length;
     return colors[colorIndex];
   }
@@ -1186,7 +1240,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
   String _formatJoinedDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date).inDays;
-    
+
     if (difference < 7) {
       return '${difference}d ago';
     } else if (difference < 30) {
@@ -1199,8 +1253,12 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
   }
 
   int _getActiveFiltersCount() {
-    return [_showPendingMembers, _showBannedMembers, _showInactiveMembers, _showLowBalanceMembers]
-        .where((filter) => filter).length;
+    return [
+      _showPendingMembers,
+      _showBannedMembers,
+      _showInactiveMembers,
+      _showLowBalanceMembers,
+    ].where((filter) => filter).length;
   }
 
   void _showSearchDialog() {
@@ -1249,27 +1307,33 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
               CheckboxListTile(
                 title: Text('Active Members'),
                 value: _showActiveMembers,
-                onChanged: (value) => setDialogState(() => _showActiveMembers = value ?? false),
+                onChanged: (value) =>
+                    setDialogState(() => _showActiveMembers = value ?? false),
               ),
               CheckboxListTile(
                 title: Text('Pending Approval'),
                 value: _showPendingMembers,
-                onChanged: (value) => setDialogState(() => _showPendingMembers = value ?? false),
+                onChanged: (value) =>
+                    setDialogState(() => _showPendingMembers = value ?? false),
               ),
               CheckboxListTile(
                 title: Text('Banned Members'),
                 value: _showBannedMembers,
-                onChanged: (value) => setDialogState(() => _showBannedMembers = value ?? false),
+                onChanged: (value) =>
+                    setDialogState(() => _showBannedMembers = value ?? false),
               ),
               CheckboxListTile(
                 title: Text('Inactive Members'),
                 value: _showInactiveMembers,
-                onChanged: (value) => setDialogState(() => _showInactiveMembers = value ?? false),
+                onChanged: (value) =>
+                    setDialogState(() => _showInactiveMembers = value ?? false),
               ),
               CheckboxListTile(
                 title: Text('Low Balance (<0)'),
                 value: _showLowBalanceMembers,
-                onChanged: (value) => setDialogState(() => _showLowBalanceMembers = value ?? false),
+                onChanged: (value) => setDialogState(
+                  () => _showLowBalanceMembers = value ?? false,
+                ),
               ),
             ],
           ),
@@ -1303,7 +1367,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
 
   Widget _buildClubLogo() {
     // Check if the URL is an SVG
-    if (widget.club.logo!.toLowerCase().contains('.svg') || 
+    if (widget.club.logo!.toLowerCase().contains('.svg') ||
         widget.club.logo!.toLowerCase().contains('svg?')) {
       return SvgPicture.network(
         widget.club.logo!,
@@ -1348,6 +1412,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
 // Enhanced ClubMember model with additional fields
 class ClubMember {
   final String id;
+  final String? userId;
   final String name;
   final String email;
   final String phoneNumber;
@@ -1363,6 +1428,7 @@ class ClubMember {
 
   ClubMember({
     required this.id,
+    this.userId,
     required this.name,
     required this.email,
     required this.phoneNumber,
@@ -1414,7 +1480,7 @@ class _BulkActionsBottomSheet extends StatelessWidget {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          
+
           // Header
           Container(
             padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -1448,9 +1514,9 @@ class _BulkActionsBottomSheet extends StatelessWidget {
               ],
             ),
           ),
-          
+
           Divider(height: 1),
-          
+
           // Action items
           Column(
             children: [
@@ -1489,14 +1555,14 @@ class _BulkActionsBottomSheet extends StatelessWidget {
               ),
             ],
           ),
-          
+
           // Safe area bottom padding
           SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
         ],
       ),
     );
   }
-  
+
   Widget _buildActionTile(
     BuildContext context, {
     required IconData icon,
@@ -1521,11 +1587,7 @@ class _BulkActionsBottomSheet extends StatelessWidget {
                   color: iconColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
-                  icon,
-                  color: iconColor,
-                  size: 20,
-                ),
+                child: Icon(icon, color: iconColor, size: 20),
               ),
               SizedBox(width: 16),
               Expanded(
@@ -1541,18 +1603,14 @@ class _BulkActionsBottomSheet extends StatelessWidget {
                     SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey[600],
-                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
                     ),
                   ],
                 ),
               ),
-              Icon(
-                Icons.arrow_forward_ios,
-                size: 16,
-                color: Colors.grey[400],
-              ),
+              Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
             ],
           ),
         ),
@@ -1628,7 +1686,8 @@ class _TransactionDialogState extends State<_TransactionDialog> {
               ),
               maxLines: 2,
               validator: (value) {
-                if (value == null || value.isEmpty) return 'Description is required';
+                if (value == null || value.isEmpty)
+                  return 'Description is required';
                 return null;
               },
             ),
@@ -1641,9 +1700,18 @@ class _TransactionDialogState extends State<_TransactionDialog> {
               ),
               items: [
                 DropdownMenuItem(value: 'MATCH_FEE', child: Text('Match Fee')),
-                DropdownMenuItem(value: 'MEMBERSHIP', child: Text('Membership')),
-                DropdownMenuItem(value: 'JERSEY_ORDER', child: Text('Jersey Order')),
-                DropdownMenuItem(value: 'GEAR_PURCHASE', child: Text('Gear Purchase')),
+                DropdownMenuItem(
+                  value: 'MEMBERSHIP',
+                  child: Text('Membership'),
+                ),
+                DropdownMenuItem(
+                  value: 'JERSEY_ORDER',
+                  child: Text('Jersey Order'),
+                ),
+                DropdownMenuItem(
+                  value: 'GEAR_PURCHASE',
+                  child: Text('Gear Purchase'),
+                ),
                 DropdownMenuItem(value: 'OTHER', child: Text('Other')),
               ],
               onChanged: (value) => setState(() => _purpose = value!),
@@ -1659,7 +1727,10 @@ class _TransactionDialogState extends State<_TransactionDialog> {
                 items: [
                   DropdownMenuItem(value: 'CASH', child: Text('Cash')),
                   DropdownMenuItem(value: 'UPI', child: Text('UPI')),
-                  DropdownMenuItem(value: 'BANK_TRANSFER', child: Text('Bank Transfer')),
+                  DropdownMenuItem(
+                    value: 'BANK_TRANSFER',
+                    child: Text('Bank Transfer'),
+                  ),
                 ],
                 onChanged: (value) => setState(() => _paymentMethod = value!),
               ),
@@ -1739,7 +1810,8 @@ class _PointsDialogState extends State<_PointsDialog> {
               ),
               keyboardType: TextInputType.number,
               validator: (value) {
-                if (value == null || value.isEmpty) return 'Points are required';
+                if (value == null || value.isEmpty)
+                  return 'Points are required';
                 final points = int.tryParse(value);
                 if (points == null || points <= 0) return 'Enter valid points';
                 return null;
@@ -1755,7 +1827,8 @@ class _PointsDialogState extends State<_PointsDialog> {
               ),
               maxLines: 2,
               validator: (value) {
-                if (value == null || value.isEmpty) return 'Description is required';
+                if (value == null || value.isEmpty)
+                  return 'Description is required';
                 return null;
               },
             ),
@@ -1767,8 +1840,14 @@ class _PointsDialogState extends State<_PointsDialog> {
                 border: OutlineInputBorder(),
               ),
               items: [
-                DropdownMenuItem(value: 'PERFORMANCE', child: Text('Performance')),
-                DropdownMenuItem(value: 'ATTENDANCE', child: Text('Attendance')),
+                DropdownMenuItem(
+                  value: 'PERFORMANCE',
+                  child: Text('Performance'),
+                ),
+                DropdownMenuItem(
+                  value: 'ATTENDANCE',
+                  child: Text('Attendance'),
+                ),
                 DropdownMenuItem(value: 'BONUS', child: Text('Bonus')),
                 DropdownMenuItem(value: 'PENALTY', child: Text('Penalty')),
               ],
