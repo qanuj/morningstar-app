@@ -13,6 +13,9 @@ class NotificationService {
   
   static String? _fcmToken;
   
+  // Callbacks for real-time message updates by club
+  static final Map<String, Function(Map<String, dynamic>)> _clubMessageCallbacks = {};
+  
   // Notification channel details
   static const String _channelId = 'duggy_notifications';
   static const String _channelName = 'Duggy Notifications';
@@ -126,20 +129,43 @@ class NotificationService {
     );
   }
 
-  /// Get FCM token and send to server
+  /// Get FCM token and optionally send to server
   static Future<void> _getFCMToken() async {
     try {
+      // For iOS, ensure APNS token is available first
+      if (Platform.isIOS) {
+        try {
+          String? apnsToken = await _firebaseMessaging.getAPNSToken();
+          if (apnsToken != null) {
+            print('🍎 APNS Token received: ${apnsToken.substring(0, 20)}...');
+          } else {
+            print('⚠️ APNS Token not available yet, waiting...');
+            // Wait a bit for APNS token to become available
+            await Future.delayed(const Duration(seconds: 2));
+            apnsToken = await _firebaseMessaging.getAPNSToken();
+            if (apnsToken != null) {
+              print('🍎 APNS Token received after delay: ${apnsToken.substring(0, 20)}...');
+            } else {
+              print('❌ APNS Token still not available after delay');
+            }
+          }
+        } catch (e) {
+          print('⚠️ Failed to get APNS token: $e');
+        }
+      }
+      
       _fcmToken = await _firebaseMessaging.getToken();
       if (_fcmToken != null) {
         print('📱 FCM Token: $_fcmToken');
-        await _sendTokenToServer(_fcmToken!);
+        // Don't send token to server during initialization - will be sent after login
       }
       
       // Listen for token refresh
       _firebaseMessaging.onTokenRefresh.listen((newToken) {
         print('🔄 FCM Token refreshed: $newToken');
         _fcmToken = newToken;
-        _sendTokenToServer(newToken);
+        // Only send refreshed token if user is authenticated
+        _sendTokenToServerIfAuthenticated(newToken);
       });
     } catch (e) {
       print('❌ Failed to get FCM token: $e');
@@ -150,17 +176,71 @@ class NotificationService {
   static Future<void> _sendTokenToServer(String token) async {
     try {
       final user = await AuthService.getCurrentUser();
-      if (user != null && user['user']?['id'] != null) {
+      if (user != null && user['id'] != null) {
         await ApiService.post('/notifications/register-token', {
-          'userId': user['user']['id'],
+          'userId': user['id'],
           'fcmToken': token,
           'platform': Platform.isIOS ? 'ios' : 'android',
           'appVersion': '1.0.0', // TODO: Get from package info
         });
-        print('✅ FCM token sent to server');
+        print('✅ FCM token sent to server successfully');
+      } else {
+        print('⚠️ No authenticated user found, FCM token not sent');
       }
     } catch (e) {
       print('❌ Failed to send FCM token to server: $e');
+    }
+  }
+
+  /// Send FCM token to server if user is authenticated (for token refresh)
+  static Future<void> _sendTokenToServerIfAuthenticated(String token) async {
+    try {
+      final user = await AuthService.getCurrentUser();
+      if (user != null && user['id'] != null) {
+        await _sendTokenToServer(token);
+      } else {
+        print('⚠️ User not authenticated, skipping FCM token refresh');
+      }
+    } catch (e) {
+      // Silently ignore errors for token refresh
+      print('⚠️ Failed to send refreshed FCM token: $e');
+    }
+  }
+
+  /// Send FCM token to server with provided user data (avoids additional API call)
+  static Future<void> _sendTokenToServerWithUserData(String token, Map<String, dynamic>? userData) async {
+    try {
+      if (userData != null && userData['id'] != null) {
+        await ApiService.post('/notifications/register-token', {
+          'userId': userData['id'],
+          'fcmToken': token,
+          'platform': Platform.isIOS ? 'ios' : 'android',
+          'appVersion': '1.0.0', // TODO: Get from package info
+        });
+        print('✅ FCM token sent to server successfully');
+      } else {
+        // Fallback to regular method if user data not provided
+        await _sendTokenToServer(token);
+      }
+    } catch (e) {
+      print('❌ Failed to send FCM token to server: $e');
+    }
+  }
+
+  /// Register FCM token after user authentication with user data
+  static Future<void> registerTokenAfterAuth({Map<String, dynamic>? userData}) async {
+    try {
+      if (_fcmToken != null) {
+        await _sendTokenToServerWithUserData(_fcmToken!, userData);
+      } else {
+        // Try to get token if not available
+        await _getFCMToken();
+        if (_fcmToken != null) {
+          await _sendTokenToServerWithUserData(_fcmToken!, userData);
+        }
+      }
+    } catch (e) {
+      print('❌ Failed to register FCM token after auth: $e');
     }
   }
 
@@ -194,6 +274,12 @@ class NotificationService {
   static Future<void> _handleForegroundMessage(RemoteMessage message) async {
     final notification = message.notification;
     final data = message.data;
+
+    // Handle club message notifications specially
+    if (data['type'] == 'club_message') {
+      await _handleClubMessageNotification(message, inForeground: true);
+      return;
+    }
 
     if (notification != null) {
       await _localNotifications.show(
@@ -243,6 +329,52 @@ class NotificationService {
     }
   }
 
+  /// Handle club message notifications
+  static Future<void> _handleClubMessageNotification(RemoteMessage message, {required bool inForeground}) async {
+    final data = message.data;
+    print('💬 Handling club message notification: $data');
+
+    // Always trigger the callback if registered, regardless of foreground/background state
+    final clubId = data['clubId'] as String?;
+    if (clubId != null && _clubMessageCallbacks.containsKey(clubId)) {
+      print('🔄 Triggering real-time chat update via callback for club: $clubId');
+      _clubMessageCallbacks[clubId]!(data);
+    } else {
+      print('ℹ️ No club message callback registered for club: $clubId');
+    }
+
+    // Show local notification (even in foreground for messages)
+    final notification = message.notification;
+    if (notification != null) {
+      await _localNotifications.show(
+        message.hashCode,
+        notification.title ?? 'New Message',
+        notification.body ?? 'You have a new message',
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            'club_messages',
+            'Club Messages',
+            channelDescription: 'Messages from your cricket club',
+            importance: Importance.high,
+            priority: Priority.high,
+            icon: '@drawable/ic_notification',
+            color: const Color(0xFF06aeef), // Use blue color for messages
+            playSound: true,
+            enableVibration: true,
+            category: AndroidNotificationCategory.message,
+          ),
+          iOS: const DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+            categoryIdentifier: 'MESSAGE_CATEGORY',
+          ),
+        ),
+        payload: data.toString(),
+      );
+    }
+  }
+
   /// Handle notification tapped - navigate to appropriate screen
   static void _handleNotificationTapped(Map<String, dynamic> data) {
     print('📱 Handling notification tap with data: $data');
@@ -254,6 +386,10 @@ class NotificationService {
     
     // TODO: Implement navigation based on notification type
     switch (type) {
+      case 'club_message':
+        print('💬 Navigate to club chat: $clubId');
+        // TODO: Navigate to specific club chat
+        break;
       case 'match_reminder':
         print('🏏 Navigate to match: $matchId');
         break;
@@ -331,6 +467,24 @@ class NotificationService {
     await unsubscribeFromTopic('club_${clubId}_orders');
     await unsubscribeFromTopic('club_${clubId}_announcements');
   }
+
+  /// Set callback for real-time club message updates
+  static void setClubMessageCallback(String clubId, Function(Map<String, dynamic>) callback) {
+    _clubMessageCallbacks[clubId] = callback;
+    print('✅ Club message callback registered for club: $clubId');
+  }
+
+  /// Clear callback for real-time club message updates
+  static void clearClubMessageCallback(String clubId) {
+    _clubMessageCallbacks.remove(clubId);
+    print('🗑️ Club message callback cleared for club: $clubId');
+  }
+
+  /// Clear all callbacks
+  static void clearAllClubMessageCallbacks() {
+    _clubMessageCallbacks.clear();
+    print('🗑️ All club message callbacks cleared');
+  }
 }
 
 /// Background message handler (must be top-level function)
@@ -339,4 +493,15 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   print('📨 Title: ${message.notification?.title}');
   print('📨 Body: ${message.notification?.body}');
   print('📨 Data: ${message.data}');
+  
+  // Handle club message notifications in background
+  if (message.data['type'] == 'club_message') {
+    print('💬 Background club message notification received');
+    // Trigger callback if registered (though it usually won't be in background)
+    final clubId = message.data['clubId'] as String?;
+    if (clubId != null && NotificationService._clubMessageCallbacks.containsKey(clubId)) {
+      print('🔄 Triggering callback from background for club: $clubId');
+      NotificationService._clubMessageCallbacks[clubId]!(message.data);
+    }
+  }
 }

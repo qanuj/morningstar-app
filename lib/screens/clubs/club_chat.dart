@@ -12,6 +12,7 @@ import '../../models/message_reaction.dart';
 import '../../services/chat_api_service.dart';
 import '../../services/message_storage_service.dart';
 import '../../services/media_storage_service.dart';
+import '../../services/notification_service.dart';
 import '../../widgets/club_info_dialog.dart';
 import '../../widgets/audio_recording_widget.dart';
 import '../../widgets/pinned_messages_section.dart';
@@ -97,7 +98,9 @@ class ClubChatScreenState extends State<ClubChatScreen>
     _loadPersistentStatusFlags();
     // Remove the listener since we handle it in onChanged now
     _loadMessages();
-    _startMessagePolling();
+    
+    // Setup push notification callback instead of polling
+    _setupPushNotificationCallback();
 
     // Add focus listener to trigger UI updates
     _textFieldFocusNode.addListener(() {
@@ -128,15 +131,37 @@ class ClubChatScreenState extends State<ClubChatScreen>
     }
   }
 
+  /// Setup push notification callback for real-time message updates
+  void _setupPushNotificationCallback() {
+    debugPrint('🔔 Setting up push notification callback for club: ${widget.club.id}');
+    
+    NotificationService.setClubMessageCallback(widget.club.id, (Map<String, dynamic> data) {
+      debugPrint('💬 Received push notification data: $data');
+      
+      // This callback is already club-specific, so we can directly refresh
+      debugPrint('✅ Push notification received for current club, refreshing messages');
+      
+      // Use a slight delay to ensure the server has processed the message
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          _loadMessages(forceSync: true);
+        }
+      });
+    });
+  }
+
   @override
   void dispose() {
     _highlightTimer?.cancel();
-    _messagePollingTimer?.cancel();
     _bottomRefreshTimer?.cancel();
     _refreshAnimationController.dispose();
     _messageController.dispose();
     _scrollController.dispose();
     _textFieldFocusNode.dispose();
+    
+    // Clear push notification callback for this club
+    NotificationService.clearClubMessageCallback(widget.club.id);
+    
     super.dispose();
   }
 
@@ -2085,8 +2110,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
     }
   }
 
-  Timer? _messagePollingTimer;
-  int _currentPollingInterval = 30; // Start with 30 seconds
   bool _isMarkingDelivered =
       false; // Lock to prevent concurrent delivery marking
   final Set<String> _processingDelivery =
@@ -2144,80 +2167,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
     return message.pin.isPinned;
   }
 
-  // Start adaptive polling for new messages
-  void _startMessagePolling() {
-    _messagePollingTimer?.cancel();
-    _scheduleNextPoll();
-  }
-
-  void _scheduleNextPoll() {
-    _messagePollingTimer?.cancel();
-
-    _messagePollingTimer = Timer(
-      Duration(seconds: _currentPollingInterval),
-      () async {
-        if (mounted && !_isLoading) {
-          try {
-            // Only check for new messages if we need sync
-            final needsSync = await MessageStorageService.needsSync(
-              widget.club.id,
-            );
-            if (needsSync) {
-              final previousMessageCount = _messages.length;
-              await _syncMessagesFromServer(forceSync: false);
-
-              // Check if new messages were received
-              final newMessageCount = _messages.length;
-              if (newMessageCount > previousMessageCount) {
-                // Found new messages - decrease interval (more frequent polling)
-                _currentPollingInterval = 5;
-                debugPrint(
-                  '📨 New messages found, increasing polling frequency to ${_currentPollingInterval}s',
-                );
-              } else {
-                // No new messages - increase interval (less frequent polling)
-                _adjustPollingInterval();
-              }
-            } else {
-              // No sync needed - increase interval
-              _adjustPollingInterval();
-            }
-
-            // Schedule next poll
-            if (mounted) {
-              _scheduleNextPoll();
-            }
-          } catch (e) {
-            // Silently handle errors to avoid disrupting user experience
-            debugPrint('Message polling failed: $e');
-            // Schedule next poll even on error
-            if (mounted) {
-              _scheduleNextPoll();
-            }
-          }
-        }
-      },
-    );
-  }
-
-  void _adjustPollingInterval() {
-    // Adaptive intervals: 5s -> 10s -> 15s -> 20s -> 25s -> 30s -> 25s -> 20s -> 15s -> 10s -> 5s (cycle)
-    const intervals = [5, 10, 15, 20, 25, 30, 25, 20, 15, 10];
-    final currentIndex = intervals.indexOf(_currentPollingInterval);
-
-    if (currentIndex == -1) {
-      // If current interval is not in list (e.g., first run), start from beginning
-      _currentPollingInterval = intervals.first;
-    } else {
-      // Move to next interval in sequence
-      _currentPollingInterval =
-          intervals[(currentIndex + 1) % intervals.length];
-    }
-
-    debugPrint(
-      '📡 No new messages, adjusting polling interval to ${_currentPollingInterval}s',
-    );
-  }
+  // Push notification callback handles real-time message updates instead of polling
 
   void _scrollToMessage(String messageId) {
     debugPrint('🎯 Attempting to scroll to message: $messageId');

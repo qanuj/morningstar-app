@@ -202,6 +202,12 @@ class ClubMessage {
             }
             break;
           case 'text':
+            // Handle text messages that may also have images
+            if (content['images'] is List && (content['images'] as List).isNotEmpty) {
+              images = (content['images'] as List)
+                  .map((url) => url as String)
+                  .toList();
+            }
             break;
           case 'link':
             if (content['url'] != null) {
@@ -268,9 +274,6 @@ class ClubMessage {
         images = (content['images'] as List)
             .map((url) => url as String)
             .toList();
-        print(
-          '🔍 ClubMessage.fromJson: Found ${images.length} images for $messageType message',
-        );
       }
 
       // Parse pictures array (for backward compatibility)
@@ -295,17 +298,11 @@ class ClubMessage {
     // Parse top-level images array (for cache compatibility)
     if (json['images'] is List && images.isEmpty) {
       images = (json['images'] as List).map((url) => url as String).toList();
-      print(
-        '🔍 ClubMessage.fromJson: Parsed ${images.length} images from cache level',
-      );
     }
 
     // Parse top-level audio object (for cache compatibility)
     if (json['audio'] is Map<String, dynamic> && audio == null) {
       audio = MessageAudio.fromJson(json['audio'] as Map<String, dynamic>);
-      print(
-        '🔍 ClubMessage.fromJson: Parsed audio from cache level: ${audio.filename}',
-      );
       // Override messageType to audio if we found audio data
       messageType = 'audio';
     }
@@ -313,9 +310,6 @@ class ClubMessage {
     if (json['document'] is Map<String, dynamic> && document == null) {
       document = MessageDocument.fromJson(
         json['document'] as Map<String, dynamic>,
-      );
-      print(
-        '🔍 ClubMessage.fromJson: Parsed document from cache level: ${document.filename}',
       );
       // Override messageType to document if we found document data
       messageType = 'document';

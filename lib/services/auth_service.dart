@@ -9,7 +9,7 @@ class AuthService {
   }
 
   static Future<Map<String, dynamic>> getCurrentUser() async {
-    return await ApiService.get('/auth/me');
+    return await ApiService.get('/profile');
   }
 
   static Future<void> logout() async {

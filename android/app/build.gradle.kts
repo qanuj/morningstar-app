@@ -56,7 +56,7 @@ android {
     buildTypes {
         debug {
             isDebuggable = true
-            applicationIdSuffix = ".dev"
+            // applicationIdSuffix = ".dev"  // Temporarily commented for testing
             versionNameSuffix = "-dev"
         }
         release {

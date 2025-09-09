@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'providers/user_provider.dart';
 import 'providers/club_provider.dart';
 import 'providers/theme_provider.dart';
@@ -14,8 +15,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   try {
-    // Initialize Firebase
-    await Firebase.initializeApp();
+    // Initialize Firebase with options
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
     print('✅ Firebase initialized successfully');
     
     // Initialize Push Notifications

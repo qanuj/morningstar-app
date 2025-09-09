@@ -44,6 +44,11 @@ class UserProvider with ChangeNotifier {
         final cachedUserData = ApiService.cachedUserData!;
         _user = User.fromJson(cachedUserData);
       }
+
+      // Register FCM token after successful user authentication
+      if (_user != null) {
+        NotificationService.registerTokenAfterAuth(userData: {'id': _user!.id});
+      }
     } catch (e) {
       print('Error loading user profile: $e');
       // Try fallback to cached data if API call fails
@@ -51,6 +56,11 @@ class UserProvider with ChangeNotifier {
         try {
           final cachedUserData = ApiService.cachedUserData!;
           _user = User.fromJson(cachedUserData);
+          
+          // Register FCM token after successful cached user load
+          if (_user != null) {
+            NotificationService.registerTokenAfterAuth(userData: {'id': _user!.id});
+          }
         } catch (cacheError) {
           print('Error loading cached user data: $cacheError');
         }

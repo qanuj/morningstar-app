@@ -9,7 +9,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.duggy</string>
+	<string>app.duggy</string>
 	<key>PROJECT_ID</key>
 	<string>duggy-2d72c</string>
 	<key>STORAGE_BUCKET</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:1067526313310:ios:a1445653d7bcbe98542bcf</string>
+	<string>1:1067526313310:ios:05f52b9f86105d7f542bcf</string>
 </dict>
 </plist>
