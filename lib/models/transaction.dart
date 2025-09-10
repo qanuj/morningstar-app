@@ -10,6 +10,7 @@ class Transaction {
   final DateTime createdAt;
   final String? orderId;
   final ClubModel? club;
+  final UserModel? user;
 
   Transaction({
     required this.id,
@@ -22,6 +23,7 @@ class Transaction {
     required this.createdAt,
     this.orderId,
     this.club,
+    this.user,
   });
 
   factory Transaction.fromJson(Map<String, dynamic> json) {
@@ -36,6 +38,7 @@ class Transaction {
       createdAt: DateTime.parse(json['createdAt']),
       orderId: json['orderId'],
       club: json['club'] != null ? ClubModel.fromJson(json['club']) : null,
+      user: json['user'] != null ? UserModel.fromJson(json['user']) : null,
     );
   }
 
@@ -51,6 +54,7 @@ class Transaction {
       'createdAt': createdAt.toIso8601String(),
       'orderId': orderId,
       'club': club?.toJson(),
+      'user': user?.toJson(),
     };
   }
 }
@@ -79,6 +83,34 @@ class ClubModel {
       'id': id,
       'name': name,
       'logo': logo,
+    };
+  }
+}
+
+class UserModel {
+  final String id;
+  final String name;
+  final String? profilePicture;
+
+  UserModel({
+    required this.id,
+    required this.name,
+    this.profilePicture,
+  });
+
+  factory UserModel.fromJson(Map<String, dynamic> json) {
+    return UserModel(
+      id: json['id'],
+      name: json['name'],
+      profilePicture: json['profilePicture'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'profilePicture': profilePicture,
     };
   }
 }

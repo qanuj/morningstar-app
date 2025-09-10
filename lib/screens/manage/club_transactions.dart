@@ -3,6 +3,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import '../../widgets/svg_avatar.dart';
 import '../../services/api_service.dart';
+import '../../widgets/transactions_list_widget.dart';
+import '../../models/transaction.dart';
 
 class ClubTransactionsScreen extends StatefulWidget {
   final dynamic club; // Using dynamic to avoid dependency issues for now
@@ -140,29 +142,43 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
     setState(() => _isLoadingMore = false);
   }
 
-  List<ClubTransaction> _generateMockTransactions() {
+  List<Transaction> _generateMockTransactions() {
     return [
-      ClubTransaction(
+      Transaction(
         id: '1',
+        userId: 'M001',
+        clubId: widget.club.id,
         amount: 2500.0,
-        type: 'Credit',
-        category: 'Membership Fee',
+        type: 'CREDIT',
+        purpose: 'Membership Fee',
         description: 'Monthly membership fee from John Doe',
-        memberName: 'John Doe',
-        memberId: 'M001',
-        date: DateTime.now().subtract(Duration(hours: 2)),
-        status: 'Completed',
+        createdAt: DateTime.now().subtract(Duration(hours: 2)),
+        user: UserModel(
+          id: 'M001',
+          name: 'John Doe',
+          profilePicture: null,
+        ),
+        club: ClubModel(
+          id: widget.club.id,
+          name: widget.club.name,
+          logo: widget.club.logo,
+        ),
       ),
-      ClubTransaction(
+      Transaction(
         id: '2',
+        userId: 'system',
+        clubId: widget.club.id,
         amount: 450.0,
-        type: 'Debit',
-        category: 'Equipment',
+        type: 'DEBIT',
+        purpose: 'Equipment',
         description: 'Purchase of cricket balls and stumps',
-        memberName: null,
-        memberId: null,
-        date: DateTime.now().subtract(Duration(hours: 5)),
-        status: 'Completed',
+        createdAt: DateTime.now().subtract(Duration(hours: 5)),
+        user: null,
+        club: ClubModel(
+          id: widget.club.id,
+          name: widget.club.name,
+          logo: widget.club.logo,
+        ),
       ),
     ];
   }
@@ -407,7 +423,13 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
                       controller: _scrollController,
                       physics: const AlwaysScrollableScrollPhysics(),
                       children: [
-                        ..._buildTransactionListItems(),
+                        ...TransactionsListWidget(
+                          transactions: _transactions,
+                          listType: TransactionListType.club,
+                          isLoadingMore: _isLoadingMore,
+                          hasMoreData: _pagination['hasNextPage'] ?? false,
+                          currency: widget.club.membershipFeeCurrency,
+                        ).buildTransactionListItems(context),
                       ],
                     ),
             ),
@@ -606,41 +628,6 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
   }
 
 
-  List<Widget> _buildTransactionListItems() {
-    final List<Widget> items = [];
-    
-    // Group transactions by date
-    final Map<String, List<Transaction>> groupedTransactions = {};
-    for (final transaction in _transactions) {
-      final dateKey = DateFormat('yyyy-MM-dd').format(DateTime.parse(transaction.createdAt));
-      if (!groupedTransactions.containsKey(dateKey)) {
-        groupedTransactions[dateKey] = [];
-      }
-      groupedTransactions[dateKey]!.add(transaction);
-    }
-    
-    final sortedDateKeys = groupedTransactions.keys.toList()
-      ..sort((a, b) => b.compareTo(a)); // Latest first
-
-    for (final dateKey in sortedDateKeys) {
-      final transactions = groupedTransactions[dateKey]!;
-
-      // Add date header
-      items.add(_buildDateHeader(dateKey));
-
-      // Add transaction cards for this date
-      for (final transaction in transactions) {
-        items.add(_buildWalletStyleTransactionCard(transaction));
-      }
-    }
-
-    // Add loading indicator for infinite scroll
-    if (_isLoadingMore) {
-      items.add(_buildLoadingMoreIndicator());
-    }
-
-    return items;
-  }
 
   Widget _buildDateHeader(String dateKey) {
     final date = DateTime.parse(dateKey);
@@ -990,108 +977,4 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
       ),
     );
   }
-}
-
-// Model classes matching the API response
-class Transaction {
-  final String id;
-  final double amount;
-  final String type; // 'CREDIT' or 'DEBIT'
-  final String purpose;
-  final String description;
-  final String createdAt;
-  final ClubInfo club;
-  final UserInfo? user; // User information when available
-
-  Transaction({
-    required this.id,
-    required this.amount,
-    required this.type,
-    required this.purpose,
-    required this.description,
-    required this.createdAt,
-    required this.club,
-    this.user,
-  });
-
-  factory Transaction.fromJson(Map<String, dynamic> json) {
-    return Transaction(
-      id: json['id']?.toString() ?? '',
-      amount: (json['amount'] ?? 0).toDouble(),
-      type: json['type']?.toString() ?? 'DEBIT',
-      purpose: json['purpose']?.toString() ?? '',
-      description: json['description']?.toString() ?? '',
-      createdAt: json['createdAt']?.toString() ?? DateTime.now().toIso8601String(),
-      club: ClubInfo.fromJson(json['club'] ?? {}),
-      user: json['user'] != null ? UserInfo.fromJson(json['user']) : null,
-    );
-  }
-}
-
-class ClubInfo {
-  final String id;
-  final String name;
-  final String? logo;
-  final String membershipFeeCurrency;
-
-  ClubInfo({
-    required this.id,
-    required this.name,
-    this.logo,
-    required this.membershipFeeCurrency,
-  });
-
-  factory ClubInfo.fromJson(Map<String, dynamic> json) {
-    return ClubInfo(
-      id: json['id']?.toString() ?? '',
-      name: json['name']?.toString() ?? '',
-      logo: json['logo']?.toString(),
-      membershipFeeCurrency: json['membershipFeeCurrency']?.toString() ?? 'INR',
-    );
-  }
-}
-
-class UserInfo {
-  final String id;
-  final String name;
-  final String? profilePicture;
-
-  UserInfo({
-    required this.id,
-    required this.name,
-    this.profilePicture,
-  });
-
-  factory UserInfo.fromJson(Map<String, dynamic> json) {
-    return UserInfo(
-      id: json['id']?.toString() ?? '',
-      name: json['name']?.toString() ?? '',
-      profilePicture: json['profilePicture']?.toString(),
-    );
-  }
-}
-
-// Mock model class for ClubTransaction (fallback)
-class ClubTransaction {
-  final String id;
-  final double amount;
-  final String type; // 'Credit' or 'Debit'
-  final String category;
-  final String description;
-  final String? memberName;
-  final String? memberId;
-  final DateTime date;
-  final String status; // 'Completed', 'Pending', 'Failed'
-
-  ClubTransaction({
-    required this.id,
-    required this.amount,
-    required this.type,
-    required this.category,
-    required this.description,
-    this.memberName,
-    this.memberId,
-    required this.date,
-    required this.status,
-  });
 }

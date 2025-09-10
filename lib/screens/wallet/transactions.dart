@@ -5,6 +5,7 @@ import '../../services/api_service.dart';
 import '../../utils/theme.dart';
 import '../../widgets/svg_avatar.dart';
 import '../../widgets/custom_app_bar.dart';
+import '../../widgets/transactions_list_widget.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key});
@@ -202,60 +203,6 @@ class TransactionsScreenState extends State<TransactionsScreen> {
     _clubBalances = balances;
   }
 
-  Map<String, List<Transaction>> _groupTransactionsByDate(
-    List<Transaction> transactions,
-  ) {
-    final Map<String, List<Transaction>> groupedTransactions = {};
-
-    for (final transaction in transactions) {
-      final dateKey = DateFormat('yyyy-MM-dd').format(transaction.createdAt);
-      if (!groupedTransactions.containsKey(dateKey)) {
-        groupedTransactions[dateKey] = [];
-      }
-      groupedTransactions[dateKey]!.add(transaction);
-    }
-
-    return groupedTransactions;
-  }
-
-  String _formatDateHeader(String dateKey) {
-    final date = DateTime.parse(dateKey);
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final yesterday = today.subtract(Duration(days: 1));
-    final transactionDate = DateTime(date.year, date.month, date.day);
-
-    if (transactionDate == today) {
-      return 'Today';
-    } else if (transactionDate == yesterday) {
-      return 'Yesterday';
-    } else {
-      return DateFormat('MMM dd, yyyy').format(date);
-    }
-  }
-
-  Widget _buildDateHeader(String dateKey) {
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Theme.of(context).brightness == Brightness.dark
-            ? Theme.of(context).colorScheme.onSurface.withOpacity(0.1)
-            : Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        _formatDateHeader(dateKey),
-        style: TextStyle(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? Theme.of(context).colorScheme.onSurface.withOpacity(0.8)
-              : Colors.grey.shade600,
-          fontSize: 12,
-          fontWeight: FontWeight.w400,
-        ),
-      ),
-    );
-  }
 
   void _applyFilters() {
     _currentPage = 1;
@@ -472,7 +419,13 @@ class TransactionsScreenState extends State<TransactionsScreen> {
                           _buildClubFilterIndicator(),
 
                         // Transaction List
-                        ..._buildTransactionListItems(),
+                        ...TransactionsListWidget(
+                          transactions: _transactions,
+                          listType: TransactionListType.my,
+                          isLoadingMore: _isLoadingMore,
+                          hasMoreData: _hasMoreData,
+                          currency: _clubBalances.isNotEmpty ? _clubBalances[_currentBalanceIndex]['currency'] : null,
+                        ).buildTransactionListItems(context),
                       ],
                     ),
             ),
@@ -482,148 +435,6 @@ class TransactionsScreenState extends State<TransactionsScreen> {
     );
   }
 
-  Widget _buildTransactionCard(Transaction transaction) {
-    final isCredit = transaction.type == 'CREDIT';
-    final icon = _getTransactionIcon(transaction.purpose);
-
-    return Container(
-      margin: EdgeInsets.only(bottom: 8, left: 12, right: 12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: Theme.of(context).dividerColor.withOpacity(0.3),
-          width: 0.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).shadowColor.withOpacity(0.04),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(8),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Club Icon with Transaction Badge
-            Stack(
-              children: [
-                // Club Avatar
-                SVGAvatar(
-                  imageUrl: transaction.club?.logo,
-                  size: 40,
-                  backgroundColor: Theme.of(
-                    context,
-                  ).primaryColor.withOpacity(0.1),
-                  fallbackIcon: Icons.account_balance,
-                  iconSize: 24,
-                ),
-                // Transaction Badge
-                Positioned(
-                  right: 0,
-                  bottom: 0,
-                  child: Container(
-                    width: 18,
-                    height: 18,
-                    decoration: BoxDecoration(
-                      color: isCredit
-                          ? AppTheme.successGreen
-                          : AppTheme.errorRed,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Theme.of(context).colorScheme.surface
-                            : Theme.of(context).cardColor,
-                        width: 2,
-                      ),
-                    ),
-                    child: Icon(
-                      icon,
-                      color: Theme.of(context).colorScheme.onPrimary,
-                      size: 10,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(width: 12),
-
-            // Transaction Info (Center)
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    transaction.description,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w400,
-                      fontSize: 12,
-                      color: Theme.of(context).textTheme.titleLarge?.color,
-                      height: 1.2,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Theme.of(
-                              context,
-                            ).colorScheme.onSurface.withOpacity(0.15)
-                          : Theme.of(context).primaryColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      _getPurposeText(transaction.purpose),
-                      style: TextStyle(
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Theme.of(
-                                context,
-                              ).colorScheme.onSurface.withOpacity(0.9)
-                            : Theme.of(context).primaryColor,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Amount and Time (Right)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  '${isCredit ? '+' : '-'}₹${transaction.amount.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                    color: isCredit ? AppTheme.successGreen : AppTheme.errorRed,
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  DateFormat('hh:mm a').format(transaction.createdAt),
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodySmall?.color,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   void _showFilterBottomSheet() {
     // Initialize temporary filters with current values
@@ -1097,35 +908,6 @@ class TransactionsScreenState extends State<TransactionsScreen> {
     );
   }
 
-  IconData _getTransactionIcon(String purpose) {
-    switch (purpose) {
-      case 'MATCH_FEE':
-        return Icons.sports_cricket;
-      case 'MEMBERSHIP':
-        return Icons.card_membership;
-      case 'ORDER':
-        return Icons.shopping_cart;
-      case 'CLUB_TOPUP':
-        return Icons.account_balance_wallet;
-      default:
-        return Icons.receipt;
-    }
-  }
-
-  String _getPurposeText(String purpose) {
-    switch (purpose) {
-      case 'MATCH_FEE':
-        return 'Match Fee';
-      case 'MEMBERSHIP':
-        return 'Membership Fee';
-      case 'ORDER':
-        return 'Store Order';
-      case 'CLUB_TOPUP':
-        return 'Wallet Top-up';
-      default:
-        return 'Other';
-    }
-  }
 
   Widget _buildBalanceCard() {
     // Use actual user clubs from API, fallback to balance clubs if not loaded yet
@@ -1370,88 +1152,6 @@ class TransactionsScreenState extends State<TransactionsScreen> {
     );
   }
 
-  List<Widget> _buildTransactionListItems() {
-    final List<Widget> items = [];
-    final groupedTransactions = _groupTransactionsByDate(_transactions);
-    final sortedDateKeys = groupedTransactions.keys.toList()
-      ..sort((a, b) => b.compareTo(a)); // Latest first
-
-    for (final dateKey in sortedDateKeys) {
-      final transactions = groupedTransactions[dateKey]!;
-
-      // Add date header
-      items.add(_buildDateHeader(dateKey));
-
-      // Add transaction cards for this date
-      for (final transaction in transactions) {
-        items.add(_buildTransactionCard(transaction));
-      }
-    }
-
-    // Add loading indicator at the bottom for infinite scroll
-    if (_isLoadingMore) {
-      items.add(_buildLoadingMoreIndicator());
-    } else if (!_hasMoreData && _transactions.isNotEmpty) {
-      items.add(_buildEndOfListIndicator());
-    }
-
-    return items;
-  }
-
-  Widget _buildLoadingMoreIndicator() {
-    return Container(
-      padding: EdgeInsets.symmetric(vertical: 20),
-      child: Center(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-            SizedBox(width: 12),
-            Text(
-              'Loading more transactions...',
-              style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).textTheme.bodyMedium?.color,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEndOfListIndicator() {
-    return Container(
-      padding: EdgeInsets.symmetric(vertical: 20),
-      child: Center(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.check_circle_outline,
-              size: 16,
-              color: Theme.of(context).textTheme.bodyMedium?.color,
-            ),
-            SizedBox(width: 8),
-            Text(
-              'All transactions loaded',
-              style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).textTheme.bodyMedium?.color,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildClubFilterIndicator() {
     final currentClub = _clubBalances.firstWhere(
