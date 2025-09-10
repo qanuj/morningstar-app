@@ -123,8 +123,10 @@ class ApiService {
       print('🔵 Making POST request to: $baseUrl$endpoint');
     }
 
-    //print('🔵 Request data: $data');
-    //print('🔵 Request headers: $headers');
+    if (AppConfig.enableDebugPrints) {
+      print('🔵 Request data: $data');
+      print('🔵 Request headers: $headers');
+    }
 
     final response = await http.post(
       Uri.parse('$baseUrl$endpoint'),
@@ -132,8 +134,10 @@ class ApiService {
       body: json.encode(data),
     );
 
-    //print('🔵 Response status: ${response.statusCode}');
-    //print('🔵 Response body: ${response.body}');
+    if (AppConfig.enableDebugPrints) {
+      print('🔵 Response status: ${response.statusCode}');
+      print('🔵 Response body: ${response.body}');
+    }
 
     return _handleResponse(response);
   }
@@ -175,13 +179,19 @@ class ApiService {
   }
 
   static Map<String, dynamic> _handleResponse(http.Response response) {
-    //print('🔵 Handling response with status: ${response.statusCode}');
+    if (AppConfig.enableDebugPrints) {
+      print('🔵 Handling response with status: ${response.statusCode}');
+    }
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      //print('✅ Success Response Body: ${response.body}');
+      if (AppConfig.enableDebugPrints) {
+        print('✅ Success Response Body: ${response.body}');
+      }
       try {
         final decoded = json.decode(response.body);
-        //print('🔵 Decoded response: $decoded');
+        if (AppConfig.enableDebugPrints) {
+          print('🔵 Decoded response: $decoded');
+        }
 
         // Handle both Map and List responses
         if (decoded is List) {

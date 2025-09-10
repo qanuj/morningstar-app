@@ -27,17 +27,63 @@ class TransactionCreateScreenState extends State<TransactionCreateScreen> {
   String _purpose = 'OTHER';
   String _paymentMethod = 'CASH';
   bool _isSubmitting = false;
+  bool _userEditedDescription = false;
   
   final List<Map<String, dynamic>> _purposeOptions = [
-    {'value': 'MATCH_FEE', 'label': 'Match Fee', 'icon': Icons.sports_cricket},
-    {'value': 'MEMBERSHIP', 'label': 'Membership', 'icon': Icons.card_membership},
-    {'value': 'JERSEY_ORDER', 'label': 'Jersey Order', 'icon': Icons.shopping_cart},
-    {'value': 'GEAR_PURCHASE', 'label': 'Gear Purchase', 'icon': Icons.sports},
-    {'value': 'TRAINING', 'label': 'Training', 'icon': Icons.fitness_center},
-    {'value': 'EVENT', 'label': 'Event', 'icon': Icons.event},
-    {'value': 'FOOD_BEVERAGE', 'label': 'Food & Beverage', 'icon': Icons.restaurant},
-    {'value': 'MAINTENANCE', 'label': 'Maintenance', 'icon': Icons.build},
-    {'value': 'OTHER', 'label': 'Other', 'icon': Icons.more_horiz},
+    {
+      'value': 'MATCH_FEE', 
+      'label': 'Match Fee', 
+      'icon': Icons.sports_cricket,
+      'description': 'Match participation fee'
+    },
+    {
+      'value': 'MEMBERSHIP', 
+      'label': 'Membership', 
+      'icon': Icons.card_membership,
+      'description': 'Club membership fee payment'
+    },
+    {
+      'value': 'JERSEY_ORDER', 
+      'label': 'Jersey Order', 
+      'icon': Icons.shopping_cart,
+      'description': 'Team jersey order payment'
+    },
+    {
+      'value': 'GEAR_PURCHASE', 
+      'label': 'Gear Purchase', 
+      'icon': Icons.sports,
+      'description': 'Cricket equipment and gear purchase'
+    },
+    {
+      'value': 'TRAINING', 
+      'label': 'Training', 
+      'icon': Icons.fitness_center,
+      'description': 'Training session fee'
+    },
+    {
+      'value': 'EVENT', 
+      'label': 'Event', 
+      'icon': Icons.event,
+      'description': 'Club event participation fee'
+    },
+    {
+      'value': 'FOOD_BEVERAGE', 
+      'label': 'Food & Beverage', 
+      'icon': Icons.restaurant,
+      'description': 'Food and refreshment expenses'
+    },
+    {
+      'value': 'MAINTENANCE', 
+      'label': 'Maintenance', 
+      'icon': Icons.build,
+      'description': 'Equipment and facility maintenance'
+    },
+    {
+      'value': 'OTHER', 
+      'label': 'Other', 
+      'icon': Icons.more_horiz,
+      'description': ''
+    },
   ];
   
   final List<Map<String, dynamic>> _paymentMethodOptions = [
@@ -50,10 +96,40 @@ class TransactionCreateScreenState extends State<TransactionCreateScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    // Initialize description based on default purpose
+    _updateDescriptionFromPurpose(_purpose);
+  }
+
+  @override
   void dispose() {
     _amountController.dispose();
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  void _updateDescriptionFromPurpose(String purposeValue) {
+    // Only auto-fill if the user hasn't manually edited the description
+    if (!_userEditedDescription) {
+      final selectedPurpose = _purposeOptions.firstWhere(
+        (option) => option['value'] == purposeValue,
+        orElse: () => {'description': ''},
+      );
+      
+      final description = selectedPurpose['description'] ?? '';
+      _descriptionController.text = description;
+      
+      // Reset user edited flag when we auto-fill (except for OTHER which stays empty)
+      if (purposeValue != 'OTHER' && description.isNotEmpty) {
+        _userEditedDescription = false;
+      }
+    }
+  }
+
+  void _onDescriptionChanged(String value) {
+    // Mark that user has manually edited the description
+    _userEditedDescription = true;
   }
 
   @override
@@ -179,6 +255,7 @@ class TransactionCreateScreenState extends State<TransactionCreateScreen> {
                             onSelected: (selected) {
                               setState(() {
                                 _purpose = option['value'];
+                                _updateDescriptionFromPurpose(_purpose);
                               });
                             },
                             selectedColor: Theme.of(context).primaryColor.withOpacity(0.2),
@@ -246,10 +323,11 @@ class TransactionCreateScreenState extends State<TransactionCreateScreen> {
                           labelText: 'Description',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.description),
-                          helperText: 'Describe the transaction purpose',
+                          helperText: 'Describe the transaction purpose (auto-filled based on purpose)',
                         ),
                         maxLines: 1,
                         textInputAction: TextInputAction.done,
+                        onChanged: _onDescriptionChanged,
                         onFieldSubmitted: (value) {
                           FocusScope.of(context).unfocus();
                         },

@@ -9,6 +9,8 @@ import '../../services/api_service.dart';
 import '../../widgets/svg_avatar.dart';
 import '../../widgets/transaction_dialog_helper.dart';
 import 'club_member_manage.dart';
+import 'contact_picker_screen.dart';
+import 'manual_add_member_screen.dart';
 
 class EnhancedClubMembersScreen extends StatefulWidget {
   final Club club;
@@ -127,6 +129,12 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
 
       // Parse the response
       final membersData = response['members'] as List<dynamic>? ?? [];
+      
+      print('🔍 MEMBERS API RESPONSE DEBUG:');
+      print('   Total Members: ${membersData.length}');
+      if (membersData.isNotEmpty) {
+        print('   Sample Member Data: ${membersData.first}');
+      }
 
       return membersData.map((memberData) {
         return ClubMember(
@@ -315,38 +323,145 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     );
   }
 
+  Future<void> _showAddMemberOptions() async {
+    showModalBottomSheet(
+      context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle bar
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            SizedBox(height: 20),
+            
+            Text(
+              'Add New Member',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            SizedBox(height: 24),
+            
+            // From Contacts Option
+            ListTile(
+              leading: Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Color(0xFF003f9b).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.contacts,
+                  color: Color(0xFF003f9b),
+                ),
+              ),
+              title: Text('From Contacts'),
+              subtitle: Text('Select from your phone contacts'),
+              onTap: () {
+                Navigator.pop(context);
+                _showAddMemberFromContacts();
+              },
+            ),
+            
+            SizedBox(height: 8),
+            
+            // Manual Entry Option
+            ListTile(
+              leading: Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.person_add,
+                  color: Colors.green,
+                ),
+              ),
+              title: Text('Enter Manually'),
+              subtitle: Text('Add member details manually'),
+              onTap: () {
+                Navigator.pop(context);
+                _showManualAddMember();
+              },
+            ),
+            
+            SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _showAddMemberFromContacts() async {
     try {
-      // Request contacts permission
+      // Check current permission status first
+      PermissionStatus currentStatus = await Permission.contacts.status;
+      
+      // Try direct contact access first (iOS-specific fallback)
+      if (currentStatus == PermissionStatus.denied || currentStatus == PermissionStatus.permanentlyDenied) {
+        try {
+          // This will trigger iOS permission dialog if not permanently denied
+          await FlutterContacts.getContacts(withProperties: false);
+          // If we get here, permission was granted
+          _showContactPicker();
+          return;
+        } catch (e) {
+          // Continue with permission_handler flow
+        }
+      }
+      
+      // Request contacts permission using permission_handler
       PermissionStatus permissionStatus = await Permission.contacts.request();
       
       if (permissionStatus == PermissionStatus.granted) {
         // Permission granted, show contact picker
         _showContactPicker();
       } else if (permissionStatus == PermissionStatus.denied) {
-        // Permission denied, show explanation
-        _showPermissionDeniedDialog();
+        // Permission denied, fallback to manual entry
+        _showPermissionDeniedWithFallback();
       } else if (permissionStatus == PermissionStatus.permanentlyDenied) {
-        // Permission permanently denied, show settings dialog
-        _showPermissionPermanentlyDeniedDialog();
+        // Permission permanently denied, show settings dialog with manual option
+        _showPermissionPermanentlyDeniedWithFallback();
+      } else {
+        _showErrorSnackBar('Unknown permission status: $permissionStatus');
       }
     } catch (e) {
       _showErrorSnackBar('Failed to request contacts permission: $e');
     }
   }
 
-  void _showPermissionDeniedDialog() {
+  void _showPermissionDeniedWithFallback() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Contacts Permission'),
         content: Text(
-          'To add members from your contacts, we need access to your contacts. This helps you quickly select contacts to invite to the club.',
+          'To add members from your contacts, we need access to your contacts. You can try again or add members manually.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _showManualAddMember();
+            },
+            child: Text('Add Manually'),
           ),
           TextButton(
             onPressed: () async {
@@ -360,13 +475,38 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     );
   }
 
-  void _showPermissionPermanentlyDeniedDialog() {
+  void _showPermissionPermanentlyDeniedWithFallback() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Permission Required'),
-        content: Text(
-          'Contacts permission is permanently denied. Please enable it in Settings to add members from your contacts.',
+        title: Text('📱 Contacts Permission Required'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'To add members from your contacts, you need to grant contacts permission.',
+              style: TextStyle(fontSize: 16),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'iOS Steps:',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+            SizedBox(height: 8),
+            Text(
+              '1. Tap "Open Settings" below\n'
+              '2. Find "Duggy" in the app list\n'
+              '3. Toggle "Contacts" to ON\n'
+              '4. Return to the app and try again',
+              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Or you can add members manually without contacts access.',
+              style: TextStyle(fontSize: 14, color: Colors.grey[600], fontStyle: FontStyle.italic),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -374,10 +514,21 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
             child: Text('Cancel'),
           ),
           TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _showManualAddMember();
+            },
+            child: Text('Add Manually'),
+          ),
+          ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
               await openAppSettings();
             },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Color(0xFF003f9b),
+              foregroundColor: Colors.white,
+            ),
             child: Text('Open Settings'),
           ),
         ],
@@ -385,9 +536,31 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     );
   }
 
-  Future<void> _showContactPicker() async {
+  void _showContactPicker() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ContactPickerScreen(
+          onContactsSelected: _addMembersFromContacts,
+        ),
+      ),
+    );
+  }
+
+  void _showManualAddMember() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ManualAddMemberScreen(
+          onMemberAdded: _addMemberManually,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _addMemberManually(String name, String phoneNumber) async {
     try {
-      // Show loading
+      // Show loading dialog
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -403,49 +576,45 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
               children: [
                 CircularProgressIndicator(color: Color(0xFF003f9b)),
                 SizedBox(height: 16),
-                Text('Loading contacts...'),
+                Text('Adding member...'),
               ],
             ),
           ),
         ),
       );
 
-      // Fetch contacts
-      List<Contact> contacts = await FlutterContacts.getContacts(withProperties: true);
+      // Clean phone number
+      final cleanPhone = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
       
-      // Filter contacts with phone numbers
-      contacts = contacts.where((contact) => 
-        contact.phones.isNotEmpty && 
-        contact.displayName.isNotEmpty
-      ).toList();
-
-      // Sort contacts alphabetically
-      contacts.sort((a, b) => a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()));
-
-      Navigator.pop(context); // Close loading dialog
-
-      if (contacts.isEmpty) {
-        _showErrorSnackBar('No contacts with phone numbers found');
-        return;
+      final memberData = {
+        'name': name,
+        'phoneNumber': cleanPhone,
+        'clubId': widget.club.id,
+      };
+      
+      await ApiService.post('/members', memberData);
+      
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Successfully added $name to the club!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // Refresh the members list
+        _loadMembers(refresh: true);
       }
-
-      // Show contact selection dialog
-      _showContactSelectionDialog(contacts);
     } catch (e) {
-      Navigator.pop(context); // Close loading dialog
-      _showErrorSnackBar('Failed to load contacts: $e');
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        _showErrorSnackBar('Failed to add member: $e');
+      }
     }
   }
 
-  void _showContactSelectionDialog(List<Contact> contacts) {
-    showDialog(
-      context: context,
-      builder: (context) => _ContactSelectionDialog(
-        contacts: contacts,
-        onContactsSelected: _addMembersFromContacts,
-      ),
-    );
-  }
 
   Future<void> _addMembersFromContacts(List<Contact> selectedContacts) async {
     if (selectedContacts.isEmpty) return;
@@ -571,6 +740,132 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
       Navigator.pop(context); // Close progress dialog
       _showErrorSnackBar('Failed to add members: $e');
     }
+  }
+
+  void _showMoreActionsBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle bar
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            SizedBox(height: 20),
+            
+            Text(
+              'Actions',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            SizedBox(height: 24),
+            
+            // Add Member Option
+            ListTile(
+              leading: Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Color(0xFF003f9b).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.person_add,
+                  color: Color(0xFF003f9b),
+                ),
+              ),
+              title: Text('Add Member'),
+              subtitle: Text('Add new member to club'),
+              onTap: () {
+                Navigator.pop(context);
+                _showAddMemberOptions();
+              },
+            ),
+            
+            // Search Option
+            ListTile(
+              leading: Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.search,
+                  color: Colors.blue,
+                ),
+              ),
+              title: Text('Search Members'),
+              subtitle: Text('Search by name or phone'),
+              onTap: () {
+                Navigator.pop(context);
+                _showSearchDialog();
+              },
+            ),
+            
+            // Filter Option
+            ListTile(
+              leading: Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.filter_list,
+                  color: Colors.orange,
+                ),
+              ),
+              title: Text('Filter Members'),
+              subtitle: Text('Filter by status or balance'),
+              onTap: () {
+                Navigator.pop(context);
+                _showFilterDialog();
+              },
+            ),
+            
+            if (_selectedMembers.isNotEmpty) ...[
+              Divider(),
+              
+              // Bulk Actions for selected members
+              ListTile(
+                leading: Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.purple.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.group,
+                    color: Colors.purple,
+                  ),
+                ),
+                title: Text('Bulk Actions'),
+                subtitle: Text('${_selectedMembers.length} member${_selectedMembers.length != 1 ? 's' : ''} selected'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showBulkActionsBottomSheet();
+                },
+              ),
+            ],
+            
+            SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showBulkActionsBottomSheet() {
@@ -702,10 +997,21 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
       if (isBulk) {
         // Bulk transaction API call - matches web app implementation
         final selectedMembersList = _getSelectedMembers();
-        // Use member.id directly as it represents the user ID in our ClubMember model
-        final userIds = selectedMembersList.map((member) => member.id).toList();
+        // The server expects userIds - use the userId field from ClubMember model
+        final userIds = selectedMembersList.map((member) => member.userId ?? member.id).toList();
 
-        final response = await ApiService.post('/transactions/bulk', {
+        print('🔵 BULK TRANSACTION DEBUG:');
+        print('   Selected Members: ${selectedMembersList.length}');
+        print('   Member IDs: ${selectedMembersList.map((m) => m.id).toList()}');
+        print('   User IDs: $userIds');
+        print('   Type: $type');
+        print('   Amount: ${data['amount']}');
+        print('   Purpose: ${data['purpose']}');
+        print('   Description: ${data['description']}');
+        print('   Club ID: ${widget.club.id}');
+        print('   Payment Method: ${data['paymentMethod']}');
+
+        final requestPayload = {
           'userIds': userIds,
           'amount': double.parse(data['amount']),
           'type': type,
@@ -715,7 +1021,13 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
           'paymentMethod': type == 'CREDIT'
               ? data['paymentMethod']
               : null, // No payment method for expenses
-        });
+        };
+
+        print('🔵 Full Request Payload: $requestPayload');
+
+        final response = await ApiService.post('/transactions/bulk', requestPayload);
+        
+        print('🔵 BULK TRANSACTION RESPONSE: $response');
 
         if (!mounted) return;
 
@@ -777,12 +1089,20 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
       // Refresh data
       _loadMembers(refresh: true);
     } catch (error) {
+      print('❌ BULK TRANSACTION ERROR: $error');
+      print('❌ Error Type: ${error.runtimeType}');
+      if (error is ApiException) {
+        print('❌ API Error Message: ${error.message}');
+        print('❌ Raw Response: ${error.rawResponse}');
+      }
+
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to process transaction: $error'),
           backgroundColor: Colors.red,
+          duration: Duration(seconds: 5),
         ),
       );
     }
@@ -957,23 +1277,8 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
               ),
               actions: [
                 IconButton(
-                  icon: Icon(Icons.person_add, color: Colors.white),
-                  onPressed: _showAddMemberFromContacts,
-                  tooltip: 'Add Member',
-                ),
-                IconButton(
-                  icon: Icon(Icons.search, color: Colors.white),
-                  onPressed: () => _showSearchDialog(),
-                  tooltip: 'Search Members',
-                ),
-                IconButton(
-                  icon: Icon(Icons.filter_list, color: Colors.white),
-                  onPressed: () => _showFilterDialog(),
-                  tooltip: 'Filter Members',
-                ),
-                IconButton(
                   icon: Icon(Icons.more_vert, color: Colors.white),
-                  onPressed: _showBulkActionsBottomSheet,
+                  onPressed: _showMoreActionsBottomSheet,
                   tooltip: 'More Actions',
                 ),
               ],
@@ -2021,290 +2326,6 @@ class _PointsDialog extends StatefulWidget {
   _PointsDialogState createState() => _PointsDialogState();
 }
 
-// Contact Selection Dialog
-class _ContactSelectionDialog extends StatefulWidget {
-  final List<Contact> contacts;
-  final Function(List<Contact>) onContactsSelected;
-
-  const _ContactSelectionDialog({
-    required this.contacts,
-    required this.onContactsSelected,
-  });
-
-  @override
-  _ContactSelectionDialogState createState() => _ContactSelectionDialogState();
-}
-
-class _ContactSelectionDialogState extends State<_ContactSelectionDialog> {
-  List<Contact> _filteredContacts = [];
-  Set<String> _selectedContactIds = {};
-  String _searchQuery = '';
-  final TextEditingController _searchController = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    _filteredContacts = widget.contacts;
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  void _filterContacts(String query) {
-    setState(() {
-      _searchQuery = query;
-      if (query.isEmpty) {
-        _filteredContacts = widget.contacts;
-      } else {
-        _filteredContacts = widget.contacts.where((contact) {
-          final nameMatch = contact.displayName.toLowerCase().contains(query.toLowerCase());
-          final phoneMatch = contact.phones.any((phone) => 
-            phone.number.contains(query));
-          return nameMatch || phoneMatch;
-        }).toList();
-      }
-    });
-  }
-
-  void _toggleContactSelection(Contact contact) {
-    setState(() {
-      if (_selectedContactIds.contains(contact.id)) {
-        _selectedContactIds.remove(contact.id);
-      } else {
-        _selectedContactIds.add(contact.id);
-      }
-    });
-    HapticFeedback.lightImpact();
-  }
-
-  void _selectAllContacts() {
-    setState(() {
-      if (_selectedContactIds.length == _filteredContacts.length) {
-        _selectedContactIds.clear();
-      } else {
-        _selectedContactIds = _filteredContacts.map((c) => c.id).toSet();
-      }
-    });
-    HapticFeedback.mediumImpact();
-  }
-
-  List<Contact> _getSelectedContacts() {
-    return widget.contacts
-        .where((contact) => _selectedContactIds.contains(contact.id))
-        .toList();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      insetPadding: EdgeInsets.all(16),
-      child: Container(
-        width: double.maxFinite,
-        height: MediaQuery.of(context).size.height * 0.8,
-        child: Column(
-          children: [
-            // Header
-            Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Color(0xFF003f9b),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(4)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Select Contacts',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.close, color: Colors.white),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
-                  ),
-                  if (_selectedContactIds.isNotEmpty)
-                    Text(
-                      '${_selectedContactIds.length} selected',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.8),
-                        fontSize: 14,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-
-            // Search bar
-            Container(
-              padding: EdgeInsets.all(16),
-              child: TextField(
-                controller: _searchController,
-                onChanged: _filterContacts,
-                decoration: InputDecoration(
-                  hintText: 'Search contacts...',
-                  prefixIcon: Icon(Icons.search),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-              ),
-            ),
-
-            // Action buttons
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  TextButton(
-                    onPressed: _selectAllContacts,
-                    child: Text(
-                      _selectedContactIds.length == _filteredContacts.length 
-                        ? 'Deselect All' 
-                        : 'Select All',
-                      style: TextStyle(color: Color(0xFF003f9b)),
-                    ),
-                  ),
-                  Spacer(),
-                  Text(
-                    '${_filteredContacts.length} contacts',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                  ),
-                ],
-              ),
-            ),
-
-            Divider(),
-
-            // Contacts list
-            Expanded(
-              child: _filteredContacts.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
-                          SizedBox(height: 16),
-                          Text(
-                            'No contacts found',
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                          if (_searchQuery.isNotEmpty)
-                            Text(
-                              'Try adjusting your search terms',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[500],
-                              ),
-                            ),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: _filteredContacts.length,
-                      itemBuilder: (context, index) {
-                        final contact = _filteredContacts[index];
-                        final isSelected = _selectedContactIds.contains(contact.id);
-
-                        return CheckboxListTile(
-                          value: isSelected,
-                          onChanged: (bool? value) => _toggleContactSelection(contact),
-                          title: Text(
-                            contact.displayName,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w500,
-                              fontSize: 16,
-                            ),
-                          ),
-                          subtitle: contact.phones.isNotEmpty
-                              ? Text(
-                                  contact.phones.first.number,
-                                  style: TextStyle(color: Colors.grey[600]),
-                                )
-                              : null,
-                          secondary: CircleAvatar(
-                            backgroundColor: Color(0xFF003f9b).withOpacity(0.1),
-                            child: Text(
-                              contact.displayName.isNotEmpty
-                                  ? contact.displayName[0].toUpperCase()
-                                  : 'C',
-                              style: TextStyle(
-                                color: Color(0xFF003f9b),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          activeColor: Color(0xFF003f9b),
-                          controlAffinity: ListTileControlAffinity.trailing,
-                          dense: false,
-                        );
-                      },
-                    ),
-            ),
-
-            // Action buttons
-            Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: Colors.grey[300]!)),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: Text('Cancel'),
-                    ),
-                  ),
-                  SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _selectedContactIds.isEmpty
-                          ? null
-                          : () {
-                              Navigator.pop(context);
-                              widget.onContactsSelected(_getSelectedContacts());
-                            },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Color(0xFF003f9b),
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: Text(
-                        _selectedContactIds.isEmpty
-                            ? 'Select Contacts'
-                            : 'Add ${_selectedContactIds.length} Members',
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _PointsDialogState extends State<_PointsDialog> {
   final _formKey = GlobalKey<FormState>();
