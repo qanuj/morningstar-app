@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 class BulkPointsScreen extends StatefulWidget {
   final List<dynamic> selectedMembers;
   final Function(Map<String, dynamic>, String) onSubmit;
-  
+
   const BulkPointsScreen({
     super.key,
     required this.selectedMembers,
     required this.onSubmit,
   });
-  
+
   @override
   BulkPointsScreenState createState() => BulkPointsScreenState();
 }
@@ -18,70 +18,70 @@ class BulkPointsScreenState extends State<BulkPointsScreen> {
   final _formKey = GlobalKey<FormState>();
   final _pointsController = TextEditingController();
   final _descriptionController = TextEditingController();
-  
+
   String _action = 'add'; // add or remove
   String _category = 'OUTSTANDING_PERFORMANCE';
   bool _isSubmitting = false;
-  
+
   // Categories for adding points
   final List<Map<String, dynamic>> _addCategoryOptions = [
     {
-      'value': 'OUTSTANDING_PERFORMANCE', 
-      'label': 'Outstanding Performance', 
+      'value': 'OUTSTANDING_PERFORMANCE',
+      'label': 'Outstanding Performance',
       'icon': Icons.star,
-      'description': 'Outstanding performance in matches'
+      'description': 'Outstanding performance in matches',
     },
     {
-      'value': 'PRACTICE_ATTENDED', 
-      'label': 'Practice Attended', 
+      'value': 'PRACTICE_ATTENDED',
+      'label': 'Practice Attended',
       'icon': Icons.event_available,
-      'description': 'Regular attendance and participation'
+      'description': 'Regular attendance and participation',
     },
     {
-      'value': 'MATCH_PARTICIPATION', 
-      'label': 'Match Participation', 
+      'value': 'MATCH_PARTICIPATION',
+      'label': 'Match Participation',
       'icon': Icons.sports_cricket,
-      'description': 'Active participation in matches'
+      'description': 'Active participation in matches',
     },
     {
-      'value': 'TEAM_CONTRIBUTION', 
-      'label': 'Team Contribution', 
+      'value': 'TEAM_CONTRIBUTION',
+      'label': 'Team Contribution',
       'icon': Icons.emoji_events,
-      'description': 'Valuable contribution to team efforts'
+      'description': 'Valuable contribution to team efforts',
     },
     {
-      'value': 'MATCH_BEHAVIOUR', 
-      'label': 'Good Behaviour', 
+      'value': 'MATCH_BEHAVIOUR',
+      'label': 'Good Behaviour',
       'icon': Icons.sentiment_satisfied,
-      'description': 'Positive behaviour during matches'
+      'description': 'Positive behaviour during matches',
     },
     {
-      'value': 'OTHER', 
-      'label': 'Other', 
+      'value': 'OTHER',
+      'label': 'Other',
       'icon': Icons.more_horiz,
-      'description': 'Other point adjustments'
+      'description': 'Other point adjustments',
     },
   ];
 
   // Categories for deducting points
   final List<Map<String, dynamic>> _deductCategoryOptions = [
     {
-      'value': 'MISCONDUCT', 
-      'label': 'Misconduct', 
+      'value': 'MISCONDUCT',
+      'label': 'Misconduct',
       'icon': Icons.report,
-      'description': 'Disciplinary action for misconduct'
+      'description': 'Disciplinary action for misconduct',
     },
     {
-      'value': 'LATE_ARRIVAL', 
-      'label': 'Late Arrival', 
+      'value': 'LATE_ARRIVAL',
+      'label': 'Late Arrival',
       'icon': Icons.schedule,
-      'description': 'Penalty for arriving late'
+      'description': 'Penalty for arriving late',
     },
     {
-      'value': 'OTHER', 
-      'label': 'Other', 
+      'value': 'OTHER',
+      'label': 'Other',
       'icon': Icons.more_horiz,
-      'description': 'Other point adjustments'
+      'description': 'Other point adjustments',
     },
   ];
 
@@ -107,13 +107,13 @@ class BulkPointsScreenState extends State<BulkPointsScreen> {
       (option) => option['value'] == _category,
       orElse: () => {'description': ''},
     );
-    
+
     final description = selectedCategory['description'] ?? '';
     _descriptionController.text = description;
   }
 
   String get _currentTitle {
-    return _action == 'add' ? 'Add Bulk Points' : 'Deduct Bulk Points';
+    return _action == 'add' ? 'Add Points' : 'Deduct Points';
   }
 
   IconData get _currentIcon {
@@ -175,7 +175,7 @@ class BulkPointsScreenState extends State<BulkPointsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            _action == 'add' 
+                            _action == 'add'
                                 ? 'Add points for ${widget.selectedMembers.length} selected members'
                                 : 'Deduct points from ${widget.selectedMembers.length} selected members',
                             style: TextStyle(
@@ -216,7 +216,7 @@ class BulkPointsScreenState extends State<BulkPointsScreen> {
                     ],
                   ),
                   SizedBox(height: 16),
-                  
+
                   // Action toggle buttons
                   Container(
                     decoration: BoxDecoration(
@@ -230,14 +230,16 @@ class BulkPointsScreenState extends State<BulkPointsScreen> {
                             onTap: () {
                               setState(() {
                                 _action = 'add';
+                                _category =
+                                    'OUTSTANDING_PERFORMANCE'; // Set valid category for add
                                 _updateDescriptionFromCategory();
                               });
                             },
                             child: Container(
                               padding: EdgeInsets.symmetric(vertical: 12),
                               decoration: BoxDecoration(
-                                color: _action == 'add' 
-                                    ? Colors.green 
+                                color: _action == 'add'
+                                    ? Colors.green
                                     : Colors.transparent,
                                 borderRadius: BorderRadius.circular(8),
                               ),
@@ -246,17 +248,17 @@ class BulkPointsScreenState extends State<BulkPointsScreen> {
                                 children: [
                                   Icon(
                                     Icons.add,
-                                    color: _action == 'add' 
-                                        ? Colors.white 
+                                    color: _action == 'add'
+                                        ? Colors.white
                                         : Colors.green,
                                     size: 18,
                                   ),
                                   SizedBox(width: 6),
                                   Text(
-                                    'Add Points',
+                                    'Points',
                                     style: TextStyle(
-                                      color: _action == 'add' 
-                                          ? Colors.white 
+                                      color: _action == 'add'
+                                          ? Colors.white
                                           : Colors.green,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -279,8 +281,8 @@ class BulkPointsScreenState extends State<BulkPointsScreen> {
                             child: Container(
                               padding: EdgeInsets.symmetric(vertical: 12),
                               decoration: BoxDecoration(
-                                color: _action == 'remove' 
-                                    ? Colors.red 
+                                color: _action == 'remove'
+                                    ? Colors.red
                                     : Colors.transparent,
                                 borderRadius: BorderRadius.circular(8),
                               ),
@@ -289,17 +291,17 @@ class BulkPointsScreenState extends State<BulkPointsScreen> {
                                 children: [
                                   Icon(
                                     Icons.remove,
-                                    color: _action == 'remove' 
-                                        ? Colors.white 
+                                    color: _action == 'remove'
+                                        ? Colors.white
                                         : Colors.red,
                                     size: 18,
                                   ),
                                   SizedBox(width: 6),
                                   Text(
-                                    'Deduct Points',
+                                    'Points',
                                     style: TextStyle(
-                                      color: _action == 'remove' 
-                                          ? Colors.white 
+                                      color: _action == 'remove'
+                                          ? Colors.white
                                           : Colors.red,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -315,7 +317,7 @@ class BulkPointsScreenState extends State<BulkPointsScreen> {
                 ],
               ),
             ),
-            
+
             // Form content
             Expanded(
               child: SingleChildScrollView(
@@ -332,11 +334,13 @@ class BulkPointsScreenState extends State<BulkPointsScreen> {
                           labelText: 'Points per Member',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.emoji_events),
-                          helperText: 'Enter the points to add/deduct per member',
+                          helperText:
+                              'Enter the points to add/deduct per member',
                         ),
                         keyboardType: TextInputType.number,
                         textInputAction: TextInputAction.next,
-                        onChanged: (value) => setState(() {}), // Update calculations
+                        onChanged: (value) =>
+                            setState(() {}), // Update calculations
                         onFieldSubmitted: (value) {
                           FocusScope.of(context).nextFocus();
                         },
@@ -351,9 +355,9 @@ class BulkPointsScreenState extends State<BulkPointsScreen> {
                           return null;
                         },
                       ),
-                      
+
                       const SizedBox(height: 24),
-                      
+
                       // Category selection
                       DropdownButtonFormField<String>(
                         value: _category,
@@ -394,9 +398,9 @@ class BulkPointsScreenState extends State<BulkPointsScreen> {
                           return null;
                         },
                       ),
-                      
+
                       const SizedBox(height: 24),
-                      
+
                       // Description field
                       TextFormField(
                         controller: _descriptionController,
@@ -421,9 +425,9 @@ class BulkPointsScreenState extends State<BulkPointsScreen> {
                           return null;
                         },
                       ),
-                      
+
                       const SizedBox(height: 32),
-                      
+
                       // Summary card
                       Card(
                         color: Theme.of(context).primaryColor.withOpacity(0.05),
@@ -442,10 +446,13 @@ class BulkPointsScreenState extends State<BulkPointsScreen> {
                                   const SizedBox(width: 8),
                                   Text(
                                     'Points Summary',
-                                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      color: Theme.of(context).primaryColor,
-                                    ),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleSmall
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                          color: Theme.of(context).primaryColor,
+                                        ),
                                   ),
                                 ],
                               ),
@@ -458,7 +465,7 @@ class BulkPointsScreenState extends State<BulkPointsScreen> {
                           ),
                         ),
                       ),
-                      
+
                       const SizedBox(height: 100), // Space for bottom buttons
                     ],
                   ),
@@ -468,7 +475,7 @@ class BulkPointsScreenState extends State<BulkPointsScreen> {
           ],
         ),
       ),
-      
+
       // Bottom button bar
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(16),
@@ -488,7 +495,9 @@ class BulkPointsScreenState extends State<BulkPointsScreen> {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: _isSubmitting ? null : () => Navigator.pop(context),
+                  onPressed: _isSubmitting
+                      ? null
+                      : () => Navigator.pop(context),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
@@ -517,7 +526,9 @@ class BulkPointsScreenState extends State<BulkPointsScreen> {
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
                           ),
                         )
                       : Text(
@@ -545,9 +556,9 @@ class BulkPointsScreenState extends State<BulkPointsScreen> {
           'description': _descriptionController.text,
           'category': _category,
         };
-        
+
         await widget.onSubmit(pointsData, _action);
-        
+
         if (mounted) {
           Navigator.pop(context);
         }
@@ -556,7 +567,7 @@ class BulkPointsScreenState extends State<BulkPointsScreen> {
           setState(() {
             _isSubmitting = false;
           });
-          
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Failed to process points: $error'),

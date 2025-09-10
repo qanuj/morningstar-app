@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 class BulkTransactionScreen extends StatefulWidget {
   final List<dynamic> selectedMembers;
   final Function(Map<String, dynamic>, String) onSubmit;
-  
+
   const BulkTransactionScreen({
     super.key,
     required this.selectedMembers,
     required this.onSubmit,
   });
-  
+
   @override
   BulkTransactionScreenState createState() => BulkTransactionScreenState();
 }
@@ -18,77 +18,77 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
   final _descriptionController = TextEditingController();
-  
+
   // Transaction type toggle
   String _transactionType = 'CREDIT'; // CREDIT for funds, DEBIT for expenses
-  
+
   // For expenses only
   String _chargeType = 'EXACT'; // EXACT or SPLIT
   String _purpose = 'MATCH_FEE';
-  
+
   // For funds only
   String _paymentMethod = 'CASH';
-  
+
   bool _isSubmitting = false;
   bool _userEditedDescription = false;
-  
+
   final List<Map<String, dynamic>> _purposeOptions = [
     {
-      'value': 'MATCH_FEE', 
-      'label': 'Match Fee', 
+      'value': 'MATCH_FEE',
+      'label': 'Match Fee',
       'icon': Icons.sports_cricket,
-      'description': 'Match participation fee'
+      'description': 'Match participation fee',
     },
     {
-      'value': 'MEMBERSHIP', 
-      'label': 'Membership', 
+      'value': 'MEMBERSHIP',
+      'label': 'Membership',
       'icon': Icons.card_membership,
-      'description': 'Club membership fee payment'
+      'description': 'Club membership fee payment',
     },
     {
-      'value': 'JERSEY_ORDER', 
-      'label': 'Jersey Order', 
+      'value': 'JERSEY_ORDER',
+      'label': 'Jersey Order',
       'icon': Icons.shopping_cart,
-      'description': 'Team jersey order payment'
+      'description': 'Team jersey order payment',
     },
     {
-      'value': 'GEAR_PURCHASE', 
-      'label': 'Gear Purchase', 
+      'value': 'GEAR_PURCHASE',
+      'label': 'Gear Purchase',
       'icon': Icons.sports,
-      'description': 'Cricket equipment and gear purchase'
+      'description': 'Cricket equipment and gear purchase',
     },
     {
-      'value': 'TRAINING', 
-      'label': 'Training', 
+      'value': 'TRAINING',
+      'label': 'Training',
       'icon': Icons.fitness_center,
-      'description': 'Training session fee'
+      'description': 'Training session fee',
     },
     {
-      'value': 'EVENT', 
-      'label': 'Event', 
+      'value': 'EVENT',
+      'label': 'Event',
       'icon': Icons.event,
-      'description': 'Club event participation fee'
+      'description': 'Club event participation fee',
     },
     {
-      'value': 'FOOD_BEVERAGE', 
-      'label': 'Food & Beverage', 
+      'value': 'FOOD_BEVERAGE',
+      'label': 'Food & Beverage',
       'icon': Icons.restaurant,
-      'description': 'Food and refreshment expenses'
+      'description': 'Food and refreshment expenses',
     },
     {
-      'value': 'MAINTENANCE', 
-      'label': 'Maintenance', 
+      'value': 'MAINTENANCE',
+      'label': 'Maintenance',
       'icon': Icons.build,
-      'description': 'Equipment and facility maintenance'
+      'description': 'Equipment and facility maintenance',
     },
     {
-      'value': 'OTHER', 
-      'label': 'Other', 
+      'value': 'OTHER',
+      'label': 'Other',
       'icon': Icons.more_horiz,
-      'description': 'Other expense'
+      'description': 'Other expense',
     },
   ];
-  
+
   final List<Map<String, dynamic>> _paymentMethodOptions = [
     {'value': 'CASH', 'label': 'Cash', 'icon': Icons.money},
     {'value': 'UPI', 'label': 'UPI', 'icon': Icons.qr_code},
@@ -113,10 +113,10 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
         (option) => option['value'] == purposeValue,
         orElse: () => {'description': ''},
       );
-      
+
       final description = selectedPurpose['description'] ?? '';
       _descriptionController.text = description;
-      
+
       if (purposeValue != 'OTHER' && description.isNotEmpty) {
         _userEditedDescription = false;
       }
@@ -128,7 +128,7 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
   }
 
   String get _currentTitle {
-    return _transactionType == 'CREDIT' ? 'Add Bulk Funds' : 'Bulk Expense';
+    return _transactionType == 'CREDIT' ? 'Funds' : 'Expense';
   }
 
   IconData get _currentIcon {
@@ -201,7 +201,7 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            _transactionType == 'CREDIT' 
+                            _transactionType == 'CREDIT'
                                 ? 'Add funds to ${widget.selectedMembers.length} selected members'
                                 : 'Charge expense to ${widget.selectedMembers.length} selected members',
                             style: TextStyle(
@@ -242,7 +242,7 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
                     ],
                   ),
                   SizedBox(height: 16),
-                  
+
                   // Transaction type toggle buttons
                   Container(
                     decoration: BoxDecoration(
@@ -256,15 +256,16 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
                             onTap: () {
                               setState(() {
                                 _transactionType = 'CREDIT';
-                                _descriptionController.text = 'Add funds to club account';
+                                _descriptionController.text =
+                                    'Add funds to club account';
                                 _userEditedDescription = false;
                               });
                             },
                             child: Container(
                               padding: EdgeInsets.symmetric(vertical: 12),
                               decoration: BoxDecoration(
-                                color: _transactionType == 'CREDIT' 
-                                    ? Colors.green 
+                                color: _transactionType == 'CREDIT'
+                                    ? Colors.green
                                     : Colors.transparent,
                                 borderRadius: BorderRadius.circular(8),
                               ),
@@ -273,17 +274,17 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
                                 children: [
                                   Icon(
                                     Icons.add,
-                                    color: _transactionType == 'CREDIT' 
-                                        ? Colors.white 
+                                    color: _transactionType == 'CREDIT'
+                                        ? Colors.white
                                         : Colors.green,
                                     size: 18,
                                   ),
                                   SizedBox(width: 6),
                                   Text(
-                                    'Add Funds',
+                                    'Funds',
                                     style: TextStyle(
-                                      color: _transactionType == 'CREDIT' 
-                                          ? Colors.white 
+                                      color: _transactionType == 'CREDIT'
+                                          ? Colors.white
                                           : Colors.green,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -305,8 +306,8 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
                             child: Container(
                               padding: EdgeInsets.symmetric(vertical: 12),
                               decoration: BoxDecoration(
-                                color: _transactionType == 'DEBIT' 
-                                    ? Colors.red 
+                                color: _transactionType == 'DEBIT'
+                                    ? Colors.red
                                     : Colors.transparent,
                                 borderRadius: BorderRadius.circular(8),
                               ),
@@ -315,17 +316,17 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
                                 children: [
                                   Icon(
                                     Icons.remove,
-                                    color: _transactionType == 'DEBIT' 
-                                        ? Colors.white 
+                                    color: _transactionType == 'DEBIT'
+                                        ? Colors.white
                                         : Colors.red,
                                     size: 18,
                                   ),
                                   SizedBox(width: 6),
                                   Text(
-                                    'Add Expense',
+                                    'Expense',
                                     style: TextStyle(
-                                      color: _transactionType == 'DEBIT' 
-                                          ? Colors.white 
+                                      color: _transactionType == 'DEBIT'
+                                          ? Colors.white
                                           : Colors.red,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -341,7 +342,7 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
                 ],
               ),
             ),
-            
+
             // Form content
             Expanded(
               child: SingleChildScrollView(
@@ -355,9 +356,8 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
                       if (_transactionType == 'DEBIT') ...[
                         Text(
                           'Charge Type',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(height: 12),
                         Row(
@@ -365,7 +365,9 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
                             Expanded(
                               child: RadioListTile<String>(
                                 title: Text('Split total amount equally'),
-                                subtitle: Text('Divide total among all members'),
+                                subtitle: Text(
+                                  'Divide total among all members',
+                                ),
                                 value: 'SPLIT',
                                 groupValue: _chargeType,
                                 onChanged: (value) {
@@ -401,18 +403,25 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
                       TextFormField(
                         controller: _amountController,
                         decoration: InputDecoration(
-                          labelText: _transactionType == 'DEBIT' && _chargeType == 'SPLIT'
+                          labelText:
+                              _transactionType == 'DEBIT' &&
+                                  _chargeType == 'SPLIT'
                               ? 'Total Amount (₹)'
                               : 'Amount per Member (₹)',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.currency_rupee),
-                          helperText: _transactionType == 'DEBIT' && _chargeType == 'SPLIT'
+                          helperText:
+                              _transactionType == 'DEBIT' &&
+                                  _chargeType == 'SPLIT'
                               ? 'Enter the total amount to be split equally'
                               : 'Enter the amount per member',
                         ),
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
                         textInputAction: TextInputAction.next,
-                        onChanged: (value) => setState(() {}), // Update calculations
+                        onChanged: (value) =>
+                            setState(() {}), // Update calculations
                         onFieldSubmitted: (value) {
                           FocusScope.of(context).nextFocus();
                         },
@@ -427,9 +436,9 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
                           return null;
                         },
                       ),
-                      
+
                       const SizedBox(height: 24),
-                      
+
                       // Purpose selection for expenses only
                       if (_transactionType == 'DEBIT') ...[
                         DropdownButtonFormField<String>(
@@ -473,21 +482,19 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
                         ),
                         const SizedBox(height: 24),
                       ],
-                      
+
                       // Payment method selection for funds only
                       if (_transactionType == 'CREDIT') ...[
                         Text(
                           'Payment Method',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           'How was this payment received?',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.grey[600],
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: Colors.grey[600]),
                         ),
                         const SizedBox(height: 12),
                         Row(
@@ -500,13 +507,18 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
                                   });
                                 },
                                 child: Container(
-                                  padding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                                  padding: EdgeInsets.symmetric(
+                                    vertical: 16,
+                                    horizontal: 12,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: _paymentMethod == 'CASH' 
-                                        ? Theme.of(context).primaryColor.withOpacity(0.1)
+                                    color: _paymentMethod == 'CASH'
+                                        ? Theme.of(
+                                            context,
+                                          ).primaryColor.withOpacity(0.1)
                                         : Colors.grey[50],
                                     border: Border.all(
-                                      color: _paymentMethod == 'CASH' 
+                                      color: _paymentMethod == 'CASH'
                                           ? Theme.of(context).primaryColor
                                           : Colors.grey[300]!,
                                       width: _paymentMethod == 'CASH' ? 2 : 1,
@@ -518,7 +530,7 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
                                       Icon(
                                         Icons.money,
                                         size: 32,
-                                        color: _paymentMethod == 'CASH' 
+                                        color: _paymentMethod == 'CASH'
                                             ? Theme.of(context).primaryColor
                                             : Colors.grey[600],
                                       ),
@@ -527,7 +539,7 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
                                         'Cash',
                                         style: TextStyle(
                                           fontWeight: FontWeight.w600,
-                                          color: _paymentMethod == 'CASH' 
+                                          color: _paymentMethod == 'CASH'
                                               ? Theme.of(context).primaryColor
                                               : Colors.grey[700],
                                         ),
@@ -546,13 +558,18 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
                                   });
                                 },
                                 child: Container(
-                                  padding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                                  padding: EdgeInsets.symmetric(
+                                    vertical: 16,
+                                    horizontal: 12,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: _paymentMethod == 'UPI' 
-                                        ? Theme.of(context).primaryColor.withOpacity(0.1)
+                                    color: _paymentMethod == 'UPI'
+                                        ? Theme.of(
+                                            context,
+                                          ).primaryColor.withOpacity(0.1)
                                         : Colors.grey[50],
                                     border: Border.all(
-                                      color: _paymentMethod == 'UPI' 
+                                      color: _paymentMethod == 'UPI'
                                           ? Theme.of(context).primaryColor
                                           : Colors.grey[300]!,
                                       width: _paymentMethod == 'UPI' ? 2 : 1,
@@ -564,7 +581,7 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
                                       Icon(
                                         Icons.qr_code,
                                         size: 32,
-                                        color: _paymentMethod == 'UPI' 
+                                        color: _paymentMethod == 'UPI'
                                             ? Theme.of(context).primaryColor
                                             : Colors.grey[600],
                                       ),
@@ -573,7 +590,7 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
                                         'UPI',
                                         style: TextStyle(
                                           fontWeight: FontWeight.w600,
-                                          color: _paymentMethod == 'UPI' 
+                                          color: _paymentMethod == 'UPI'
                                               ? Theme.of(context).primaryColor
                                               : Colors.grey[700],
                                         ),
@@ -587,7 +604,7 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
                         ),
                         const SizedBox(height: 24),
                       ],
-                      
+
                       // Description field
                       TextFormField(
                         controller: _descriptionController,
@@ -613,9 +630,9 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
                           return null;
                         },
                       ),
-                      
+
                       const SizedBox(height: 32),
-                      
+
                       // Summary card
                       Card(
                         color: Theme.of(context).primaryColor.withOpacity(0.05),
@@ -634,10 +651,13 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
                                   const SizedBox(width: 8),
                                   Text(
                                     'Transaction Summary',
-                                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      color: Theme.of(context).primaryColor,
-                                    ),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleSmall
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                          color: Theme.of(context).primaryColor,
+                                        ),
                                   ),
                                 ],
                               ),
@@ -650,7 +670,7 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
                           ),
                         ),
                       ),
-                      
+
                       const SizedBox(height: 100), // Space for bottom buttons
                     ],
                   ),
@@ -660,7 +680,7 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
           ],
         ),
       ),
-      
+
       // Bottom button bar
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(16),
@@ -680,7 +700,9 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: _isSubmitting ? null : () => Navigator.pop(context),
+                  onPressed: _isSubmitting
+                      ? null
+                      : () => Navigator.pop(context),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
@@ -709,11 +731,15 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
                           ),
                         )
                       : Text(
-                          _transactionType == 'CREDIT' ? 'Add Funds' : 'Record Expense',
+                          _transactionType == 'CREDIT'
+                              ? 'Add Funds'
+                              : 'Record Expense',
                           style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                 ),
@@ -739,9 +765,9 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
           'paymentMethod': _transactionType == 'CREDIT' ? _paymentMethod : null,
           'chargeType': _transactionType == 'DEBIT' ? _chargeType : null,
         };
-        
+
         await widget.onSubmit(transactionData, _transactionType);
-        
+
         if (mounted) {
           Navigator.pop(context);
         }
@@ -750,7 +776,7 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
           setState(() {
             _isSubmitting = false;
           });
-          
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Failed to process transaction: $error'),

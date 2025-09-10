@@ -83,6 +83,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
       _hasMoreData = true;
       _members.clear();
       _filteredMembers.clear();
+      _selectedMembers.clear(); // Clear selections on refresh
     }
 
     setState(() => _isLoading = true);
@@ -91,9 +92,19 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
       final newMembers = await _fetchMembersFromAPI(_currentPage, _pageSize);
 
       if (refresh) {
-        _members = newMembers;
+        _members = List<ClubMember>.from(newMembers); // Create new list
+        print('🔄 REFRESH: Loaded ${_members.length} members');
       } else {
-        _members.addAll(newMembers);
+        final initialCount = _members.length;
+        // Add new members, but avoid duplicates
+        for (final member in newMembers) {
+          if (!_members.any(
+            (existingMember) => existingMember.id == member.id,
+          )) {
+            _members.add(member);
+          }
+        }
+        print('📄 LOAD MORE: ${initialCount} -> ${_members.length} members');
       }
 
       _hasMoreData = newMembers.length == _pageSize;
@@ -111,7 +122,14 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
 
     try {
       final newMembers = await _fetchMembersFromAPI(_currentPage, _pageSize);
-      _members.addAll(newMembers);
+
+      // Add new members, but avoid duplicates
+      for (final member in newMembers) {
+        if (!_members.any((existingMember) => existingMember.id == member.id)) {
+          _members.add(member);
+        }
+      }
+
       _hasMoreData = newMembers.length == _pageSize;
       _applyFilters();
     } catch (error) {
@@ -131,7 +149,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
 
       // Parse the response
       final membersData = response['members'] as List<dynamic>? ?? [];
-      
+
       print('🔍 MEMBERS API RESPONSE DEBUG:');
       print('   Total Members: ${membersData.length}');
       if (membersData.isNotEmpty) {
@@ -346,16 +364,13 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
               ),
             ),
             SizedBox(height: 20),
-            
+
             Text(
               'Add New Member',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
             ),
             SizedBox(height: 24),
-            
+
             // From Contacts Option
             ListTile(
               leading: Container(
@@ -364,10 +379,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
                   color: Color(0xFF003f9b).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
-                  Icons.contacts,
-                  color: Color(0xFF003f9b),
-                ),
+                child: Icon(Icons.contacts, color: Color(0xFF003f9b)),
               ),
               title: Text('From Contacts'),
               subtitle: Text('Select from your phone contacts'),
@@ -376,9 +388,9 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
                 _showAddMemberFromContacts();
               },
             ),
-            
+
             SizedBox(height: 8),
-            
+
             // Manual Entry Option
             ListTile(
               leading: Container(
@@ -387,10 +399,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
                   color: Colors.green.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
-                  Icons.person_add,
-                  color: Colors.green,
-                ),
+                child: Icon(Icons.person_add, color: Colors.green),
               ),
               title: Text('Enter Manually'),
               subtitle: Text('Add member details manually'),
@@ -399,7 +408,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
                 _showManualAddMember();
               },
             ),
-            
+
             SizedBox(height: 16),
           ],
         ),
@@ -411,9 +420,10 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     try {
       // Check current permission status first
       PermissionStatus currentStatus = await Permission.contacts.status;
-      
+
       // Try direct contact access first (iOS-specific fallback)
-      if (currentStatus == PermissionStatus.denied || currentStatus == PermissionStatus.permanentlyDenied) {
+      if (currentStatus == PermissionStatus.denied ||
+          currentStatus == PermissionStatus.permanentlyDenied) {
         try {
           // This will trigger iOS permission dialog if not permanently denied
           await FlutterContacts.getContacts(withProperties: false);
@@ -424,10 +434,10 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
           // Continue with permission_handler flow
         }
       }
-      
+
       // Request contacts permission using permission_handler
       PermissionStatus permissionStatus = await Permission.contacts.request();
-      
+
       if (permissionStatus == PermissionStatus.granted) {
         // Permission granted, show contact picker
         _showContactPicker();
@@ -506,7 +516,11 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
             SizedBox(height: 16),
             Text(
               'Or you can add members manually without contacts access.',
-              style: TextStyle(fontSize: 14, color: Colors.grey[600], fontStyle: FontStyle.italic),
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+                fontStyle: FontStyle.italic,
+              ),
             ),
           ],
         ),
@@ -542,9 +556,8 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ContactPickerScreen(
-          onContactsSelected: _addMembersFromContacts,
-        ),
+        builder: (context) =>
+            ContactPickerScreen(onContactsSelected: _addMembersFromContacts),
       ),
     );
   }
@@ -553,9 +566,8 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ManualAddMemberScreen(
-          onMemberAdded: _addMemberManually,
-        ),
+        builder: (context) =>
+            ManualAddMemberScreen(onMemberAdded: _addMemberManually),
       ),
     );
   }
@@ -587,25 +599,25 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
 
       // Clean phone number
       final cleanPhone = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
-      
+
       final memberData = {
         'name': name,
         'phoneNumber': cleanPhone,
         'clubId': widget.club.id,
       };
-      
+
       await ApiService.post('/members', memberData);
-      
+
       if (mounted) {
         Navigator.pop(context); // Close loading dialog
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Successfully added $name to the club!'),
             backgroundColor: Colors.green,
           ),
         );
-        
+
         // Refresh the members list
         _loadMembers(refresh: true);
       }
@@ -617,54 +629,59 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     }
   }
 
-
   Future<void> _addMembersFromContacts(List<Contact> selectedContacts) async {
     if (selectedContacts.isEmpty) return;
 
     // Show confirmation dialog
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Add ${selectedContacts.length} Members'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Add the following contacts as club members:'),
-            SizedBox(height: 12),
-            ...selectedContacts.take(5).map((contact) => Text(
-              '• ${contact.displayName}',
-              style: TextStyle(fontSize: 14),
-            )),
-            if (selectedContacts.length > 5)
-              Text('... and ${selectedContacts.length - 5} more'),
-            SizedBox(height: 12),
-            Text(
-              'All members will be added with "Member" role.',
-              style: TextStyle(
-                fontSize: 12, 
-                color: Colors.grey[600],
-                fontStyle: FontStyle.italic,
+    final confirmed =
+        await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Add ${selectedContacts.length} Members'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Add the following contacts as club members:'),
+                SizedBox(height: 12),
+                ...selectedContacts
+                    .take(5)
+                    .map(
+                      (contact) => Text(
+                        '• ${contact.displayName}',
+                        style: TextStyle(fontSize: 14),
+                      ),
+                    ),
+                if (selectedContacts.length > 5)
+                  Text('... and ${selectedContacts.length - 5} more'),
+                SizedBox(height: 12),
+                Text(
+                  'All members will be added with "Member" role.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text('Cancel'),
               ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel'),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xFF003f9b),
+                  foregroundColor: Colors.white,
+                ),
+                child: Text('Add Members'),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xFF003f9b),
-              foregroundColor: Colors.white,
-            ),
-            child: Text('Add Members'),
-          ),
-        ],
-      ),
-    ) ?? false;
+        ) ??
+        false;
 
     if (!confirmed) return;
 
@@ -688,38 +705,39 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
       // For multiple members, make individual API calls as per the requirement
       List<Map<String, dynamic>> results = [];
       List<String> errors = [];
-      
+
       for (final contact in selectedContacts) {
         try {
           final memberData = {
             'name': contact.displayName,
-            'phoneNumber': contact.phones.first.number.replaceAll(RegExp(r'[^\d+]'), ''), // Clean phone number
+            'phoneNumber': contact.phones.first.number.replaceAll(
+              RegExp(r'[^\d+]'),
+              '',
+            ), // Clean phone number
             'clubId': widget.club.id,
           };
-          
+
           final response = await ApiService.post('/members', memberData);
           results.add(response);
         } catch (e) {
           errors.add('Failed to add ${contact.displayName}: $e');
         }
       }
-      
+
       // Create a response structure
-      final response = {
-        'success': true,
-        'added': results,
-        'errors': errors,
-      };
+      final response = {'success': true, 'added': results, 'errors': errors};
 
       Navigator.pop(context); // Close progress dialog
 
       if (response['success'] == true) {
         final addedCount = results.length;
-        
+
         if (errors.isNotEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Added $addedCount members. ${errors.length} failed to add.'),
+              content: Text(
+                'Added $addedCount members. ${errors.length} failed to add.',
+              ),
               backgroundColor: Colors.orange,
               duration: Duration(seconds: 4),
             ),
@@ -956,16 +974,13 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
               ),
             ),
             SizedBox(height: 20),
-            
+
             Text(
               'Actions',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
             ),
             SizedBox(height: 24),
-            
+
             // Add Member Option
             ListTile(
               leading: Container(
@@ -974,10 +989,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
                   color: Color(0xFF003f9b).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
-                  Icons.person_add,
-                  color: Color(0xFF003f9b),
-                ),
+                child: Icon(Icons.person_add, color: Color(0xFF003f9b)),
               ),
               title: Text('Add Member'),
               subtitle: Text('Add new member to club'),
@@ -986,7 +998,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
                 _showAddMemberOptions();
               },
             ),
-            
+
             // Search Option
             ListTile(
               leading: Container(
@@ -995,10 +1007,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
                   color: Colors.blue.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
-                  Icons.search,
-                  color: Colors.blue,
-                ),
+                child: Icon(Icons.search, color: Colors.blue),
               ),
               title: Text('Search Members'),
               subtitle: Text('Search by name or phone'),
@@ -1007,7 +1016,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
                 _showSearchDialog();
               },
             ),
-            
+
             // Filter Option
             ListTile(
               leading: Container(
@@ -1016,10 +1025,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
                   color: Colors.orange.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
-                  Icons.filter_list,
-                  color: Colors.orange,
-                ),
+                child: Icon(Icons.filter_list, color: Colors.orange),
               ),
               title: Text('Filter Members'),
               subtitle: Text('Filter by status or balance'),
@@ -1028,10 +1034,10 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
                 _showFilterDialog();
               },
             ),
-            
+
             if (_selectedMembers.isNotEmpty) ...[
               Divider(),
-              
+
               // Bulk Actions for selected members
               ListTile(
                 leading: Container(
@@ -1040,20 +1046,19 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
                     color: Colors.purple.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(
-                    Icons.group,
-                    color: Colors.purple,
-                  ),
+                  child: Icon(Icons.group, color: Colors.purple),
                 ),
                 title: Text('Bulk Actions'),
-                subtitle: Text('${_selectedMembers.length} member${_selectedMembers.length != 1 ? 's' : ''} selected'),
+                subtitle: Text(
+                  '${_selectedMembers.length} member${_selectedMembers.length != 1 ? 's' : ''} selected',
+                ),
                 onTap: () {
                   Navigator.pop(context);
                   _showBulkActionsBottomSheet();
                 },
               ),
             ],
-            
+
             SizedBox(height: 16),
           ],
         ),
@@ -1139,19 +1144,23 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
   }
 
   void _showTransactionDialog(String type, String title, bool isBulk) {
-    final selectedUsers = isBulk ? _getSelectedMembers().map((member) => 
-        User(
-          id: member.id,
-          phoneNumber: member.phoneNumber,
-          name: member.name,
-          email: member.email,
-          profilePicture: member.profilePicture,
-          role: member.role,
-          isProfileComplete: true,
-          createdAt: member.joinedDate,
-          userId: member.userId,
-        )
-    ).toList() : <User>[];
+    final selectedUsers = isBulk
+        ? _getSelectedMembers()
+              .map(
+                (member) => User(
+                  id: member.id,
+                  phoneNumber: member.phoneNumber,
+                  name: member.name,
+                  email: member.email,
+                  profilePicture: member.profilePicture,
+                  role: member.role,
+                  isProfileComplete: true,
+                  createdAt: member.joinedDate,
+                  userId: member.userId,
+                ),
+              )
+              .toList()
+        : <User>[];
 
     if (isBulk) {
       TransactionDialogHelper.showBulkTransactionDialog(
@@ -1231,11 +1240,15 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
         // Bulk transaction API call - matches web app implementation
         final selectedMembersList = _getSelectedMembers();
         // The server expects userIds - use the userId field from ClubMember model
-        final userIds = selectedMembersList.map((member) => member.userId ?? member.id).toList();
+        final userIds = selectedMembersList
+            .map((member) => member.userId ?? member.id)
+            .toList();
 
         print('🔵 BULK TRANSACTION DEBUG:');
         print('   Selected Members: ${selectedMembersList.length}');
-        print('   Member IDs: ${selectedMembersList.map((m) => m.id).toList()}');
+        print(
+          '   Member IDs: ${selectedMembersList.map((m) => m.id).toList()}',
+        );
         print('   User IDs: $userIds');
         print('   Type: $type');
         print('   Amount: ${data['amount']}');
@@ -1258,8 +1271,11 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
 
         print('🔵 Full Request Payload: $requestPayload');
 
-        final response = await ApiService.post('/transactions/bulk', requestPayload);
-        
+        final response = await ApiService.post(
+          '/transactions/bulk',
+          requestPayload,
+        );
+
         print('🔵 BULK TRANSACTION RESPONSE: $response');
 
         if (!mounted) return;
@@ -1437,14 +1453,14 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
               ),
               actions: [
                 IconButton(
-                  icon: Icon(Icons.select_all),
-                  onPressed: _selectAllMembers,
-                  tooltip: 'Select All',
+                  icon: Icon(Icons.account_balance_wallet),
+                  onPressed: () => _showBulkTransactionScreen(),
+                  tooltip: 'Transactions',
                 ),
                 IconButton(
-                  icon: Icon(Icons.more_vert),
-                  onPressed: _showBulkActionsBottomSheet,
-                  tooltip: 'Bulk Actions',
+                  icon: Icon(Icons.stars),
+                  onPressed: () => _showBulkPointsScreen(),
+                  tooltip: 'Points',
                 ),
               ],
               backgroundColor: Color(0xFF003f9b), // Brand blue
@@ -1515,9 +1531,9 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
                   tooltip: 'Search & Filter',
                 ),
                 IconButton(
-                  icon: Icon(Icons.more_vert, color: Colors.white),
-                  onPressed: _showMoreActionsBottomSheet,
-                  tooltip: 'More Actions',
+                  icon: Icon(Icons.person_add, color: Colors.white),
+                  onPressed: _showAddMemberOptions,
+                  tooltip: 'Add Member',
                 ),
               ],
             ),
@@ -1922,7 +1938,6 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
                       ),
                     ],
                   ),
-
                 ],
               ),
 
@@ -1974,7 +1989,6 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
       ),
     );
   }
-
 
   Color _getRoleColor(String role) {
     switch (role.toLowerCase()) {
@@ -2308,7 +2322,7 @@ class _BulkActionsBottomSheet extends StatelessWidget {
                 context,
                 icon: Icons.add_circle,
                 iconColor: Colors.green[600]!,
-                title: 'Add Funds',
+                title: 'Funds',
                 subtitle: 'Credit money to selected members',
                 onTap: onAddFunds,
               ),
@@ -2316,7 +2330,7 @@ class _BulkActionsBottomSheet extends StatelessWidget {
                 context,
                 icon: Icons.remove_circle,
                 iconColor: Colors.red[600]!,
-                title: 'Add Expense',
+                title: 'Expense',
                 subtitle: 'Record expenses for selected members',
                 onTap: onAddExpense,
               ),
@@ -2563,7 +2577,6 @@ class _PointsDialog extends StatefulWidget {
   @override
   _PointsDialogState createState() => _PointsDialogState();
 }
-
 
 class _PointsDialogState extends State<_PointsDialog> {
   final _formKey = GlobalKey<FormState>();

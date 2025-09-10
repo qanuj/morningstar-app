@@ -7,7 +7,10 @@ import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/svg_avatar.dart';
 import '../../widgets/transaction_dialog_helper.dart';
+import '../../widgets/custom_app_bar.dart';
 import '../../utils/theme.dart';
+import '../transactions/bulk_transaction_screen.dart';
+import '../points/bulk_points_screen.dart';
 
 class ClubMemberManageScreen extends StatefulWidget {
   final Club club;
@@ -27,15 +30,23 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
   bool _isLoading = false;
   bool _isUpdatingRole = false;
   bool _isProcessingTransaction = false;
-  
+
   // Member data
   late User _currentMember;
   List<Transaction> _recentTransactions = [];
   String? _currentUserId;
   String? _currentUserRole;
   
+  // Transaction pagination
+  bool _isLoadingTransactions = false;
+  bool _hasMoreTransactions = true;
+  int _transactionPage = 1;
+  final int _transactionPageSize = 20;
+  final ScrollController _transactionScrollController = ScrollController();
+
   // Role management
   String _selectedRole = 'Member';
+  bool _isRolePermissionExpanded = false; // Collapsed by default
   final List<Map<String, dynamic>> _roles = [
     {
       'value': 'Owner',
@@ -45,7 +56,7 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
     },
     {
       'value': 'Admin',
-      'title': 'Admin', 
+      'title': 'Admin',
       'description': 'Manage members • Add expenses • Create matches',
       'color': AppTheme.primaryBlue,
     },
@@ -62,8 +73,24 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
     super.initState();
     _currentMember = widget.member;
     _selectedRole = _getRoleFromUser(_currentMember);
+    _transactionScrollController.addListener(_onTransactionScroll);
     _loadCurrentUser();
     _loadMemberData();
+  }
+
+  @override
+  void dispose() {
+    _transactionScrollController.dispose();
+    super.dispose();
+  }
+
+  void _onTransactionScroll() {
+    if (_transactionScrollController.position.pixels >=
+        _transactionScrollController.position.maxScrollExtent - 200) {
+      if (!_isLoadingTransactions && _hasMoreTransactions) {
+        _loadMoreTransactions();
+      }
+    }
   }
 
   Future<void> _loadCurrentUser() async {
@@ -72,12 +99,13 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
       final currentUserData = await AuthService.getCurrentUser();
       print('DEBUG: AuthService response = $currentUserData');
       print('DEBUG: Response type = ${currentUserData.runtimeType}');
-      
+
       // Try different possible response structures
       String? userId;
       String? userRole;
       if (currentUserData is Map<String, dynamic>) {
-        if (currentUserData['success'] == true && currentUserData['user'] != null) {
+        if (currentUserData['success'] == true &&
+            currentUserData['user'] != null) {
           userId = currentUserData['user']['id'];
           userRole = currentUserData['user']['role'];
           print('DEBUG: Found userId in success.user.id = $userId');
@@ -97,7 +125,7 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
           print('DEBUG: Available keys: ${currentUserData.keys}');
         }
       }
-      
+
       setState(() {
         _currentUserId = userId;
         _currentUserRole = userRole;
@@ -112,7 +140,7 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
 
   bool get _isEditingSelf {
     if (_currentUserId == null) return false;
-    
+
     // Compare with userId first, fallback to id if userId is null
     final memberUserId = _currentMember.userId ?? _currentMember.id;
     return _currentUserId == memberUserId;
@@ -120,16 +148,17 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
 
   bool get _isCurrentUserAdmin => _currentUserRole?.toUpperCase() == 'ADMIN';
   bool get _isTargetMemberOwner => _currentMember.role.toUpperCase() == 'OWNER';
-  
+
   bool get _isCurrentUserOwner => _currentUserRole?.toUpperCase() == 'OWNER';
-  
-  bool get _isNonOwnerTryingToModifyOwner => !_isCurrentUserOwner && _isTargetMemberOwner;
+
+  bool get _isNonOwnerTryingToModifyOwner =>
+      !_isCurrentUserOwner && _isTargetMemberOwner;
 
   String _getRoleFromUser(User user) {
     // Map user role to display role
     return switch (user.role.toUpperCase()) {
       'OWNER' => 'Owner',
-      'ADMIN' => 'Admin', 
+      'ADMIN' => 'Admin',
       'MEMBER' => 'Member',
       _ => 'Member',
     };
@@ -137,8 +166,13 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
 
   Future<void> _loadMemberData() async {
     setState(() => _isLoading = true);
-    
+
     try {
+      // Reset transaction pagination
+      _transactionPage = 1;
+      _hasMoreTransactions = true;
+      _recentTransactions.clear();
+      
       // Load member transactions
       await _loadRecentTransactions();
     } catch (e) {
@@ -150,23 +184,43 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
   }
 
   Future<void> _loadRecentTransactions() async {
+    if (_isLoadingTransactions) return;
+    
+    setState(() => _isLoadingTransactions = true);
+
     try {
       final response = await ApiService.get(
-        '/transactions?clubId=${widget.club.id}&userId=${_currentMember.id}&limit=10'
+        '/clubs/${widget.club.id}/transactions?userId=${_currentMember.userId ?? _currentMember.id}&page=$_transactionPage&limit=$_transactionPageSize',
       );
-      
+
       final transactionsData = response['transactions'] as List<dynamic>? ?? [];
-      _recentTransactions = transactionsData.map((data) => Transaction.fromJson(data)).toList();
-      
+      final newTransactions = transactionsData
+          .map((data) => Transaction.fromJson(data))
+          .toList();
+
+      if (_transactionPage == 1) {
+        _recentTransactions = newTransactions;
+      } else {
+        _recentTransactions.addAll(newTransactions);
+      }
+
+      _hasMoreTransactions = newTransactions.length == _transactionPageSize;
       setState(() {});
     } catch (e) {
       debugPrint('Error loading transactions: $e');
+    } finally {
+      setState(() => _isLoadingTransactions = false);
     }
+  }
+
+  Future<void> _loadMoreTransactions() async {
+    _transactionPage++;
+    await _loadRecentTransactions();
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -178,18 +232,17 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
 
   Future<void> _updateMemberRole() async {
     if (_selectedRole == _getRoleFromUser(_currentMember)) return;
-    
+
     setState(() => _isUpdatingRole = true);
-    
+
     try {
       await ApiService.put('/members/${_currentMember.id}', {
         'clubId': widget.club.id,
         'role': _selectedRole.toUpperCase(),
       });
-      
+
       _showSnackBar('Member role updated successfully');
       Navigator.pop(context, true); // Return true to indicate update
-      
     } catch (e) {
       debugPrint('Error updating member role: $e');
       _showSnackBar('Failed to update member role', isError: true);
@@ -205,19 +258,18 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
       'Ban',
       Colors.red,
     );
-    
+
     if (!confirmed) return;
-    
+
     setState(() => _isLoading = true);
-    
+
     try {
       await ApiService.put('/members/${_currentMember.id}/ban', {
         'clubId': widget.club.id,
       });
-      
+
       _showSnackBar('Member banned successfully');
       Navigator.pop(context, true);
-      
     } catch (e) {
       debugPrint('Error banning member: $e');
       _showSnackBar('Failed to ban member', isError: true);
@@ -231,24 +283,25 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
       _showSnackBar('Clear member balance before removing', isError: true);
       return;
     }
-    
+
     final confirmed = await _showConfirmationDialog(
       'Remove Member',
       'This will permanently remove ${_currentMember.name} from the club. This action cannot be undone.',
       'Remove',
       Colors.red,
     );
-    
+
     if (!confirmed) return;
-    
+
     setState(() => _isLoading = true);
-    
+
     try {
-      await ApiService.delete('/members/${_currentMember.id}?clubId=${widget.club.id}');
-      
+      await ApiService.delete(
+        '/members/${_currentMember.id}?clubId=${widget.club.id}',
+      );
+
       _showSnackBar('Member removed successfully');
       Navigator.pop(context, true);
-      
     } catch (e) {
       debugPrint('Error removing member: $e');
       _showSnackBar('Failed to remove member', isError: true);
@@ -262,7 +315,7 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
     if (_currentMember.balance > 0) {
       final clearConfirmed = await _showClearBalanceDialog();
       if (!clearConfirmed) return;
-      
+
       // After clearing balance, proceed to remove confirmation
       final removeConfirmed = await _showRemoveConfirmationDialog();
       if (removeConfirmed) {
@@ -279,89 +332,96 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
 
   Future<bool> _showClearBalanceDialog() async {
     return await showCupertinoDialog<bool>(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: Text('Clear Balance Required'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('This member has a balance of ₹${_currentMember.balance.toStringAsFixed(2)}'),
-            SizedBox(height: 8),
-            Text('Balance must be cleared before removing from club.'),
-          ],
-        ),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel'),
+          context: context,
+          builder: (context) => CupertinoAlertDialog(
+            title: Text('Clear Balance Required'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'This member has a balance of ₹${_currentMember.balance.toStringAsFixed(2)}',
+                ),
+                SizedBox(height: 8),
+                Text('Balance must be cleared before removing from club.'),
+              ],
+            ),
+            actions: [
+              CupertinoDialogAction(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text('Cancel'),
+              ),
+              CupertinoDialogAction(
+                onPressed: () async {
+                  Navigator.pop(context, true);
+                  await _showClearBalanceTransactionDialog();
+                },
+                child: Text('Clear Balance'),
+              ),
+            ],
           ),
-          CupertinoDialogAction(
-            onPressed: () async {
-              Navigator.pop(context, true);
-              await _showClearBalanceTransactionDialog();
-            },
-            child: Text('Clear Balance'),
-          ),
-        ],
-      ),
-    ) ?? false;
+        ) ??
+        false;
   }
 
   Future<void> _showClearBalanceTransactionDialog() async {
     final balanceAmount = _currentMember.balance;
-    
-    showCupertinoModalPopup(
-      context: context,
-      builder: (context) => _ClearBalanceTransactionDialog(
-        member: _currentMember,
-        club: widget.club,
-        balanceAmount: balanceAmount,
-        onComplete: () async {
-          await _loadMemberData();
-          Navigator.pop(context);
-          // After clearing balance, show remove confirmation
-          final removeConfirmed = await _showRemoveConfirmationDialog();
-          if (removeConfirmed) {
-            await _removeMember();
-          }
-        },
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => _ClearBalanceTransactionScreen(
+          member: _currentMember,
+          club: widget.club,
+          balanceAmount: balanceAmount,
+          onComplete: () async {
+            await _loadMemberData();
+            Navigator.pop(context);
+            // After clearing balance, show remove confirmation
+            final removeConfirmed = await _showRemoveConfirmationDialog();
+            if (removeConfirmed) {
+              await _removeMember();
+            }
+          },
+        ),
       ),
     );
   }
 
   Future<bool> _showRemoveConfirmationDialog() async {
     return await showCupertinoDialog<bool>(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: Text('Remove ${_currentMember.name}?'),
-        content: Text('This will permanently remove this member from the club. This action cannot be undone.'),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel'),
+          context: context,
+          builder: (context) => CupertinoAlertDialog(
+            title: Text('Remove ${_currentMember.name}?'),
+            content: Text(
+              'This will permanently remove this member from the club. This action cannot be undone.',
+            ),
+            actions: [
+              CupertinoDialogAction(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text('Cancel'),
+              ),
+              CupertinoDialogAction(
+                isDestructiveAction: true,
+                onPressed: () => Navigator.pop(context, true),
+                child: Text('Remove'),
+              ),
+            ],
           ),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
-            onPressed: () => Navigator.pop(context, true),
-            child: Text('Remove'),
-          ),
-        ],
-      ),
-    ) ?? false;
+        ) ??
+        false;
   }
 
   Future<void> _clearBalance() async {
     setState(() => _isProcessingTransaction = true);
-    
+
     try {
       await ApiService.post('/transactions/clear-balance', {
         'clubId': widget.club.id,
-        'userId': _currentMember.id,
+        'userId': _currentMember.userId ?? _currentMember.id,
       });
-      
+
       _showSnackBar('Balance cleared successfully');
       await _loadMemberData(); // Refresh data
-      
     } catch (e) {
       debugPrint('Error clearing balance: $e');
       _showSnackBar('Failed to clear balance', isError: true);
@@ -377,61 +437,80 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
     Color confirmColor,
   ) async {
     return await showCupertinoDialog<bool>(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: Text(title),
-        content: Text(content),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel'),
+          context: context,
+          builder: (context) => CupertinoAlertDialog(
+            title: Text(title),
+            content: Text(content),
+            actions: [
+              CupertinoDialogAction(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text('Cancel'),
+              ),
+              CupertinoDialogAction(
+                isDestructiveAction: confirmColor == CupertinoColors.systemRed,
+                onPressed: () => Navigator.pop(context, true),
+                child: Text(confirmText),
+              ),
+            ],
           ),
-          CupertinoDialogAction(
-            isDestructiveAction: confirmColor == CupertinoColors.systemRed,
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(confirmText),
-          ),
-        ],
-      ),
-    ) ?? false;
+        ) ??
+        false;
   }
 
-  void _showTransactionDialog(String type) {
-    final title = type == 'CREDIT' ? 'Add Funds' : 'Add Expense';
-    TransactionDialogHelper.showMemberTransactionDialog(
-      context: context,
-      type: type,
-      title: title,
-      member: _currentMember,
-      onSubmit: (data) => _handleTransactionSubmit(data, type),
+  void _showTransactionScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BulkTransactionScreen(
+          selectedMembers: [_currentMember],
+          onSubmit: _handleBulkTransactionSubmit,
+        ),
+      ),
     );
   }
 
-  Future<void> _handleTransactionSubmit(
+
+  void _showPointsScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BulkPointsScreen(
+          selectedMembers: [_currentMember],
+          onSubmit: _handleBulkPointsSubmit,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleBulkTransactionSubmit(
     Map<String, dynamic> data,
     String type,
   ) async {
     try {
-      await ApiService.post('/transactions', {
-        'userId': _currentMember.id,
-        'clubId': widget.club.id,
+      final userIds = [_currentMember.userId ?? _currentMember.id];
+
+      final requestPayload = {
+        'userIds': userIds,
         'amount': double.parse(data['amount']),
         'type': type,
         'purpose': data['purpose'],
         'description': data['description'],
-        if (type == 'CREDIT') 'paymentMethod': data['paymentMethod'],
-      });
-      
+        'clubId': widget.club.id,
+        'paymentMethod': type == 'CREDIT' ? data['paymentMethod'] : null,
+      };
+
+      await ApiService.post('/transactions/bulk', requestPayload);
+
       // Refresh member data after successful transaction
       await _loadMemberData();
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              type == 'CREDIT' 
-                ? 'Funds added successfully!' 
-                : 'Expense added successfully!'
+              type == 'CREDIT'
+                  ? 'Funds added successfully!'
+                  : 'Expense added successfully!',
             ),
             backgroundColor: Colors.green,
           ),
@@ -449,110 +528,166 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
     }
   }
 
-  void _showPointsDialog(String type) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _PointsBottomSheet(
-        member: _currentMember,
-        club: widget.club,
-        type: type,
-        onComplete: () async {
-          await _loadMemberData();
-          Navigator.pop(context);
-        },
-      ),
-    );
+  Future<void> _handleBulkPointsSubmit(
+    Map<String, dynamic> data,
+    String action,
+  ) async {
+    try {
+      await ApiService.post('/points', {
+        'userId': _currentMember.userId ?? _currentMember.id,
+        'clubId': widget.club.id,
+        'points': int.parse(data['points']),
+        'type': action == 'add' ? 'EARNED' : 'DEDUCTED',
+        'category': data['category'],
+        'description': data['description'],
+      });
+
+      // Refresh member data
+      await _loadMemberData();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              action == 'add' ? 'Points added successfully!' : 'Points deducted successfully!',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to process points: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
-  void _showTransactionsHistory() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => _MemberTransactionsScreen(
-          member: _currentMember,
-          club: widget.club,
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
     return Material(
       child: CupertinoPageScaffold(
         backgroundColor: CupertinoColors.systemGroupedBackground,
-      navigationBar: CupertinoNavigationBar(
-        backgroundColor: CupertinoColors.systemBackground,
-        border: null,
-        leading: CupertinoButton(
-          padding: EdgeInsets.zero,
-          child: Icon(
-            CupertinoIcons.xmark,
-            color: CupertinoColors.systemBlue,
-            size: 20,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-        middle: Text(
-          _currentMember.name,
-          style: TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            color: CupertinoColors.label,
-          ),
-        ),
-      ),
-      child: _isLoading
-          ? Center(
-              child: CupertinoActivityIndicator(),
-            )
-          : CustomScrollView(
-              slivers: [
-                SliverPadding(
-                  padding: EdgeInsets.only(top: 20),
-                  sliver: SliverList(
-                    delegate: SliverChildListDelegate([
-                  // Member Info Card
-                  _buildMemberInfoCard(),
-                  
-                  SizedBox(height: 20),
-                  
-                  // User Status
-                  _buildUserStatusCard(),
-                  
-                  SizedBox(height: 20),
-                  
-                  // Role & Permissions
-                  _buildRolePermissionsCard(),
-                  
-                  SizedBox(height: 20),
-                  
-                  // Remove from Club
-                  _buildRemoveFromClubCard(),
-                  
-                  SizedBox(height: 12),
-                  
-                  // Ban User
-                  _buildBanUserButton(),
-                  
-                  SizedBox(height: 20),
-                  
-                  // Quick Actions
-                  _buildQuickActionsCard(),
-                  
-                  SizedBox(height: 20),
-                  
-                  // Recent Transactions
-                  _buildRecentTransactionsCard(),
-                  
-                  SizedBox(height: 50),
-                    ]),
-                  ),
-                ),
-              ],
+        navigationBar: CupertinoNavigationBar(
+          backgroundColor: CupertinoColors.systemBackground,
+          border: null,
+          leading: CupertinoButton(
+            padding: EdgeInsets.zero,
+            child: Icon(
+              CupertinoIcons.xmark,
+              color: CupertinoColors.systemBlue,
+              size: 20,
             ),
+            onPressed: () => Navigator.pop(context),
+          ),
+          middle: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Club Logo
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppTheme.primaryBlue,
+                ),
+                child: widget.club.logo != null && widget.club.logo!.isNotEmpty
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          widget.club.logo!,
+                          width: 24,
+                          height: 24,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              width: 24,
+                              height: 24,
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryBlue,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  widget.club.name.isNotEmpty
+                                      ? widget.club.name[0].toUpperCase()
+                                      : 'C',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      )
+                    : Center(
+                        child: Text(
+                          widget.club.name.isNotEmpty
+                              ? widget.club.name[0].toUpperCase()
+                              : 'C',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+              ),
+              SizedBox(width: 8),
+              // Club Name
+              Flexible(
+                child: Text(
+                  widget.club.name,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    color: CupertinoColors.label,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+        child: _isLoading
+            ? Center(child: CupertinoActivityIndicator())
+            : Column(
+                children: [
+                  // Fixed content at top
+                  Padding(
+                    padding: EdgeInsets.only(top: 20),
+                    child: Column(
+                      children: [
+                        // Member Info Card
+                        _buildMemberInfoCard(),
+
+                        SizedBox(height: 20),
+
+                        // Quick Actions
+                        _buildQuickActionsCard(),
+
+                        SizedBox(height: 20),
+
+                        // Role & Permissions (collapsible with remove/ban inside)
+                        _buildRolePermissionsCard(),
+
+                        SizedBox(height: 20),
+                      ],
+                    ),
+                  ),
+                  
+                  // Expandable transactions section
+                  _buildRecentTransactionsCard(),
+                ],
+              ),
       ),
     );
   }
@@ -570,7 +705,8 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
           // Profile Picture
           Stack(
             children: [
-              _currentMember.profilePicture != null && _currentMember.profilePicture!.isNotEmpty
+              _currentMember.profilePicture != null &&
+                      _currentMember.profilePicture!.isNotEmpty
                   ? SVGAvatar.large(
                       imageUrl: _currentMember.profilePicture,
                       backgroundColor: AppTheme.primaryBlue.withOpacity(0.1),
@@ -585,7 +721,7 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
                       ),
                       child: Center(
                         child: Text(
-                          _currentMember.name.isNotEmpty 
+                          _currentMember.name.isNotEmpty
                               ? _currentMember.name[0].toUpperCase()
                               : 'M',
                           style: TextStyle(
@@ -612,9 +748,9 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
               ),
             ],
           ),
-          
+
           SizedBox(width: 16),
-          
+
           // Member Details
           Expanded(
             child: Column(
@@ -649,9 +785,9 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
                     ),
                   ],
                 ),
-                
+
                 SizedBox(height: 4),
-                
+
                 Text(
                   _currentMember.phoneNumber,
                   style: TextStyle(
@@ -659,9 +795,9 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
                     color: Theme.of(context).textTheme.bodyMedium?.color,
                   ),
                 ),
-                
+
                 SizedBox(height: 4),
-                
+
                 Text(
                   'joined ${_formatJoinedDate(_currentMember.createdAt)}',
                   style: TextStyle(
@@ -672,9 +808,9 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
               ],
             ),
           ),
-          
+
           SizedBox(width: 16),
-          
+
           // Balance and Points
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -694,9 +830,9 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
                   color: AppTheme.successGreen,
                 ),
               ),
-              
+
               SizedBox(height: 8),
-              
+
               Text(
                 'Points',
                 style: TextStyle(
@@ -726,142 +862,123 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
     );
   }
 
-  Widget _buildUserStatusCard() {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'User Status',
-            style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
-          ),
-          
-          SizedBox(height: 12),
-          
-          Container(
-            padding: EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: CupertinoColors.systemGreen.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: CupertinoColors.systemGreen.withOpacity(0.3)),
-            ),
-            child: Row(
-              children: [
-                Icon(CupertinoIcons.checkmark_circle, color: CupertinoColors.systemGreen, size: 20),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'User is active',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: CupertinoColors.systemGreen,
-                        ),
-                      ),
-                      Text(
-                        'This user has access to club features',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: CupertinoColors.systemGreen.withOpacity(0.8),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRemoveFromClubCard() {
-    final isDisabled = _isEditingSelf || _isNonOwnerTryingToModifyOwner;
-    
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 16),
-      child: CupertinoButton(
-        padding: EdgeInsets.symmetric(vertical: 12),
-        color: isDisabled ? CupertinoColors.systemGrey : CupertinoColors.systemRed,
-        borderRadius: BorderRadius.circular(8),
-        minSize: 0,
-        onPressed: isDisabled ? null : _handleRemoveFromClub,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              CupertinoIcons.person_badge_minus, 
-              size: 16, 
-              color: CupertinoColors.white
-            ),
-            SizedBox(width: 8),
-            Text(
-              'Remove from Club',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: CupertinoColors.white,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBanUserButton() {
-    final isDisabled = _isEditingSelf || _isNonOwnerTryingToModifyOwner;
-    
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 16),
-      child: CupertinoButton(
-        padding: EdgeInsets.symmetric(vertical: 12),
-        color: isDisabled ? CupertinoColors.systemGrey : CupertinoColors.systemOrange,
-        borderRadius: BorderRadius.circular(8),
-        minSize: 0,
-        onPressed: isDisabled ? null : _banMember,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              CupertinoIcons.xmark_circle, 
-              size: 16, 
-              color: CupertinoColors.white
-            ),
-            SizedBox(width: 8),
-            Text(
-              'Ban User',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: CupertinoColors.white,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildRolePermissionsCard() {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Container(
+        decoration: BoxDecoration(
+          color: CupertinoColors.systemBackground,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with expand/collapse button
+            CupertinoButton(
+              padding: EdgeInsets.all(16),
+              onPressed: () {
+                setState(() {
+                  _isRolePermissionExpanded = !_isRolePermissionExpanded;
+                });
+              },
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Role & Permissions',
+                      style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
+                    ),
+                  ),
+                  Icon(
+                    _isRolePermissionExpanded 
+                        ? CupertinoIcons.chevron_up 
+                        : CupertinoIcons.chevron_down,
+                    color: CupertinoColors.systemGrey,
+                    size: 20,
+                  ),
+                ],
+              ),
+            ),
+
+            // Expandable content
+            if (_isRolePermissionExpanded) ...[
+              Container(
+                padding: EdgeInsets.only(left: 16, right: 16, bottom: 16),
+                child: Column(
+                  children: [
+                    // Role options
+                    ..._roles.map((role) => _buildRoleOption(role)),
+                    
+                    SizedBox(height: 20),
+                    
+                    // Remove and Ban actions
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildDangerButton(
+                            icon: CupertinoIcons.person_badge_minus,
+                            label: 'Remove from Club',
+                            color: CupertinoColors.systemRed,
+                            onPressed: _isEditingSelf || _isNonOwnerTryingToModifyOwner 
+                                ? null 
+                                : _handleRemoveFromClub,
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: _buildDangerButton(
+                            icon: CupertinoIcons.xmark_circle,
+                            label: 'Ban User',
+                            color: CupertinoColors.systemOrange,
+                            onPressed: _isEditingSelf || _isNonOwnerTryingToModifyOwner 
+                                ? null 
+                                : _banMember,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDangerButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    VoidCallback? onPressed,
+  }) {
+    final isDisabled = onPressed == null;
+    
+    return CupertinoButton(
+      padding: EdgeInsets.symmetric(vertical: 12),
+      color: isDisabled ? CupertinoColors.systemGrey : color,
+      borderRadius: BorderRadius.circular(8),
+      minSize: 0,
+      onPressed: onPressed,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
-            'Role & Permissions',
-            style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
+          Icon(
+            icon,
+            size: 16,
+            color: CupertinoColors.white,
           ),
-          
-          SizedBox(height: 12),
-          
-          ..._roles.map((role) => _buildRoleOption(role)),
+          SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: CupertinoColors.white,
+            ),
+          ),
         ],
       ),
     );
@@ -870,31 +987,32 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
   Widget _buildRoleOption(Map<String, dynamic> role) {
     final isSelected = _selectedRole == role['value'];
     final isOwnerRole = role['value'] == 'Owner';
-    final isDisabled = _isEditingSelf || isOwnerRole || _isNonOwnerTryingToModifyOwner;
-    
+    final isDisabled =
+        _isEditingSelf || isOwnerRole || _isNonOwnerTryingToModifyOwner;
+
     return CupertinoButton(
       padding: EdgeInsets.zero,
-      onPressed: isDisabled ? null : () async {
-        if (_selectedRole != role['value']) {
-          setState(() => _selectedRole = role['value']);
-          await _updateMemberRole();
-        }
-      },
+      onPressed: isDisabled
+          ? null
+          : () async {
+              if (_selectedRole != role['value']) {
+                setState(() => _selectedRole = role['value']);
+                await _updateMemberRole();
+              }
+            },
       child: Container(
         margin: EdgeInsets.only(bottom: 12),
         padding: EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isDisabled 
+          color: isDisabled
               ? CupertinoColors.systemGrey6
-              : (isSelected 
-                  ? role['color'].withOpacity(0.1)
-                  : CupertinoColors.systemBackground),
+              : (isSelected
+                    ? role['color'].withOpacity(0.1)
+                    : CupertinoColors.systemBackground),
           border: Border.all(
             color: isDisabled
                 ? CupertinoColors.systemGrey4
-                : (isSelected 
-                    ? role['color'] 
-                    : CupertinoColors.systemGrey4),
+                : (isSelected ? role['color'] : CupertinoColors.systemGrey4),
             width: isSelected ? 2 : 1,
           ),
           borderRadius: BorderRadius.circular(8),
@@ -907,18 +1025,26 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isSelected ? role['color'] : CupertinoColors.systemGrey,
+                  color: isSelected
+                      ? role['color']
+                      : CupertinoColors.systemGrey,
                   width: 2,
                 ),
-                color: isSelected ? role['color'] : CupertinoColors.systemBackground,
+                color: isSelected
+                    ? role['color']
+                    : CupertinoColors.systemBackground,
               ),
-              child: isSelected 
-                  ? Icon(CupertinoIcons.circle_fill, size: 12, color: CupertinoColors.white)
+              child: isSelected
+                  ? Icon(
+                      CupertinoIcons.circle_fill,
+                      size: 12,
+                      color: CupertinoColors.white,
+                    )
                   : null,
             ),
-            
+
             SizedBox(width: 12),
-            
+
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -930,9 +1056,9 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
                       fontWeight: FontWeight.w600,
                       color: isDisabled
                           ? CupertinoColors.systemGrey
-                          : (isSelected 
-                              ? role['color']
-                              : CupertinoColors.label),
+                          : (isSelected
+                                ? role['color']
+                                : CupertinoColors.label),
                     ),
                   ),
                   Text(
@@ -963,50 +1089,26 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
             'Quick Actions',
             style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
           ),
-          
+
           SizedBox(height: 16),
-          
+
           Row(
             children: [
               Expanded(
                 child: _buildActionButton(
-                  icon: Icons.add_circle,
-                  label: 'Add Funds',
-                  color: Colors.green,
-                  onTap: () => _showTransactionDialog('CREDIT'),
+                  icon: Icons.account_balance_wallet,
+                  label: 'Transactions',
+                  color: AppTheme.primaryBlue,
+                  onTap: _showTransactionScreen,
                 ),
               ),
               SizedBox(width: 12),
-              Expanded(
-                child: _buildActionButton(
-                  icon: Icons.remove_circle,
-                  label: 'Add Expense',
-                  color: Colors.red,
-                  onTap: () => _showTransactionDialog('DEBIT'),
-                ),
-              ),
-            ],
-          ),
-          
-          SizedBox(height: 12),
-          
-          Row(
-            children: [
               Expanded(
                 child: _buildActionButton(
                   icon: Icons.star,
-                  label: 'Add Points',
+                  label: 'Points',
                   color: Colors.amber,
-                  onTap: () => _showPointsDialog('add'),
-                ),
-              ),
-              SizedBox(width: 12),
-              Expanded(
-                child: _buildActionButton(
-                  icon: Icons.star_outline,
-                  label: 'Remove Points', 
-                  color: Colors.orange,
-                  onTap: () => _showPointsDialog('remove'),
+                  onTap: _showPointsScreen,
                 ),
               ),
             ],
@@ -1033,7 +1135,11 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
           SizedBox(height: 4),
           Text(
             label,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
           ),
         ],
       ),
@@ -1041,68 +1147,86 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
   }
 
   Widget _buildRecentTransactionsCard() {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Recent Transactions',
-                style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
+    return Expanded(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Transactions',
+              style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
+            ),
+
+            SizedBox(height: 12),
+
+            Expanded(
+              child: RefreshIndicator(
+                color: AppTheme.primaryBlue,
+                onRefresh: _loadMemberData,
+                child: _recentTransactions.isEmpty && !_isLoadingTransactions
+                    ? _buildEmptyTransactionsState()
+                    : ListView.builder(
+                        controller: _transactionScrollController,
+                        physics: AlwaysScrollableScrollPhysics(),
+                        itemCount: _recentTransactions.length + (_hasMoreTransactions ? 1 : 0),
+                        itemBuilder: (context, index) {
+                          if (index >= _recentTransactions.length) {
+                            // Show loading indicator for pagination
+                            return Container(
+                              padding: EdgeInsets.all(16),
+                              alignment: Alignment.center,
+                              child: CupertinoActivityIndicator(),
+                            );
+                          }
+                          return _buildTransactionItem(_recentTransactions[index]);
+                        },
+                      ),
               ),
-              CupertinoButton(
-                padding: EdgeInsets.zero,
-                onPressed: _showTransactionsHistory,
-                child: Text(
-                  'View All',
-                  style: TextStyle(
-                    color: CupertinoColors.systemBlue,
-                    fontWeight: FontWeight.w600,
-                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyTransactionsState() {
+    return ListView(
+      physics: AlwaysScrollableScrollPhysics(),
+      children: [
+        Container(
+          padding: EdgeInsets.all(64),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.receipt_long, size: 64, color: Colors.grey[400]),
+              SizedBox(height: 16),
+              Text(
+                'No transactions yet',
+                style: TextStyle(
+                  color: Colors.grey[600], 
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Pull to refresh or use Quick Actions above',
+                style: TextStyle(
+                  color: Colors.grey[500], 
+                  fontSize: 14,
                 ),
               ),
             ],
           ),
-          
-          SizedBox(height: 12),
-          
-          if (_recentTransactions.isEmpty)
-            Container(
-              padding: EdgeInsets.all(32),
-              child: Center(
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.receipt_long,
-                      size: 48,
-                      color: Colors.grey[400],
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'No transactions yet',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 16,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else
-            ..._recentTransactions.take(3).map((transaction) => 
-                _buildTransactionItem(transaction)),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildTransactionItem(Transaction transaction) {
     final isCredit = transaction.type == 'CREDIT';
-    
+
     return Container(
       margin: EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
@@ -1165,9 +1289,9 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
                 ),
               ],
             ),
-            
+
             SizedBox(width: 12),
-            
+
             // Transaction details
             Expanded(
               child: Column(
@@ -1192,7 +1316,7 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
                 ],
               ),
             ),
-            
+
             // Amount
             Text(
               '${isCredit ? '+' : '-'}₹${transaction.amount.toStringAsFixed(0)}',
@@ -1211,7 +1335,7 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
   String _formatJoinedDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date).inDays;
-    
+
     if (difference < 1) {
       return 'today';
     } else if (difference < 7) {
@@ -1228,7 +1352,7 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
-    
+
     if (difference.inDays == 0) {
       return 'Today';
     } else if (difference.inDays == 1) {
@@ -1241,341 +1365,15 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
   }
 }
 
-// Points Bottom Sheet
-class _PointsBottomSheet extends StatefulWidget {
-  final User member;
-  final Club club;
-  final String type;
-  final VoidCallback onComplete;
 
-  const _PointsBottomSheet({
-    required this.member,
-    required this.club,
-    required this.type,
-    required this.onComplete,
-  });
-
-  @override
-  _PointsBottomSheetState createState() => _PointsBottomSheetState();
-}
-
-class _PointsBottomSheetState extends State<_PointsBottomSheet> {
-  final _formKey = GlobalKey<FormState>();
-  final _pointsController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  String _category = 'PERFORMANCE';
-  bool _isProcessing = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 20,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Handle bar
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            
-            SizedBox(height: 20),
-            
-            Text(
-              widget.type == 'add' ? 'Add Points' : 'Remove Points',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).textTheme.titleLarge?.color,
-              ),
-            ),
-            
-            SizedBox(height: 8),
-            
-            Text(
-              'For: ${widget.member.name}',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.amber[700],
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            
-            SizedBox(height: 20),
-            
-            Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  TextFormField(
-                    controller: _pointsController,
-                    decoration: InputDecoration(
-                      labelText: 'Points',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      prefixIcon: Icon(Icons.star),
-                    ),
-                    keyboardType: TextInputType.number,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) return 'Points are required';
-                      final points = int.tryParse(value);
-                      if (points == null || points <= 0) return 'Enter valid points';
-                      return null;
-                    },
-                  ),
-                  
-                  SizedBox(height: 16),
-                  
-                  TextFormField(
-                    controller: _descriptionController,
-                    decoration: InputDecoration(
-                      labelText: 'Description',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      prefixIcon: Icon(Icons.description),
-                    ),
-                    maxLines: 2,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) return 'Description is required';
-                      return null;
-                    },
-                  ),
-                  
-                  SizedBox(height: 16),
-                  
-                  DropdownButtonFormField<String>(
-                    value: _category,
-                    decoration: InputDecoration(
-                      labelText: 'Category',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    items: [
-                      DropdownMenuItem(value: 'PERFORMANCE', child: Text('Performance')),
-                      DropdownMenuItem(value: 'ATTENDANCE', child: Text('Attendance')),
-                      DropdownMenuItem(value: 'BONUS', child: Text('Bonus')),
-                      DropdownMenuItem(value: 'PENALTY', child: Text('Penalty')),
-                    ],
-                    onChanged: (value) => setState(() => _category = value!),
-                  ),
-                  
-                  SizedBox(height: 24),
-                  
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextButton(
-                          onPressed: _isProcessing ? null : () => Navigator.pop(context),
-                          child: Text('Cancel'),
-                        ),
-                      ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: _isProcessing ? null : _processPoints,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.amber[600],
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                          child: _isProcessing
-                              ? SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : Text('Submit'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _processPoints() async {
-    if (!_formKey.currentState!.validate()) return;
-    
-    setState(() => _isProcessing = true);
-    
-    try {
-      await ApiService.post('/points', {
-        'userId': widget.member.id,
-        'clubId': widget.club.id,
-        'points': int.parse(_pointsController.text),
-        'type': widget.type == 'add' ? 'EARNED' : 'DEDUCTED',
-        'category': _category,
-        'description': _descriptionController.text,
-      });
-      
-      widget.onComplete();
-      
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to process points'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      setState(() => _isProcessing = false);
-    }
-  }
-}
-
-// Member Transactions History Screen
-class _MemberTransactionsScreen extends StatelessWidget {
-  final User member;
-  final Club club;
-
-  const _MemberTransactionsScreen({
-    required this.member,
-    required this.club,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
-      backgroundColor: CupertinoColors.systemGroupedBackground,
-      navigationBar: CupertinoNavigationBar(
-        backgroundColor: CupertinoColors.systemBackground,
-        border: null,
-        leading: CupertinoButton(
-          padding: EdgeInsets.zero,
-          child: Icon(
-            CupertinoIcons.xmark,
-            color: CupertinoColors.systemBlue,
-            size: 20,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-        middle: Text(
-          'Recent Transactions - ${member.name}',
-          style: TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            color: CupertinoColors.label,
-          ),
-        ),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Showing last 1 transaction',
-              style: TextStyle(
-                fontSize: 16,
-                color: CupertinoColors.secondaryLabel,
-              ),
-            ),
-            
-            SizedBox(height: 20),
-            
-            Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: CupertinoColors.systemBackground,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: CupertinoColors.systemGreen.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      CupertinoIcons.money_dollar_circle,
-                      color: CupertinoColors.systemGreen,
-                      size: 24,
-                    ),
-                  ),
-                  
-                  SizedBox(width: 16),
-                  
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Add funds to club account',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: CupertinoColors.label,
-                          ),
-                        ),
-                        
-                        SizedBox(height: 4),
-                        
-                        Row(
-                          children: [
-                            Icon(CupertinoIcons.calendar, size: 14, color: CupertinoColors.secondaryLabel),
-                            SizedBox(width: 4),
-                            Text(
-                              'Sep 8, 2025',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: CupertinoColors.secondaryLabel,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  Text(
-                    '₹1000',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: CupertinoColors.systemGreen,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// Clear Balance Transaction Dialog
-class _ClearBalanceTransactionDialog extends StatefulWidget {
+// Clear Balance Transaction Screen
+class _ClearBalanceTransactionScreen extends StatefulWidget {
   final User member;
   final Club club;
   final double balanceAmount;
   final VoidCallback onComplete;
 
-  const _ClearBalanceTransactionDialog({
+  const _ClearBalanceTransactionScreen({
     required this.member,
     required this.club,
     required this.balanceAmount,
@@ -1583,14 +1381,16 @@ class _ClearBalanceTransactionDialog extends StatefulWidget {
   });
 
   @override
-  _ClearBalanceTransactionDialogState createState() => _ClearBalanceTransactionDialogState();
+  _ClearBalanceTransactionScreenState createState() =>
+      _ClearBalanceTransactionScreenState();
 }
 
-class _ClearBalanceTransactionDialogState extends State<_ClearBalanceTransactionDialog> {
+class _ClearBalanceTransactionScreenState
+    extends State<_ClearBalanceTransactionScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _amountController;
   final _descriptionController = TextEditingController();
-  String _purpose = 'OTHER';
+  String _purpose = 'ADJUSTMENT';
   bool _isProcessing = false;
 
   @override
@@ -1615,284 +1415,346 @@ class _ClearBalanceTransactionDialogState extends State<_ClearBalanceTransaction
   Widget build(BuildContext context) {
     // Determine if balance is positive (need to debit) or negative (need to credit)
     final isDebit = widget.balanceAmount > 0;
-    final transactionType = isDebit ? 'DEBIT' : 'CREDIT';
     final actionText = isDebit ? 'Deduct Amount' : 'Add Funds';
-    final iconColor = isDebit ? CupertinoColors.systemRed : CupertinoColors.systemGreen;
-    
-    return CupertinoActionSheet(
-      title: Text(
-        'Clear Balance - ${widget.member.name}',
-        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+    final iconColor = isDebit ? AppTheme.errorRed : AppTheme.successGreen;
+
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: DetailAppBar(
+        pageTitle: 'Clear Balance',
+        onBackTap: () => Navigator.pop(context),
       ),
-      message: Column(
-        children: [
-          Text(
-            'Current Balance: ₹${widget.balanceAmount.toStringAsFixed(2)}',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: widget.balanceAmount >= 0 ? CupertinoColors.systemGreen : CupertinoColors.systemRed,
-            ),
-          ),
-          SizedBox(height: 4),
-          Text(
-            'Create a transaction to clear this balance to ₹0',
-            style: TextStyle(fontSize: 13, color: CupertinoColors.secondaryLabel),
-          ),
-        ],
-      ),
-      actions: [
-        Container(
-          height: 400,
-          decoration: BoxDecoration(
-            color: CupertinoColors.systemBackground,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
-          ),
-          child: Padding(
-            padding: EdgeInsets.all(20),
-            child: Form(
-              key: _formKey,
+      body: Form(
+        key: _formKey,
+        child: Column(
+          children: [
+            // Header info card
+            Container(
+              width: double.infinity,
+              margin: EdgeInsets.all(16),
+              padding: EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Theme.of(context).dividerColor.withOpacity(0.3),
+                  width: 0.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Theme.of(context).shadowColor.withOpacity(0.04),
+                    blurRadius: 8,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Amount field (read-only, pre-filled)
-                  Text(
-                    'Amount (₹)',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: CupertinoColors.label,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  CupertinoTextField(
-                    controller: _amountController,
-                    readOnly: true,
-                    decoration: BoxDecoration(
-                      color: CupertinoColors.systemGrey6,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: CupertinoColors.systemGrey4),
-                    ),
-                    prefix: Padding(
-                      padding: EdgeInsets.only(left: 12),
-                      child: Icon(CupertinoIcons.money_dollar, 
-                          color: iconColor, size: 18),
-                    ),
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: iconColor,
-                    ),
-                  ),
-                  
-                  SizedBox(height: 16),
-                  
-                  // Description field
-                  Text(
-                    'Description',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: CupertinoColors.label,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  CupertinoTextField(
-                    controller: _descriptionController,
-                    decoration: BoxDecoration(
-                      color: CupertinoColors.systemBackground,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: CupertinoColors.systemGrey4),
-                    ),
-                    prefix: Padding(
-                      padding: EdgeInsets.only(left: 12),
-                      child: Icon(CupertinoIcons.doc_text, 
-                          color: CupertinoColors.systemGrey, size: 18),
-                    ),
-                    maxLines: 2,
-                  ),
-                  
-                  SizedBox(height: 16),
-                  
-                  // Purpose dropdown
-                  Text(
-                    'Purpose',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: CupertinoColors.label,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: CupertinoColors.systemBackground,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: CupertinoColors.systemGrey4),
-                    ),
-                    child: CupertinoButton(
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                      onPressed: _showPurposePicker,
-                      child: Row(
-                        children: [
-                          Icon(CupertinoIcons.tag, color: CupertinoColors.systemGrey, size: 18),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _getPurposeDisplayName(_purpose),
-                              style: TextStyle(color: CupertinoColors.label),
-                            ),
-                          ),
-                          Icon(CupertinoIcons.chevron_down, 
-                              color: CupertinoColors.systemGrey, size: 14),
-                        ],
-                      ),
-                    ),
-                  ),
-                  
-                  SizedBox(height: 24),
-                  
-                  // Action buttons
                   Row(
                     children: [
-                      Expanded(
-                        child: CupertinoButton(
-                          onPressed: _isProcessing ? null : () => Navigator.pop(context),
-                          child: Text('Cancel'),
+                      Container(
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: iconColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          isDebit ? Icons.remove_circle : Icons.add_circle,
+                          color: iconColor,
+                          size: 24,
                         ),
                       ),
-                      SizedBox(width: 12),
+                      SizedBox(width: 16),
                       Expanded(
-                        child: CupertinoButton(
-                          color: iconColor,
-                          onPressed: _isProcessing ? null : _processTransaction,
-                          child: _isProcessing
-                              ? CupertinoActivityIndicator()
-                              : Text(actionText, style: TextStyle(color: CupertinoColors.white)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.member.name,
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Current Balance: ₹${widget.balanceAmount.toStringAsFixed(2)}',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: widget.balanceAmount >= 0 
+                                  ? AppTheme.successGreen 
+                                  : AppTheme.errorRed,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
+                  SizedBox(height: 12),
+                  Container(
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Create a transaction to clear this balance to ₹0',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
-          ),
-        ),
-      ],
-      cancelButton: CupertinoActionSheetAction(
-        onPressed: () => Navigator.pop(context),
-        child: Text('Cancel'),
-      ),
-    );
-  }
 
-  void _showPurposePicker() {
-    final purposes = [
-      {'value': 'MEMBERSHIP', 'display': 'Membership'},
-      {'value': 'MATCH_FEE', 'display': 'Match Fee'},
-      {'value': 'JERSEY_ORDER', 'display': 'Jersey Order'},
-      {'value': 'GEAR_PURCHASE', 'display': 'Gear Purchase'},
-      {'value': 'REFUND', 'display': 'Refund'},
-      {'value': 'ADJUSTMENT', 'display': 'Balance Adjustment'},
-      {'value': 'OTHER', 'display': 'Other'},
-    ];
-
-    showCupertinoModalPopup(
-      context: context,
-      builder: (context) => Container(
-        height: 300,
-        decoration: BoxDecoration(
-          color: CupertinoColors.systemBackground,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
-        ),
-        child: Column(
-          children: [
-            Container(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                'Select Purpose',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: CupertinoColors.label,
-                ),
-              ),
-            ),
+            // Form fields
             Expanded(
-              child: CupertinoPicker(
-                itemExtent: 32,
-                scrollController: FixedExtentScrollController(
-                  initialItem: purposes.indexWhere((p) => p['value'] == _purpose),
+              child: SingleChildScrollView(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Amount field (read-only, pre-filled)
+                    Text(
+                      'Amount',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    TextFormField(
+                      controller: _amountController,
+                      readOnly: true,
+                      decoration: InputDecoration(
+                        prefixText: '₹',
+                        prefixIcon: Icon(
+                          Icons.account_balance_wallet,
+                          color: iconColor,
+                        ),
+                        fillColor: Theme.of(context).disabledColor.withOpacity(0.05),
+                        filled: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(
+                            color: Theme.of(context).dividerColor,
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(
+                            color: Theme.of(context).dividerColor.withOpacity(0.3),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(
+                            color: iconColor,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: iconColor,
+                      ),
+                    ),
+
+                    SizedBox(height: 20),
+
+                    // Purpose dropdown
+                    Text(
+                      'Purpose',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      value: _purpose,
+                      decoration: InputDecoration(
+                        prefixIcon: Icon(Icons.category),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      items: [
+                        {'value': 'MEMBERSHIP', 'display': 'Membership'},
+                        {'value': 'MATCH_FEE', 'display': 'Match Fee'},
+                        {'value': 'JERSEY_ORDER', 'display': 'Jersey Order'},
+                        {'value': 'GEAR_PURCHASE', 'display': 'Gear Purchase'},
+                        {'value': 'REFUND', 'display': 'Refund'},
+                        {'value': 'ADJUSTMENT', 'display': 'Balance Adjustment'},
+                        {'value': 'OTHER', 'display': 'Other'},
+                      ].map((purpose) {
+                        return DropdownMenuItem<String>(
+                          value: purpose['value'],
+                          child: Text(purpose['display']!),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() => _purpose = value);
+                        }
+                      },
+                    ),
+
+                    SizedBox(height: 20),
+
+                    // Description field
+                    Text(
+                      'Description',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    TextFormField(
+                      controller: _descriptionController,
+                      decoration: InputDecoration(
+                        prefixIcon: Icon(Icons.description),
+                        hintText: 'Enter description for this transaction',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      maxLines: 3,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Description is required';
+                        }
+                        return null;
+                      },
+                    ),
+
+                    SizedBox(height: 100), // Space for bottom buttons
+                  ],
                 ),
-                onSelectedItemChanged: (index) {
-                  setState(() {
-                    _purpose = purposes[index]['value']!;
-                  });
-                },
-                children: purposes.map((purpose) => Center(
-                  child: Text(purpose['display']!),
-                )).toList(),
-              ),
-            ),
-            Container(
-              padding: EdgeInsets.all(16),
-              width: double.infinity,
-              child: CupertinoButton(
-                color: CupertinoColors.systemBlue,
-                onPressed: () => Navigator.pop(context),
-                child: Text('Done'),
               ),
             ),
           ],
         ),
       ),
+
+      // Bottom action buttons
+      bottomNavigationBar: Container(
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          border: Border(
+            top: BorderSide(
+              color: Theme.of(context).dividerColor.withOpacity(0.2),
+            ),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Theme.of(context).shadowColor.withOpacity(0.05),
+              blurRadius: 10,
+              offset: Offset(0, -2),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _isProcessing ? null : () => Navigator.pop(context),
+                  style: OutlinedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text('Cancel'),
+                ),
+              ),
+              SizedBox(width: 16),
+              Expanded(
+                flex: 2,
+                child: ElevatedButton(
+                  onPressed: _isProcessing ? null : _processTransaction,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: iconColor,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: _isProcessing
+                      ? SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : Text(
+                          actionText,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
-  String _getPurposeDisplayName(String value) {
-    switch (value) {
-      case 'MEMBERSHIP': return 'Membership';
-      case 'MATCH_FEE': return 'Match Fee';
-      case 'JERSEY_ORDER': return 'Jersey Order';
-      case 'GEAR_PURCHASE': return 'Gear Purchase';
-      case 'REFUND': return 'Refund';
-      case 'ADJUSTMENT': return 'Balance Adjustment';
-      default: return 'Other';
-    }
-  }
 
   Future<void> _processTransaction() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     setState(() => _isProcessing = true);
-    
+
     try {
       final transactionType = widget.balanceAmount > 0 ? 'DEBIT' : 'CREDIT';
-      
+
       await ApiService.post('/transactions', {
-        'userId': widget.member.id,
+        'userId': widget.member.userId ?? widget.member.id,
         'clubId': widget.club.id,
         'amount': double.parse(_amountController.text),
         'type': transactionType,
         'purpose': _purpose,
-        'description': _descriptionController.text,
+        'description': _descriptionController.text.trim(),
       });
-      
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Balance cleared successfully'),
+            backgroundColor: AppTheme.successGreen,
+          ),
+        );
+      }
+
       widget.onComplete();
-      
     } catch (e) {
       if (mounted) {
-        showCupertinoDialog(
-          context: context,
-          builder: (context) => CupertinoAlertDialog(
-            title: Text('Transaction Failed'),
-            content: Text('Failed to process balance clearing transaction: $e'),
-            actions: [
-              CupertinoDialogAction(
-                onPressed: () => Navigator.pop(context),
-                child: Text('OK'),
-              ),
-            ],
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to process transaction: ${e.toString()}'),
+            backgroundColor: AppTheme.errorRed,
           ),
         );
       }

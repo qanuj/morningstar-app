@@ -20,7 +20,6 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
   bool _isLoading = false;
   bool _isLoadingMore = false;
   List<Transaction> _transactions = [];
-  String _selectedType = 'all';
   String _selectedPeriod = 'all';
   String _searchQuery = '';
   bool _showSearch = false;
@@ -71,16 +70,13 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
     setState(() => _isLoading = true);
     
     try {
-      // Build API endpoint with query parameters
+      // Build API endpoint with query parameters for club transactions
       final params = {
         'page': _currentPage.toString(),
         'limit': _itemsPerPage.toString(),
-        'clubId': widget.club.id,
+        'all': 'true', // Get all club transactions for admin view
       };
       
-      if (_selectedType != 'all') {
-        params['type'] = _selectedType.toUpperCase();
-      }
       if (_selectedPeriod != 'all') {
         params['period'] = _selectedPeriod;
       }
@@ -92,7 +88,7 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
           .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
           .join('&');
       
-      final response = await ApiService.get('/transactions?$queryString');
+      final response = await ApiService.get('/clubs/${widget.club.id}/transactions?$queryString');
       
       if (response['transactions'] != null) {
         final List<dynamic> transactionData = response['transactions'];
@@ -312,20 +308,14 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
           // Summary Card - Wallet Style
           _buildBalanceCard(currency, totalCredit, totalDebit, netBalance),
 
-          // Filter Chips
-          Container(
-            height: 50,
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                _buildFilterChip('All', 'all'),
-                SizedBox(width: 8),
-                _buildFilterChip('Credits', 'credit'),
-                SizedBox(width: 8),
-                _buildFilterChip('Debits', 'debit'),
-                SizedBox(width: 16),
-                if (_selectedPeriod != 'all')
+          // Filter Chips - Only Period filter
+          if (_selectedPeriod != 'all')
+            Container(
+              height: 50,
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
                   Chip(
                     label: Text(
                       _getPeriodDisplayName(_selectedPeriod),
@@ -340,9 +330,9 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
                     backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
                     labelStyle: TextStyle(color: Theme.of(context).primaryColor),
                   ),
-              ],
+                ],
+              ),
             ),
-          ),
 
           // Transactions List
           Expanded(
@@ -398,7 +388,7 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  _searchQuery.isNotEmpty || _selectedType != 'all' || _selectedPeriod != 'all'
+                                  _searchQuery.isNotEmpty || _selectedPeriod != 'all'
                                       ? 'Try adjusting your filters or search query'
                                       : 'Club transactions will appear here',
                                   style: TextStyle(
@@ -615,27 +605,6 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
     }
   }
 
-  Widget _buildFilterChip(String label, String value) {
-    final isSelected = _selectedType == value;
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (selected) {
-        setState(() {
-          _selectedType = value;
-          _currentPage = 1;
-          _transactions.clear();
-        });
-        _loadTransactions();
-      },
-      backgroundColor: Theme.of(context).cardColor,
-      selectedColor: Theme.of(context).primaryColor.withOpacity(0.2),
-      labelStyle: TextStyle(
-        color: isSelected ? Theme.of(context).primaryColor : Theme.of(context).textTheme.bodyMedium?.color,
-        fontWeight: isSelected ? FontWeight.w500 : FontWeight.w400,
-      ),
-    );
-  }
 
   List<Widget> _buildTransactionListItems() {
     final List<Widget> items = [];
@@ -742,12 +711,12 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
             // User Avatar with Transaction Badge
             Stack(
               children: [
-                // User Avatar (placeholder - in real implementation would come from transaction data)
+                // User Avatar from transaction data
                 SVGAvatar(
-                  imageUrl: null, // TODO: Add user avatar URL from transaction data
+                  imageUrl: transaction.user?.profilePicture,
                   size: 40,
                   backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
-                  fallbackIcon: Icons.person,
+                  fallbackIcon: transaction.user != null ? Icons.person : Icons.account_balance,
                   iconSize: 24,
                 ),
                 // Transaction Badge
@@ -779,16 +748,32 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    transaction.description,
-                    maxLines: 2,
+                    transaction.user != null 
+                        ? transaction.user!.name
+                        : transaction.description,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontWeight: FontWeight.w400,
-                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
                       color: Theme.of(context).textTheme.titleLarge?.color,
                       height: 1.2,
                     ),
                   ),
+                  if (transaction.user != null) ...[
+                    SizedBox(height: 2),
+                    Text(
+                      transaction.description,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w400,
+                        fontSize: 12,
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
+                        height: 1.2,
+                      ),
+                    ),
+                  ],
                   SizedBox(height: 4),
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -911,26 +896,6 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Transaction Type
-            ListTile(
-              leading: Icon(Icons.swap_horiz),
-              title: Text('Transaction Type'),
-              subtitle: DropdownButton<String>(
-                value: _selectedType,
-                isExpanded: true,
-                items: [
-                  DropdownMenuItem(value: 'all', child: Text('All Types')),
-                  DropdownMenuItem(value: 'credit', child: Text('Credits Only')),
-                  DropdownMenuItem(value: 'debit', child: Text('Debits Only')),
-                ],
-                onChanged: (value) {
-                  setState(() {
-                    _selectedType = value ?? 'all';
-                  });
-                },
-              ),
-            ),
-            
             // Time Period
             ListTile(
               leading: Icon(Icons.date_range),
@@ -958,7 +923,6 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
           TextButton(
             onPressed: () {
               setState(() {
-                _selectedType = 'all';
                 _selectedPeriod = 'all';
                 _currentPage = 1;
                 _transactions.clear();
@@ -1037,6 +1001,7 @@ class Transaction {
   final String description;
   final String createdAt;
   final ClubInfo club;
+  final UserInfo? user; // User information when available
 
   Transaction({
     required this.id,
@@ -1046,6 +1011,7 @@ class Transaction {
     required this.description,
     required this.createdAt,
     required this.club,
+    this.user,
   });
 
   factory Transaction.fromJson(Map<String, dynamic> json) {
@@ -1057,6 +1023,7 @@ class Transaction {
       description: json['description']?.toString() ?? '',
       createdAt: json['createdAt']?.toString() ?? DateTime.now().toIso8601String(),
       club: ClubInfo.fromJson(json['club'] ?? {}),
+      user: json['user'] != null ? UserInfo.fromJson(json['user']) : null,
     );
   }
 }
@@ -1080,6 +1047,26 @@ class ClubInfo {
       name: json['name']?.toString() ?? '',
       logo: json['logo']?.toString(),
       membershipFeeCurrency: json['membershipFeeCurrency']?.toString() ?? 'INR',
+    );
+  }
+}
+
+class UserInfo {
+  final String id;
+  final String name;
+  final String? profilePicture;
+
+  UserInfo({
+    required this.id,
+    required this.name,
+    this.profilePicture,
+  });
+
+  factory UserInfo.fromJson(Map<String, dynamic> json) {
+    return UserInfo(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      profilePicture: json['profilePicture']?.toString(),
     );
   }
 }
