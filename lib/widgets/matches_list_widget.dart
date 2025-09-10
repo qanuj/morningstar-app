@@ -253,7 +253,7 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
                         ),
                         SizedBox(height: 4),
                         Text(
-                          'For all upcoming matches:\n• Swipe right → YES RSVP\n• Swipe left → NO RSVP\n• Press & hold → Select role\n• Card stays in list after RSVP',
+                          'For all upcoming matches:\n• Swipe right → YES RSVP\n• Swipe left → NO RSVP\n• Press & hold → Select role\n• Confirmation shown when changing RSVP',
                           style: TextStyle(
                             fontSize: 12,
                             color: Theme.of(context).textTheme.bodySmall?.color,
