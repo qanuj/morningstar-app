@@ -38,7 +38,7 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
   List<Transaction> _recentTransactions = [];
   String? _currentUserId;
   String? _currentUserRole;
-  
+
   // Transaction pagination
   bool _isLoadingTransactions = false;
   bool _hasMoreTransactions = true;
@@ -174,7 +174,7 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
       _transactionPage = 1;
       _hasMoreTransactions = true;
       _recentTransactions.clear();
-      
+
       // Load member transactions
       await _loadRecentTransactions();
     } catch (e) {
@@ -187,7 +187,7 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
 
   Future<void> _loadRecentTransactions() async {
     if (_isLoadingTransactions) return;
-    
+
     setState(() => _isLoadingTransactions = true);
 
     try {
@@ -471,7 +471,6 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
     );
   }
 
-
   void _showPointsScreen() {
     Navigator.push(
       context,
@@ -551,7 +550,9 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              action == 'add' ? 'Points added successfully!' : 'Points deducted successfully!',
+              action == 'add'
+                  ? 'Points added successfully!'
+                  : 'Points deducted successfully!',
             ),
             backgroundColor: Colors.green,
           ),
@@ -568,7 +569,6 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
       }
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -661,34 +661,44 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
         ),
         child: _isLoading
             ? Center(child: CupertinoActivityIndicator())
-            : Column(
-                children: [
-                  // Fixed content at top
-                  Padding(
-                    padding: EdgeInsets.only(top: 20),
-                    child: Column(
-                      children: [
-                        // Member Info Card
-                        _buildMemberInfoCard(),
+            : RefreshIndicator(
+                color: AppTheme.primaryBlue,
+                onRefresh: _loadMemberData,
+                child: SingleChildScrollView(
+                  physics: AlwaysScrollableScrollPhysics(),
+                  child: Column(
+                    children: [
+                      // Fixed content at top
+                      Padding(
+                        padding: EdgeInsets.only(top: 20),
+                        child: Column(
+                          children: [
+                            // Member Info Card
+                            _buildMemberInfoCard(),
 
-                        SizedBox(height: 20),
+                            SizedBox(height: 20),
 
-                        // Quick Actions
-                        _buildQuickActionsCard(),
+                            // Quick Actions
+                            _buildQuickActionsCard(),
 
-                        SizedBox(height: 20),
+                            SizedBox(height: 20),
 
-                        // Role & Permissions (collapsible with remove/ban inside)
-                        _buildRolePermissionsCard(),
+                            // Role & Permissions (collapsible with remove/ban inside)
+                            _buildRolePermissionsCard(),
 
-                        SizedBox(height: 20),
-                      ],
-                    ),
+                            SizedBox(height: 20),
+                          ],
+                        ),
+                      ),
+
+                      // Expandable transactions section
+                      _buildRecentTransactionsCard(),
+
+                      // Add bottom padding to ensure content is not cut off
+                      SizedBox(height: 20),
+                    ],
                   ),
-                  
-                  // Expandable transactions section
-                  _buildRecentTransactionsCard(),
-                ],
+                ),
               ),
       ),
     );
@@ -864,7 +874,6 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
     );
   }
 
-
   Widget _buildRolePermissionsCard() {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 16),
@@ -889,12 +898,14 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
                   Expanded(
                     child: Text(
                       'Role & Permissions',
-                      style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
+                      style: CupertinoTheme.of(
+                        context,
+                      ).textTheme.navTitleTextStyle,
                     ),
                   ),
                   Icon(
-                    _isRolePermissionExpanded 
-                        ? CupertinoIcons.chevron_up 
+                    _isRolePermissionExpanded
+                        ? CupertinoIcons.chevron_up
                         : CupertinoIcons.chevron_down,
                     color: CupertinoColors.systemGrey,
                     size: 20,
@@ -911,9 +922,9 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
                   children: [
                     // Role options
                     ..._roles.map((role) => _buildRoleOption(role)),
-                    
+
                     SizedBox(height: 20),
-                    
+
                     // Remove and Ban actions
                     Row(
                       children: [
@@ -922,8 +933,9 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
                             icon: CupertinoIcons.person_badge_minus,
                             label: 'Remove from Club',
                             color: CupertinoColors.systemRed,
-                            onPressed: _isEditingSelf || _isNonOwnerTryingToModifyOwner 
-                                ? null 
+                            onPressed:
+                                _isEditingSelf || _isNonOwnerTryingToModifyOwner
+                                ? null
                                 : _handleRemoveFromClub,
                           ),
                         ),
@@ -933,8 +945,9 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
                             icon: CupertinoIcons.xmark_circle,
                             label: 'Ban User',
                             color: CupertinoColors.systemOrange,
-                            onPressed: _isEditingSelf || _isNonOwnerTryingToModifyOwner 
-                                ? null 
+                            onPressed:
+                                _isEditingSelf || _isNonOwnerTryingToModifyOwner
+                                ? null
                                 : _banMember,
                           ),
                         ),
@@ -957,7 +970,7 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
     VoidCallback? onPressed,
   }) {
     final isDisabled = onPressed == null;
-    
+
     return CupertinoButton(
       padding: EdgeInsets.symmetric(vertical: 12),
       color: isDisabled ? CupertinoColors.systemGrey : color,
@@ -967,11 +980,7 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            icon,
-            size: 16,
-            color: CupertinoColors.white,
-          ),
+          Icon(icon, size: 16, color: CupertinoColors.white),
           SizedBox(width: 8),
           Text(
             label,
@@ -1149,123 +1158,35 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
   }
 
   Widget _buildRecentTransactionsCard() {
-    return Expanded(
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Transactions',
-              style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
-            ),
-
-            SizedBox(height: 12),
-
-            Expanded(
-              child: RefreshIndicator(
-                color: AppTheme.primaryBlue,
-                onRefresh: _loadMemberData,
-                child: _recentTransactions.isEmpty && !_isLoadingTransactions
-                    ? _buildEmptyTransactionsState()
-                    : ListView(
-                        controller: _transactionScrollController,
-                        physics: AlwaysScrollableScrollPhysics(),
-                        children: TransactionsListWidget(
-                          transactions: _recentTransactions,
-                          listType: TransactionListType.member,
-                          isLoadingMore: _isLoadingTransactions,
-                          hasMoreData: _hasMoreTransactions,
-                          currency: widget.club.membershipFeeCurrency,
-                          showDateHeaders: true,
-                        ).buildTransactionListItems(context),
-                      ),
-              ),
-            ),
-          ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'Transactions',
+            style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
+          ),
         ),
-      ),
-    );
-  }
-
-  // Helper methods for transaction grouping and display
-  Map<String, List<Transaction>> _groupTransactionsByDate(List<Transaction> transactions) {
-    final Map<String, List<Transaction>> groupedTransactions = {};
-    for (final transaction in transactions) {
-      final dateKey = DateFormat('yyyy-MM-dd').format(DateTime.parse(transaction.createdAt));
-      if (!groupedTransactions.containsKey(dateKey)) {
-        groupedTransactions[dateKey] = [];
-      }
-      groupedTransactions[dateKey]!.add(transaction);
-    }
-    return groupedTransactions;
-  }
-
-  String _formatDateHeader(String dateKey) {
-    final date = DateTime.parse(dateKey);
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final yesterday = today.subtract(Duration(days: 1));
-    final transactionDate = DateTime(date.year, date.month, date.day);
-
-    if (transactionDate == today) {
-      return 'Today';
-    } else if (transactionDate == yesterday) {
-      return 'Yesterday';
-    } else {
-      return DateFormat('MMM dd, yyyy').format(date);
-    }
-  }
-
-  Widget _buildDateHeader(String dateKey) {
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Theme.of(context).brightness == Brightness.dark
-            ? Theme.of(context).colorScheme.onSurface.withOpacity(0.1)
-            : Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        _formatDateHeader(dateKey),
-        style: TextStyle(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? Theme.of(context).colorScheme.onSurface.withOpacity(0.8)
-              : Colors.grey.shade600,
-          fontSize: 12,
-          fontWeight: FontWeight.w400,
+        SizedBox(
+          height: 400, // Define a specific height for the transaction list
+          child: _recentTransactions.isEmpty && !_isLoadingTransactions
+              ? _buildEmptyTransactionsState()
+              : ListView(
+                  controller: _transactionScrollController,
+                  physics: AlwaysScrollableScrollPhysics(),
+                  children: TransactionsListWidget(
+                    transactions: _recentTransactions,
+                    listType: TransactionListType.member,
+                    isLoadingMore: _isLoadingTransactions,
+                    hasMoreData: _hasMoreTransactions,
+                    currency: widget.club.membershipFeeCurrency,
+                    showDateHeaders: true,
+                  ).buildTransactionListItems(context),
+                ),
         ),
-      ),
+      ],
     );
-  }
-
-  List<Widget> _buildTransactionListItems() {
-    final List<Widget> items = [];
-    final groupedTransactions = _groupTransactionsByDate(_recentTransactions);
-    final sortedDateKeys = groupedTransactions.keys.toList()
-      ..sort((a, b) => b.compareTo(a)); // Latest first
-
-    for (final dateKey in sortedDateKeys) {
-      final transactions = groupedTransactions[dateKey]!;
-      // Add date header
-      items.add(_buildDateHeader(dateKey));
-      // Add transaction cards for this date
-      for (final transaction in transactions) {
-        items.add(_buildTransactionItem(transaction));
-      }
-    }
-
-    // Add loading indicator for pagination
-    if (_isLoadingTransactions || _hasMoreTransactions) {
-      items.add(Container(
-        padding: EdgeInsets.all(16),
-        alignment: Alignment.center,
-        child: CupertinoActivityIndicator(),
-      ));
-    }
-
-    return items;
   }
 
   Widget _buildEmptyTransactionsState() {
@@ -1282,7 +1203,7 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
               Text(
                 'No transactions yet',
                 style: TextStyle(
-                  color: Colors.grey[600], 
+                  color: Colors.grey[600],
                   fontSize: 18,
                   fontWeight: FontWeight.w500,
                 ),
@@ -1290,188 +1211,13 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
               SizedBox(height: 8),
               Text(
                 'Pull to refresh or use Quick Actions above',
-                style: TextStyle(
-                  color: Colors.grey[500], 
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: Colors.grey[500], fontSize: 14),
               ),
             ],
           ),
         ),
       ],
     );
-  }
-
-  Widget _buildTransactionItem(Transaction transaction) {
-    final isCredit = transaction.type == 'CREDIT';
-    final icon = _getTransactionIcon(transaction.purpose);
-    final createdAt = DateTime.parse(transaction.createdAt);
-    
-    return Container(
-      margin: EdgeInsets.only(bottom: 8, left: 4, right: 4),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: Theme.of(context).dividerColor.withOpacity(0.3),
-          width: 0.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).shadowColor.withOpacity(0.04),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(8),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // User Avatar with Transaction Badge (matching wallet style)
-            Stack(
-              children: [
-                // User/Club Avatar
-                SVGAvatar(
-                  imageUrl: _currentMember.profilePicture,
-                  size: 40,
-                  backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
-                  fallbackIcon: Icons.person,
-                  iconSize: 24,
-                ),
-                // Transaction Badge
-                Positioned(
-                  right: 0,
-                  bottom: 0,
-                  child: Container(
-                    width: 18,
-                    height: 18,
-                    decoration: BoxDecoration(
-                      color: isCredit ? Colors.green : Colors.red,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Theme.of(context).cardColor,
-                        width: 2,
-                      ),
-                    ),
-                    child: Icon(icon, color: Colors.white, size: 10),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(width: 12),
-
-            // Transaction Info (Center)
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    transaction.description,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w400,
-                      fontSize: 12,
-                      color: Theme.of(context).textTheme.titleLarge?.color,
-                      height: 1.2,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Theme.of(context).colorScheme.onSurface.withOpacity(0.15)
-                          : Theme.of(context).primaryColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      _getPurposeText(transaction.purpose),
-                      style: TextStyle(
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Theme.of(context).colorScheme.onSurface.withOpacity(0.9)
-                            : Theme.of(context).primaryColor,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Amount and Time (Right)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  '${isCredit ? '+' : '-'}₹${transaction.amount.toStringAsFixed(0)}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                    color: isCredit ? Colors.green : Colors.red,
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  DateFormat('hh:mm a').format(createdAt),
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodySmall?.color,
-                    fontSize: 10,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  IconData _getTransactionIcon(String purpose) {
-    switch (purpose) {
-      case 'MATCH_FEE':
-        return Icons.sports_cricket;
-      case 'MEMBERSHIP':
-        return Icons.card_membership;
-      case 'ORDER':
-      case 'JERSEY_ORDER':
-      case 'GEAR_PURCHASE':
-        return Icons.shopping_cart;
-      case 'CLUB_TOPUP':
-        return Icons.account_balance_wallet;
-      case 'REFUND':
-        return Icons.money;
-      default:
-        return Icons.receipt;
-    }
-  }
-
-  String _getPurposeText(String purpose) {
-    switch (purpose) {
-      case 'MATCH_FEE':
-        return 'Match Fee';
-      case 'MEMBERSHIP':
-        return 'Membership Fee';
-      case 'ORDER':
-        return 'Store Order';
-      case 'JERSEY_ORDER':
-        return 'Jersey Order';
-      case 'GEAR_PURCHASE':
-        return 'Gear Purchase';
-      case 'CLUB_TOPUP':
-        return 'Wallet Top-up';
-      case 'REFUND':
-        return 'Refund';
-      case 'ADJUSTMENT':
-        return 'Balance Adjustment';
-      default:
-        return 'Other';
-    }
   }
 
   String _formatJoinedDate(DateTime date) {
@@ -1490,23 +1236,7 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
       return '${(difference / 365).round()} years ago';
     }
   }
-
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
-
-    if (difference.inDays == 0) {
-      return 'Today';
-    } else if (difference.inDays == 1) {
-      return 'Yesterday';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays} days ago';
-    } else {
-      return '${date.day}/${date.month}/${date.year}';
-    }
-  }
 }
-
 
 // Clear Balance Transaction Screen
 class _ClearBalanceTransactionScreen extends StatefulWidget {
@@ -1613,19 +1343,19 @@ class _ClearBalanceTransactionScreenState
                           children: [
                             Text(
                               widget.member.name,
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w600),
                             ),
                             SizedBox(height: 4),
                             Text(
                               'Current Balance: ₹${widget.balanceAmount.toStringAsFixed(2)}',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: widget.balanceAmount >= 0 
-                                  ? AppTheme.successGreen 
-                                  : AppTheme.errorRed,
-                                fontWeight: FontWeight.w600,
-                              ),
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    color: widget.balanceAmount >= 0
+                                        ? AppTheme.successGreen
+                                        : AppTheme.errorRed,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                             ),
                           ],
                         ),
@@ -1636,10 +1366,14 @@ class _ClearBalanceTransactionScreenState
                   Container(
                     padding: EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primary.withOpacity(0.05),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primary.withOpacity(0.1),
                       ),
                     ),
                     child: Row(
@@ -1653,9 +1387,10 @@ class _ClearBalanceTransactionScreenState
                         Expanded(
                           child: Text(
                             'Create a transaction to clear this balance to ₹0',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
                           ),
                         ),
                       ],
@@ -1689,7 +1424,9 @@ class _ClearBalanceTransactionScreenState
                           Icons.account_balance_wallet,
                           color: iconColor,
                         ),
-                        fillColor: Theme.of(context).disabledColor.withOpacity(0.05),
+                        fillColor: Theme.of(
+                          context,
+                        ).disabledColor.withOpacity(0.05),
                         filled: true,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -1700,15 +1437,14 @@ class _ClearBalanceTransactionScreenState
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                           borderSide: BorderSide(
-                            color: Theme.of(context).dividerColor.withOpacity(0.3),
+                            color: Theme.of(
+                              context,
+                            ).dividerColor.withOpacity(0.3),
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(
-                            color: iconColor,
-                            width: 2,
-                          ),
+                          borderSide: BorderSide(color: iconColor, width: 2),
                         ),
                       ),
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -1735,20 +1471,30 @@ class _ClearBalanceTransactionScreenState
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      items: [
-                        {'value': 'MEMBERSHIP', 'display': 'Membership'},
-                        {'value': 'MATCH_FEE', 'display': 'Match Fee'},
-                        {'value': 'JERSEY_ORDER', 'display': 'Jersey Order'},
-                        {'value': 'GEAR_PURCHASE', 'display': 'Gear Purchase'},
-                        {'value': 'REFUND', 'display': 'Refund'},
-                        {'value': 'ADJUSTMENT', 'display': 'Balance Adjustment'},
-                        {'value': 'OTHER', 'display': 'Other'},
-                      ].map((purpose) {
-                        return DropdownMenuItem<String>(
-                          value: purpose['value'],
-                          child: Text(purpose['display']!),
-                        );
-                      }).toList(),
+                      items:
+                          [
+                            {'value': 'MEMBERSHIP', 'display': 'Membership'},
+                            {'value': 'MATCH_FEE', 'display': 'Match Fee'},
+                            {
+                              'value': 'JERSEY_ORDER',
+                              'display': 'Jersey Order',
+                            },
+                            {
+                              'value': 'GEAR_PURCHASE',
+                              'display': 'Gear Purchase',
+                            },
+                            {'value': 'REFUND', 'display': 'Refund'},
+                            {
+                              'value': 'ADJUSTMENT',
+                              'display': 'Balance Adjustment',
+                            },
+                            {'value': 'OTHER', 'display': 'Other'},
+                          ].map((purpose) {
+                            return DropdownMenuItem<String>(
+                              value: purpose['value'],
+                              child: Text(purpose['display']!),
+                            );
+                          }).toList(),
                       onChanged: (value) {
                         if (value != null) {
                           setState(() => _purpose = value);
@@ -1816,7 +1562,9 @@ class _ClearBalanceTransactionScreenState
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: _isProcessing ? null : () => Navigator.pop(context),
+                  onPressed: _isProcessing
+                      ? null
+                      : () => Navigator.pop(context),
                   style: OutlinedButton.styleFrom(
                     padding: EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
@@ -1845,14 +1593,14 @@ class _ClearBalanceTransactionScreenState
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
                           ),
                         )
                       : Text(
                           actionText,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                 ),
               ),
@@ -1862,7 +1610,6 @@ class _ClearBalanceTransactionScreenState
       ),
     );
   }
-
 
   Future<void> _processTransaction() async {
     if (!_formKey.currentState!.validate()) return;

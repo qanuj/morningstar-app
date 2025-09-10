@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../../providers/club_provider.dart';
 import '../../models/club.dart';
 import '../../widgets/custom_app_bar.dart';
-import '../../widgets/duggy_logo.dart';
 import '../../widgets/svg_avatar.dart';
 import 'club_chat.dart';
 
@@ -36,17 +35,7 @@ class ClubsScreenState extends State<ClubsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: DetailAppBar(
-        pageTitle: 'My Clubs',
-        customActions: [
-          IconButton(
-            icon: Icon(Icons.home_outlined),
-            onPressed: () =>
-                Navigator.of(context).popUntil((route) => route.isFirst),
-            tooltip: 'Go to Home',
-          ),
-        ],
-      ),
+      appBar: DetailAppBar(pageTitle: 'My Clubs'),
       body: Consumer<ClubProvider>(
         builder: (context, clubProvider, child) {
           return RefreshIndicator(
@@ -141,7 +130,9 @@ class ClubsScreenState extends State<ClubsScreen> {
                   SVGAvatar(
                     imageUrl: club.logo,
                     size: 50,
-                    backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+                    backgroundColor: Theme.of(
+                      context,
+                    ).primaryColor.withOpacity(0.1),
                     fallbackIcon: Icons.groups,
                     iconSize: 28,
                   ),
@@ -194,56 +185,23 @@ class ClubsScreenState extends State<ClubsScreen> {
 
                     SizedBox(height: 4),
 
-                    // Club Details Row
+                    // Balance & Points Row
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // Role Badge
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: membership.role.toLowerCase() == 'owner'
-                                ? Colors.green.withOpacity(0.1)
-                                : Theme.of(
-                                    context,
-                                  ).primaryColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            membership.role,
-                            style: TextStyle(
-                              color: membership.role.toLowerCase() == 'owner'
-                                  ? Colors.green[700]
-                                  : Theme.of(context).primaryColor,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-
-                        // Location
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            [club.city, club.state, club.country]
-                                .where((e) => e != null && e.isNotEmpty)
-                                .join(', '),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Theme.of(
-                                context,
-                              ).textTheme.bodyMedium?.color?.withOpacity(0.7),
-                            ),
+                        // Member count
+                        Text(
+                          '${club.membersCount ?? 0} members',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Theme.of(
+                              context,
+                            ).textTheme.bodyMedium?.color?.withOpacity(0.7),
                           ),
                         ),
 
                         // Balance & Points
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
+                        Row(
                           children: [
                             Text(
                               '₹${membership.balance.toStringAsFixed(0)}',
@@ -253,6 +211,7 @@ class ClubsScreenState extends State<ClubsScreen> {
                                 color: Colors.green[700],
                               ),
                             ),
+                            SizedBox(width: 12),
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [

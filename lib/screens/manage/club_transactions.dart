@@ -111,20 +111,7 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
       debugPrint('Error loading transactions: $e');
       // Fall back to mock data on error
       if (_transactions.isEmpty) {
-        _transactions = _generateMockTransactions().map((ct) => Transaction(
-          id: ct.id,
-          amount: ct.amount,
-          type: ct.type == 'Credit' ? 'CREDIT' : 'DEBIT',
-          purpose: ct.category,
-          description: ct.description,
-          createdAt: ct.date.toIso8601String(),
-          club: ClubInfo(
-            id: widget.club.id,
-            name: widget.club.name,
-            logo: widget.club.logo,
-            membershipFeeCurrency: widget.club.membershipFeeCurrency ?? 'INR',
-          ),
-        )).toList();
+        _transactions = _generateMockTransactions();
       }
     } finally {
       if (mounted) {
@@ -670,7 +657,7 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
   Widget _buildWalletStyleTransactionCard(Transaction transaction) {
     final isCredit = transaction.type == 'CREDIT';
     final icon = _getTransactionIcon(transaction.purpose);
-    final createdAt = DateTime.parse(transaction.createdAt);
+    final createdAt = transaction.createdAt;
     final currency = widget.club.membershipFeeCurrency ?? 'INR';
 
     return Container(

@@ -7,6 +7,7 @@ import '../../widgets/svg_avatar.dart';
 import 'enhanced_club_members.dart';
 import 'club_transactions.dart';
 import 'club_settings.dart';
+import 'club_matches.dart';
 
 class ManageClubScreen extends StatefulWidget {
   final Club club;
@@ -316,7 +317,11 @@ class ManageClubScreenState extends State<ManageClubScreen> {
                           title: 'Matches',
                           subtitle: 'Schedule & manage club matches',
                           onTap: () {
-                            // TODO: Navigate to match management
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => ClubMatchesScreen(club: club),
+                              ),
+                            );
                           },
                         ),
 

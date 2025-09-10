@@ -625,36 +625,25 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
           ],
         ),
         actions: [
-          Container(
-            margin: EdgeInsets.only(right: 8),
-            child: TextButton(
-              onPressed: (_isLoading || _isUploading) ? null : _updateClubSettings,
-              style: TextButton.styleFrom(
-                backgroundColor: Colors.white.withOpacity(0.2),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              ),
-              child: (_isLoading || _isUploading)
-                  ? SizedBox(
-                      height: 16,
-                      width: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Text(
-                      'Save',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
+          (_isLoading || _isUploading)
+              ? Container(
+                  padding: EdgeInsets.all(12),
+                  child: SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
                     ),
-            ),
-          ),
+                  ),
+                )
+              : IconButton(
+                  onPressed: _updateClubSettings,
+                  icon: Icon(
+                    Icons.check,
+                    color: Colors.white,
+                  ),
+                ),
         ],
       ),
       body: Form(
