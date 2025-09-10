@@ -253,7 +253,7 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
                         ),
                         SizedBox(height: 4),
                         Text(
-                          'For upcoming matches:\n• Swipe right → YES\n• Swipe left → NO\n• Press & hold → Select role',
+                          'For all upcoming matches:\n• Swipe right → YES RSVP\n• Swipe left → NO RSVP\n• Press & hold → Select role\n• Card stays in list after RSVP',
                           style: TextStyle(
                             fontSize: 12,
                             color: Theme.of(context).textTheme.bodySmall?.color,
@@ -552,46 +552,38 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
     final now = DateTime.now();
     final localMatchDate = match.matchDate.toLocal();
     final isUpcoming = localMatchDate.isAfter(now);
-    final canRsvp = isUpcoming && match.canRsvp;
-
-    // For upcoming matches with RSVP capability, add swipe functionality
-    if (canRsvp) {
+    
+    // Enable swipe for upcoming matches, regardless of current canRsvp status
+    // This allows users to change their RSVP even if they've already responded
+    if (isUpcoming) {
       return _buildSwipeableMatchItem(match, isUpcoming);
     }
 
-    // For past matches or matches without RSVP, show normal item
+    // For past matches, show normal item
     return _buildRegularMatchItem(match, isUpcoming);
   }
 
   Widget _buildSwipeableMatchItem(MatchListItem match, bool isUpcoming) {
-    // If user already has an RSVP, show the regular card (no swipe)
-    if (match.userRsvp != null) {
-      return GestureDetector(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => MatchDetailScreen(matchId: match.id),
-            ),
-          );
-        },
-        onLongPress: () => _showRoleSelectionModal(match),
-        child: _buildMatchCard(match, isUpcoming),
-      );
-    }
-
-    // Standard Dismissible widget for swipe gestures
+    // Always allow swipe for upcoming matches - users can change their RSVP
     return Dismissible(
       key: Key('match_${match.id}'),
       direction: DismissDirection.horizontal,
-      onDismissed: (direction) {
-        // Handle the RSVP based on swipe direction
+      dismissThresholds: const {
+        DismissDirection.startToEnd: 0.2,
+        DismissDirection.endToStart: 0.2,
+      },
+      // Handle both partial and full swipes
+      confirmDismiss: (direction) async {
+        // Make RSVP API call when user swipes past threshold
         if (direction == DismissDirection.startToEnd) {
           // Swipe right = YES
-          _handleRsvp(match, 'YES');
+          await _handleRsvp(match, 'YES');
         } else if (direction == DismissDirection.endToStart) {
-          // Swipe left = NO
-          _handleRsvp(match, 'NO');
+          // Swipe left = NO  
+          await _handleRsvp(match, 'NO');
         }
+        // Always return false to keep the card in the list after RSVP
+        return false;
       },
       background: Container(
         margin: EdgeInsets.only(bottom: 8, left: 12, right: 12),
@@ -891,11 +883,83 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
     }
   }
 
+  Future<bool?> _showRsvpChangeConfirmation(MatchListItem match, String newStatus) async {
+    final currentStatus = match.userRsvp?.status ?? 'NONE';
+    final statusText = newStatus == 'YES' ? 'attend' : 'decline';
+    final currentStatusText = currentStatus.toLowerCase() == 'yes' ? 'attending' : 'not attending';
+    
+    return showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            'Change RSVP?',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 18,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                match.opponent ?? 'Practice Session',
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 16,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'You are currently $currentStatusText.',
+                style: TextStyle(fontSize: 14),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Do you want to change your RSVP to $statusText?',
+                style: TextStyle(fontSize: 14),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(
+                'Change RSVP',
+                style: TextStyle(
+                  color: Theme.of(context).primaryColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _handleRsvp(
     MatchListItem match,
     String status, [
     String? selectedRole,
   ]) async {
+    // Check if user already has an RSVP and is changing it
+    if (match.userRsvp != null && match.userRsvp!.status.toUpperCase() != status.toUpperCase()) {
+      final bool? shouldChange = await _showRsvpChangeConfirmation(match, status);
+      if (shouldChange != true) {
+        return; // User cancelled the change
+      }
+    }
     // Immediately update the UI with optimistic state
     setState(() {
       final matchIndex = _matches.indexWhere((m) => m.id == match.id);
@@ -941,16 +1005,7 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
       }
     });
 
-    // Show immediate feedback
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(status == 'YES' ? 'RSVP confirmed!' : 'RSVP declined'),
-          backgroundColor: status == 'YES' ? Colors.green : Colors.orange,
-          duration: Duration(seconds: 1),
-        ),
-      );
-    }
+    // Toast removed - visual feedback comes from badge update instead
 
     // Now make the API call in background to sync with server
     try {
