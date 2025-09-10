@@ -8,6 +8,8 @@ import '../../models/user.dart';
 import '../../services/api_service.dart';
 import '../../widgets/svg_avatar.dart';
 import '../../widgets/transaction_dialog_helper.dart';
+import '../transactions/bulk_transaction_screen.dart';
+import '../points/bulk_points_screen.dart';
 import 'club_member_manage.dart';
 import 'contact_picker_screen.dart';
 import 'manual_add_member_screen.dart';
@@ -742,6 +744,197 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     }
   }
 
+  void _showSearchAndFilterDrawer() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.9,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (context, scrollController) => Container(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header with title and close button
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Search & Filter',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF003f9b),
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              SizedBox(height: 16),
+
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Search section
+                      Text(
+                        'Search Members',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: 'Search by name or phone number...',
+                          prefixIcon: Icon(Icons.search),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                        ),
+                        onChanged: _onSearchChanged,
+                      ),
+                      SizedBox(height: 24),
+
+                      // Filter section
+                      Text(
+                        'Filter Members',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      SizedBox(height: 16),
+
+                      // Status filters
+                      Text(
+                        'Member Status',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          FilterChip(
+                            label: Text('Active Members'),
+                            selected: _showActiveMembers,
+                            onSelected: (selected) {
+                              setState(() {
+                                _showActiveMembers = selected;
+                              });
+                              _onFilterChanged();
+                            },
+                          ),
+                          FilterChip(
+                            label: Text('Pending Approval'),
+                            selected: _showPendingMembers,
+                            onSelected: (selected) {
+                              setState(() {
+                                _showPendingMembers = selected;
+                              });
+                              _onFilterChanged();
+                            },
+                          ),
+                          FilterChip(
+                            label: Text('Banned Members'),
+                            selected: _showBannedMembers,
+                            onSelected: (selected) {
+                              setState(() {
+                                _showBannedMembers = selected;
+                              });
+                              _onFilterChanged();
+                            },
+                          ),
+                          FilterChip(
+                            label: Text('Inactive Members'),
+                            selected: _showInactiveMembers,
+                            onSelected: (selected) {
+                              setState(() {
+                                _showInactiveMembers = selected;
+                              });
+                              _onFilterChanged();
+                            },
+                          ),
+                          FilterChip(
+                            label: Text('Low Balance'),
+                            selected: _showLowBalanceMembers,
+                            onSelected: (selected) {
+                              setState(() {
+                                _showLowBalanceMembers = selected;
+                              });
+                              _onFilterChanged();
+                            },
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 24),
+
+                      // Quick actions
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() {
+                                  _showActiveMembers = true;
+                                  _showPendingMembers = false;
+                                  _showBannedMembers = false;
+                                  _showInactiveMembers = false;
+                                  _showLowBalanceMembers = false;
+                                });
+                                _onSearchChanged('');
+                                _onFilterChanged();
+                              },
+                              child: Text('Clear All'),
+                            ),
+                          ),
+                          SizedBox(width: 16),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () => Navigator.pop(context),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Color(0xFF003f9b),
+                                foregroundColor: Colors.white,
+                              ),
+                              child: Text('Done'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showMoreActionsBottomSheet() {
     showModalBottomSheet(
       context: context,
@@ -887,22 +1080,62 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
 
   void _handleBulkExpense() {
     Navigator.pop(context);
-    _showTransactionDialog('DEBIT', 'Add Expense', true);
+    _showBulkTransactionScreen();
   }
 
   void _handleBulkFunds() {
     Navigator.pop(context);
-    _showTransactionDialog('CREDIT', 'Add Funds', true);
+    _showBulkTransactionScreen();
   }
 
   void _handleBulkPoints() {
     Navigator.pop(context);
-    _showPointsDialog('add', true);
+    _showBulkPointsScreen();
   }
 
   void _handleBulkRemovePoints() {
     Navigator.pop(context);
-    _showPointsDialog('remove', true);
+    _showBulkPointsScreen();
+  }
+
+  void _showBulkTransactionScreen() {
+    final selectedMembersList = _getSelectedMembers();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BulkTransactionScreen(
+          selectedMembers: selectedMembersList,
+          onSubmit: _handleBulkTransactionSubmit,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleBulkTransactionSubmit(
+    Map<String, dynamic> data,
+    String type,
+  ) async {
+    await _handleTransactionSubmit(data, type, true);
+  }
+
+  void _showBulkPointsScreen() {
+    final selectedMembersList = _getSelectedMembers();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BulkPointsScreen(
+          selectedMembers: selectedMembersList,
+          onSubmit: _handleBulkPointsSubmit,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleBulkPointsSubmit(
+    Map<String, dynamic> data,
+    String action,
+  ) async {
+    await _handlePointsSubmit(data, action, true);
   }
 
   void _showTransactionDialog(String type, String title, bool isBulk) {
@@ -1122,7 +1355,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
         final pointEntries = selectedMembersList
             .map(
               (member) => ApiService.post('/points', {
-                'userId': member.id,
+                'userId': member.userId ?? member.id,
                 'points': int.parse(data['points']),
                 'type': type == 'add' ? 'EARNED' : 'DEDUCTED',
                 'category': data['category'],
@@ -1155,7 +1388,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
           final member = _filteredMembers.firstWhere((m) => m.id == memberId);
 
           await ApiService.post('/points', {
-            'userId': member.id,
+            'userId': member.userId ?? member.id,
             'points': int.parse(data['points']),
             'type': type == 'add' ? 'EARNED' : 'DEDUCTED',
             'category': data['category'],
@@ -1276,6 +1509,11 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
                 ],
               ),
               actions: [
+                IconButton(
+                  icon: Icon(Icons.search, color: Colors.white),
+                  onPressed: _showSearchAndFilterDrawer,
+                  tooltip: 'Search & Filter',
+                ),
                 IconButton(
                   icon: Icon(Icons.more_vert, color: Colors.white),
                   onPressed: _showMoreActionsBottomSheet,
