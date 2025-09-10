@@ -29,7 +29,7 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
 
   // Search and filtering
   final TextEditingController _searchController = TextEditingController();
-  
+
   // Infinite scroll with pagination
   final ScrollController _scrollController = ScrollController();
   bool _isLoadingMore = false;
@@ -68,7 +68,7 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
     });
 
     await _fetchMatchesPage(1, isRefresh: true);
-    
+
     setState(() => _isLoading = false);
   }
 
@@ -76,7 +76,7 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
     try {
       List<MatchListItem> newMatches;
       Map<String, dynamic>? paginationInfo;
-      
+
       // Use MatchService to get matches - it will use the appropriate endpoint
       if (widget.clubFilter != null) {
         // For club-specific matches, get paginated matches
@@ -94,9 +94,11 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
         final responseMap = response;
         final matchesList = responseMap['matches'] as List;
         paginationInfo = responseMap['pagination'] as Map<String, dynamic>;
-        
+
         newMatches = matchesList
-            .map((match) => MatchListItem.fromJson(match as Map<String, dynamic>))
+            .map(
+              (match) => MatchListItem.fromJson(match as Map<String, dynamic>),
+            )
             .toList();
       }
 
@@ -106,7 +108,7 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
         } else {
           _matches.addAll(newMatches);
         }
-        
+
         // Update pagination info
         if (paginationInfo != null) {
           _currentPage = paginationInfo['page'] as int;
@@ -116,7 +118,7 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
           // For club matches without pagination
           _hasNextPage = false;
         }
-        
+
         // Sort matches: upcoming first (ascending), then past matches (descending)
         final now = DateTime.now();
         final upcomingMatches = _matches
@@ -125,12 +127,12 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
         final pastMatches = _matches
             .where((match) => match.matchDate.toLocal().isBefore(now))
             .toList();
-        
+
         // Sort upcoming matches by date (ascending - earliest first)
         upcomingMatches.sort((a, b) => a.matchDate.compareTo(b.matchDate));
         // Sort past matches by date (descending - most recent first)
         pastMatches.sort((a, b) => b.matchDate.compareTo(a.matchDate));
-        
+
         // Combine: upcoming first, then past
         _matches = [...upcomingMatches, ...pastMatches];
       });
@@ -153,9 +155,9 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
       await _fetchMatchesPage(nextPage, isRefresh: false);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to load more matches: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load more matches: $e')),
+        );
       }
     }
 
@@ -193,7 +195,7 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
                 ),
               ),
               SizedBox(height: 16),
-              
+
               // Title
               Text(
                 'Match Options',
@@ -204,15 +206,12 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
                 ),
               ),
               SizedBox(height: 16),
-              
+
               // Refresh button
               ListTile(
                 title: Text(
                   'Refresh Matches',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                 ),
                 subtitle: Text(
                   'Load latest match updates',
@@ -231,7 +230,7 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
                 },
                 contentPadding: EdgeInsets.zero,
               ),
-              
+
               // Info about swipe gestures and pagination
               Column(
                 children: [
@@ -263,12 +262,15 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
                       ],
                     ),
                   ),
-                  
+
                   // Pagination info if applicable
                   if (_totalPages > 1) ...[
                     SizedBox(height: 16),
                     Container(
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.grey.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
@@ -333,34 +335,33 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
       color: Colors.grey.shade50,
       child: Column(
         children: [
-        if (widget.showHeader)
-          Padding(
-            padding: EdgeInsets.all(16),
-            child: Text(
-              widget.clubFilter != null
-                  ? '${widget.clubFilter!.name} Matches'
-                  : 'Matches',
-              style: Theme.of(
-                context,
-              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+          if (widget.showHeader)
+            Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                widget.clubFilter != null
+                    ? '${widget.clubFilter!.name} Matches'
+                    : 'Matches',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+
+          // Main content with pull-to-refresh
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _loadMatches,
+              color: Theme.of(context).primaryColor,
+              displacement: 40.0,
+              strokeWidth: 2.0,
+              child: _isLoading && _matches.isEmpty
+                  ? _buildLoadingState()
+                  : _matches.isEmpty
+                  ? _buildEmptyState()
+                  : _buildMatchesList(),
             ),
           ),
-
-
-        // Main content with pull-to-refresh
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: _loadMatches,
-            color: Theme.of(context).primaryColor,
-            displacement: 40.0,
-            strokeWidth: 2.0,
-            child: _isLoading && _matches.isEmpty
-                ? _buildLoadingState()
-                : _matches.isEmpty
-                ? _buildEmptyState()
-                : _buildMatchesList(),
-          ),
-        ),
         ],
       ),
     );
@@ -426,20 +427,25 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
   Widget _buildMatchesList() {
     final groupedMatches = _groupMatchesByDate(_matches);
     final totalGroups = groupedMatches.length;
-    
+
     // Check if we have multiple matches on any single date
-    final hasMultipleMatchesOnSameDate = groupedMatches.values.any((matches) => matches.length > 1);
+    final hasMultipleMatchesOnSameDate = groupedMatches.values.any(
+      (matches) => matches.length > 1,
+    );
 
     return ListView.builder(
       controller: _scrollController,
       padding: EdgeInsets.symmetric(horizontal: 4),
-      itemCount: totalGroups + (_isLoadingMore ? 1 : 0) + (_hasNextPage && !_isLoadingMore ? 1 : 0),
+      itemCount:
+          totalGroups +
+          (_isLoadingMore ? 1 : 0) +
+          (_hasNextPage && !_isLoadingMore ? 1 : 0),
       itemBuilder: (context, index) {
         // Show loading indicator at the bottom when loading more
         if (index >= totalGroups && _isLoadingMore) {
           return _buildLoadingMoreIndicator();
         }
-        
+
         // Show "Load more" button when there are more pages but not currently loading
         if (index >= totalGroups && _hasNextPage && !_isLoadingMore) {
           return _buildLoadMoreButton();
@@ -448,7 +454,9 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
         final dateKey = groupedMatches.keys.elementAt(index);
         final dayMatches = groupedMatches[dateKey]!;
         final now = DateTime.now();
-        final isUpcomingDate = DateTime.parse(dateKey).isAfter(now.subtract(Duration(days: 1)));
+        final isUpcomingDate = DateTime.parse(
+          dateKey,
+        ).isAfter(now.subtract(Duration(days: 1)));
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -462,8 +470,8 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
                   color: isUpcomingDate
                       ? Theme.of(context).primaryColor.withOpacity(0.1)
                       : Theme.of(context).brightness == Brightness.dark
-                          ? Theme.of(context).colorScheme.onSurface.withOpacity(0.1)
-                          : Colors.grey.shade100,
+                      ? Theme.of(context).colorScheme.onSurface.withOpacity(0.1)
+                      : Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -472,8 +480,10 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
                     color: isUpcomingDate
                         ? Theme.of(context).primaryColor
                         : Theme.of(context).brightness == Brightness.dark
-                            ? Theme.of(context).colorScheme.onSurface.withOpacity(0.8)
-                            : Colors.grey.shade600,
+                        ? Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withOpacity(0.8)
+                        : Colors.grey.shade600,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
@@ -525,10 +535,7 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
       child: Center(
         child: TextButton.icon(
           onPressed: _loadMoreMatches,
-          icon: Icon(
-            Icons.expand_more,
-            color: Theme.of(context).primaryColor,
-          ),
+          icon: Icon(Icons.expand_more, color: Theme.of(context).primaryColor),
           label: Text(
             'Load More Matches',
             style: TextStyle(
@@ -582,7 +589,7 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
           // Swipe right = YES
           _handleRsvp(match, 'YES');
         } else if (direction == DismissDirection.endToStart) {
-          // Swipe left = NO  
+          // Swipe left = NO
           _handleRsvp(match, 'NO');
         }
       },
@@ -596,11 +603,7 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
         padding: EdgeInsets.symmetric(horizontal: 20),
         child: Row(
           children: [
-            Icon(
-              Icons.check_circle,
-              color: Colors.white,
-              size: 24,
-            ),
+            Icon(Icons.check_circle, color: Colors.white, size: 24),
             SizedBox(width: 8),
             Text(
               'YES',
@@ -633,11 +636,7 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
               ),
             ),
             SizedBox(width: 8),
-            Icon(
-              Icons.cancel,
-              color: Colors.white,
-              size: 24,
-            ),
+            Icon(Icons.cancel, color: Colors.white, size: 24),
           ],
         ),
       ),
@@ -675,14 +674,14 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
         color: isUpcoming ? Colors.white : Colors.grey.shade100,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: isUpcoming 
+          color: isUpcoming
               ? Theme.of(context).dividerColor.withOpacity(0.3)
               : Colors.grey.shade300,
           width: 0.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: isUpcoming 
+            color: isUpcoming
                 ? Theme.of(context).shadowColor.withOpacity(0.08)
                 : Theme.of(context).shadowColor.withOpacity(0.02),
             blurRadius: isUpcoming ? 12 : 4,
@@ -726,29 +725,6 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
                 ),
               ),
               SizedBox(height: 4),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withOpacity(0.15)
-                      : Theme.of(context).primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  DateFormat('MMM dd, yyyy').format(match.matchDate.toLocal()),
-                  style: TextStyle(
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withOpacity(0.9)
-                        : Theme.of(context).primaryColor,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-              ),
               if (match.location.isNotEmpty) ...[
                 SizedBox(height: 4),
                 Row(
@@ -764,9 +740,7 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
                         match.location,
                         style: TextStyle(
                           fontSize: 10,
-                          color: Theme.of(
-                            context,
-                          ).textTheme.bodySmall?.color,
+                          color: Theme.of(context).textTheme.bodySmall?.color,
                         ),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
@@ -917,7 +891,11 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
     }
   }
 
-  Future<void> _handleRsvp(MatchListItem match, String status, [String? selectedRole]) async {
+  Future<void> _handleRsvp(
+    MatchListItem match,
+    String status, [
+    String? selectedRole,
+  ]) async {
     // Immediately update the UI with optimistic state
     setState(() {
       final matchIndex = _matches.indexWhere((m) => m.id == match.id);
@@ -930,7 +908,7 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
           isConfirmed: status == 'YES', // Optimistic assumption
           waitlistPosition: null, // Will be updated from API response if needed
         );
-        
+
         // Create updated match with optimistic RSVP info
         final updatedMatch = MatchListItem(
           id: match.id,
@@ -976,17 +954,14 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
 
     // Now make the API call in background to sync with server
     try {
-      final body = {
-        'matchId': match.id,
-        'status': status,
-      };
-      
+      final body = {'matchId': match.id, 'status': status};
+
       if (selectedRole != null) {
         body['selectedRole'] = selectedRole;
       }
 
       final response = await ApiService.post('/rsvp', body);
-      
+
       if (response['success'] == true) {
         // Update with real server response if needed
         final actualRsvp = response['rsvp'];
@@ -1026,9 +1001,10 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
             }
           });
         }
-        
+
         // Show server confirmation if there's important info (like waitlist)
-        if (response['message'] != null && response['message'].toString().contains('waitlist')) {
+        if (response['message'] != null &&
+            response['message'].toString().contains('waitlist')) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -1076,7 +1052,7 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
           _matches[matchIndex] = revertedMatch;
         }
       });
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1093,7 +1069,7 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
     final roles = [
       'Any Position',
       'Batsman',
-      'Bowler', 
+      'Bowler',
       'All-rounder',
       'Wicket Keeper',
       'Captain',
@@ -1124,7 +1100,7 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
                 ),
               ),
               SizedBox(height: 16),
-              
+
               // Title
               Text(
                 'Select Role for Match',
@@ -1143,36 +1119,40 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
                 ),
               ),
               Text(
-                DateFormat('MMM dd, yyyy · HH:mm').format(match.matchDate.toLocal()),
+                DateFormat(
+                  'MMM dd, yyyy · HH:mm',
+                ).format(match.matchDate.toLocal()),
                 style: TextStyle(
                   fontSize: 12,
                   color: Theme.of(context).textTheme.bodySmall?.color,
                 ),
               ),
               SizedBox(height: 24),
-              
+
               // Role options
-              ...roles.map((role) => ListTile(
-                title: Text(
-                  role,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
+              ...roles.map(
+                (role) => ListTile(
+                  title: Text(
+                    role,
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  ),
+                  leading: Icon(
+                    _getRoleIcon(role),
+                    color: Theme.of(context).primaryColor,
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _handleRsvp(match, 'YES', role);
+                  },
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 0,
+                    vertical: 4,
                   ),
                 ),
-                leading: Icon(
-                  _getRoleIcon(role),
-                  color: Theme.of(context).primaryColor,
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _handleRsvp(match, 'YES', role);
-                },
-                contentPadding: EdgeInsets.symmetric(horizontal: 0, vertical: 4),
-              )),
-              
+              ),
+
               SizedBox(height: 16),
-              
+
               // Cancel button
               SizedBox(
                 width: double.infinity,
