@@ -73,7 +73,22 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
                   vertical: 16,
                 ),
               ),
-              child: const Text('Test Image Share'),
+              child: const Text('Test Multiple Images'),
+            ),
+
+            const SizedBox(height: 20),
+
+            ElevatedButton(
+              onPressed: () => _testSingleImageShare(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFdc2626),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 16,
+                ),
+              ),
+              child: const Text('Test Single Image'),
             ),
 
             const SizedBox(height: 20),
@@ -137,9 +152,60 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
     final scaffold = ScaffoldMessenger.of(context);
 
     try {
-      // Pick an image from gallery
+      // Pick multiple images from gallery
       final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+      final List<XFile> images = await picker.pickMultipleMedia(
+        limit: 10, // Allow up to 10 images
+        imageQuality: 80, // Compress images to 80% quality
+      );
+
+      if (!mounted) return;
+
+      if (images.isNotEmpty) {
+        // Create shared content with the picked images
+        final imagePaths = images.map((image) => image.path).toList();
+        final sharedContent = SharedContent.fromImages(imagePaths);
+
+        navigator.push(
+          MaterialPageRoute(
+            builder: (context) =>
+                ShareTargetScreen(sharedContent: sharedContent),
+          ),
+        );
+
+        // Show success message with count
+        scaffold.showSnackBar(
+          SnackBar(
+            content: Text(
+              'Selected ${images.length} image${images.length == 1 ? '' : 's'} for sharing',
+            ),
+            backgroundColor: const Color(0xFF16a34a),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      } else {
+        // No images selected - create a mock image share for testing
+        _showMockImageShare(navigator, scaffold);
+      }
+    } catch (e) {
+      // If image picker fails, show mock image share
+      if (mounted) {
+        _showMockImageShare(navigator, scaffold);
+      }
+    }
+  }
+
+  void _testSingleImageShare(BuildContext context) async {
+    final navigator = Navigator.of(context);
+    final scaffold = ScaffoldMessenger.of(context);
+
+    try {
+      // Pick a single image from gallery
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80, // Compress image to 80% quality
+      );
 
       if (!mounted) return;
 
@@ -153,27 +219,33 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
                 ShareTargetScreen(sharedContent: sharedContent),
           ),
         );
+
+        // Show success message
+        scaffold.showSnackBar(
+          const SnackBar(
+            content: Text('Selected 1 image for sharing'),
+            backgroundColor: Color(0xFF16a34a),
+            duration: Duration(seconds: 2),
+          ),
+        );
       } else {
-        // No image selected - create a mock image share for testing
-        _showMockImageShare(navigator, scaffold);
+        // No image selected - create a mock single image share for testing
+        _showMockSingleImageShare(navigator, scaffold);
       }
     } catch (e) {
       // If image picker fails, show mock image share
       if (mounted) {
-        _showMockImageShare(navigator, scaffold);
+        _showMockSingleImageShare(navigator, scaffold);
       }
     }
   }
 
-  void _showMockImageShare(
+  void _showMockSingleImageShare(
     NavigatorState navigator,
     ScaffoldMessengerState scaffold,
   ) {
-    // Create a mock image path for testing UI
-    final mockImagePaths = [
-      '/storage/emulated/0/Pictures/test_image_1.jpg',
-      '/storage/emulated/0/Pictures/test_image_2.jpg',
-    ];
+    // Create a single mock image path for testing UI
+    final mockImagePaths = ['/storage/emulated/0/Pictures/test_single_image.jpg'];
 
     final sharedContent = SharedContent.fromImages(mockImagePaths);
 
@@ -187,10 +259,43 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
     scaffold.showSnackBar(
       const SnackBar(
         content: Text(
-          'Using mock image data for testing UI (images may not load)',
+          'Using mock data with 1 image for testing UI (image may not load)',
         ),
         backgroundColor: Color(0xFFf59e0b),
         duration: Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void _showMockImageShare(
+    NavigatorState navigator,
+    ScaffoldMessengerState scaffold,
+  ) {
+    // Create mock image paths for testing UI with multiple images
+    final mockImagePaths = [
+      '/storage/emulated/0/Pictures/test_image_1.jpg',
+      '/storage/emulated/0/Pictures/test_image_2.jpg',
+      '/storage/emulated/0/Pictures/test_image_3.jpg',
+      '/storage/emulated/0/Pictures/test_image_4.jpg',
+      '/storage/emulated/0/Pictures/test_image_5.jpg',
+    ];
+
+    final sharedContent = SharedContent.fromImages(mockImagePaths);
+
+    navigator.push(
+      MaterialPageRoute(
+        builder: (context) => ShareTargetScreen(sharedContent: sharedContent),
+      ),
+    );
+
+    // Show info that this is mock data
+    scaffold.showSnackBar(
+      SnackBar(
+        content: Text(
+          'Using mock data with ${mockImagePaths.length} images for testing UI (images may not load)',
+        ),
+        backgroundColor: const Color(0xFFf59e0b),
+        duration: const Duration(seconds: 3),
       ),
     );
   }
