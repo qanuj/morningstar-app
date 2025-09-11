@@ -39,109 +39,136 @@ class _TextEditorScreenState extends State<TextEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: isDarkMode ? const Color(0xFF121212) : const Color(0xFFFAFAFA),
       body: SafeArea(
         child: Column(
           children: [
-            // Header
+            // Compact header
             Container(
-              padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: Color(0xFFDEE2E6))),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+                border: Border(
+                  bottom: BorderSide(
+                    color: isDarkMode 
+                        ? const Color(0xFF2A2A2A) 
+                        : const Color(0xFFE5E5E5),
+                    width: 0.5,
+                  ),
+                ),
               ),
               child: Row(
                 children: [
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: const Text(
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(60, 36),
+                    ),
+                    child: Text(
                       'Cancel',
                       style: TextStyle(
                         fontSize: 16,
-                        color: Color(0xFF6C757D),
+                        color: isDarkMode 
+                            ? const Color(0xFF9E9E9E)
+                            : const Color(0xFF757575),
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
                   ),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Add Caption',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 17,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF003f9b),
+                        color: isDarkMode ? Colors.white : const Color(0xFF212121),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 72),
+                  const SizedBox(width: 60),
                 ],
               ),
             ),
 
-            // Selected clubs display
-            Container(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Sharing with:',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF003f9b),
+            // Compact selected clubs display
+            if (widget.selectedClubIds.isNotEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Sharing with:',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: isDarkMode 
+                            ? const Color(0xFF9E9E9E)
+                            : const Color(0xFF757575),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildSelectedClubsList(),
-                ],
+                    const SizedBox(height: 8),
+                    _buildSelectedClubsList(),
+                  ],
+                ),
               ),
-            ),
 
-            // Text editor
+            // Clean text editor
             Expanded(
               child: Container(
-                margin: const EdgeInsets.all(16),
+                margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8F9FA),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFDEE2E6)),
+                  color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: TextField(
                   controller: _textController,
                   maxLines: null,
                   expands: true,
                   textAlignVertical: TextAlignVertical.top,
-                  decoration: const InputDecoration(
-                    hintText: 'Add a caption...',
+                  decoration: InputDecoration(
+                    hintText: 'What\'s on your mind?',
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.all(16),
+                    contentPadding: const EdgeInsets.all(16),
                     hintStyle: TextStyle(
-                      color: Color(0xFF6C757D),
+                      color: isDarkMode 
+                          ? const Color(0xFF757575)
+                          : const Color(0xFF9E9E9E),
                       fontSize: 16,
+                      fontWeight: FontWeight.w400,
                     ),
                   ),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     height: 1.4,
+                    color: isDarkMode ? Colors.white : const Color(0xFF212121),
                   ),
                 ),
               ),
             ),
 
-            // Share button
+            // Minimal share button
             Container(
               padding: const EdgeInsets.all(16),
               child: SizedBox(
                 width: double.infinity,
+                height: 50,
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _shareText,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF003f9b),
+                    backgroundColor: const Color(0xFF2196F3),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    elevation: 0,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(25),
                     ),
                   ),
                   child: _isLoading
@@ -154,10 +181,12 @@ class _TextEditorScreenState extends State<TextEditorScreen> {
                           ),
                         )
                       : Text(
-                          'Share to ${widget.selectedClubIds.length} ${widget.selectedClubIds.length == 1 ? 'club' : 'clubs'}',
+                          widget.selectedClubIds.length == 1
+                              ? 'Share'
+                              : 'Share to ${widget.selectedClubIds.length} clubs',
                           style: const TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                 ),
@@ -170,22 +199,24 @@ class _TextEditorScreenState extends State<TextEditorScreen> {
   }
 
   Widget _buildSelectedClubsList() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
     return Consumer<ClubProvider>(
       builder: (context, clubProvider, child) {
         return Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: 6,
+          runSpacing: 6,
           children: [
             // Everyone option
             if (widget.selectedClubIds.contains('everyone'))
-              _buildClubChip('Everyone', const Color(0xFF16a34a)),
+              _buildClubChip('Everyone', isDarkMode),
 
             // Selected clubs
             ...clubProvider.clubs
                 .where((membership) => widget.selectedClubIds.contains(membership.club.id))
                 .map((membership) => _buildClubChip(
                       membership.club.name,
-                      const Color(0xFF06aeef),
+                      isDarkMode,
                     )),
           ],
         );
@@ -193,21 +224,32 @@ class _TextEditorScreenState extends State<TextEditorScreen> {
     );
   }
 
-  Widget _buildClubChip(String name, Color color) {
+  Widget _buildClubChip(String name, bool isDarkMode) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3)),
+        color: isDarkMode 
+            ? const Color(0xFF2A2A2A)
+            : const Color(0xFFF0F8FF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDarkMode 
+              ? const Color(0xFF424242)
+              : const Color(0xFFE3F2FD),
+          width: 0.5,
+        ),
       ),
       child: Text(
         name,
         style: TextStyle(
-          color: color,
-          fontSize: 14,
+          color: isDarkMode 
+              ? const Color(0xFF64B5F6)
+              : const Color(0xFF1976D2),
+          fontSize: 13,
           fontWeight: FontWeight.w500,
         ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }

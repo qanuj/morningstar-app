@@ -133,7 +133,7 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      color: isDarkMode ? const Color(0xFF1C1C1E) : const Color(0xFFF8F9FA),
+      color: isDarkMode ? const Color(0xFF121212) : const Color(0xFFFAFAFA),
       child: Stack(
         children: [
           // Body content (behind overlays) - Only club selection
@@ -141,7 +141,7 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
             child: Column(
               children: [
                 // Top padding to account for header overlay
-                SizedBox(height: 80),
+                const SizedBox(height: 70),
 
                 // Club selection section (takes all available space)
                 Expanded(
@@ -153,34 +153,28 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
 
                 // Bottom padding to account for footer overlay
                 if (_selectedClubIds.isNotEmpty)
-                  SizedBox(height: 30), // Minimal compact footer
+                  const SizedBox(height: 80), // Account for footer height
               ],
             ),
           ),
 
-          // Header overlay (on top)
+          // Minimal header overlay
           Positioned(
             top: 0,
             left: 0,
             right: 0,
             child: Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: isDarkMode ? const Color(0xFF2C2C2E) : Colors.white,
+                color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
                 border: Border(
                   bottom: BorderSide(
                     color: isDarkMode
-                        ? const Color(0xFF3A3A3C)
-                        : const Color(0xFFDEE2E6),
+                        ? const Color(0xFF2A2A2A)
+                        : const Color(0xFFE5E5E5),
+                    width: 0.5,
                   ),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: isDarkMode ? Colors.black26 : Colors.black12,
-                    offset: const Offset(0, 1),
-                    blurRadius: 4,
-                  ),
-                ],
               ),
               child: Row(
                 children: [
@@ -188,67 +182,67 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
                   if (!_isSearchFocused) ...[
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(),
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(60, 36),
+                      ),
                       child: Text(
                         'Cancel',
                         style: TextStyle(
                           fontSize: 16,
                           color: isDarkMode
-                              ? const Color(0xFFAAAAAA)
-                              : const Color(0xFF6C757D),
+                              ? const Color(0xFF9E9E9E)
+                              : const Color(0xFF757575),
+                          fontWeight: FontWeight.w400,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 12),
                   ],
 
-                  // Search field
+                  // Clean search field
                   Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        // Ensure focus when container is tapped
-                        _searchFocusNode.requestFocus();
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: isDarkMode
-                              ? const Color(0xFF1C1C1E)
-                              : const Color(0xFFF8F9FA),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: isDarkMode
-                                ? const Color(0xFF3A3A3C)
-                                : const Color(0xFFDEE2E6),
+                    child: Container(
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: isDarkMode
+                            ? const Color(0xFF2A2A2A)
+                            : const Color(0xFFF5F5F5),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: TextField(
+                        controller: _searchController,
+                        focusNode: _searchFocusNode,
+                        onChanged: (value) {
+                          setState(() {
+                            _searchQuery = value.toLowerCase();
+                          });
+                        },
+                        decoration: InputDecoration(
+                          hintText: 'Search clubs...',
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          hintStyle: TextStyle(
+                            color: isDarkMode 
+                                ? const Color(0xFF757575)
+                                : const Color(0xFF9E9E9E),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w400,
+                          ),
+                          prefixIcon: Icon(
+                            Icons.search,
+                            color: isDarkMode 
+                                ? const Color(0xFF757575)
+                                : const Color(0xFF9E9E9E),
+                            size: 20,
                           ),
                         ),
-                        child: TextField(
-                          controller: _searchController,
-                          focusNode: _searchFocusNode,
-                          autofocus: false,
-                          enabled: true,
-                          onChanged: (value) {
-                            setState(() {
-                              _searchQuery = value.toLowerCase();
-                            });
-                          },
-                          onTap: () {
-                            // Ensure focus is gained when tapped
-                            if (!_searchFocusNode.hasFocus) {
-                              _searchFocusNode.requestFocus();
-                            }
-                          },
-                          decoration: const InputDecoration(
-                            hintText: 'Search clubs...',
-                            border: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 12,
-                            ),
-                            hintStyle: TextStyle(color: Color(0xFF6C757D)),
-                            prefixIcon: Icon(
-                              Icons.search,
-                              color: Color(0xFF6C757D),
-                            ),
-                          ),
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: isDarkMode ? Colors.white : const Color(0xFF212121),
                         ),
                       ),
                     ),
@@ -259,19 +253,22 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
                     const SizedBox(width: 8),
                     TextButton(
                       onPressed: () {
-                        // Clear search field to show all clubs
                         _searchController.clear();
                         setState(() {
                           _searchQuery = '';
                         });
                       },
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(50, 36),
+                      ),
                       child: Text(
                         'Clear',
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 14,
                           color: isDarkMode
-                              ? const Color(0xFFAAAAAA)
-                              : const Color(0xFF6C757D),
+                              ? const Color(0xFF9E9E9E)
+                              : const Color(0xFF757575),
                         ),
                       ),
                     ),
@@ -796,17 +793,26 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
     VoidCallback? onTap,
   }) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
     return Material(
       color: Colors.transparent,
       child: InkWell(
         key: ValueKey(key),
         onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? (isDarkMode ? const Color(0xFF1E3A8A).withOpacity(0.2) : const Color(0xFFF0F8FF))
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Row(
             children: [
               avatar,
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -815,8 +821,8 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
                       title,
                       style: TextStyle(
                         fontSize: 16,
-                        fontWeight: FontWeight.w400,
-                        color: isDarkMode ? Colors.white : Colors.black,
+                        fontWeight: FontWeight.w500,
+                        color: isDarkMode ? Colors.white : const Color(0xFF212121),
                       ),
                     ),
                     if (subtitle != null && subtitle.isNotEmpty)
@@ -825,8 +831,10 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
                         child: Text(
                           subtitle,
                           style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
+                            fontSize: 13,
+                            color: isDarkMode 
+                                ? const Color(0xFF9E9E9E)
+                                : const Color(0xFF757575),
                             fontWeight: FontWeight.w400,
                           ),
                           maxLines: 1,
@@ -838,22 +846,22 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
               ),
               const SizedBox(width: 12),
               Container(
-                width: 24,
-                height: 24,
+                width: 22,
+                height: 22,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: isSelected
-                        ? const Color(0xFF25D366)
-                        : Colors.grey[400]!,
-                    width: 2,
+                        ? const Color(0xFF2196F3)
+                        : (isDarkMode ? const Color(0xFF616161) : const Color(0xFFBDBDBD)),
+                    width: 1.5,
                   ),
                   color: isSelected
-                      ? const Color(0xFF25D366)
+                      ? const Color(0xFF2196F3)
                       : Colors.transparent,
                 ),
                 child: isSelected
-                    ? const Icon(Icons.check, color: Colors.white, size: 16)
+                    ? const Icon(Icons.check, color: Colors.white, size: 14)
                     : null,
               ),
             ],
@@ -913,36 +921,42 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
       bottom: 0,
       child: Container(
         decoration: BoxDecoration(
-          color: isDarkMode ? const Color(0xFF2C2C2E) : Colors.white,
+          color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
           border: Border(
             top: BorderSide(
               color: isDarkMode
-                  ? const Color(0xFF3A3A3C)
-                  : const Color(0xFFDEE2E6),
-              width: 1,
+                  ? const Color(0xFF2A2A2A)
+                  : const Color(0xFFE5E5E5),
+              width: 0.5,
             ),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: isDarkMode ? Colors.black26 : Colors.black12,
-              offset: const Offset(0, -1),
-              blurRadius: 4,
-            ),
-          ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Content preview section (part of footer)
-            _buildContentPreview(),
+            // Content preview section
+            if (_buildContentPreview() != const SizedBox.shrink())
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: _buildContentPreview(),
+              ),
 
-            // Action area with badges and button
+            // Clean divider (only if content preview exists)
+            if (_buildContentPreview() != const SizedBox.shrink())
+              Container(
+                height: 0.5,
+                color: isDarkMode
+                    ? const Color(0xFF2A2A2A)
+                    : const Color(0xFFE5E5E5),
+              ),
+
+            // Compact action area with badges and button
             Padding(
               padding: EdgeInsets.fromLTRB(
                 16,
-                8,
+                12,
                 16,
-                MediaQuery.of(context).padding.bottom > 0 ? 8 : 6,
+                MediaQuery.of(context).padding.bottom > 0 ? 12 : 8,
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -960,7 +974,7 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
                             if (_selectedClubIds.contains('everyone'))
                               _buildScrollableBadge(
                                 name: 'Everyone',
-                                color: const Color(0xFF16a34a),
+                                color: const Color(0xFF4CAF50),
                               ),
 
                             // Selected clubs
@@ -973,7 +987,7 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
                                 .map(
                                   (membership) => _buildScrollableBadge(
                                     name: membership.club.name,
-                                    color: const Color(0xFF06aeef),
+                                    color: const Color(0xFF2196F3),
                                   ),
                                 ),
                           ],
@@ -982,9 +996,9 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
                     ),
                   ),
 
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 12),
 
-                  // Dynamic button based on content type
+                  // Clean action button
                   _buildActionButton(),
                 ],
               ),
@@ -996,22 +1010,33 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
   }
 
   Widget _buildScrollableBadge({required String name, required Color color}) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
     return Container(
       height: 28,
       margin: const EdgeInsets.only(right: 6),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: isDarkMode 
+            ? color.withOpacity(0.15)
+            : color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(0.4), width: 1),
+        border: Border.all(
+          color: isDarkMode 
+              ? color.withOpacity(0.3)
+              : color.withOpacity(0.2),
+          width: 0.5,
+        ),
       ),
       child: Center(
         child: Text(
           name,
           style: TextStyle(
-            color: color,
+            color: isDarkMode 
+                ? color.withOpacity(0.9)
+                : color,
             fontSize: 13,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w500,
             height: 1.0,
           ),
           maxLines: 1,
@@ -1033,7 +1058,7 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: const Color(0xFF003f9b),
+            color: const Color(0xFF2196F3),
             borderRadius: BorderRadius.circular(18),
           ),
           child: Material(
@@ -1066,7 +1091,7 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
           height: 32,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           decoration: BoxDecoration(
-            color: const Color(0xFF16a34a),
+            color: const Color(0xFF4CAF50),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Material(
