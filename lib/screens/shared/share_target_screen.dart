@@ -312,6 +312,11 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
     final url = widget.sharedContent.url ?? widget.sharedContent.text ?? '';
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
+    if (url.isEmpty) {
+      //return nothing
+      return const SizedBox.shrink();
+    }
+
     if (_isLoadingMetadata) {
       return Container(
         decoration: BoxDecoration(
@@ -334,113 +339,120 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
     }
 
     if (_linkMetadata != null) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image preview (left column)
-          if (_linkMetadata!.image != null && _linkMetadata!.image!.isNotEmpty)
-            Container(
-              width: 80,
-              height: 80,
-              margin: const EdgeInsets.only(right: 12),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(2),
-                child: Image.network(
-                  _linkMetadata!.image!,
-                  fit: BoxFit.cover,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Container(
+      return Padding(
+        padding: const EdgeInsets.all(4.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image preview (left column)
+            if (_linkMetadata!.image != null &&
+                _linkMetadata!.image!.isNotEmpty)
+              Container(
+                width: 80,
+                height: 80,
+                margin: const EdgeInsets.only(right: 12),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(2),
+                  child: Image.network(
+                    _linkMetadata!.image!,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        color: Colors.grey[200],
+                        child: const Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) => Container(
                       color: Colors.grey[200],
                       child: const Center(
-                        child: SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
+                        child: Icon(Icons.link, size: 24, color: Colors.grey),
                       ),
-                    );
-                  },
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    color: Colors.grey[200],
-                    child: const Center(
-                      child: Icon(Icons.link, size: 24, color: Colors.grey),
                     ),
                   ),
                 ),
               ),
-            ),
 
-          // Content (right column)
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Title
-                if (_linkMetadata!.title != null &&
-                    _linkMetadata!.title!.isNotEmpty)
-                  Text(
-                    _linkMetadata!.title!,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: isDarkMode ? Colors.white : Colors.black87,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-
-                // Description
-                if (_linkMetadata!.description != null &&
-                    _linkMetadata!.description!.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    _linkMetadata!.description!,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[600],
-                      height: 1.3,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-
-                const SizedBox(height: 8),
-                // URL with favicon
-                Row(
-                  children: [
-                    if (_linkMetadata!.favicon != null &&
-                        _linkMetadata!.favicon!.isNotEmpty) ...[
-                      Container(
-                        width: 14,
-                        height: 14,
-                        margin: const EdgeInsets.only(right: 6),
-                        child: Image.network(
-                          _linkMetadata!.favicon!,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const Icon(Icons.language, size: 14),
-                        ),
+            // Content (right column)
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Title
+                  if (_linkMetadata!.title != null &&
+                      _linkMetadata!.title!.isNotEmpty)
+                    Text(
+                      _linkMetadata!.title!,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: isDarkMode ? Colors.white : Colors.black87,
                       ),
-                    ] else ...[
-                      const Icon(Icons.language, size: 14),
-                      const SizedBox(width: 6),
-                    ],
-                    Expanded(
-                      child: Text(
-                        Uri.decodeFull(_linkMetadata!.url),
-                        style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+
+                  // Description
+                  if (_linkMetadata!.description != null &&
+                      _linkMetadata!.description!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      _linkMetadata!.description!,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                        height: 1.3,
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                ),
-              ],
+
+                  const SizedBox(height: 8),
+                  // URL with favicon
+                  Row(
+                    children: [
+                      if (_linkMetadata!.favicon != null &&
+                          _linkMetadata!.favicon!.isNotEmpty) ...[
+                        Container(
+                          width: 14,
+                          height: 14,
+                          margin: const EdgeInsets.only(right: 6),
+                          child: Image.network(
+                            _linkMetadata!.favicon!,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Icon(Icons.language, size: 14),
+                          ),
+                        ),
+                      ] else ...[
+                        const Icon(Icons.language, size: 14),
+                        const SizedBox(width: 6),
+                      ],
+                      Expanded(
+                        child: Text(
+                          Uri.decodeFull(_linkMetadata!.url),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[600],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       );
     }
 
@@ -926,22 +938,16 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             // Content preview section (part of footer)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
-              child: _buildContentPreview(),
-            ),
-
-            // Divider between content and action area
-            Container(
-              height: 1,
-              color: isDarkMode
-                  ? const Color(0xFF3A3A3C)
-                  : const Color(0xFFDEE2E6),
-            ),
+            _buildContentPreview(),
 
             // Action area with badges and button
             Padding(
-              padding: EdgeInsets.fromLTRB(16, 8, 16, MediaQuery.of(context).padding.bottom > 0 ? 8 : 6),
+              padding: EdgeInsets.fromLTRB(
+                16,
+                8,
+                16,
+                MediaQuery.of(context).padding.bottom > 0 ? 8 : 6,
+              ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -1046,7 +1052,9 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
                         width: 16,
                         height: 16,
                         child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
                           strokeWidth: 2,
                         ),
                       )
@@ -1077,7 +1085,9 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
                         width: 14,
                         height: 14,
                         child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
                           strokeWidth: 2,
                         ),
                       )
