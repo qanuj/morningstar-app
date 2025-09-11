@@ -7,9 +7,12 @@ import 'providers/club_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/conversation_provider.dart';
 import 'screens/auth/splash.dart';
+import 'screens/shared/share_target_screen.dart';
 import 'services/notification_service.dart';
+import 'services/share_handler_service.dart';
 import 'utils/theme.dart';
 import 'config/app_config.dart';
+import 'dart:async';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,6 +27,10 @@ void main() async {
     // Initialize Push Notifications
     await NotificationService.initialize();
     print('✅ NotificationService initialized successfully');
+    
+    // Initialize Share Handler Service
+    ShareHandlerService().initialize();
+    print('✅ ShareHandlerService initialized successfully');
   } catch (e) {
     print('❌ Failed to initialize Firebase or NotificationService: $e');
   }
@@ -41,12 +48,41 @@ class MyApp extends StatefulWidget {
 
 class MyAppState extends State<MyApp> {
   late ThemeProvider _themeProvider;
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  StreamSubscription? _sharedContentSubscription;
 
   @override
   void initState() {
     super.initState();
     _themeProvider = ThemeProvider();
     _themeProvider.init();
+    _setupSharedContentListener();
+  }
+
+  void _setupSharedContentListener() {
+    _sharedContentSubscription = ShareHandlerService().sharedContentStream.listen(
+      (sharedContent) {
+        print('📤 Received shared content: ${sharedContent.type.name}');
+        
+        // Navigate to ShareTargetScreen when content is shared
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _navigatorKey.currentState?.push(
+            MaterialPageRoute(
+              builder: (context) => ShareTargetScreen(
+                sharedContent: sharedContent,
+              ),
+            ),
+          );
+        });
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _sharedContentSubscription?.cancel();
+    ShareHandlerService().dispose();
+    super.dispose();
   }
 
   @override
@@ -62,6 +98,7 @@ class MyAppState extends State<MyApp> {
         builder: (context, themeProvider, child) {
           return MaterialApp(
             title: 'Duggy',
+            navigatorKey: _navigatorKey,
             theme: AppTheme.duggyTheme,
             darkTheme: AppTheme.duggyDarkTheme,
             themeMode: themeProvider.materialThemeMode,

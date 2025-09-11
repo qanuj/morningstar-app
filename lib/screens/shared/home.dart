@@ -8,6 +8,7 @@ import '../matches/matches.dart';
 import '../wallet/transactions.dart';
 import '../settings/profile.dart';
 import '../news/conversations.dart';
+import '../debug/share_test_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -143,6 +144,19 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           );
         },
+      ),
+      // Debug floating action button for testing sharing
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => const ShareTestScreen(),
+            ),
+          );
+        },
+        backgroundColor: const Color(0xFF003f9b),
+        tooltip: 'Test Sharing',
+        child: const Icon(Icons.share, color: Colors.white),
       ),
     );
   }

@@ -60,7 +60,8 @@ class Club {
       membershipFeeCurrency: json['membershipFeeCurrency'] ?? 'INR',
       upiId: json['upiId'],
       upiIdDescription: json['upiIdDescription'],
-      upiIdCurrency: json['upiIdCurrency'] ?? json['membershipFeeCurrency'] ?? 'INR',
+      upiIdCurrency:
+          json['upiIdCurrency'] ?? json['membershipFeeCurrency'] ?? 'INR',
       isActive: json['isActive'],
       membersCount: json['_count']?['members'] ?? json['membersCount'],
     );
@@ -68,7 +69,6 @@ class Club {
 }
 
 class ClubMembership {
-  final String id;
   final String role;
   final bool approved;
   final bool isActive;
@@ -79,7 +79,6 @@ class ClubMembership {
   final Club club;
 
   ClubMembership({
-    required this.id,
     required this.role,
     required this.approved,
     required this.isActive,
@@ -92,7 +91,6 @@ class ClubMembership {
 
   factory ClubMembership.fromJson(Map<String, dynamic> json) {
     return ClubMembership(
-      id: json['id'] ?? '',
       role: json['role'] ?? 'MEMBER',
       approved: json['approved'] ?? false,
       isActive: json['isActive'] ?? false,
@@ -110,11 +108,7 @@ class ClubMember {
   final String name;
   final String? profilePicture;
 
-  ClubMember({
-    required this.id,
-    required this.name,
-    this.profilePicture,
-  });
+  ClubMember({required this.id, required this.name, this.profilePicture});
 
   factory ClubMember.fromJson(Map<String, dynamic> json) {
     return ClubMember(
@@ -186,7 +180,9 @@ class DetailedClubInfo {
       membershipFeeCurrency: json['membershipFeeCurrency'] ?? 'INR',
       membershipFeeDescription: json['membershipFeeDescription'],
       defaultPinDurationHours: json['defaultPinDurationHours'],
-      pinMessagePermissions: List<String>.from(json['pinMessagePermissions'] ?? []),
+      pinMessagePermissions: List<String>.from(
+        json['pinMessagePermissions'] ?? [],
+      ),
     );
   }
 }

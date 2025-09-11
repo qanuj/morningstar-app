@@ -23,11 +23,19 @@ import '../../widgets/message_input.dart';
 import '../../widgets/chat_header.dart';
 import '../manage/manage_club.dart';
 import '../../providers/club_provider.dart';
+import '../../models/shared_content.dart';
 
 class ClubChatScreen extends StatefulWidget {
   final Club club;
+  final SharedContent? sharedContent;
+  final String? initialMessage;
 
-  const ClubChatScreen({super.key, required this.club});
+  const ClubChatScreen({
+    super.key, 
+    required this.club,
+    this.sharedContent,
+    this.initialMessage,
+  });
 
   @override
   ClubChatScreenState createState() => ClubChatScreenState();
@@ -106,6 +114,9 @@ class ClubChatScreenState extends State<ClubChatScreen>
     _textFieldFocusNode.addListener(() {
       setState(() {});
     });
+
+    // Handle shared content if provided
+    _handleSharedContent();
   }
 
   /// Load delivered and read message IDs from persistent storage
@@ -128,6 +139,44 @@ class ClubChatScreenState extends State<ClubChatScreen>
       );
     } catch (e) {
       debugPrint('❌ Error loading persistent status flags: $e');
+    }
+  }
+
+  /// Handle shared content if provided
+  void _handleSharedContent() {
+    if (widget.sharedContent != null || widget.initialMessage != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // Set initial message if provided
+        if (widget.initialMessage != null) {
+          _messageController.text = widget.initialMessage!;
+        }
+
+        // TODO: Handle shared content (images, text, URLs) 
+        // This would involve:
+        // 1. If shared content is text/URL, append it to the message controller
+        // 2. If shared content is images, prepare them for attachment
+        // 3. Show a preview of shared content in the message input area
+
+        if (widget.sharedContent != null) {
+          final sharedContent = widget.sharedContent!;
+          
+          // Handle text/URL content
+          if (sharedContent.hasText) {
+            final existingText = _messageController.text;
+            final sharedText = sharedContent.text!;
+            
+            if (existingText.isNotEmpty) {
+              _messageController.text = '$existingText\n\n$sharedText';
+            } else {
+              _messageController.text = sharedText;
+            }
+          }
+          
+          // For images, we would need to modify the MessageInput widget
+          // to show shared image previews. This is a more complex change
+          // that would require updating the MessageInput widget.
+        }
+      });
     }
   }
 
