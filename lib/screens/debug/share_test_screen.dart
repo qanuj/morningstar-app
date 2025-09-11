@@ -94,6 +94,21 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
             const SizedBox(height: 20),
 
             ElevatedButton(
+              onPressed: () => _testVideoShare(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFdc2626),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 16,
+                ),
+              ),
+              child: const Text('Test YouTube Video Share'),
+            ),
+
+            const SizedBox(height: 20),
+
+            ElevatedButton(
               onPressed: () => _testRealSharing(context),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF16a34a),
@@ -143,6 +158,28 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => ShareTargetScreen(sharedContent: sharedContent),
+      ),
+    );
+  }
+
+  void _testVideoShare(BuildContext context) {
+    // Test with a YouTube video URL like the user mentioned
+    final sharedContent = SharedContent.fromText('https://youtube.com/watch?v=dQw4w9WgXcQ');
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ShareTargetScreen(sharedContent: sharedContent),
+      ),
+    );
+
+    // Show confirmation
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Testing YouTube video share - no app reload should occur!',
+        ),
+        backgroundColor: Color(0xFFdc2626),
+        duration: Duration(seconds: 3),
       ),
     );
   }

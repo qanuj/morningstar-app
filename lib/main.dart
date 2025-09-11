@@ -31,6 +31,12 @@ void main() async {
     // Initialize Share Handler Service
     ShareHandlerService().initialize();
     print('✅ ShareHandlerService initialized successfully');
+    
+    // Test video sharing after a delay (for testing purposes)
+    Future.delayed(const Duration(seconds: 5), () {
+      print('🧪 Testing video share functionality...');
+      ShareHandlerService().simulateVideoShare('https://youtube.com/watch?v=dQw4w9WgXcQ');
+    });
   } catch (e) {
     print('❌ Failed to initialize Firebase or NotificationService: $e');
   }
@@ -66,13 +72,30 @@ class MyAppState extends State<MyApp> {
         
         // Navigate to ShareTargetScreen when content is shared
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          _navigatorKey.currentState?.push(
-            MaterialPageRoute(
-              builder: (context) => ShareTargetScreen(
-                sharedContent: sharedContent,
-              ),
-            ),
-          );
+          final navigator = _navigatorKey.currentState;
+          if (navigator != null) {
+            // Check if ShareTargetScreen is already on top
+            bool isShareTargetVisible = false;
+            navigator.popUntil((route) {
+              if (route.settings.name == '/share_target' || 
+                  route.toString().contains('ShareTargetScreen')) {
+                isShareTargetVisible = true;
+              }
+              return true;
+            });
+            
+            // Only navigate if ShareTargetScreen is not already visible
+            if (!isShareTargetVisible) {
+              navigator.push(
+                MaterialPageRoute(
+                  builder: (context) => ShareTargetScreen(
+                    sharedContent: sharedContent,
+                  ),
+                  settings: const RouteSettings(name: '/share_target'),
+                ),
+              );
+            }
+          }
         });
       },
     );

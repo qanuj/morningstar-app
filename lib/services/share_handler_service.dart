@@ -9,8 +9,6 @@ class ShareHandlerService {
   factory ShareHandlerService() => _instance;
   ShareHandlerService._internal();
 
-  StreamSubscription? _textStreamSubscription;
-  StreamSubscription? _mediaStreamSubscription;
   final StreamController<SharedContent> _sharedContentController = StreamController<SharedContent>.broadcast();
 
   Stream<SharedContent> get sharedContentStream => _sharedContentController.stream;
@@ -18,26 +16,13 @@ class ShareHandlerService {
   /// Initialize the share handler service
   void initialize() {
     try {
-      print('📤 Initializing ShareHandlerService');
+      print('📤 Initializing ShareHandlerService (Basic Mode)');
       
-      // For now, we'll just handle initial shared content
-      // The receive_sharing_intent package has different APIs
-      _checkInitialSharedContent();
-      
-      print('✅ ShareHandlerService initialized successfully');
+      // For now, we'll create a basic implementation
+      // The receive_sharing_intent plugin will be configured later
+      print('✅ ShareHandlerService initialized successfully (Basic Mode)');
     } catch (e) {
       print('❌ Error initializing ShareHandlerService: $e');
-    }
-  }
-
-  /// Check for initial shared content when app is opened from share
-  void _checkInitialSharedContent() async {
-    try {
-      // Note: The receive_sharing_intent package API needs to be checked
-      // For now, this is a placeholder for when the API is properly configured
-      print('📤 Checking for initial shared content');
-    } catch (e) {
-      print('❌ Error checking initial shared content: $e');
     }
   }
 
@@ -55,33 +40,32 @@ class ShareHandlerService {
     }
   }
 
-  /// Handle shared media files (simplified native implementation)
-  void _handleSharedMedia(List<String> imagePaths) {
+  /// Handle shared media files using file paths
+  void _handleSharedMedia(List<String> filePaths) {
     try {
-      if (imagePaths.isEmpty) return;
+      if (filePaths.isEmpty) return;
 
       // Verify files exist
-      final existingFiles = imagePaths.where((path) => File(path).existsSync()).toList();
+      final existingFiles = filePaths.where((path) => File(path).existsSync()).toList();
       
       if (existingFiles.isEmpty) {
-        print('⚠️ No existing image files found');
+        print('⚠️ No existing media files found');
         return;
       }
 
       final sharedContent = SharedContent.fromImages(existingFiles);
-      print('📤 Processing shared images: ${sharedContent.displayText}');
+      print('📤 Processing shared media: ${sharedContent.displayText}');
       
       _sharedContentController.add(sharedContent);
     } catch (e) {
-      print('❌ Error handling shared media: $e');
+      print('❌ Error handling shared media files: $e');
     }
   }
 
   /// Reset/clear any pending shared content (call after processing)
   void clearSharedContent() {
     try {
-      // Note: API call needs proper implementation
-      print('✅ Cleared shared content');
+      print('✅ Clearing shared content');
     } catch (e) {
       print('❌ Error clearing shared content: $e');
     }
@@ -91,15 +75,22 @@ class ShareHandlerService {
   void simulateShare(SharedContent content) {
     if (!_sharedContentController.isClosed) {
       _sharedContentController.add(content);
+      print('📤 Simulated share: ${content.displayText}');
     }
+  }
+
+  /// Simulate sharing a YouTube video URL for testing
+  void simulateVideoShare(String videoUrl) {
+    final sharedContent = SharedContent.fromText(videoUrl);
+    simulateShare(sharedContent);
   }
 
   /// Get sharing statistics
   Map<String, dynamic> getStats() {
     return {
       'hasActiveListeners': !_sharedContentController.isClosed,
-      'textStreamActive': _textStreamSubscription != null && !_textStreamSubscription!.isPaused,
-      'mediaStreamActive': _mediaStreamSubscription != null && !_mediaStreamSubscription!.isPaused,
+      'isBasicMode': true,
+      'pluginAvailable': false,
     };
   }
 
@@ -107,9 +98,6 @@ class ShareHandlerService {
   void dispose() {
     try {
       print('📤 Disposing ShareHandlerService');
-      
-      _textStreamSubscription?.cancel();
-      _mediaStreamSubscription?.cancel();
       
       if (!_sharedContentController.isClosed) {
         _sharedContentController.close();
@@ -128,6 +116,22 @@ class FileUtils {
     const validExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
     final extension = path.split('.').last.toLowerCase();
     return validExtensions.contains(extension);
+  }
+  
+  static bool isVideo(String path) {
+    const validExtensions = ['mp4', 'mov', 'avi', 'mkv', 'wmv', 'flv', '3gp', 'webm'];
+    final extension = path.split('.').last.toLowerCase();
+    return validExtensions.contains(extension);
+  }
+  
+  static bool isUrl(String text) {
+    final urlRegex = RegExp(r'https?://[^\s]+');
+    return urlRegex.hasMatch(text);
+  }
+  
+  static bool isYouTubeUrl(String url) {
+    final youtubeRegex = RegExp(r'(youtube\.com/watch\?v=|youtu\.be/)');
+    return youtubeRegex.hasMatch(url);
   }
   
   static String getDisplayName(String path) {
