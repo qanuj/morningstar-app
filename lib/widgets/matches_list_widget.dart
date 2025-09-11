@@ -272,7 +272,9 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.grey.withOpacity(0.1),
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Theme.of(context).colorScheme.onSurface.withOpacity(0.1)
+                            : Colors.grey.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -332,7 +334,7 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.grey.shade50,
+      color: Theme.of(context).scaffoldBackgroundColor,
       child: Column(
         children: [
           if (widget.showHeader)
@@ -660,22 +662,30 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
   }
 
   Widget _buildMatchCard(MatchListItem match, bool isUpcoming) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Container(
       margin: EdgeInsets.only(bottom: 8, left: 12, right: 12),
       decoration: BoxDecoration(
-        color: isUpcoming ? Colors.white : Colors.grey.shade100,
+        color: isDark
+            ? (isUpcoming 
+                ? Theme.of(context).cardColor
+                : Theme.of(context).cardColor.withOpacity(0.7))
+            : (isUpcoming ? Colors.white : Colors.grey.shade100),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: isUpcoming
+          color: isDark
               ? Theme.of(context).dividerColor.withOpacity(0.3)
-              : Colors.grey.shade300,
+              : (isUpcoming
+                  ? Theme.of(context).dividerColor.withOpacity(0.3)
+                  : Colors.grey.shade300),
           width: 0.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: isUpcoming
-                ? Theme.of(context).shadowColor.withOpacity(0.08)
-                : Theme.of(context).shadowColor.withOpacity(0.02),
+            color: Theme.of(context).shadowColor.withOpacity(
+              isUpcoming ? 0.08 : 0.02
+            ),
             blurRadius: isUpcoming ? 12 : 4,
             offset: Offset(0, isUpcoming ? 3 : 1),
           ),

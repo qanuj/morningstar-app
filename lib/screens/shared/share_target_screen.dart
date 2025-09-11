@@ -45,6 +45,14 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
         _isSearchFocused = _searchFocusNode.hasFocus;
       });
     });
+
+    // Load clubs if not already loaded
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final clubProvider = Provider.of<ClubProvider>(context, listen: false);
+      if (clubProvider.clubs.isEmpty && !clubProvider.isLoading) {
+        clubProvider.loadClubs();
+      }
+    });
   }
 
   void _initializeContent() async {
@@ -645,6 +653,15 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
     return Consumer<ClubProvider>(
       builder: (context, clubProvider, child) {
         final clubs = clubProvider.clubs;
+        final isLoading = clubProvider.isLoading;
+
+        print('📤 ShareTargetScreen - Clubs: ${clubs.length}, Loading: $isLoading');
+
+        if (isLoading) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        }
 
         if (clubs.isEmpty) {
           return Container(
@@ -654,9 +671,20 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: const Color(0xFFFFC107)),
             ),
-            child: const Text(
-              'No clubs available. Join a club to share content.',
-              style: TextStyle(color: Color(0xFF6C757D)),
+            child: Column(
+              children: [
+                const Text(
+                  'No clubs available. Join a club to share content.',
+                  style: TextStyle(color: Color(0xFF6C757D)),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton(
+                  onPressed: () {
+                    clubProvider.loadClubs();
+                  },
+                  child: const Text('Retry Loading Clubs'),
+                ),
+              ],
             ),
           );
         }
@@ -1207,15 +1235,20 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
         case SharedContentType.url:
           // Send URL with metadata if available
           messageData = {
-            'content':
-                widget.sharedContent.url ?? widget.sharedContent.text ?? '',
+            'content': {
+              'text': widget.sharedContent.url ?? widget.sharedContent.text ?? '',
+              'type': 'url',
+            },
             'type': 'url',
             if (_linkMetadata != null) 'linkMeta': [_linkMetadata!.toJson()],
           };
           break;
         case SharedContentType.text:
           messageData = {
-            'content': widget.sharedContent.text ?? '',
+            'content': {
+              'text': widget.sharedContent.text ?? '',
+              'type': 'text',
+            },
             'type': 'text',
           };
           break;
@@ -1223,7 +1256,10 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
         case SharedContentType.multipleImages:
           // For images, send as media message
           messageData = {
-            'content': 'Shared images',
+            'content': {
+              'text': 'Shared images',
+              'type': 'media',
+            },
             'type': 'media',
             'media': widget.sharedContent.imagePaths
                 ?.map((path) => {'type': 'image', 'path': path})
@@ -1232,7 +1268,10 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
           break;
         default:
           messageData = {
-            'content': widget.sharedContent.displayText,
+            'content': {
+              'text': widget.sharedContent.displayText,
+              'type': 'text',
+            },
             'type': 'text',
           };
       }
@@ -1432,37 +1471,70 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
         );
         Navigator.of(context).pop();
       } else if (_selectedClubIds.length == 1) {
-        // If only one club is selected, navigate directly to that club's chat
-        final selectedClub = clubProvider.clubs
-            .firstWhere(
-              (membership) => membership.club.id == _selectedClubIds.first,
-            )
-            .club;
+        // If only one club is selected, send the message first then navigate to chat
+        final clubId = _selectedClubIds.first;
+        final success = await _sendMessageToClub(clubId);
+        
+        if (success) {
+          final selectedClub = clubProvider.clubs
+              .firstWhere(
+                (membership) => membership.club.id == clubId,
+              )
+              .club;
 
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => ClubChatScreen(
-              club: selectedClub,
-              sharedContent: widget.sharedContent,
-              initialMessage: _messageController.text.trim().isNotEmpty
-                  ? _messageController.text.trim()
-                  : null,
-            ),
-          ),
-        );
+          // Navigate to chat after successful message posting
+          if (mounted) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => ClubChatScreen(
+                  club: selectedClub,
+                  // Don't pass sharedContent since message is already posted
+                  initialMessage: null,
+                ),
+              ),
+            );
+          }
+        } else {
+          // Show error if message failed to send
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Failed to share content. Please try again.'),
+                backgroundColor: Color(0xFFDC2626),
+              ),
+            );
+          }
+          return; // Don't navigate if sending failed
+        }
       } else {
-        // For multiple clubs, we would need to handle bulk sharing
-        // For now, let's show a success message and go back
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Content shared to ${_selectedClubIds.length} clubs successfully!',
-            ),
-            backgroundColor: const Color(0xFF16a34a),
-          ),
-        );
+        // For multiple clubs, send to each club via API
+        int successCount = 0;
+        for (final clubId in _selectedClubIds) {
+          final success = await _sendMessageToClub(clubId);
+          if (success) successCount++;
+        }
 
-        Navigator.of(context).pop();
+        if (mounted) {
+          if (successCount > 0) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Content shared to $successCount of ${_selectedClubIds.length} clubs successfully!',
+                ),
+                backgroundColor: const Color(0xFF16a34a),
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Failed to share content to any clubs.'),
+                backgroundColor: Color(0xFFDC2626),
+              ),
+            );
+          }
+
+          Navigator.of(context).pop();
+        }
       }
 
       // Clear shared content after processing

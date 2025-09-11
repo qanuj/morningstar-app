@@ -2,6 +2,7 @@
 
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/services.dart';
 import '../models/shared_content.dart';
 
 class ShareHandlerService {
@@ -10,19 +11,70 @@ class ShareHandlerService {
   ShareHandlerService._internal();
 
   final StreamController<SharedContent> _sharedContentController = StreamController<SharedContent>.broadcast();
+  static const MethodChannel _methodChannel = MethodChannel('app.duggy/share');
 
   Stream<SharedContent> get sharedContentStream => _sharedContentController.stream;
 
   /// Initialize the share handler service
   void initialize() {
     try {
-      print('📤 Initializing ShareHandlerService (Basic Mode)');
+      print('📤 Initializing ShareHandlerService (Native Method Channel)');
       
-      // For now, we'll create a basic implementation
-      // The receive_sharing_intent plugin will be configured later
-      print('✅ ShareHandlerService initialized successfully (Basic Mode)');
+      // Set up method channel listener for native sharing
+      _methodChannel.setMethodCallHandler(_handleMethodCall);
+      
+      // Check for initial shared data (when app is launched via sharing)
+      _getInitialSharedData();
+      
+      print('✅ ShareHandlerService initialized successfully (Native Method Channel)');
     } catch (e) {
       print('❌ Error initializing ShareHandlerService: $e');
+    }
+  }
+
+  /// Handle method calls from native Android
+  Future<void> _handleMethodCall(MethodCall call) async {
+    print('📤 Received method call: ${call.method}');
+    
+    switch (call.method) {
+      case 'onDataReceived':
+        final Map<String, dynamic> data = Map<String, dynamic>.from(call.arguments);
+        _processSharedData(data);
+        break;
+      default:
+        print('⚠️ Unknown method call: ${call.method}');
+    }
+  }
+
+  /// Get initial shared data when app is launched via sharing
+  Future<void> _getInitialSharedData() async {
+    try {
+      final result = await _methodChannel.invokeMethod('getSharedData');
+      if (result != null) {
+        final Map<String, dynamic> data = Map<String, dynamic>.from(result);
+        _processSharedData(data);
+      }
+    } catch (e) {
+      print('❌ Error getting initial shared data: $e');
+    }
+  }
+
+  /// Process shared data from native Android
+  void _processSharedData(Map<String, dynamic> data) {
+    try {
+      final String? text = data['text'] as String?;
+      final String? subject = data['subject'] as String?;
+      final String? type = data['type'] as String?;
+
+      print('📤 Processing shared data - Type: $type, Text: $text, Subject: $subject');
+
+      if (text != null && text.trim().isNotEmpty) {
+        _handleSharedText(text);
+      } else {
+        print('⚠️ No valid text content in shared data');
+      }
+    } catch (e) {
+      print('❌ Error processing shared data: $e');
     }
   }
 
@@ -89,7 +141,7 @@ class ShareHandlerService {
   Map<String, dynamic> getStats() {
     return {
       'hasActiveListeners': !_sharedContentController.isClosed,
-      'isBasicMode': true,
+      'isNativeMethodChannel': true,
       'pluginAvailable': false,
     };
   }

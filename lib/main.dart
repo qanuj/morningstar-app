@@ -32,11 +32,6 @@ void main() async {
     ShareHandlerService().initialize();
     print('✅ ShareHandlerService initialized successfully');
     
-    // Test video sharing after a delay (for testing purposes)
-    Future.delayed(const Duration(seconds: 5), () {
-      print('🧪 Testing video share functionality...');
-      ShareHandlerService().simulateVideoShare('https://youtube.com/watch?v=dQw4w9WgXcQ');
-    });
   } catch (e) {
     print('❌ Failed to initialize Firebase or NotificationService: $e');
   }

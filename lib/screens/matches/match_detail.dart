@@ -153,8 +153,12 @@ class MatchDetailScreenState extends State<MatchDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Match Details'),
-        backgroundColor: AppTheme.cricketGreen,
-        foregroundColor: Colors.white,
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? Theme.of(context).appBarTheme.backgroundColor
+            : AppTheme.cricketGreen,
+        foregroundColor: Theme.of(context).brightness == Brightness.dark
+            ? Theme.of(context).appBarTheme.foregroundColor
+            : Colors.white,
       ),
       body: RefreshIndicator(
         onRefresh: _loadMatchData,
