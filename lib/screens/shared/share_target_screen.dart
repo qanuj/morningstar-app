@@ -3,6 +3,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../models/shared_content.dart';
 import '../../models/link_metadata.dart';
 import '../../providers/club_provider.dart';
@@ -234,7 +235,7 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
                             vertical: 8,
                           ),
                           hintStyle: TextStyle(
-                            color: isDarkMode 
+                            color: isDarkMode
                                 ? const Color(0xFF757575)
                                 : const Color(0xFF9E9E9E),
                             fontSize: 15,
@@ -242,7 +243,7 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
                           ),
                           prefixIcon: Icon(
                             Icons.search,
-                            color: isDarkMode 
+                            color: isDarkMode
                                 ? const Color(0xFF757575)
                                 : const Color(0xFF9E9E9E),
                             size: 20,
@@ -250,7 +251,9 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
                         ),
                         style: TextStyle(
                           fontSize: 15,
-                          color: isDarkMode ? Colors.white : const Color(0xFF212121),
+                          color: isDarkMode
+                              ? Colors.white
+                              : const Color(0xFF212121),
                         ),
                       ),
                     ),
@@ -655,12 +658,12 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
         final clubs = clubProvider.clubs;
         final isLoading = clubProvider.isLoading;
 
-        print('📤 ShareTargetScreen - Clubs: ${clubs.length}, Loading: $isLoading');
+        print(
+          '📤 ShareTargetScreen - Clubs: ${clubs.length}, Loading: $isLoading',
+        );
 
         if (isLoading) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
+          return const Center(child: CircularProgressIndicator());
         }
 
         if (clubs.isEmpty) {
@@ -821,7 +824,7 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
     VoidCallback? onTap,
   }) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -833,7 +836,9 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
           margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
           decoration: BoxDecoration(
             color: isSelected
-                ? (isDarkMode ? const Color(0xFF1E3A8A).withOpacity(0.2) : const Color(0xFFF0F8FF))
+                ? (isDarkMode
+                      ? const Color(0xFF1E3A8A).withOpacity(0.2)
+                      : const Color(0xFFF0F8FF))
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
           ),
@@ -850,7 +855,9 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
-                        color: isDarkMode ? Colors.white : const Color(0xFF212121),
+                        color: isDarkMode
+                            ? Colors.white
+                            : const Color(0xFF212121),
                       ),
                     ),
                     if (subtitle != null && subtitle.isNotEmpty)
@@ -860,7 +867,7 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
                           subtitle,
                           style: TextStyle(
                             fontSize: 13,
-                            color: isDarkMode 
+                            color: isDarkMode
                                 ? const Color(0xFF9E9E9E)
                                 : const Color(0xFF757575),
                             fontWeight: FontWeight.w400,
@@ -881,7 +888,9 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
                   border: Border.all(
                     color: isSelected
                         ? const Color(0xFF2196F3)
-                        : (isDarkMode ? const Color(0xFF616161) : const Color(0xFFBDBDBD)),
+                        : (isDarkMode
+                              ? const Color(0xFF616161)
+                              : const Color(0xFFBDBDBD)),
                     width: 1.5,
                   ),
                   color: isSelected
@@ -1039,20 +1048,16 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
 
   Widget _buildScrollableBadge({required String name, required Color color}) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Container(
       height: 28,
       margin: const EdgeInsets.only(right: 6),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: isDarkMode 
-            ? color.withOpacity(0.15)
-            : color.withOpacity(0.1),
+        color: isDarkMode ? color.withOpacity(0.15) : color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isDarkMode 
-              ? color.withOpacity(0.3)
-              : color.withOpacity(0.2),
+          color: isDarkMode ? color.withOpacity(0.3) : color.withOpacity(0.2),
           width: 0.5,
         ),
       ),
@@ -1060,9 +1065,7 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
         child: Text(
           name,
           style: TextStyle(
-            color: isDarkMode 
-                ? color.withOpacity(0.9)
-                : color,
+            color: isDarkMode ? color.withOpacity(0.9) : color,
             fontSize: 13,
             fontWeight: FontWeight.w500,
             height: 1.0,
@@ -1173,12 +1176,6 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
     try {
       // Check if "Everyone" is selected
       if (_selectedClubIds.contains('everyone')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Shared with everyone! (Feature coming soon)'),
-            backgroundColor: Color(0xFF16a34a),
-          ),
-        );
         _navigateToClubsScreen();
         return;
       }
@@ -1190,36 +1187,9 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
         if (success) successCount++;
       }
 
-      if (mounted) {
-        if (successCount > 0) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Content shared to $successCount of ${_selectedClubIds.length} clubs successfully!',
-              ),
-              backgroundColor: const Color(0xFF16a34a),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to share content to any clubs.'),
-              backgroundColor: Color(0xFFDC2626),
-            ),
-          );
-        }
-      }
-
       _navigateToClubsScreen();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to share content. Please try again.'),
-            backgroundColor: Color(0xFFDC2626),
-          ),
-        );
-      }
+      // Silent error handling - no toast
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -1229,53 +1199,114 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
 
   Future<bool> _sendMessageToClub(String clubId) async {
     try {
+      print('📤 _sendMessageToClub called for clubId: $clubId');
+      print('📤 SharedContent type: ${widget.sharedContent.type}');
+      
       Map<String, dynamic> messageData;
 
       switch (widget.sharedContent.type) {
         case SharedContentType.url:
-          // Send URL with metadata if available
+          dynamic contentJson;
+          contentJson = {
+            'type': 'link',
+            'url': _linkMetadata?.url ?? widget.sharedContent.url ?? widget.sharedContent.text,
+            'body': _messageController.text.trim().isEmpty ? ' ' : _messageController.text.trim(),
+            if (_linkMetadata?.title != null) 'title': _linkMetadata?.title,
+            if (_linkMetadata?.description != null)
+              'description': _linkMetadata?.description,
+            if (_linkMetadata?.siteName != null)
+              'siteName': _linkMetadata?.siteName,
+            if (_linkMetadata?.favicon != null)
+              'favicon': _linkMetadata?.favicon,
+            if (_linkMetadata?.image != null) 'images': [_linkMetadata?.image!],
+          };
           messageData = {
-            'content': {
-              'text': widget.sharedContent.url ?? widget.sharedContent.text ?? '',
-              'type': 'url',
-            },
-            'type': 'url',
+            'content': contentJson,
+            'type': 'link',
             if (_linkMetadata != null) 'linkMeta': [_linkMetadata!.toJson()],
           };
           break;
+
         case SharedContentType.text:
           messageData = {
             'content': {
-              'text': widget.sharedContent.text ?? '',
               'type': 'text',
+              'body': widget.sharedContent.text ?? '',
             },
             'type': 'text',
           };
           break;
+
         case SharedContentType.image:
         case SharedContentType.multipleImages:
-          // For images, send as media message
+          // Upload all images first and get their URLs
+          final imagePaths = widget.sharedContent.imagePaths ?? [];
+          final uploadedImageUrls = <String>[];
+          
+          // Upload all images sequentially to ensure they're all processed
+          for (final imagePath in imagePaths) {
+            try {
+              // Create PlatformFile from image path
+              final file = File(imagePath);
+              if (await file.exists()) {
+                final bytes = await file.readAsBytes();
+                final fileName = imagePath.split('/').last;
+                final platformFile = PlatformFile(
+                  name: fileName,
+                  size: bytes.length,
+                  bytes: bytes,
+                  path: imagePath,
+                );
+                
+                // Upload the file and wait for completion
+                final uploadedUrl = await ChatApiService.uploadFile(platformFile);
+                if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
+                  uploadedImageUrls.add(uploadedUrl);
+                  print('✅ Image uploaded successfully: $uploadedUrl');
+                } else {
+                  print('❌ Failed to upload image: $imagePath');
+                }
+              } else {
+                print('❌ Image file not found: $imagePath');
+              }
+            } catch (e) {
+              print('❌ Error uploading image $imagePath: $e');
+              // Continue with other images even if one fails
+            }
+          }
+          
+          // Only proceed if at least one image was uploaded successfully
+          if (uploadedImageUrls.isEmpty) {
+            print('❌ No images were uploaded successfully');
+            return false;
+          }
+          
+          print('📤 Creating message with ${uploadedImageUrls.length} uploaded images');
+          
+          // Create message with uploaded image URLs
           messageData = {
             'content': {
-              'text': 'Shared images',
-              'type': 'media',
-            },
-            'type': 'media',
-            'media': widget.sharedContent.imagePaths
-                ?.map((path) => {'type': 'image', 'path': path})
-                .toList(),
-          };
-          break;
-        default:
-          messageData = {
-            'content': {
-              'text': widget.sharedContent.displayText,
               'type': 'text',
+              'body': _messageController.text.trim().isEmpty ? ' ' : _messageController.text.trim(),
+              'images': uploadedImageUrls,
             },
             'type': 'text',
           };
-      }
+          break;
 
+        case SharedContentType.unknown:
+          messageData = {
+            'content': {
+              'type': 'text',
+              'body': widget.sharedContent.displayText,
+            },
+            'type': 'text',
+          };
+          break;
+      }
+      
+      print('📤 Final messageData: $messageData');
+      
       final response = await ChatApiService.sendMessage(clubId, messageData);
       return response != null;
     } catch (e) {
@@ -1462,24 +1493,16 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
 
       // Check if "Everyone" is selected
       if (_selectedClubIds.contains('everyone')) {
-        // Handle "Everyone" sharing - for now just show a message
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Shared with everyone! (Feature coming soon)'),
-            backgroundColor: Color(0xFF16a34a),
-          ),
-        );
+        // Handle "Everyone" sharing - silent navigation
         Navigator.of(context).pop();
       } else if (_selectedClubIds.length == 1) {
         // If only one club is selected, send the message first then navigate to chat
         final clubId = _selectedClubIds.first;
         final success = await _sendMessageToClub(clubId);
-        
+
         if (success) {
           final selectedClub = clubProvider.clubs
-              .firstWhere(
-                (membership) => membership.club.id == clubId,
-              )
+              .firstWhere((membership) => membership.club.id == clubId)
               .club;
 
           // Navigate to chat after successful message posting
@@ -1495,16 +1518,8 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
             );
           }
         } else {
-          // Show error if message failed to send
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Failed to share content. Please try again.'),
-                backgroundColor: Color(0xFFDC2626),
-              ),
-            );
-          }
-          return; // Don't navigate if sending failed
+          // Silent error handling - don't navigate if sending failed
+          return;
         }
       } else {
         // For multiple clubs, send to each club via API
@@ -1515,24 +1530,6 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
         }
 
         if (mounted) {
-          if (successCount > 0) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'Content shared to $successCount of ${_selectedClubIds.length} clubs successfully!',
-                ),
-                backgroundColor: const Color(0xFF16a34a),
-              ),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Failed to share content to any clubs.'),
-                backgroundColor: Color(0xFFDC2626),
-              ),
-            );
-          }
-
           Navigator.of(context).pop();
         }
       }
@@ -1540,14 +1537,7 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
       // Clear shared content after processing
       ShareHandlerService().clearSharedContent();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to share content. Please try again.'),
-            backgroundColor: Color(0xFFDC2626),
-          ),
-        );
-      }
+      // Silent error handling - no toast
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);

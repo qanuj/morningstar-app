@@ -262,14 +262,6 @@ class _TextEditorScreenState extends State<TextEditorScreen> {
 
       // Check if "Everyone" is selected
       if (widget.selectedClubIds.contains('everyone')) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Shared with everyone! (Feature coming soon)'),
-              backgroundColor: Color(0xFF16a34a),
-            ),
-          );
-        }
         _navigateToClubsScreen();
         return;
       }
@@ -281,36 +273,11 @@ class _TextEditorScreenState extends State<TextEditorScreen> {
         if (success) successCount++;
       }
 
-      if (mounted) {
-        if (successCount > 0) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Text shared to $successCount of ${widget.selectedClubIds.length} clubs successfully!',
-              ),
-              backgroundColor: const Color(0xFF16a34a),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to share text to any clubs.'),
-              backgroundColor: Color(0xFFDC2626),
-            ),
-          );
-        }
-      }
+      // Silent completion - no toast notifications
 
       _navigateToClubsScreen();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to share text. Please try again.'),
-            backgroundColor: Color(0xFFDC2626),
-          ),
-        );
-      }
+      // Silent error handling - no toast
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -321,7 +288,10 @@ class _TextEditorScreenState extends State<TextEditorScreen> {
   Future<bool> _sendTextToClub(String clubId, String messageText) async {
     try {
       final messageData = {
-        'content': messageText,
+        'content': {
+          'type': 'text',
+          'body': messageText,
+        },
         'type': 'text',
       };
 

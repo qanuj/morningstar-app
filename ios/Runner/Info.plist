@@ -2,117 +2,17 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>app.duggy.background-processing</string>
+		<string>app.duggy.background-refresh</string>
+	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
 	<string>Duggy</string>
-	<key>CFBundleExecutable</key>
-	<string>$(EXECUTABLE_NAME)</string>
-	<key>CFBundleIdentifier</key>
-	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-	<key>CFBundleInfoDictionaryVersion</key>
-	<string>6.0</string>
-	<key>CFBundleName</key>
-	<string>duggy</string>
-	<key>CFBundlePackageType</key>
-	<string>APPL</string>
-	<key>CFBundleShortVersionString</key>
-	<string>$(FLUTTER_BUILD_NAME)</string>
-	<key>CFBundleSignature</key>
-	<string>????</string>
-	<key>CFBundleVersion</key>
-	<string>$(FLUTTER_BUILD_NUMBER)</string>
-	<key>LSApplicationQueriesSchemes</key>
-	<array>
-		<string>https</string>
-		<string>http</string>
-		<string>upi</string>
-		<string>phonepe</string>
-		<string>paytm</string>
-		<string>gpay</string>
-		<string>bhim</string>
-		<string>tez</string>
-		<string>paytmmp</string>
-		<string>amazonpay</string>
-		<string>mobikwik</string>
-		<string>freecharge</string>
-	</array>
-	<key>LSRequiresIPhoneOS</key>
-	<true/>
-	<key>NSCameraUsageDescription</key>
-	<string>This app needs access to camera to record and upload videos for club activities.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>This app needs access to microphone to record voice messages in club chats.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>This app needs access to save photos and videos to your photo library.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>This app needs access to photo library to upload photos and videos for club activities.</string>
-	<key>NSContactsUsageDescription</key>
-	<string>This app needs access to contacts to help you quickly add club members from your contact list.</string>
-	<key>NSUserNotificationsUsageDescription</key>
-	<string>This app needs access to send notifications to keep you updated about club activities, matches, and important announcements.</string>
-	<key>UIApplicationSupportsIndirectInputEvents</key>
-	<true/>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>audio</string>
-		<string>processing</string>
-		<string>remote-notification</string>
-	</array>
-	<key>BGTaskSchedulerPermittedIdentifiers</key>
-	<array>
-		<string>app.duggy.background-processing</string>
-		<string>app.duggy.background-refresh</string>
-	</array>
-	<key>UILaunchStoryboardName</key>
-	<string>LaunchScreen</string>
-	<key>UIMainStoryboardFile</key>
-	<string>Main</string>
-	<key>UISupportedInterfaceOrientations</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleURLName</key>
-			<string>duggy.share</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>duggy</string>
-			</array>
-			<key>CFBundleURLIconFile</key>
-			<string>AppIcon</string>
-		</dict>
-		<dict>
-			<key>CFBundleURLName</key>
-			<string>duggy.deeplink</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>app.duggy</string>
-			</array>
-			<key>CFBundleURLIconFile</key>
-			<string>AppIcon</string>
-		</dict>
-	</array>
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSAllowsArbitraryLoads</key>
-		<true/>
-	</dict>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
@@ -151,14 +51,119 @@
 			</array>
 		</dict>
 	</array>
-	<key>UIFileSharingEnabled</key>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>duggy</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLIconFile</key>
+			<string>AppIcon</string>
+			<key>CFBundleURLName</key>
+			<string>duggy.share</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>duggy</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleURLIconFile</key>
+			<string>AppIcon</string>
+			<key>CFBundleURLName</key>
+			<string>duggy.deeplink</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>app.duggy</string>
+			</array>
+		</dict>
+	</array>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>INIntentsSupported</key>
+	<array>
+		<string>Intent</string>
+	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>https</string>
+		<string>http</string>
+		<string>upi</string>
+		<string>phonepe</string>
+		<string>paytm</string>
+		<string>gpay</string>
+		<string>bhim</string>
+		<string>tez</string>
+		<string>paytmmp</string>
+		<string>amazonpay</string>
+		<string>mobikwik</string>
+		<string>freecharge</string>
+	</array>
+	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs access to camera to record and upload videos for club activities.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>This app needs access to contacts to help you quickly add club members from your contact list.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app needs access to microphone to record voice messages in club chats.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>This app needs access to save photos and videos to your photo library.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs access to photo library to upload photos and videos for club activities.</string>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>NSUserActivityTypeBrowsingWeb</string>
 		<string>com.duggy.share</string>
+	</array>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>This app needs access to send notifications to keep you updated about club activities, matches, and important announcements.</string>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+		<string>processing</string>
+		<string>remote-notification</string>
+		<string>fetch</string>
+	</array>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UTImportedTypeDeclarations</key>
 	<array>
