@@ -523,12 +523,8 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
       onTap: () => _showImageGallery([imagePath]),
       child: Container(
         height: 200,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFDEE2E6)),
-        ),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(0)),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
           child: Image.file(
             File(imagePath),
             fit: BoxFit.cover,
