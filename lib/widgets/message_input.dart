@@ -464,6 +464,7 @@ class _MessageInputState extends State<MessageInput> {
     final clubName = 'Club Payment';
 
     // Define all UPI apps with their schemes and SVG assets
+    // Show all apps as choices without checking availability
     final allUpiApps = [
       {
         'name': 'Google Pay',
@@ -500,39 +501,18 @@ class _MessageInputState extends State<MessageInput> {
         'logo': 'assets/icons/upi/amazon_pay.svg',
         'color': Color(0xFFFF9900),
       },
-    ];
-
-    // Check which apps are available
-    final availableApps = <Map<String, dynamic>>[];
-
-    for (final app in allUpiApps) {
-      try {
-        final primaryUri = Uri.parse(app['scheme'] as String);
-        final fallbackUri = Uri.parse(app['fallback'] as String);
-
-        if (await canLaunchUrl(primaryUri) || await canLaunchUrl(fallbackUri)) {
-          availableApps.add(app);
-        }
-      } catch (e) {
-        // Skip this app if URL parsing fails
-        continue;
-      }
-    }
-
-    // Always add the generic UPI option if any UPI app is available
-    if (availableApps.isNotEmpty) {
-      availableApps.add({
+      {
         'name': 'Any UPI App',
         'scheme': 'upi://pay?pa=$clubUpiId&pn=$clubName&cu=INR',
         'fallback': 'upi://pay?pa=$clubUpiId&pn=$clubName&cu=INR',
         'logo': 'assets/icons/upi/upi_generic.svg',
         'color': Colors.grey[700]!,
-      });
-    }
+      },
+    ];
 
     if (mounted) {
       setState(() {
-        _availableUpiApps = availableApps;
+        _availableUpiApps = allUpiApps;
       });
     }
   }
@@ -689,23 +669,23 @@ class _MessageInputState extends State<MessageInput> {
     try {
       final primaryUri = Uri.parse(primaryScheme);
 
-      // Try primary scheme first (app-specific)
-      if (await canLaunchUrl(primaryUri)) {
+      try {
+        // Try primary scheme first (app-specific)
         await launchUrl(primaryUri, mode: LaunchMode.externalApplication);
         return;
+      } catch (e) {
+        // Primary scheme failed, try fallback
+        try {
+          final fallbackUri = Uri.parse(fallbackScheme);
+          await launchUrl(fallbackUri, mode: LaunchMode.externalApplication);
+          return;
+        } catch (e2) {
+          // Both schemes failed, show user-friendly error
+          _showError('Please install a UPI payment app to complete the payment.');
+        }
       }
-
-      // Fallback to generic UPI scheme
-      final fallbackUri = Uri.parse(fallbackScheme);
-      if (await canLaunchUrl(fallbackUri)) {
-        await launchUrl(fallbackUri, mode: LaunchMode.externalApplication);
-        return;
-      }
-
-      // No UPI app available
-      _showError('No UPI payment app found. Please install a UPI app.');
     } catch (e) {
-      _showError('Failed to open payment app: $e');
+      _showError('Failed to initiate payment: $e');
     }
   }
 
