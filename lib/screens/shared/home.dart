@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/conversation_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../widgets/svg_avatar.dart';
 import '../clubs/clubs.dart';
 import '../matches/matches.dart';
 import '../wallet/transactions.dart';
@@ -12,6 +13,8 @@ import '../news/conversations.dart';
 import '../debug/share_test_screen.dart';
 
 class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+  
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
@@ -85,6 +88,21 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildProfileIcon(UserProvider userProvider, bool isActive) {
+    final user = userProvider.user;
+    
+    return SVGAvatar.small(
+      imageUrl: user?.profilePicture,
+      backgroundColor: isActive 
+          ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+          : Theme.of(context).colorScheme.surfaceVariant,
+      iconColor: isActive 
+          ? Theme.of(context).colorScheme.primary 
+          : Theme.of(context).bottomNavigationBarTheme.unselectedItemColor,
+      fallbackIcon: isActive ? Icons.person : Icons.person_outline,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -94,8 +112,8 @@ class _HomeScreenState extends State<HomeScreen> {
         index: _selectedIndex,
         children: _screens,
       ),
-      bottomNavigationBar: Consumer<ConversationProvider>(
-        builder: (context, conversationProvider, child) {
+      bottomNavigationBar: Consumer2<ConversationProvider, UserProvider>(
+        builder: (context, conversationProvider, userProvider, child) {
           return BottomNavigationBar(
             currentIndex: _selectedIndex,
             onTap: _onBottomNavTap,
@@ -138,9 +156,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 label: 'Wallet',
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.settings_outlined),
-                activeIcon: Icon(Icons.settings),
-                label: 'Settings',
+                icon: _buildProfileIcon(userProvider, false),
+                activeIcon: _buildProfileIcon(userProvider, true),
+                label: 'You',
               ),
             ],
           );

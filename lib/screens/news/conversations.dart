@@ -1,7 +1,6 @@
 import 'package:duggy/screens/news/notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../../providers/conversation_provider.dart';
 import '../../providers/user_provider.dart';
@@ -10,6 +9,7 @@ import '../../models/conversation.dart';
 import '../../models/club.dart';
 import '../../utils/theme.dart';
 import '../shared/chat_detail.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class ConversationsScreen extends StatefulWidget {
   @override
@@ -821,12 +821,14 @@ class _ConversationsAppBar extends StatelessWidget
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: Container(
-          padding: EdgeInsets.all(12),
+          width: 40,
+          height: 40,
+          padding: EdgeInsets.all(8),
           child: SvgPicture.asset(
             'assets/images/duggy_logo.svg',
             width: 24,
             height: 24,
-            colorFilter: ColorFilter.mode(Colors.white, BlendMode.srcIn),
+            fit: BoxFit.contain,
           ),
         ),
         title: Column(
