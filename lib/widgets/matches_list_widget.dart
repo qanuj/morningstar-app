@@ -463,16 +463,18 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Date header - only show if multiple matches exist on the same date
-            if (hasMultipleMatchesOnSameDate)
+            // Date header - show for upcoming matches or when multiple matches exist on the same date
+            if (isUpcomingDate || hasMultipleMatchesOnSameDate)
               Container(
                 margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: isUpcomingDate
-                      ? Theme.of(context).primaryColor.withOpacity(0.1)
+                      ? (Theme.of(context).brightness == Brightness.dark
+                          ? Theme.of(context).primaryColor.withOpacity(0.3)
+                          : Theme.of(context).primaryColor.withOpacity(0.1))
                       : Theme.of(context).brightness == Brightness.dark
-                      ? Theme.of(context).colorScheme.onSurface.withOpacity(0.1)
+                      ? Theme.of(context).colorScheme.onSurface.withOpacity(0.2)
                       : Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -480,11 +482,11 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
                   _formatDateHeader(dateKey),
                   style: TextStyle(
                     color: isUpcomingDate
-                        ? Theme.of(context).primaryColor
+                        ? (Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : Theme.of(context).primaryColor)
                         : Theme.of(context).brightness == Brightness.dark
-                        ? Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withOpacity(0.8)
+                        ? Colors.white.withOpacity(0.9)
                         : Colors.grey.shade600,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
@@ -766,7 +768,9 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
                 fontSize: 12,
                 fontWeight: FontWeight.w400,
                 color: isUpcoming
-                    ? Theme.of(context).primaryColor
+                    ? (Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white
+                        : Theme.of(context).primaryColor)
                     : Theme.of(context).textTheme.bodySmall?.color,
               ),
             ),

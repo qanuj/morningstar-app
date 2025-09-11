@@ -117,8 +117,12 @@ class MatchDetailScreenState extends State<MatchDetailScreen> {
       return Scaffold(
         appBar: AppBar(
           title: Text('Match Details'),
-          backgroundColor: AppTheme.cricketGreen,
-          foregroundColor: Colors.white,
+          backgroundColor: Theme.of(context).brightness == Brightness.dark
+              ? Theme.of(context).appBarTheme.backgroundColor
+              : AppTheme.cricketGreen,
+          foregroundColor: Theme.of(context).brightness == Brightness.dark
+              ? Theme.of(context).appBarTheme.foregroundColor
+              : Colors.white,
         ),
         body: Center(child: CircularProgressIndicator()),
       );
@@ -128,8 +132,12 @@ class MatchDetailScreenState extends State<MatchDetailScreen> {
       return Scaffold(
         appBar: AppBar(
           title: Text('Match Details'),
-          backgroundColor: AppTheme.cricketGreen,
-          foregroundColor: Colors.white,
+          backgroundColor: Theme.of(context).brightness == Brightness.dark
+              ? Theme.of(context).appBarTheme.backgroundColor
+              : AppTheme.cricketGreen,
+          foregroundColor: Theme.of(context).brightness == Brightness.dark
+              ? Theme.of(context).appBarTheme.foregroundColor
+              : Colors.white,
         ),
         body: Center(
           child: Column(
@@ -225,7 +233,7 @@ class MatchDetailScreenState extends State<MatchDetailScreen> {
                             match.club.name,
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey[600],
+                              color: Theme.of(context).textTheme.bodySmall?.color,
                               fontWeight: FontWeight.w400,
                             ),
                           ),
@@ -293,7 +301,9 @@ class MatchDetailScreenState extends State<MatchDetailScreen> {
                           width: double.infinity,
                           padding: EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.grey[100],
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? Theme.of(context).colorScheme.onSurface.withOpacity(0.1)
+                                : Colors.grey[100],
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Column(
@@ -303,7 +313,7 @@ class MatchDetailScreenState extends State<MatchDetailScreen> {
                                 'Notes',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w400,
-                                  color: Colors.grey[700],
+                                  color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.8),
                                 ),
                               ),
                               SizedBox(height: 4),
@@ -321,7 +331,9 @@ class MatchDetailScreenState extends State<MatchDetailScreen> {
                           width: double.infinity,
                           padding: EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.orange[100],
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? Colors.orange.withOpacity(0.2)
+                                : Colors.orange[100],
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Column(
@@ -335,7 +347,9 @@ class MatchDetailScreenState extends State<MatchDetailScreen> {
                                     'Details Hidden',
                                     style: TextStyle(
                                       fontWeight: FontWeight.w400,
-                                      color: Colors.orange[700],
+                                      color: Theme.of(context).brightness == Brightness.dark
+                                        ? Colors.orange.shade300
+                                        : Colors.orange[700],
                                     ),
                                   ),
                                 ],
@@ -345,7 +359,9 @@ class MatchDetailScreenState extends State<MatchDetailScreen> {
                                 'Match details will be revealed closer to the event or after you RSVP.',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.orange[700],
+                                  color: Theme.of(context).brightness == Brightness.dark
+                                        ? Colors.orange.shade300
+                                        : Colors.orange[700],
                                 ),
                               ),
                             ],
@@ -450,7 +466,9 @@ class MatchDetailScreenState extends State<MatchDetailScreen> {
                                   child: Container(
                                     padding: EdgeInsets.all(12),
                                     decoration: BoxDecoration(
-                                      color: Colors.blue[50],
+                                      color: Theme.of(context).brightness == Brightness.dark
+                                          ? Colors.blue.withOpacity(0.2)
+                                          : Colors.blue[50],
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Column(
@@ -486,7 +504,9 @@ class MatchDetailScreenState extends State<MatchDetailScreen> {
                                   child: Container(
                                     padding: EdgeInsets.all(12),
                                     decoration: BoxDecoration(
-                                      color: Colors.green[50],
+                                      color: Theme.of(context).brightness == Brightness.dark
+                                          ? Colors.green.withOpacity(0.2)
+                                          : Colors.green[50],
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Column(
@@ -534,8 +554,7 @@ class MatchDetailScreenState extends State<MatchDetailScreen> {
                         ),
                         SizedBox(height: 8),
                         ...match.finalSquad!
-                            .map((player) => _buildSquadMember(player))
-                            .toList(),
+                            .map((player) => _buildSquadMember(player)),
                       ],
                     ),
                   ),
@@ -606,7 +625,9 @@ class MatchDetailScreenState extends State<MatchDetailScreen> {
                           Container(
                             padding: EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: Colors.green[100],
+                              color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.green.withOpacity(0.2)
+                          : Colors.green[100],
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Row(
@@ -616,7 +637,9 @@ class MatchDetailScreenState extends State<MatchDetailScreen> {
                                 Text(
                                   'You are confirmed for this match!',
                                   style: TextStyle(
-                                    color: Colors.green[700],
+                                    color: Theme.of(context).brightness == Brightness.dark
+                                        ? Colors.green.shade300
+                                        : Colors.green[700],
                                     fontWeight: FontWeight.w400,
                                   ),
                                 ),
@@ -629,7 +652,9 @@ class MatchDetailScreenState extends State<MatchDetailScreen> {
                           Container(
                             padding: EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: Colors.orange[100],
+                              color: Theme.of(context).brightness == Brightness.dark
+                                ? Colors.orange.withOpacity(0.2)
+                                : Colors.orange[100],
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Row(
@@ -642,7 +667,9 @@ class MatchDetailScreenState extends State<MatchDetailScreen> {
                                 Text(
                                   'You are #${userRsvp.waitlistPosition} on the waitlist',
                                   style: TextStyle(
-                                    color: Colors.orange[700],
+                                    color: Theme.of(context).brightness == Brightness.dark
+                                        ? Colors.orange.shade300
+                                        : Colors.orange[700],
                                     fontWeight: FontWeight.w400,
                                   ),
                                 ),
@@ -792,7 +819,9 @@ class MatchDetailScreenState extends State<MatchDetailScreen> {
       margin: EdgeInsets.only(bottom: 8),
       padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Theme.of(context).colorScheme.onSurface.withOpacity(0.1)
+            : Colors.grey[50],
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -841,7 +870,7 @@ class MatchDetailScreenState extends State<MatchDetailScreen> {
                   SizedBox(height: 2),
                   Text(
                     player.selectedRole!,
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color),
                   ),
                 ],
               ],
@@ -898,7 +927,7 @@ class MatchDetailScreenState extends State<MatchDetailScreen> {
         ),
         Text(
           label,
-          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color),
           textAlign: TextAlign.center,
         ),
       ],
