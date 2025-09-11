@@ -94,6 +94,18 @@
 			<array>
 				<string>duggy</string>
 			</array>
+			<key>CFBundleURLIconFile</key>
+			<string>AppIcon</string>
+		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>duggy.deeplink</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>app.duggy</string>
+			</array>
+			<key>CFBundleURLIconFile</key>
+			<string>AppIcon</string>
 		</dict>
 	</array>
 	<key>NSAppTransportSecurity</key>
@@ -137,6 +149,36 @@
 				<string>public.plain-text</string>
 				<string>public.url</string>
 			</array>
+		</dict>
+	</array>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+	<key>NSUserActivityTypes</key>
+	<array>
+		<string>NSUserActivityTypeBrowsingWeb</string>
+		<string>com.duggy.share</string>
+	</array>
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Shared Content</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.duggy.shared-content</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>txt</string>
+					<string>url</string>
+				</array>
+			</dict>
 		</dict>
 	</array>
 </dict>
