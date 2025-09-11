@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../models/club.dart';
+import '../../providers/club_provider.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/matches_list_widget.dart';
-import '../../widgets/create_match_dialog.dart';
+import '../../widgets/club_selector_dialog.dart';
 import '../../services/match_service.dart';
+import 'create_match_screen.dart';
 
 class MatchesScreen extends StatefulWidget {
   final Club? clubFilter;
@@ -53,18 +56,39 @@ class _MatchesScreenState extends State<MatchesScreen> {
   }
 
   void _showCreateMatchDialog() {
-    if (widget.clubFilter == null) return;
-
-    showDialog(
-      context: context,
-      builder: (context) => CreateMatchDialog(
-        club: widget.clubFilter!,
-        onMatchCreated: () {
-          // Refresh the matches list
-          _matchesListKey.currentState?.refreshMatches();
+    if (widget.clubFilter != null) {
+      // Direct to create match screen for specific club
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => CreateMatchScreen(
+            club: widget.clubFilter!,
+            onMatchCreated: () {
+              // Refresh the matches list
+              _matchesListKey.currentState?.refreshMatches();
+            },
+          ),
+        ),
+      );
+    } else {
+      // Show club selection dialog first
+      ClubSelectorDialogFactory.showForMatchCreation(
+        context: context,
+        onClubSelected: (club) {
+          // Navigate to create match screen - let it handle permissions
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => CreateMatchScreen(
+                club: club,
+                onMatchCreated: () {
+                  // Refresh the matches list
+                  _matchesListKey.currentState?.refreshMatches();
+                },
+              ),
+            ),
+          );
         },
-      ),
-    );
+      );
+    }
   }
 
   void _showFilterBottomSheet() {
@@ -81,19 +105,11 @@ class _MatchesScreenState extends State<MatchesScreen> {
             : 'Upcoming matches',
         leadingIcon: Icons.sports_cricket,
         customActions: [
-          if (widget.clubFilter != null &&
-              !_isCheckingPermissions &&
-              _canCreateMatches)
-            IconButton(
-              icon: Icon(Icons.add),
-              onPressed: _showCreateMatchDialog,
-              tooltip: 'Create new match',
-            ),
           IconButton(
-            icon: Icon(Icons.filter_list),
-            onPressed: _showFilterBottomSheet,
-            tooltip: 'Filter matches',
-          ),
+            icon: Icon(Icons.add),
+            onPressed: _showCreateMatchDialog,
+            tooltip: 'Create new match',
+            ),
         ],
       ),
       body: MatchesListWidget(

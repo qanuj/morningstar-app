@@ -376,6 +376,8 @@ class _CreateMatchDialogState extends State<CreateMatchDialog> {
                         value: _hideUntilRSVP,
                         onChanged: (value) => setState(() => _hideUntilRSVP = value),
                         activeColor: Theme.of(context).primaryColor,
+                        inactiveTrackColor: Colors.grey[300],
+                        inactiveThumbColor: Colors.white,
                       ),
 
                       // RSVP After Date/Time (optional)
@@ -444,6 +446,8 @@ class _CreateMatchDialogState extends State<CreateMatchDialog> {
                         value: _notifyMembers,
                         onChanged: (value) => setState(() => _notifyMembers = value),
                         activeColor: Theme.of(context).primaryColor,
+                        inactiveTrackColor: Colors.grey[300],
+                        inactiveThumbColor: Colors.white,
                       ),
                     ],
                   ),

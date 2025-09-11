@@ -104,12 +104,20 @@ class ApiService {
   static bool get hasUserData => _userData != null;
   static bool get hasClubsData => _clubsData != null;
 
-  static Future<Map<String, dynamic>> get(String endpoint) async {
+  static Future<Map<String, dynamic>> get(String endpoint, {Map<String, String>? queryParams}) async {
+    String url = '$baseUrl$endpoint';
+    if (queryParams != null && queryParams.isNotEmpty) {
+      final query = queryParams.entries
+          .map((e) => '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
+          .join('&');
+      url += '?$query';
+    }
+    
     if (AppConfig.enableDebugPrints) {
-      debugPrint('🔵 Making GET request to: $baseUrl$endpoint');
+      debugPrint('🔵 Making GET request to: $url');
     }
     final response = await http.get(
-      Uri.parse('$baseUrl$endpoint'),
+      Uri.parse(url),
       headers: headers,
     );
     return _handleResponse(response);

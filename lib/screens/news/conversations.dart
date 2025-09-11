@@ -1,6 +1,7 @@
 import 'package:duggy/screens/news/notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../../providers/conversation_provider.dart';
 import '../../providers/user_provider.dart';
@@ -819,9 +820,14 @@ class _ConversationsAppBar extends StatelessWidget
       child: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.sports_cricket, color: Colors.white, size: 24),
-          onPressed: null, // Decorative Duggy logo
+        leading: Container(
+          padding: EdgeInsets.all(12),
+          child: SvgPicture.asset(
+            'assets/images/duggy_logo.svg',
+            width: 24,
+            height: 24,
+            colorFilter: ColorFilter.mode(Colors.white, BlendMode.srcIn),
+          ),
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

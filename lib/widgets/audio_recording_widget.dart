@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 import 'dart:async';
+import 'package:logger/logger.dart' show Level;
 
 class AudioRecordingWidget extends StatefulWidget {
   final Function(String audioPath, Duration duration) onAudioRecorded;
@@ -12,11 +12,11 @@ class AudioRecordingWidget extends StatefulWidget {
   final VoidCallback? onRecordingStateChanged;
 
   const AudioRecordingWidget({
-    Key? key,
+    super.key,
     required this.onAudioRecorded,
     required this.isComposing,
     this.onRecordingStateChanged,
-  }) : super(key: key);
+  });
 
   @override
   AudioRecordingWidgetState createState() => AudioRecordingWidgetState();
@@ -31,8 +31,10 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
   Timer? _recordingTimer;
   File? _recordedAudioFile;
   String? _audioPath;
-  final FlutterSoundRecorder _audioRecorder = FlutterSoundRecorder();
-  
+  final FlutterSoundRecorder _audioRecorder = FlutterSoundRecorder(
+    logLevel: Level.fatal,
+  );
+
   // Proper time tracking
   DateTime? _recordingStartTime;
   Duration _accumulatedDuration = Duration.zero;
@@ -104,7 +106,7 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
           final currentTime = DateTime.now();
           final elapsed = currentTime.difference(_recordingStartTime!);
           final newDuration = _accumulatedDuration + elapsed;
-          
+
           // Only update if the second has changed to reduce flickering
           if (newDuration.inSeconds != _recordingDuration.inSeconds) {
             setState(() {
@@ -132,18 +134,18 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
       if (_isPaused) {
         // Resume recording
         await _audioRecorder.resumeRecorder();
-        
+
         // Update accumulated duration and reset start time
         _accumulatedDuration = _recordingDuration;
         _recordingStartTime = DateTime.now();
-        
+
         // Restart timer
         _recordingTimer = Timer.periodic(Duration(milliseconds: 500), (timer) {
           if (_recordingStartTime != null && mounted) {
             final currentTime = DateTime.now();
             final elapsed = currentTime.difference(_recordingStartTime!);
             final newDuration = _accumulatedDuration + elapsed;
-            
+
             // Only update if the second has changed to reduce flickering
             if (newDuration.inSeconds != _recordingDuration.inSeconds) {
               setState(() {
@@ -152,7 +154,7 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
             }
           }
         });
-        
+
         setState(() {
           _isPaused = false;
         });
@@ -161,10 +163,10 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
         // Pause recording
         await _audioRecorder.pauseRecorder();
         _recordingTimer?.cancel();
-        
+
         // Save the current duration as accumulated
         _accumulatedDuration = _recordingDuration;
-        
+
         setState(() {
           _isPaused = true;
         });
@@ -202,10 +204,10 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
           print('  Path: $path');
           print('  Duration: ${_formatRecordingDuration(_recordingDuration)}');
           print('  File size: ${(fileSize / 1024).toStringAsFixed(2)} KB');
-          
+
           // Send immediately
           widget.onAudioRecorded(path, _recordingDuration);
-          
+
           // Reset state
           setState(() {
             _recordingDuration = Duration.zero;
@@ -231,7 +233,7 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
         _recordingDuration = Duration.zero;
         _accumulatedDuration = Duration.zero;
       });
-      
+
       _recordingStartTime = null;
 
       // Notify parent of state change
@@ -261,7 +263,7 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
       _recordedAudioFile = null;
       _accumulatedDuration = Duration.zero;
     });
-    
+
     _recordingStartTime = null;
 
     // Notify parent of state change
@@ -286,7 +288,7 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
       _recordedAudioFile = null;
       _accumulatedDuration = Duration.zero;
     });
-    
+
     _recordingStartTime = null;
 
     // Notify parent of state change
@@ -376,9 +378,9 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
               // Duration text
               Expanded(
                 child: Text(
-                  _isPaused 
-                    ? 'Paused ${_formatRecordingDuration(_recordingDuration)}'
-                    : 'Recording... ${_formatRecordingDuration(_recordingDuration)}',
+                  _isPaused
+                      ? 'Paused ${_formatRecordingDuration(_recordingDuration)}'
+                      : 'Recording... ${_formatRecordingDuration(_recordingDuration)}',
                   style: TextStyle(
                     color: Theme.of(context).brightness == Brightness.dark
                         ? Colors.red[400]

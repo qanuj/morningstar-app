@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import '../../services/notification_service.dart';
 import '../../utils/theme.dart';
 
@@ -13,7 +12,6 @@ class NotificationSettingsScreen extends StatefulWidget {
 class NotificationSettingsScreenState extends State<NotificationSettingsScreen> {
   bool _isLoading = false;
   bool _notificationsEnabled = false;
-  String? _fcmToken;
 
   @override
   void initState() {
@@ -26,11 +24,9 @@ class NotificationSettingsScreenState extends State<NotificationSettingsScreen> 
     
     try {
       final enabled = await NotificationService.areNotificationsEnabled();
-      final token = NotificationService.fcmToken;
       
       setState(() {
         _notificationsEnabled = enabled;
-        _fcmToken = token;
       });
     } catch (e) {
       print('Error loading notification status: $e');
@@ -64,80 +60,66 @@ class NotificationSettingsScreenState extends State<NotificationSettingsScreen> 
     );
   }
 
-  Future<void> _testNotification() async {
-    _showSnackBar('Test notification feature would be implemented with server integration', isError: false);
-  }
-
   @override
   Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
-      backgroundColor: CupertinoColors.systemGroupedBackground,
-      navigationBar: CupertinoNavigationBar(
-        backgroundColor: CupertinoColors.systemBackground,
-        border: null,
-        leading: CupertinoButton(
-          padding: EdgeInsets.zero,
-          child: Icon(
-            CupertinoIcons.back,
-            color: CupertinoColors.systemBlue,
-            size: 20,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-        middle: Text(
-          'Notification Settings',
-          style: TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            color: CupertinoColors.label,
-          ),
-        ),
+    return Scaffold(
+      backgroundColor: AppTheme.backgroundColor,
+      appBar: AppBar(
+        title: Text('Notification Settings'),
+        backgroundColor: AppTheme.primaryBlue,
+        foregroundColor: Colors.white,
+        elevation: 0,
       ),
-      child: _isLoading
-          ? Center(child: CupertinoActivityIndicator())
-          : SafeArea(
+      body: _isLoading
+          ? Center(
+              child: CircularProgressIndicator(
+                color: AppTheme.primaryBlue,
+              ),
+            )
+          : SingleChildScrollView(
+              padding: EdgeInsets.all(16),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(height: 20),
+                  // Main notification toggle
+                  _buildMainToggleCard(),
                   
-                  // Notifications Status Card
-                  _buildNotificationStatusCard(),
+                  SizedBox(height: 24),
                   
-                  SizedBox(height: 20),
-                  
-                  // Notification Types Card
-                  _buildNotificationTypesCard(),
-                  
-                  SizedBox(height: 20),
-                  
-                  // FCM Token Info (for debugging)
-                  if (_fcmToken != null) _buildTokenInfoCard(),
+                  // Information section
+                  if (_notificationsEnabled) _buildInfoSection(),
                 ],
               ),
             ),
     );
   }
 
-  Widget _buildNotificationStatusCard() {
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: CupertinoColors.systemBackground,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: EdgeInsets.all(16),
-            child: Row(
+  Widget _buildMainToggleCard() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Icon(
-                  _notificationsEnabled ? CupertinoIcons.bell : CupertinoIcons.bell_slash,
-                  color: _notificationsEnabled ? AppTheme.successGreen : AppTheme.errorRed,
-                  size: 24,
+                Container(
+                  padding: EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: _notificationsEnabled 
+                        ? AppTheme.primaryBlue.withOpacity(0.1)
+                        : Colors.grey.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    _notificationsEnabled ? Icons.notifications_active : Icons.notifications_off,
+                    color: _notificationsEnabled ? AppTheme.primaryBlue : Colors.grey,
+                    size: 24,
+                  ),
                 ),
-                SizedBox(width: 12),
+                SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -147,231 +129,157 @@ class NotificationSettingsScreenState extends State<NotificationSettingsScreen> 
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
-                          color: CupertinoColors.label,
+                          color: AppTheme.primaryTextColor,
                         ),
                       ),
+                      SizedBox(height: 4),
                       Text(
                         _notificationsEnabled 
-                          ? 'Enabled - You\'ll receive club updates'
-                          : 'Disabled - You won\'t receive notifications',
+                            ? 'Stay updated with club activities'
+                            : 'Enable to receive important updates',
                         style: TextStyle(
                           fontSize: 14,
-                          color: CupertinoColors.secondaryLabel,
+                          color: AppTheme.secondaryTextColor,
                         ),
                       ),
                     ],
                   ),
                 ),
-                CupertinoSwitch(
+                Switch(
                   value: _notificationsEnabled,
                   onChanged: _toggleNotifications,
                   activeColor: AppTheme.primaryBlue,
                 ),
               ],
             ),
-          ),
-          if (_notificationsEnabled) ...[
-            Divider(height: 1),
-            Padding(
-              padding: EdgeInsets.all(16),
-              child: CupertinoButton(
-                padding: EdgeInsets.zero,
-                onPressed: _testNotification,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(CupertinoIcons.bell_circle, size: 20, color: AppTheme.primaryBlue),
-                    SizedBox(width: 8),
-                    Text(
-                      'Test Notification',
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoSection() {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'You will receive notifications for:',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: AppTheme.primaryTextColor,
+              ),
+            ),
+            SizedBox(height: 16),
+            _buildNotificationItem(
+              icon: Icons.sports_cricket,
+              title: 'Match Updates',
+              description: 'Match schedules, results, and team announcements',
+            ),
+            SizedBox(height: 12),
+            _buildNotificationItem(
+              icon: Icons.shopping_bag,
+              title: 'Order Updates',
+              description: 'Order confirmations and delivery status',
+            ),
+            SizedBox(height: 12),
+            _buildNotificationItem(
+              icon: Icons.campaign,
+              title: 'Club Announcements',
+              description: 'Important club news and updates',
+            ),
+            SizedBox(height: 20),
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.lightBlue.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppTheme.lightBlue.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    color: AppTheme.primaryBlue,
+                    size: 20,
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'You can manage detailed notification preferences in your device settings.',
                       style: TextStyle(
+                        fontSize: 13,
                         color: AppTheme.primaryBlue,
-                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ],
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildNotificationTypesCard() {
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: CupertinoColors.systemBackground,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: EdgeInsets.all(16),
-            child: Text(
-              'Notification Types',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: CupertinoColors.label,
-              ),
-            ),
-          ),
-          _buildNotificationTypeItem(
-            icon: CupertinoIcons.sportscourt,
-            title: 'Match Updates',
-            description: 'Match schedules, results, and reminders',
-            enabled: _notificationsEnabled,
-          ),
-          _buildNotificationTypeItem(
-            icon: CupertinoIcons.bag,
-            title: 'Order Updates',
-            description: 'Order status and delivery updates',
-            enabled: _notificationsEnabled,
-          ),
-          _buildNotificationTypeItem(
-            icon: CupertinoIcons.money_dollar_circle,
-            title: 'Payment Reminders',
-            description: 'Due payments and transaction updates',
-            enabled: _notificationsEnabled,
-          ),
-          _buildNotificationTypeItem(
-            icon: CupertinoIcons.speaker_2,
-            title: 'Club Announcements',
-            description: 'Important club news and updates',
-            enabled: _notificationsEnabled,
-            isLast: true,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNotificationTypeItem({
+  Widget _buildNotificationItem({
     required IconData icon,
     required String title,
     required String description,
-    required bool enabled,
-    bool isLast = false,
   }) {
-    return Column(
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
+        Container(
+          padding: EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppTheme.primaryBlue.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            icon,
+            color: AppTheme.primaryBlue,
+            size: 20,
+          ),
+        ),
+        SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: enabled 
-                    ? AppTheme.primaryBlue.withOpacity(0.1)
-                    : CupertinoColors.systemGrey5,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  icon,
-                  color: enabled ? AppTheme.primaryBlue : CupertinoColors.systemGrey,
-                  size: 20,
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.primaryTextColor,
                 ),
               ),
-              SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: enabled ? CupertinoColors.label : CupertinoColors.systemGrey,
-                      ),
-                    ),
-                    Text(
-                      description,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: enabled 
-                          ? CupertinoColors.secondaryLabel 
-                          : CupertinoColors.systemGrey,
-                      ),
-                    ),
-                  ],
+              SizedBox(height: 2),
+              Text(
+                description,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppTheme.secondaryTextColor,
                 ),
-              ),
-              Icon(
-                CupertinoIcons.checkmark_circle_fill,
-                color: enabled ? AppTheme.successGreen : CupertinoColors.systemGrey4,
-                size: 20,
               ),
             ],
           ),
         ),
-        if (!isLast) Divider(height: 1, indent: 64),
-      ],
-    );
-  }
-
-  Widget _buildTokenInfoCard() {
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: CupertinoColors.systemBackground,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(CupertinoIcons.device_phone_portrait, 
-                     color: CupertinoColors.systemGrey, size: 20),
-                SizedBox(width: 8),
-                Text(
-                  'Device Token',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: CupertinoColors.label,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 8),
-            Container(
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: CupertinoColors.systemGrey6,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                _fcmToken!,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontFamily: 'monospace',
-                  color: CupertinoColors.secondaryLabel,
-                ),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'This token identifies your device for push notifications',
-              style: TextStyle(
-                fontSize: 12,
-                color: CupertinoColors.secondaryLabel,
-              ),
-            ),
-          ],
+        Icon(
+          Icons.check_circle,
+          color: AppTheme.successGreen,
+          size: 20,
         ),
-      ),
+      ],
     );
   }
 }

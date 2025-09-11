@@ -12,7 +12,7 @@ import '../../services/auth_service.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/svg_avatar.dart';
 import '../auth/login.dart';
-import '../news/notifications.dart';
+import 'notification_settings_screen.dart';
 import 'edit_profile.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -356,7 +356,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (context) => NotificationsScreen(),
+                                builder: (context) => NotificationSettingsScreen(),
                               ),
                             );
                           },

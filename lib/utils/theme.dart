@@ -352,17 +352,25 @@ class AppTheme {
           Set<MaterialState> states,
         ) {
           if (states.contains(MaterialState.selected)) {
-            return primaryBlue;
+            return Colors.white;
           }
-          return Colors.grey[300];
+          return Colors.white;
         }),
         trackColor: MaterialStateProperty.resolveWith<Color?>((
           Set<MaterialState> states,
         ) {
           if (states.contains(MaterialState.selected)) {
-            return primaryBlue.withOpacity(0.3);
+            return primaryBlue;
           }
-          return Colors.grey[300];
+          return Colors.grey[400]!;
+        }),
+        overlayColor: MaterialStateProperty.resolveWith<Color?>((
+          Set<MaterialState> states,
+        ) {
+          if (states.contains(MaterialState.selected)) {
+            return primaryBlue.withOpacity(0.1);
+          }
+          return Colors.grey.withOpacity(0.1);
         }),
       ),
 
