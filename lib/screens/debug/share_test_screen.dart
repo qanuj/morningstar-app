@@ -15,7 +15,6 @@ class ShareTestScreen extends StatefulWidget {
 }
 
 class _ShareTestScreenState extends State<ShareTestScreen> {
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -33,55 +32,67 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 40),
-            
+
             ElevatedButton(
               onPressed: () => _testTextShare(context),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF003f9b),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 16,
+                ),
               ),
               child: const Text('Test Text Share'),
             ),
-            
+
             const SizedBox(height: 20),
-            
+
             ElevatedButton(
               onPressed: () => _testUrlShare(context),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF06aeef),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 16,
+                ),
               ),
               child: const Text('Test URL Share'),
             ),
 
             const SizedBox(height: 20),
-            
+
             ElevatedButton(
               onPressed: () => _testImageShare(context),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFf59e0b),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 16,
+                ),
               ),
               child: const Text('Test Image Share'),
             ),
 
             const SizedBox(height: 20),
-            
+
             ElevatedButton(
               onPressed: () => _testRealSharing(context),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF16a34a),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 16,
+                ),
               ),
               child: const Text('Test Real Share Flow'),
             ),
-            
+
             const SizedBox(height: 40),
-            
+
             const Padding(
               padding: EdgeInsets.all(16.0),
               child: Text(
@@ -100,25 +111,23 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
   }
 
   void _testTextShare(BuildContext context) {
-    final sharedContent = SharedContent.fromText('This is a test shared message from the debug screen!');
-    
+    final sharedContent = SharedContent.fromText(
+      'This is a test shared message from the debug screen!',
+    );
+
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => ShareTargetScreen(
-          sharedContent: sharedContent,
-        ),
+        builder: (context) => ShareTargetScreen(sharedContent: sharedContent),
       ),
     );
   }
 
   void _testUrlShare(BuildContext context) {
-    final sharedContent = SharedContent.fromText('https://flutter.dev - Check out this awesome framework!');
-    
+    final sharedContent = SharedContent.fromText('https://duggy.app');
+
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => ShareTargetScreen(
-          sharedContent: sharedContent,
-        ),
+        builder: (context) => ShareTargetScreen(sharedContent: sharedContent),
       ),
     );
   }
@@ -126,23 +135,22 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
   void _testImageShare(BuildContext context) async {
     final navigator = Navigator.of(context);
     final scaffold = ScaffoldMessenger.of(context);
-    
+
     try {
       // Pick an image from gallery
       final ImagePicker picker = ImagePicker();
       final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-      
+
       if (!mounted) return;
-      
+
       if (image != null) {
         // Create shared content with the picked image
         final sharedContent = SharedContent.fromImages([image.path]);
-        
+
         navigator.push(
           MaterialPageRoute(
-            builder: (context) => ShareTargetScreen(
-              sharedContent: sharedContent,
-            ),
+            builder: (context) =>
+                ShareTargetScreen(sharedContent: sharedContent),
           ),
         );
       } else {
@@ -157,44 +165,50 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
     }
   }
 
-  void _showMockImageShare(NavigatorState navigator, ScaffoldMessengerState scaffold) {
+  void _showMockImageShare(
+    NavigatorState navigator,
+    ScaffoldMessengerState scaffold,
+  ) {
     // Create a mock image path for testing UI
     final mockImagePaths = [
       '/storage/emulated/0/Pictures/test_image_1.jpg',
       '/storage/emulated/0/Pictures/test_image_2.jpg',
     ];
-    
+
     final sharedContent = SharedContent.fromImages(mockImagePaths);
-    
+
     navigator.push(
       MaterialPageRoute(
-        builder: (context) => ShareTargetScreen(
-          sharedContent: sharedContent,
-        ),
+        builder: (context) => ShareTargetScreen(sharedContent: sharedContent),
       ),
     );
 
     // Show info that this is mock data
     scaffold.showSnackBar(
       const SnackBar(
-        content: Text('Using mock image data for testing UI (images may not load)'),
+        content: Text(
+          'Using mock image data for testing UI (images may not load)',
+        ),
         backgroundColor: Color(0xFFf59e0b),
         duration: Duration(seconds: 3),
       ),
     );
   }
 
-
   void _testRealSharing(BuildContext context) {
-    final sharedContent = SharedContent.fromText('🏏 Check out this awesome cricket club app!');
-    
+    final sharedContent = SharedContent.fromText(
+      '🏏 Check out this awesome cricket club app!',
+    );
+
     // Simulate a real share by using the ShareHandlerService
     ShareHandlerService().simulateShare(sharedContent);
-    
+
     // Show confirmation
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Simulated real sharing! Check if ShareTargetScreen opens.'),
+        content: Text(
+          'Simulated real sharing! Check if ShareTargetScreen opens.',
+        ),
         backgroundColor: Color(0xFF16a34a),
         duration: Duration(seconds: 2),
       ),

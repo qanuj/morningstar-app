@@ -10,6 +10,8 @@ import '../../services/share_handler_service.dart';
 import '../../services/open_graph_service.dart';
 import '../clubs/club_chat.dart';
 import '../../widgets/svg_avatar.dart';
+import '../../services/chat_api_service.dart';
+import 'text_editor_screen.dart';
 
 class ShareTargetScreen extends StatefulWidget {
   final SharedContent sharedContent;
@@ -24,8 +26,10 @@ class ShareTargetScreen extends StatefulWidget {
 class _ShareTargetScreenState extends State<ShareTargetScreen> {
   final TextEditingController _messageController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   bool _isLoading = false;
   bool _isLoadingMetadata = false;
+  bool _isSearchFocused = false;
   final Set<String> _selectedClubIds = <String>{};
   LinkMetadata? _linkMetadata;
   String _searchQuery = '';
@@ -34,6 +38,13 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
   void initState() {
     super.initState();
     _initializeContent();
+
+    // Listen to focus changes on search field
+    _searchFocusNode.addListener(() {
+      setState(() {
+        _isSearchFocused = _searchFocusNode.hasFocus;
+      });
+    });
   }
 
   void _initializeContent() async {
@@ -83,7 +94,7 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
     setState(() {
       if (_selectedClubIds.contains(clubId)) {
         _selectedClubIds.remove(clubId);
-      } else if (_selectedClubIds.length < 3) {
+      } else if (_selectedClubIds.length < 5) {
         _selectedClubIds.add(clubId);
       }
     });
@@ -93,6 +104,7 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
   void dispose() {
     _messageController.dispose();
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -101,96 +113,178 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
     return Dialog(
       backgroundColor: Colors.white,
       insetPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
-      child: SizedBox(
-        width: double.maxFinite,
-        height: MediaQuery.of(context).size.height * 0.85,
-        child: _buildDialogBody(),
+      child: GestureDetector(
+        onTap: () {
+          // Allow tapping outside search to unfocus
+          if (_searchFocusNode.hasFocus) {
+            _searchFocusNode.unfocus();
+          }
+        },
+        child: SizedBox(
+          width: double.maxFinite,
+          height: MediaQuery.of(context).size.height * 0.85,
+          child: _buildDialogBody(),
+        ),
       ),
     );
   }
 
   Widget _buildDialogBody() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
-      color: const Color(0xFFF8F9FA),
+      color: isDarkMode ? const Color(0xFF1C1C1E) : const Color(0xFFF8F9FA),
       child: Stack(
         children: [
-          Column(
-            children: [
-          // Header with cancel button and search field
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              border: Border(bottom: BorderSide(color: Color(0xFFDEE2E6))),
-            ),
-            child: Row(
+          // Body content (behind overlays) - Only club selection
+          Positioned.fill(
+            child: Column(
               children: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Color(0xFF6C757D),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
+                // Top padding to account for header overlay
+                SizedBox(height: 80),
+
+                // Club selection section (takes all available space)
                 Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8F9FA),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFFDEE2E6)),
-                    ),
-                    child: TextField(
-                      controller: _searchController,
-                      onChanged: (value) {
-                        setState(() {
-                          _searchQuery = value.toLowerCase();
-                        });
-                      },
-                      decoration: const InputDecoration(
-                        hintText: 'Search clubs...',
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        hintStyle: TextStyle(color: Color(0xFF6C757D)),
-                        prefixIcon: Icon(Icons.search, color: Color(0xFF6C757D)),
-                      ),
-                    ),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: _buildClubSelector(),
                   ),
                 ),
+
+                // Bottom padding to account for footer overlay
+                if (_selectedClubIds.isNotEmpty)
+                  SizedBox(height: 30), // Minimal compact footer
               ],
             ),
           ),
-          
-          // Club selection section
-          Expanded(
-            flex: _selectedClubIds.isEmpty ? 1 : 3,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: _buildClubSelector(),
+
+          // Header overlay (on top)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isDarkMode ? const Color(0xFF2C2C2E) : Colors.white,
+                border: Border(
+                  bottom: BorderSide(
+                    color: isDarkMode
+                        ? const Color(0xFF3A3A3C)
+                        : const Color(0xFFDEE2E6),
+                  ),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: isDarkMode ? Colors.black26 : Colors.black12,
+                    offset: const Offset(0, 1),
+                    blurRadius: 4,
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  // Left cancel button (only show when search is not focused)
+                  if (!_isSearchFocused) ...[
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: isDarkMode
+                              ? const Color(0xFFAAAAAA)
+                              : const Color(0xFF6C757D),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                  ],
+
+                  // Search field
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        // Ensure focus when container is tapped
+                        _searchFocusNode.requestFocus();
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isDarkMode
+                              ? const Color(0xFF1C1C1E)
+                              : const Color(0xFFF8F9FA),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isDarkMode
+                                ? const Color(0xFF3A3A3C)
+                                : const Color(0xFFDEE2E6),
+                          ),
+                        ),
+                        child: TextField(
+                          controller: _searchController,
+                          focusNode: _searchFocusNode,
+                          autofocus: false,
+                          enabled: true,
+                          onChanged: (value) {
+                            setState(() {
+                              _searchQuery = value.toLowerCase();
+                            });
+                          },
+                          onTap: () {
+                            // Ensure focus is gained when tapped
+                            if (!_searchFocusNode.hasFocus) {
+                              _searchFocusNode.requestFocus();
+                            }
+                          },
+                          decoration: const InputDecoration(
+                            hintText: 'Search clubs...',
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 12,
+                            ),
+                            hintStyle: TextStyle(color: Color(0xFF6C757D)),
+                            prefixIcon: Icon(
+                              Icons.search,
+                              color: Color(0xFF6C757D),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Right clear button (only show when search has text)
+                  if (_isSearchFocused && _searchQuery.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    TextButton(
+                      onPressed: () {
+                        // Clear search field to show all clubs
+                        _searchController.clear();
+                        setState(() {
+                          _searchQuery = '';
+                        });
+                      },
+                      child: Text(
+                        'Clear',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: isDarkMode
+                              ? const Color(0xFFAAAAAA)
+                              : const Color(0xFF6C757D),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
 
-          // Content preview section (only show after selection)
-          if (_selectedClubIds.isNotEmpty) ...[
-            Container(height: 1, color: const Color(0xFFDEE2E6)),
-            Expanded(
-              flex: 2,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16.0),
-                child: _buildContentPreview(),
-              ),
-            ),
-          ],
+          // Footer overlay (on top, only when clubs selected)
+          if (_selectedClubIds.isNotEmpty) _buildBottomSection(),
         ],
       ),
-          
-      // Fixed footer with badges
-      if (_selectedClubIds.isNotEmpty) _buildBottomSection(),
-    ],
-    ),
     );
   }
 
@@ -216,10 +310,10 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
 
   Widget _buildUrlContent() {
     final url = widget.sharedContent.url ?? widget.sharedContent.text ?? '';
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     if (_isLoadingMetadata) {
       return Container(
-        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(8),
@@ -240,119 +334,113 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
     }
 
     if (_linkMetadata != null) {
-      return Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFDEE2E6)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image preview
-            if (_linkMetadata!.image != null &&
-                _linkMetadata!.image!.isNotEmpty)
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(8),
-                ),
-                child: Container(
-                  width: double.infinity,
-                  height: 160,
-                  child: Image.network(
-                    _linkMetadata!.image!,
-                    fit: BoxFit.cover,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Container(
-                        color: Colors.grey[200],
-                        child: const Center(child: CircularProgressIndicator()),
-                      );
-                    },
-                    errorBuilder: (context, error, stackTrace) => Container(
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Image preview (left column)
+          if (_linkMetadata!.image != null && _linkMetadata!.image!.isNotEmpty)
+            Container(
+              width: 80,
+              height: 80,
+              margin: const EdgeInsets.only(right: 12),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(2),
+                child: Image.network(
+                  _linkMetadata!.image!,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
                       color: Colors.grey[200],
-                      child: const Icon(Icons.link, size: 48),
+                      child: const Center(
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    color: Colors.grey[200],
+                    child: const Center(
+                      child: Icon(Icons.link, size: 24, color: Colors.grey),
                     ),
                   ),
                 ),
-              ),
-
-            // Content
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Title
-                  if (_linkMetadata!.title != null &&
-                      _linkMetadata!.title!.isNotEmpty)
-                    Text(
-                      _linkMetadata!.title!,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-
-                  // Description
-                  if (_linkMetadata!.description != null &&
-                      _linkMetadata!.description!.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      _linkMetadata!.description!,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                        height: 1.3,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-
-                  const SizedBox(height: 8),
-                  // URL with favicon
-                  Row(
-                    children: [
-                      if (_linkMetadata!.favicon != null &&
-                          _linkMetadata!.favicon!.isNotEmpty) ...[
-                        Container(
-                          width: 16,
-                          height: 16,
-                          margin: const EdgeInsets.only(right: 6),
-                          child: Image.network(
-                            _linkMetadata!.favicon!,
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) =>
-                                const Icon(Icons.language, size: 16),
-                          ),
-                        ),
-                      ] else ...[
-                        const Icon(Icons.language, size: 16),
-                        const SizedBox(width: 6),
-                      ],
-                      Expanded(
-                        child: Text(
-                          _linkMetadata!.url,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                            decoration: TextDecoration.underline,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
               ),
             ),
-          ],
-        ),
+
+          // Content (right column)
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Title
+                if (_linkMetadata!.title != null &&
+                    _linkMetadata!.title!.isNotEmpty)
+                  Text(
+                    _linkMetadata!.title!,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: isDarkMode ? Colors.white : Colors.black87,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+
+                // Description
+                if (_linkMetadata!.description != null &&
+                    _linkMetadata!.description!.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    _linkMetadata!.description!,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[600],
+                      height: 1.3,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+
+                const SizedBox(height: 8),
+                // URL with favicon
+                Row(
+                  children: [
+                    if (_linkMetadata!.favicon != null &&
+                        _linkMetadata!.favicon!.isNotEmpty) ...[
+                      Container(
+                        width: 14,
+                        height: 14,
+                        margin: const EdgeInsets.only(right: 6),
+                        child: Image.network(
+                          _linkMetadata!.favicon!,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(Icons.language, size: 14),
+                        ),
+                      ),
+                    ] else ...[
+                      const Icon(Icons.language, size: 14),
+                      const SizedBox(width: 6),
+                    ],
+                    Expanded(
+                      child: Text(
+                        Uri.decodeFull(_linkMetadata!.url),
+                        style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       );
     }
 
@@ -376,10 +464,9 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  url,
+                  Uri.decodeFull(url),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: const Color(0xFF06aeef),
-                    decoration: TextDecoration.underline,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -572,12 +659,13 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
         // Filter clubs based on search query
         final filteredClubs = clubs.where((membership) {
           final clubName = membership.club.name.toLowerCase();
-          final clubDescription = (membership.club.description ?? '').toLowerCase();
-          return _searchQuery.isEmpty || 
-                 clubName.contains(_searchQuery) || 
-                 clubDescription.contains(_searchQuery);
+          final clubDescription = (membership.club.description ?? '')
+              .toLowerCase();
+          return _searchQuery.isEmpty ||
+              clubName.contains(_searchQuery) ||
+              clubDescription.contains(_searchQuery);
         }).toList();
-        
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -592,14 +680,18 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
                     shape: BoxShape.circle,
                     color: Color(0xFF16a34a),
                   ),
-                  child: const Icon(Icons.public, color: Colors.white, size: 20),
+                  child: const Icon(
+                    Icons.public,
+                    color: Colors.white,
+                    size: 20,
+                  ),
                 ),
                 title: 'Everyone',
                 subtitle: 'Share with all your contacts',
                 isSelected: _selectedClubIds.contains('everyone'),
                 onTap: () => _toggleClubSelection('everyone'),
               ),
-            
+
             // Show filtered clubs
             if (filteredClubs.isNotEmpty) ...[
               // Header section
@@ -617,7 +709,7 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
               // Clubs list
               ...filteredClubs.map((club) {
                 final isSelected = _selectedClubIds.contains(club.club.id);
-                final canSelect = _selectedClubIds.length < 3 || isSelected;
+                final canSelect = _selectedClubIds.length < 5 || isSelected;
 
                 return _buildClubItem(
                   key: club.club.id,
@@ -661,11 +753,7 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
                 child: Center(
                   child: Column(
                     children: [
-                      Icon(
-                        Icons.search_off,
-                        size: 48,
-                        color: Colors.grey[400],
-                      ),
+                      Icon(Icons.search_off, size: 48, color: Colors.grey[400]),
                       const SizedBox(height: 16),
                       Text(
                         'No clubs found',
@@ -678,10 +766,7 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
                       const SizedBox(height: 4),
                       Text(
                         'Try a different search term',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[500],
-                        ),
+                        style: TextStyle(fontSize: 14, color: Colors.grey[500]),
                       ),
                     ],
                   ),
@@ -702,6 +787,7 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
     required bool isSelected,
     VoidCallback? onTap,
   }) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -719,10 +805,10 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w400,
-                        color: Colors.black,
+                        color: isDarkMode ? Colors.white : Colors.black,
                       ),
                     ),
                     if (subtitle != null && subtitle.isNotEmpty)
@@ -769,7 +855,6 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
     );
   }
 
-
   void _showImageGallery(List<String> imagePaths, {int initialIndex = 0}) {
     showDialog(
       context: context,
@@ -812,119 +897,350 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
 
   Widget _buildBottomSection() {
     final clubProvider = Provider.of<ClubProvider>(context, listen: false);
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Positioned(
       left: 0,
       right: 0,
       bottom: 0,
       child: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Color(0xFFDEE2E6))),
+        decoration: BoxDecoration(
+          color: isDarkMode ? const Color(0xFF2C2C2E) : Colors.white,
+          border: Border(
+            top: BorderSide(
+              color: isDarkMode
+                  ? const Color(0xFF3A3A3C)
+                  : const Color(0xFFDEE2E6),
+              width: 1,
+            ),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isDarkMode ? Colors.black26 : Colors.black12,
+              offset: const Offset(0, -1),
+              blurRadius: 4,
+            ),
+          ],
         ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                // Scrollable badges
-                Expanded(
-                  child: SizedBox(
-                    height: 36,
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          // Everyone option
-                          if (_selectedClubIds.contains('everyone'))
-                            _buildScrollableBadge(
-                              name: 'Everyone',
-                              color: const Color(0xFF16a34a),
-                            ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Content preview section (part of footer)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
+              child: _buildContentPreview(),
+            ),
 
-                          // Selected clubs
-                          ...clubProvider.clubs
-                              .where(
-                                (membership) =>
-                                    _selectedClubIds.contains(membership.club.id),
-                              )
-                              .map(
-                                (membership) => _buildScrollableBadge(
-                                  name: membership.club.name,
-                                  color: const Color(0xFF06aeef),
-                                ),
+            // Divider between content and action area
+            Container(
+              height: 1,
+              color: isDarkMode
+                  ? const Color(0xFF3A3A3C)
+                  : const Color(0xFFDEE2E6),
+            ),
+
+            // Action area with badges and button
+            Padding(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, MediaQuery.of(context).padding.bottom > 0 ? 8 : 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Scrollable badges
+                  Expanded(
+                    child: SizedBox(
+                      height: 32,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            // Everyone option
+                            if (_selectedClubIds.contains('everyone'))
+                              _buildScrollableBadge(
+                                name: 'Everyone',
+                                color: const Color(0xFF16a34a),
                               ),
-                        ],
+
+                            // Selected clubs
+                            ...clubProvider.clubs
+                                .where(
+                                  (membership) => _selectedClubIds.contains(
+                                    membership.club.id,
+                                  ),
+                                )
+                                .map(
+                                  (membership) => _buildScrollableBadge(
+                                    name: membership.club.name,
+                                    color: const Color(0xFF06aeef),
+                                  ),
+                                ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
 
-                const SizedBox(width: 16),
+                  const SizedBox(width: 8),
 
-                // Next button
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF16a34a),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: GestureDetector(
-                    onTap: _isLoading ? null : _shareContent,
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text(
-                            'Next',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                  ),
-                ),
-              ],
+                  // Dynamic button based on content type
+                  _buildActionButton(),
+                ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildScrollableBadge({
-    required String name,
-    required Color color,
-  }) {
+  Widget _buildScrollableBadge({required String name, required Color color}) {
     return Container(
-      margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      height: 28,
+      margin: const EdgeInsets.only(right: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: color.withOpacity(0.3)),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withOpacity(0.4), width: 1),
       ),
-      child: Text(
-        name,
-        style: TextStyle(
-          color: color,
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
+      child: Center(
+        child: Text(
+          name,
+          style: TextStyle(
+            color: color,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            height: 1.0,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
         ),
       ),
     );
+  }
+
+  Widget _buildActionButton() {
+    // Different button styles based on content type
+    switch (widget.sharedContent.type) {
+      case SharedContentType.url:
+      case SharedContentType.image:
+      case SharedContentType.multipleImages:
+        // Send icon for URLs and media
+        return Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: const Color(0xFF003f9b),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(18),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(18),
+              onTap: _isLoading ? null : _shareContent,
+              child: Center(
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Icon(Icons.send, color: Colors.white, size: 18),
+              ),
+            ),
+          ),
+        );
+      case SharedContentType.text:
+      default:
+        // Next button for text
+        return Container(
+          height: 32,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0xFF16a34a),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: _isLoading ? null : _shareContent,
+              child: Center(
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text(
+                        'Next',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+              ),
+            ),
+          ),
+        );
+    }
+  }
+
+  void _showTextEditor() {
+    // Navigate to text editor screen
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => TextEditorScreen(
+          selectedClubIds: _selectedClubIds,
+          initialText: widget.sharedContent.text ?? '',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _sendToClubs() async {
+    setState(() => _isLoading = true);
+
+    try {
+      // Check if "Everyone" is selected
+      if (_selectedClubIds.contains('everyone')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Shared with everyone! (Feature coming soon)'),
+            backgroundColor: Color(0xFF16a34a),
+          ),
+        );
+        _navigateToClubsScreen();
+        return;
+      }
+
+      // Send to each selected club
+      int successCount = 0;
+      for (final clubId in _selectedClubIds) {
+        final success = await _sendMessageToClub(clubId);
+        if (success) successCount++;
+      }
+
+      if (mounted) {
+        if (successCount > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Content shared to $successCount of ${_selectedClubIds.length} clubs successfully!',
+              ),
+              backgroundColor: const Color(0xFF16a34a),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to share content to any clubs.'),
+              backgroundColor: Color(0xFFDC2626),
+            ),
+          );
+        }
+      }
+
+      _navigateToClubsScreen();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to share content. Please try again.'),
+            backgroundColor: Color(0xFFDC2626),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<bool> _sendMessageToClub(String clubId) async {
+    try {
+      Map<String, dynamic> messageData;
+
+      switch (widget.sharedContent.type) {
+        case SharedContentType.url:
+          // Send URL with metadata if available
+          messageData = {
+            'content':
+                widget.sharedContent.url ?? widget.sharedContent.text ?? '',
+            'type': 'url',
+            if (_linkMetadata != null) 'linkMeta': [_linkMetadata!.toJson()],
+          };
+          break;
+        case SharedContentType.text:
+          messageData = {
+            'content': widget.sharedContent.text ?? '',
+            'type': 'text',
+          };
+          break;
+        case SharedContentType.image:
+        case SharedContentType.multipleImages:
+          // For images, send as media message
+          messageData = {
+            'content': 'Shared images',
+            'type': 'media',
+            'media': widget.sharedContent.imagePaths
+                ?.map((path) => {'type': 'image', 'path': path})
+                .toList(),
+          };
+          break;
+        default:
+          messageData = {
+            'content': widget.sharedContent.displayText,
+            'type': 'text',
+          };
+      }
+
+      final response = await ChatApiService.sendMessage(clubId, messageData);
+      return response != null;
+    } catch (e) {
+      print('Error sending message to club $clubId: $e');
+      return false;
+    }
+  }
+
+  void _navigateToClubsScreen() {
+    // Navigate to clubs screen (main navigation)
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    // The main app should have bottom navigation to clubs tab
   }
 
   void _shareContent() {
     if (_selectedClubIds.isEmpty) return;
 
-    _showShareConfirmation();
+    // Handle different content types differently
+    switch (widget.sharedContent.type) {
+      case SharedContentType.url:
+        // For URLs, send directly to all selected clubs
+        _sendToClubs();
+        break;
+      case SharedContentType.text:
+        // For text, show editor screen
+        _showTextEditor();
+        break;
+      case SharedContentType.image:
+      case SharedContentType.multipleImages:
+        // For media, send directly with image preview
+        _sendToClubs();
+        break;
+      default:
+        _showShareConfirmation();
+    }
   }
 
   void _showShareConfirmation() {
