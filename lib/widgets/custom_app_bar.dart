@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import '../screens/news/notifications.dart';
 import '../screens/clubs/clubs.dart';
 
@@ -82,11 +83,14 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     // Check if we can actually go back
     final canGoBack = Navigator.of(context).canPop();
     final shouldShowBackButton = showBackButton && canGoBack;
+    final shouldShowDrawer = onDrawerTap != null && !shouldShowBackButton;
     
     return AppBar(
       backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
       elevation: 0,
       foregroundColor: Theme.of(context).appBarTheme.foregroundColor,
+      centerTitle: defaultTargetPlatform == TargetPlatform.iOS,
+      automaticallyImplyLeading: false,
       leading: shouldShowBackButton
           ? GestureDetector(
               onTap: () {
@@ -104,23 +108,25 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 size: 24,
               ),
             )
-          : GestureDetector(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                if (onDrawerTap != null) {
-                  onDrawerTap!();
-                } else {
-                  Scaffold.of(context).openDrawer();
-                }
-              },
-              child: Icon(
-                Icons.menu,
-                color: Theme.of(context).appBarTheme.foregroundColor,
-                size: 24,
-              ),
-            ),
+          : shouldShowDrawer
+              ? GestureDetector(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    if (onDrawerTap != null) {
+                      onDrawerTap!();
+                    } else {
+                      Scaffold.of(context).openDrawer();
+                    }
+                  },
+                  child: Icon(
+                    Icons.menu,
+                    color: Theme.of(context).appBarTheme.foregroundColor,
+                    size: 24,
+                  ),
+                )
+              : null,
       title: _buildTitle(context),
-      actions: customActions ?? _buildDefaultActions(context),
+      actions: _buildAllActions(context),
     );
   }
 
@@ -148,6 +154,20 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
       );
     }
+  }
+
+  List<Widget> _buildAllActions(BuildContext context) {
+    List<Widget> allActions = [];
+    
+    // Add custom actions first if they exist
+    if (customActions != null) {
+      allActions.addAll(customActions!);
+    }
+    
+    // Add default actions
+    allActions.addAll(_buildDefaultActions(context));
+    
+    return allActions;
   }
 
   List<Widget> _buildDefaultActions(BuildContext context) {
@@ -252,8 +272,138 @@ class DetailAppBar extends CustomAppBar {
     super.onBackTap,
     super.showNotifications = false,
     super.customActions,
+    bool showBackButton = true,
   }) : super(
           title: pageTitle,
-          showBackButton: true,
+          showBackButton: showBackButton,
         );
+}
+
+class CricketStyleAppBar extends StatelessWidget implements PreferredSizeWidget {
+  final String title;
+  final String? subtitle;
+  final IconData? leadingIcon;
+  final List<Widget>? customActions;
+  final VoidCallback? onSearchPressed;
+
+  const CricketStyleAppBar({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.leadingIcon,
+    this.customActions,
+    this.onSearchPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Theme.of(context).primaryColor,
+            Theme.of(context).primaryColorDark,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).primaryColor.withOpacity(0.3),
+            offset: Offset(0, 2),
+            blurRadius: 8,
+          ),
+        ],
+      ),
+      child: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        leading: leadingIcon != null 
+          ? IconButton(
+              icon: Icon(leadingIcon, color: Colors.white, size: 24),
+              onPressed: null, // Decorative only
+            )
+          : null,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+              ),
+            ),
+            if (subtitle != null)
+              Text(
+                subtitle!,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.8),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+          ],
+        ),
+        actions: _buildActions(context),
+      ),
+    );
+  }
+
+  List<Widget> _buildActions(BuildContext context) {
+    List<Widget> actions = [];
+
+    // Add custom actions first
+    if (customActions != null) {
+      for (Widget action in customActions!) {
+        // Style IconButtons as plain white icons without backgrounds
+        if (action is IconButton) {
+          actions.add(
+            IconButton(
+              onPressed: action.onPressed,
+              icon: Icon(
+                (action.icon as Icon).icon,
+                color: Colors.white,
+                size: 24,
+              ),
+              tooltip: action.tooltip,
+              padding: EdgeInsets.all(8),
+            ),
+          );
+        } else {
+          actions.add(action);
+        }
+      }
+    }
+
+    // Add search button if callback provided
+    if (onSearchPressed != null) {
+      actions.add(
+        Container(
+          margin: EdgeInsets.only(right: 8),
+          child: Material(
+            color: Colors.white.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(24),
+            child: InkWell(
+              onTap: onSearchPressed,
+              borderRadius: BorderRadius.circular(24),
+              child: Container(
+                width: 48,
+                height: 48,
+                child: Icon(Icons.search, color: Colors.white, size: 22),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return actions;
+  }
+
+  @override
+  Size get preferredSize => Size.fromHeight(kToolbarHeight);
 }

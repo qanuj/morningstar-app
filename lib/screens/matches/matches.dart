@@ -29,11 +29,13 @@ class _MatchesScreenState extends State<MatchesScreen> {
 
   Future<void> _checkCreatePermissions() async {
     if (widget.clubFilter == null) return;
-    
+
     setState(() => _isCheckingPermissions = true);
-    
+
     try {
-      final canCreate = await MatchService.canCreateMatches(widget.clubFilter!.id);
+      final canCreate = await MatchService.canCreateMatches(
+        widget.clubFilter!.id,
+      );
       if (mounted) {
         setState(() {
           _canCreateMatches = canCreate;
@@ -52,7 +54,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
 
   void _showCreateMatchDialog() {
     if (widget.clubFilter == null) return;
-    
+
     showDialog(
       context: context,
       builder: (context) => CreateMatchDialog(
@@ -72,18 +74,23 @@ class _MatchesScreenState extends State<MatchesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: PageAppBar(
-        pageName: widget.clubFilter != null
+      appBar: CricketStyleAppBar(
+        title: 'Duggy',
+        subtitle: widget.clubFilter != null
             ? '${widget.clubFilter!.name} Matches'
-            : 'Matches',
+            : 'Upcoming matches',
+        leadingIcon: Icons.sports_cricket,
         customActions: [
-          IconButton(
-            icon: Icon(
-              Icons.filter_list,
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.white.withOpacity(0.8)
-                  : Theme.of(context).primaryColor,
+          if (widget.clubFilter != null &&
+              !_isCheckingPermissions &&
+              _canCreateMatches)
+            IconButton(
+              icon: Icon(Icons.add),
+              onPressed: _showCreateMatchDialog,
+              tooltip: 'Create new match',
             ),
+          IconButton(
+            icon: Icon(Icons.filter_list),
             onPressed: _showFilterBottomSheet,
             tooltip: 'Filter matches',
           ),
@@ -94,15 +101,6 @@ class _MatchesScreenState extends State<MatchesScreen> {
         clubFilter: widget.clubFilter,
         showHeader: false,
       ),
-      floatingActionButton: widget.clubFilter != null && !_isCheckingPermissions && _canCreateMatches
-          ? FloatingActionButton.extended(
-              onPressed: _showCreateMatchDialog,
-              backgroundColor: Theme.of(context).primaryColor,
-              foregroundColor: Colors.white,
-              icon: Icon(Icons.add),
-              label: Text('Create Match'),
-            )
-          : null,
     );
   }
 }

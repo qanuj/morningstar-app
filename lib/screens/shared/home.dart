@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/conversation_provider.dart';
+import '../../providers/user_provider.dart';
 import '../clubs/clubs.dart';
 import '../matches/matches.dart';
 import '../wallet/transactions.dart';
@@ -145,18 +146,27 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         },
       ),
-      // Debug floating action button for testing sharing
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => const ShareTestScreen(),
-            ),
+      // Admin tools floating action button
+      floatingActionButton: Consumer<UserProvider>(
+        builder: (context, userProvider, child) {
+          // Only show for Admin users
+          if (userProvider.user?.role.toUpperCase() != 'ADMIN') {
+            return SizedBox.shrink();
+          }
+          
+          return FloatingActionButton(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const ShareTestScreen(),
+                ),
+              );
+            },
+            backgroundColor: const Color(0xFF003f9b),
+            tooltip: 'Admin Tools',
+            child: const Icon(Icons.build, color: Colors.white),
           );
         },
-        backgroundColor: const Color(0xFF003f9b),
-        tooltip: 'Test Sharing',
-        child: const Icon(Icons.share, color: Colors.white),
       ),
     );
   }

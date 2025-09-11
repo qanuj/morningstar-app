@@ -1,3 +1,4 @@
+import 'package:duggy/screens/news/notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -819,14 +820,14 @@ class _ConversationsAppBar extends StatelessWidget
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.chat_bubble_outline, color: Colors.white, size: 24),
-          onPressed: null, // Decorative only
+          icon: Icon(Icons.sports_cricket, color: Colors.white, size: 24),
+          onPressed: null, // Decorative Duggy logo
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Your Cricket',
+              'Duggy',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 24,
@@ -861,21 +862,21 @@ class _ConversationsAppBar extends StatelessWidget
           ],
         ),
         actions: [
-          Container(
-            margin: EdgeInsets.only(right: 8),
-            child: Material(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(24),
-              child: InkWell(
-                onTap: onSearchPressed,
-                borderRadius: BorderRadius.circular(24),
-                child: Container(
-                  width: 48,
-                  height: 48,
-                  child: Icon(Icons.search, color: Colors.white, size: 22),
+          IconButton(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => NotificationsScreen(),
                 ),
-              ),
+              );
+            },
+            icon: Icon(
+              Icons.notifications,
+              color: Colors.white,
+              size: 24,
             ),
+            tooltip: 'Notifications',
+            padding: EdgeInsets.all(8),
           ),
         ],
       ),

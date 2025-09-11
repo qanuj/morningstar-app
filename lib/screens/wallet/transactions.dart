@@ -203,7 +203,6 @@ class TransactionsScreenState extends State<TransactionsScreen> {
     _clubBalances = balances;
   }
 
-
   void _applyFilters() {
     _currentPage = 1;
     _hasMoreData = true;
@@ -261,15 +260,14 @@ class TransactionsScreenState extends State<TransactionsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: PageAppBar(
-        pageName: 'Wallet',
+      appBar: CricketStyleAppBar(
+        title: 'Duggy',
+        subtitle: 'Wallet & transactions',
+        leadingIcon: Icons.account_balance_wallet,
         customActions: [
           // Search toggle button
           IconButton(
-            icon: Icon(
-              _isSearchExpanded ? Icons.close : Icons.search,
-              color: Theme.of(context).appBarTheme.foregroundColor,
-            ),
+            icon: Icon(_isSearchExpanded ? Icons.close : Icons.search),
             onPressed: () {
               setState(() {
                 _isSearchExpanded = !_isSearchExpanded;
@@ -424,7 +422,9 @@ class TransactionsScreenState extends State<TransactionsScreen> {
                           listType: TransactionListType.my,
                           isLoadingMore: _isLoadingMore,
                           hasMoreData: _hasMoreData,
-                          currency: _clubBalances.isNotEmpty ? _clubBalances[_currentBalanceIndex]['currency'] : null,
+                          currency: _clubBalances.isNotEmpty
+                              ? _clubBalances[_currentBalanceIndex]['currency']
+                              : null,
                         ).buildTransactionListItems(context),
                       ],
                     ),
@@ -434,7 +434,6 @@ class TransactionsScreenState extends State<TransactionsScreen> {
       ),
     );
   }
-
 
   void _showFilterBottomSheet() {
     // Initialize temporary filters with current values
@@ -908,7 +907,6 @@ class TransactionsScreenState extends State<TransactionsScreen> {
     );
   }
 
-
   Widget _buildBalanceCard() {
     // Use actual user clubs from API, fallback to balance clubs if not loaded yet
     final userClubCount = _userClubs.isNotEmpty
@@ -1151,7 +1149,6 @@ class TransactionsScreenState extends State<TransactionsScreen> {
       ),
     );
   }
-
 
   Widget _buildClubFilterIndicator() {
     final currentClub = _clubBalances.firstWhere(

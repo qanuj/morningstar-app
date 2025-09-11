@@ -18,123 +18,262 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text('Share Test'),
+        title: Row(
+          children: [
+            Icon(Icons.build, size: 20),
+            SizedBox(width: 8),
+            Text('Admin Toolbox'),
+          ],
+        ),
         backgroundColor: const Color(0xFF003f9b),
         foregroundColor: Colors.white,
+        elevation: 0,
       ),
-      body: Center(
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Test Sharing Functionality',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            // Header
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.admin_panel_settings,
+                    size: 48,
+                    color: const Color(0xFF003f9b),
+                  ),
+                  SizedBox(height: 12),
+                  Text(
+                    'Admin Testing Tools',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF003f9b),
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Hidden toolbox for testing sharing functionality',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 40),
-
-            ElevatedButton(
-              onPressed: () => _testTextShare(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF003f9b),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 16,
+            
+            SizedBox(height: 24),
+            
+            // Content Sharing Tests
+            _buildToolSection(
+              title: 'Content Sharing Tests',
+              icon: Icons.share,
+              color: const Color(0xFF003f9b),
+              children: [
+                _buildToolButton(
+                  label: 'Test Text Share',
+                  icon: Icons.text_fields,
+                  onPressed: () => _testTextShare(context),
+                  color: const Color(0xFF003f9b),
                 ),
-              ),
-              child: const Text('Test Text Share'),
-            ),
-
-            const SizedBox(height: 20),
-
-            ElevatedButton(
-              onPressed: () => _testUrlShare(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF06aeef),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 16,
+                _buildToolButton(
+                  label: 'Test URL Share',
+                  icon: Icons.link,
+                  onPressed: () => _testUrlShare(context),
+                  color: const Color(0xFF06aeef),
                 ),
-              ),
-              child: const Text('Test URL Share'),
-            ),
-
-            const SizedBox(height: 20),
-
-            ElevatedButton(
-              onPressed: () => _testImageShare(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFf59e0b),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 16,
+                _buildToolButton(
+                  label: 'Test YouTube Video',
+                  icon: Icons.video_library,
+                  onPressed: () => _testVideoShare(context),
+                  color: const Color(0xFFdc2626),
                 ),
-              ),
-              child: const Text('Test Multiple Images'),
+              ],
             ),
-
-            const SizedBox(height: 20),
-
-            ElevatedButton(
-              onPressed: () => _testSingleImageShare(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFdc2626),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 16,
+            
+            SizedBox(height: 24),
+            
+            // Media Sharing Tests
+            _buildToolSection(
+              title: 'Media Sharing Tests',
+              icon: Icons.photo_library,
+              color: const Color(0xFFf59e0b),
+              children: [
+                _buildToolButton(
+                  label: 'Test Single Image',
+                  icon: Icons.image,
+                  onPressed: () => _testSingleImageShare(context),
+                  color: const Color(0xFFf59e0b),
                 ),
-              ),
-              child: const Text('Test Single Image'),
-            ),
-
-            const SizedBox(height: 20),
-
-            ElevatedButton(
-              onPressed: () => _testVideoShare(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFdc2626),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 16,
+                _buildToolButton(
+                  label: 'Test Multiple Images',
+                  icon: Icons.photo_library,
+                  onPressed: () => _testImageShare(context),
+                  color: const Color(0xFFf59e0b),
                 ),
-              ),
-              child: const Text('Test YouTube Video Share'),
+              ],
             ),
-
-            const SizedBox(height: 20),
-
-            ElevatedButton(
-              onPressed: () => _testRealSharing(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF16a34a),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 16,
+            
+            SizedBox(height: 24),
+            
+            // Advanced Testing
+            _buildToolSection(
+              title: 'Advanced Testing',
+              icon: Icons.science,
+              color: const Color(0xFF16a34a),
+              children: [
+                _buildToolButton(
+                  label: 'Test Real Share Flow',
+                  icon: Icons.rocket_launch,
+                  onPressed: () => _testRealSharing(context),
+                  color: const Color(0xFF16a34a),
                 ),
-              ),
-              child: const Text('Test Real Share Flow'),
+              ],
             ),
-
-            const SizedBox(height: 40),
-
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text(
-                'For iOS testing:\n'
-                '1. Use these buttons to simulate sharing\n'
-                '2. Or test URL scheme: duggy://share?text=Hello\n'
-                '3. Android sharing should work from any app',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
+            
+            SizedBox(height: 24),
+            
+            // Testing Instructions
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.shade200, width: 1),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
+                      SizedBox(width: 8),
+                      Text(
+                        'Testing Instructions',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 12),
+                  Text(
+                    '• Use these buttons to simulate different sharing scenarios\n'
+                    '• iOS: Test URL scheme duggy://share?text=Hello\n'
+                    '• Android: Sharing should work from any app\n'
+                    '• All tests work without external dependencies',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.blue.shade700,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
               ),
             ),
+            
+            SizedBox(height: 16),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildToolSection({
+    required String title,
+    required IconData icon,
+    required Color color,
+    required List<Widget> children,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: color, size: 20),
+                ),
+                SizedBox(width: 12),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              children: children,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToolButton({
+    required String label,
+    required IconData icon,
+    required VoidCallback onPressed,
+    required Color color,
+  }) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 18),
+        label: Text(label),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          elevation: 2,
         ),
       ),
     );
@@ -171,22 +310,10 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
         builder: (context) => ShareTargetScreen(sharedContent: sharedContent),
       ),
     );
-
-    // Show confirmation
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Testing YouTube video share - no app reload should occur!',
-        ),
-        backgroundColor: Color(0xFFdc2626),
-        duration: Duration(seconds: 3),
-      ),
-    );
   }
 
   void _testImageShare(BuildContext context) async {
     final navigator = Navigator.of(context);
-    final scaffold = ScaffoldMessenger.of(context);
 
     try {
       // Pick multiple images from gallery
@@ -209,32 +336,20 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
                 ShareTargetScreen(sharedContent: sharedContent),
           ),
         );
-
-        // Show success message with count
-        scaffold.showSnackBar(
-          SnackBar(
-            content: Text(
-              'Selected ${images.length} image${images.length == 1 ? '' : 's'} for sharing',
-            ),
-            backgroundColor: const Color(0xFF16a34a),
-            duration: const Duration(seconds: 2),
-          ),
-        );
       } else {
         // No images selected - create a mock image share for testing
-        _showMockImageShare(navigator, scaffold);
+        _showMockImageShare(navigator);
       }
     } catch (e) {
       // If image picker fails, show mock image share
       if (mounted) {
-        _showMockImageShare(navigator, scaffold);
+        _showMockImageShare(navigator);
       }
     }
   }
 
   void _testSingleImageShare(BuildContext context) async {
     final navigator = Navigator.of(context);
-    final scaffold = ScaffoldMessenger.of(context);
 
     try {
       // Pick a single image from gallery
@@ -256,31 +371,19 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
                 ShareTargetScreen(sharedContent: sharedContent),
           ),
         );
-
-        // Show success message
-        scaffold.showSnackBar(
-          const SnackBar(
-            content: Text('Selected 1 image for sharing'),
-            backgroundColor: Color(0xFF16a34a),
-            duration: Duration(seconds: 2),
-          ),
-        );
       } else {
         // No image selected - create a mock single image share for testing
-        _showMockSingleImageShare(navigator, scaffold);
+        _showMockSingleImageShare(navigator);
       }
     } catch (e) {
       // If image picker fails, show mock image share
       if (mounted) {
-        _showMockSingleImageShare(navigator, scaffold);
+        _showMockSingleImageShare(navigator);
       }
     }
   }
 
-  void _showMockSingleImageShare(
-    NavigatorState navigator,
-    ScaffoldMessengerState scaffold,
-  ) {
+  void _showMockSingleImageShare(NavigatorState navigator) {
     // Create a single mock image path for testing UI
     final mockImagePaths = ['/storage/emulated/0/Pictures/test_single_image.jpg'];
 
@@ -291,23 +394,9 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
         builder: (context) => ShareTargetScreen(sharedContent: sharedContent),
       ),
     );
-
-    // Show info that this is mock data
-    scaffold.showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Using mock data with 1 image for testing UI (image may not load)',
-        ),
-        backgroundColor: Color(0xFFf59e0b),
-        duration: Duration(seconds: 3),
-      ),
-    );
   }
 
-  void _showMockImageShare(
-    NavigatorState navigator,
-    ScaffoldMessengerState scaffold,
-  ) {
+  void _showMockImageShare(NavigatorState navigator) {
     // Create mock image paths for testing UI with multiple images
     final mockImagePaths = [
       '/storage/emulated/0/Pictures/test_image_1.jpg',
@@ -324,17 +413,6 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
         builder: (context) => ShareTargetScreen(sharedContent: sharedContent),
       ),
     );
-
-    // Show info that this is mock data
-    scaffold.showSnackBar(
-      SnackBar(
-        content: Text(
-          'Using mock data with ${mockImagePaths.length} images for testing UI (images may not load)',
-        ),
-        backgroundColor: const Color(0xFFf59e0b),
-        duration: const Duration(seconds: 3),
-      ),
-    );
   }
 
   void _testRealSharing(BuildContext context) {
@@ -344,16 +422,5 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
 
     // Simulate a real share by using the ShareHandlerService
     ShareHandlerService().simulateShare(sharedContent);
-
-    // Show confirmation
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Simulated real sharing! Check if ShareTargetScreen opens.',
-        ),
-        backgroundColor: Color(0xFF16a34a),
-        duration: Duration(seconds: 2),
-      ),
-    );
   }
 }

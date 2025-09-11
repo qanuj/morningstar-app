@@ -52,7 +52,11 @@ class ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: DetailAppBar(pageTitle: 'Profile'),
+      appBar: CricketStyleAppBar(
+        title: 'Duggy',
+        subtitle: 'Profile & settings',
+        leadingIcon: Icons.person,
+      ),
       body: Consumer2<UserProvider, ThemeProvider>(
         builder: (context, userProvider, themeProvider, child) {
           final user = userProvider.user;
@@ -436,7 +440,9 @@ class ProfileScreenState extends State<ProfileScreen> {
                         ),
                         SizedBox(height: 32),
                         Text(
-                          _appVersion.isNotEmpty ? 'Version: $_appVersion' : 'Version: Loading...',
+                          _appVersion.isNotEmpty
+                              ? 'Version: $_appVersion'
+                              : 'Version: Loading...',
                           style: TextStyle(
                             fontSize: 12,
                             color: Theme.of(
@@ -638,7 +644,6 @@ Download now and transform your cricket club experience!''';
       sharePositionOrigin: box!.localToGlobal(Offset.zero) & box.size,
     );
   }
-
 
   String _getThemeModeText(AppThemeMode mode) {
     switch (mode) {

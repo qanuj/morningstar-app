@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import '../../providers/club_provider.dart';
 import '../../models/club.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/svg_avatar.dart';
 import 'club_chat.dart';
+import 'create_club_screen.dart';
 
 class ClubsScreen extends StatefulWidget {
   const ClubsScreen({super.key});
@@ -35,7 +37,18 @@ class ClubsScreenState extends State<ClubsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: DetailAppBar(pageTitle: 'My Clubs'),
+      appBar: CricketStyleAppBar(
+        title: 'Duggy',
+        subtitle: 'Manage your clubs',
+        leadingIcon: Icons.groups,
+        customActions: [
+          IconButton(
+            icon: Icon(Icons.add),
+            onPressed: _showCreateClubDialog,
+            tooltip: 'Create new club',
+          ),
+        ],
+      ),
       body: Consumer<ClubProvider>(
         builder: (context, clubProvider, child) {
           return RefreshIndicator(
@@ -283,5 +296,11 @@ class ClubsScreenState extends State<ClubsScreen> {
     Navigator.of(
       context,
     ).push(MaterialPageRoute(builder: (_) => ClubChatScreen(club: club)));
+  }
+
+  void _showCreateClubDialog() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => CreateClubScreen()));
   }
 }
