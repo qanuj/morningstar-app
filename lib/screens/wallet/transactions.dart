@@ -262,7 +262,7 @@ class TransactionsScreenState extends State<TransactionsScreen> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: CricketStyleAppBar(
         title: 'Duggy',
-        subtitle: 'Wallet & transactions',
+        subtitle: 'Kitty & transactions',
         leadingIcon: Icons.account_balance_wallet,
         customActions: [
           // Search toggle button

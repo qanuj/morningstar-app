@@ -9,13 +9,13 @@ class TransactionProvider with ChangeNotifier {
   String _selectedPeriod = 'all';
   String _searchQuery = '';
   String? _selectedClubId;
-  
+
   // Summary data
   double _totalCredits = 0.0;
   double _totalDebits = 0.0;
   double _netBalance = 0.0;
   int _totalTransactions = 0;
-  
+
   // Pagination
   int _currentPage = 1;
   int _totalPages = 1;
@@ -28,12 +28,12 @@ class TransactionProvider with ChangeNotifier {
   String get selectedPeriod => _selectedPeriod;
   String get searchQuery => _searchQuery;
   String? get selectedClubId => _selectedClubId;
-  
+
   double get totalCredits => _totalCredits;
   double get totalDebits => _totalDebits;
   double get netBalance => _netBalance;
   int get totalTransactions => _totalTransactions;
-  
+
   int get currentPage => _currentPage;
   int get totalPages => _totalPages;
   bool get hasNextPage => _hasNextPage;
@@ -102,11 +102,11 @@ class TransactionProvider with ChangeNotifier {
           .join('&');
 
       final response = await ApiService.get('/transactions?$queryString');
-      
+
       _transactions = (response['transactions'] as List)
           .map((tx) => Transaction.fromJson(tx))
           .toList();
-      
+
       // Update pagination info
       final pagination = response['pagination'];
       _currentPage = pagination['currentPage'];
@@ -156,7 +156,7 @@ class TransactionProvider with ChangeNotifier {
       case 'ORDER':
         return 'Store Order';
       case 'CLUB_TOPUP':
-        return 'Wallet Top-up';
+        return 'Kitty Top-up';
       default:
         return 'Other';
     }

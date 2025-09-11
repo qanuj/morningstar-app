@@ -5,9 +5,9 @@ import '../utils/theme.dart';
 import 'svg_avatar.dart';
 
 enum TransactionListType {
-  my,       // Show club avatars with transaction badges (user's wallet view)
-  club,     // Show user avatars when available (club's all transactions view)
-  member,   // Show transaction purpose badges only (member's transactions view)
+  my, // Show club avatars with transaction badges (user's wallet view)
+  club, // Show user avatars when available (club's all transactions view)
+  member, // Show transaction purpose badges only (member's transactions view)
 }
 
 class TransactionsListWidget extends StatelessWidget {
@@ -44,7 +44,7 @@ class TransactionsListWidget extends StatelessWidget {
 
   List<Widget> buildTransactionListItems(BuildContext context) {
     final List<Widget> items = [];
-    
+
     if (showDateHeaders) {
       final groupedTransactions = _groupTransactionsByDate(transactions);
       final sortedDateKeys = groupedTransactions.keys.toList()
@@ -78,7 +78,9 @@ class TransactionsListWidget extends StatelessWidget {
     return items;
   }
 
-  Map<String, List<Transaction>> _groupTransactionsByDate(List<Transaction> transactions) {
+  Map<String, List<Transaction>> _groupTransactionsByDate(
+    List<Transaction> transactions,
+  ) {
     final Map<String, List<Transaction>> groupedTransactions = {};
 
     for (final transaction in transactions) {
@@ -136,7 +138,9 @@ class TransactionsListWidget extends StatelessWidget {
     final icon = _getTransactionIcon(transaction.purpose);
 
     return GestureDetector(
-      onTap: onTransactionTap != null ? () => onTransactionTap!(transaction) : null,
+      onTap: onTransactionTap != null
+          ? () => onTransactionTap!(transaction)
+          : null,
       child: Container(
         margin: margin ?? EdgeInsets.only(bottom: 8, left: 12, right: 12),
         decoration: BoxDecoration(
@@ -185,7 +189,9 @@ class TransactionsListWidget extends StatelessWidget {
                       padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: Theme.of(context).brightness == Brightness.dark
-                            ? Theme.of(context).colorScheme.onSurface.withOpacity(0.15)
+                            ? Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withOpacity(0.15)
                             : Theme.of(context).primaryColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(6),
                       ),
@@ -193,7 +199,9 @@ class TransactionsListWidget extends StatelessWidget {
                         _getPurposeText(transaction.purpose),
                         style: TextStyle(
                           color: Theme.of(context).brightness == Brightness.dark
-                              ? Theme.of(context).colorScheme.onSurface.withOpacity(0.9)
+                              ? Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withOpacity(0.9)
                               : Theme.of(context).primaryColor,
                           fontSize: 12,
                           fontWeight: FontWeight.w400,
@@ -214,7 +222,9 @@ class TransactionsListWidget extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w400,
-                      color: isCredit ? AppTheme.successGreen : AppTheme.errorRed,
+                      color: isCredit
+                          ? AppTheme.successGreen
+                          : AppTheme.errorRed,
                     ),
                   ),
                   SizedBox(height: 2),
@@ -234,7 +244,12 @@ class TransactionsListWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildTransactionAvatar(BuildContext context, Transaction transaction, bool isCredit, IconData icon) {
+  Widget _buildTransactionAvatar(
+    BuildContext context,
+    Transaction transaction,
+    bool isCredit,
+    IconData icon,
+  ) {
     switch (listType) {
       case TransactionListType.my:
         // Show club avatar with transaction badge
@@ -280,11 +295,12 @@ class TransactionsListWidget extends StatelessWidget {
         return Stack(
           children: [
             SVGAvatar(
-              imageUrl: transaction.user?.profilePicture ?? transaction.club?.logo,
+              imageUrl:
+                  transaction.user?.profilePicture ?? transaction.club?.logo,
               size: 40,
               backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
-              fallbackIcon: transaction.user?.profilePicture != null 
-                  ? Icons.person 
+              fallbackIcon: transaction.user?.profilePicture != null
+                  ? Icons.person
                   : Icons.account_balance,
               iconSize: 24,
             ),
@@ -321,8 +337,8 @@ class TransactionsListWidget extends StatelessWidget {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: isCredit 
-                ? AppTheme.successGreen.withOpacity(0.1) 
+            color: isCredit
+                ? AppTheme.successGreen.withOpacity(0.1)
                 : AppTheme.errorRed.withOpacity(0.1),
             shape: BoxShape.circle,
             border: Border.all(
@@ -446,7 +462,7 @@ class TransactionsListWidget extends StatelessWidget {
       case 'ORDER':
         return 'Store Order';
       case 'CLUB_TOPUP':
-        return 'Wallet Top-up';
+        return 'Kitty Top-up';
       case 'GENERAL_EXPENSE':
         return 'General Expense';
       case 'MANUAL_ADJUSTMENT':

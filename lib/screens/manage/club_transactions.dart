@@ -9,10 +9,7 @@ import '../../models/transaction.dart';
 class ClubTransactionsScreen extends StatefulWidget {
   final dynamic club; // Using dynamic to avoid dependency issues for now
 
-  const ClubTransactionsScreen({
-    super.key,
-    required this.club,
-  });
+  const ClubTransactionsScreen({super.key, required this.club});
 
   @override
   ClubTransactionsScreenState createState() => ClubTransactionsScreenState();
@@ -25,7 +22,7 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
   String _selectedPeriod = 'all';
   String _searchQuery = '';
   bool _showSearch = false;
-  
+
   // API Response data
   Map<String, dynamic> _summaryByCurrency = {};
   Map<String, dynamic> _pagination = {
@@ -33,9 +30,9 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
     'totalPages': 1,
     'totalCount': 0,
     'hasNextPage': false,
-    'hasPrevPage': false
+    'hasPrevPage': false,
   };
-  
+
   int _currentPage = 1;
   final int _itemsPerPage = 20;
   final ScrollController _scrollController = ScrollController();
@@ -54,7 +51,8 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
       if (!_isLoadingMore && _pagination['hasNextPage'] == true) {
         _loadMoreTransactions();
       }
@@ -68,9 +66,9 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
         _transactions.clear();
       });
     }
-    
+
     setState(() => _isLoading = true);
-    
+
     try {
       // Build API endpoint with query parameters for club transactions
       final params = {
@@ -78,31 +76,35 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
         'limit': _itemsPerPage.toString(),
         'all': 'true', // Get all club transactions for admin view
       };
-      
+
       if (_selectedPeriod != 'all') {
         params['period'] = _selectedPeriod;
       }
       if (_searchQuery.isNotEmpty) {
         params['search'] = _searchQuery;
       }
-      
+
       final queryString = params.entries
           .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
           .join('&');
-      
-      final response = await ApiService.get('/clubs/${widget.club.id}/transactions?$queryString');
-      
+
+      final response = await ApiService.get(
+        '/clubs/${widget.club.id}/transactions?$queryString',
+      );
+
       if (response['transactions'] != null) {
         final List<dynamic> transactionData = response['transactions'];
-        final newTransactions = transactionData.map((data) => Transaction.fromJson(data)).toList();
-        
+        final newTransactions = transactionData
+            .map((data) => Transaction.fromJson(data))
+            .toList();
+
         setState(() {
           if (isRefresh || _currentPage == 1) {
             _transactions = newTransactions;
           } else {
             _transactions.addAll(newTransactions);
           }
-          
+
           _pagination = response['pagination'] ?? _pagination;
           _summaryByCurrency = response['summary']?['byCurrency'] ?? {};
         });
@@ -122,7 +124,7 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
 
   Future<void> _loadMoreTransactions() async {
     if (_isLoadingMore || _pagination['hasNextPage'] != true) return;
-    
+
     setState(() => _isLoadingMore = true);
     _currentPage++;
     await _loadTransactions();
@@ -140,11 +142,7 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
         purpose: 'Membership Fee',
         description: 'Monthly membership fee from John Doe',
         createdAt: DateTime.now().subtract(Duration(hours: 2)),
-        user: UserModel(
-          id: 'M001',
-          name: 'John Doe',
-          profilePicture: null,
-        ),
+        user: UserModel(id: 'M001', name: 'John Doe', profilePicture: null),
         club: ClubModel(
           id: widget.club.id,
           name: widget.club.name,
@@ -187,12 +185,10 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
   @override
   Widget build(BuildContext context) {
     final currency = widget.club.membershipFeeCurrency ?? 'INR';
-    final summary = _summaryByCurrency[currency] ?? {
-      'totalCredits': 0.0,
-      'totalDebits': 0.0,
-      'netBalance': 0.0
-    };
-    
+    final summary =
+        _summaryByCurrency[currency] ??
+        {'totalCredits': 0.0, 'totalDebits': 0.0, 'netBalance': 0.0};
+
     final totalCredit = summary['totalCredits']?.toDouble() ?? 0.0;
     final totalDebit = summary['totalDebits']?.toDouble() ?? 0.0;
     final netBalance = summary['netBalance']?.toDouble() ?? 0.0;
@@ -214,7 +210,10 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
               height: 36,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.3),
+                  width: 1,
+                ),
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(18),
@@ -253,7 +252,10 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
         ),
         actions: [
           IconButton(
-            icon: Icon(_showSearch ? Icons.search_off : Icons.search, color: Colors.white),
+            icon: Icon(
+              _showSearch ? Icons.search_off : Icons.search,
+              color: Colors.white,
+            ),
             onPressed: () {
               setState(() {
                 _showSearch = !_showSearch;
@@ -330,8 +332,12 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
                       });
                       _loadTransactions();
                     },
-                    backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
-                    labelStyle: TextStyle(color: Theme.of(context).primaryColor),
+                    backgroundColor: Theme.of(
+                      context,
+                    ).primaryColor.withOpacity(0.1),
+                    labelStyle: TextStyle(
+                      color: Theme.of(context).primaryColor,
+                    ),
                   ),
                 ],
               ),
@@ -386,17 +392,22 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.w400,
-                                    color: Theme.of(context).textTheme.titleLarge?.color,
+                                    color: Theme.of(
+                                      context,
+                                    ).textTheme.titleLarge?.color,
                                   ),
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  _searchQuery.isNotEmpty || _selectedPeriod != 'all'
+                                  _searchQuery.isNotEmpty ||
+                                          _selectedPeriod != 'all'
                                       ? 'Try adjusting your filters or search query'
                                       : 'Club transactions will appear here',
                                   style: TextStyle(
                                     fontSize: 16,
-                                    color: Theme.of(context).textTheme.bodySmall?.color,
+                                    color: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall?.color,
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
@@ -426,7 +437,12 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
     );
   }
 
-  Widget _buildBalanceCard(String currency, double totalCredits, double totalDebits, double netBalance) {
+  Widget _buildBalanceCard(
+    String currency,
+    double totalCredits,
+    double totalDebits,
+    double netBalance,
+  ) {
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
@@ -454,11 +470,15 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
                   height: 24,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.3),
+                      width: 1,
+                    ),
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: widget.club.logo != null && widget.club.logo!.isNotEmpty
+                    child:
+                        widget.club.logo != null && widget.club.logo!.isNotEmpty
                         ? _buildSmallClubLogo()
                         : _buildSmallDefaultClubLogo(),
                   ),
@@ -479,7 +499,7 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
               ],
             ),
             SizedBox(height: 12),
-            
+
             // Balance Amount
             Text(
               _formatCurrency(netBalance, currency),
@@ -497,7 +517,7 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
               ),
             ),
             SizedBox(height: 12),
-            
+
             // Credits and Debits Row
             Row(
               children: [
@@ -558,7 +578,7 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
 
   Widget _buildSmallClubLogo() {
     // Check if the URL is an SVG
-    if (widget.club.logo!.toLowerCase().contains('.svg') || 
+    if (widget.club.logo!.toLowerCase().contains('.svg') ||
         widget.club.logo!.toLowerCase().contains('svg?')) {
       return SvgPicture.network(
         widget.club.logo!,
@@ -613,8 +633,6 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
         return 'All Time';
     }
   }
-
-
 
   Widget _buildDateHeader(String dateKey) {
     final date = DateTime.parse(dateKey);
@@ -689,8 +707,12 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
                 SVGAvatar(
                   imageUrl: transaction.user?.profilePicture,
                   size: 40,
-                  backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
-                  fallbackIcon: transaction.user != null ? Icons.person : Icons.account_balance,
+                  backgroundColor: Theme.of(
+                    context,
+                  ).primaryColor.withOpacity(0.1),
+                  fallbackIcon: transaction.user != null
+                      ? Icons.person
+                      : Icons.account_balance,
                   iconSize: 24,
                 ),
                 // Transaction Badge
@@ -722,7 +744,7 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    transaction.user != null 
+                    transaction.user != null
                         ? transaction.user!.name
                         : transaction.description,
                     maxLines: 1,
@@ -753,7 +775,9 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
                     padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: Theme.of(context).brightness == Brightness.dark
-                          ? Theme.of(context).colorScheme.onSurface.withOpacity(0.15)
+                          ? Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withOpacity(0.15)
                           : Theme.of(context).primaryColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(6),
                     ),
@@ -761,7 +785,9 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
                       _getPurposeText(transaction.purpose),
                       style: TextStyle(
                         color: Theme.of(context).brightness == Brightness.dark
-                            ? Theme.of(context).colorScheme.onSurface.withOpacity(0.9)
+                            ? Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withOpacity(0.9)
                             : Theme.of(context).primaryColor,
                         fontSize: 12,
                         fontWeight: FontWeight.w400,
@@ -854,13 +880,11 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
       case 'ORDER':
         return 'Store Order';
       case 'CLUB_TOPUP':
-        return 'Wallet Top-up';
+        return 'Kitty Top-up';
       default:
         return 'Other';
     }
   }
-
-
 
   void _showFilterDialog() {
     showDialog(
@@ -924,7 +948,7 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
 
   Widget _buildClubLogo() {
     // Check if the URL is an SVG
-    if (widget.club.logo!.toLowerCase().contains('.svg') || 
+    if (widget.club.logo!.toLowerCase().contains('.svg') ||
         widget.club.logo!.toLowerCase().contains('svg?')) {
       return SvgPicture.network(
         widget.club.logo!,

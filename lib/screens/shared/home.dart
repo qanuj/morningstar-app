@@ -48,51 +48,13 @@ class _HomeScreenState extends State<HomeScreen> {
     HapticFeedback.lightImpact();
   }
 
-  Widget _buildConversationIcon(int unreadCount, bool isActive) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Icon(
-          isActive ? Icons.chat : Icons.chat_outlined,
-        ),
-        if (unreadCount > 0)
-          Positioned(
-            right: -6,
-            top: -6,
-            child: Container(
-              padding: EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: Colors.red,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Theme.of(context).scaffoldBackgroundColor,
-                  width: 1,
-                ),
-              ),
-              constraints: BoxConstraints(
-                minWidth: 16,
-                minHeight: 16,
-              ),
-              child: Text(
-                unreadCount > 99 ? '99+' : unreadCount.toString(),
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
-      ],
-    );
-  }
 
   Widget _buildProfileIcon(UserProvider userProvider, bool isActive) {
     final user = userProvider.user;
     
-    return SVGAvatar.small(
+    return SVGAvatar(
       imageUrl: user?.profilePicture,
+      size: 32,
       backgroundColor: isActive 
           ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
           : Theme.of(context).colorScheme.surfaceVariant,
@@ -100,6 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ? Theme.of(context).colorScheme.primary 
           : Theme.of(context).bottomNavigationBarTheme.unselectedItemColor,
       fallbackIcon: isActive ? Icons.person : Icons.person_outline,
+      iconSize: 18,
     );
   }
 
@@ -112,8 +75,8 @@ class _HomeScreenState extends State<HomeScreen> {
         index: _selectedIndex,
         children: _screens,
       ),
-      bottomNavigationBar: Consumer2<ConversationProvider, UserProvider>(
-        builder: (context, conversationProvider, userProvider, child) {
+      bottomNavigationBar: Consumer<UserProvider>(
+        builder: (context, userProvider, child) {
           return BottomNavigationBar(
             currentIndex: _selectedIndex,
             onTap: _onBottomNavTap,
@@ -136,24 +99,24 @@ class _HomeScreenState extends State<HomeScreen> {
             elevation: 10,
             items: [
               BottomNavigationBarItem(
-                icon: _buildConversationIcon(conversationProvider.totalUnreadCount, false),
-                activeIcon: _buildConversationIcon(conversationProvider.totalUnreadCount, true),
-                label: 'News',
+                icon: Icon(Icons.home_outlined, size: 32),
+                activeIcon: Icon(Icons.home, size: 32),
+                label: 'Home',
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.group_outlined),
-                activeIcon: Icon(Icons.group),
+                icon: Icon(Icons.group_outlined, size: 32),
+                activeIcon: Icon(Icons.group, size: 32),
                 label: 'Clubs',
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.sports_cricket_outlined),
-                activeIcon: Icon(Icons.sports_cricket),
+                icon: Icon(Icons.sports_cricket_outlined, size: 32),
+                activeIcon: Icon(Icons.sports_cricket, size: 32),
                 label: 'Matches',
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.account_balance_wallet_outlined),
-                activeIcon: Icon(Icons.account_balance_wallet),
-                label: 'Wallet',
+                icon: Icon(Icons.account_balance_wallet_outlined, size: 32),
+                activeIcon: Icon(Icons.account_balance_wallet, size: 32),
+                label: 'Kitty',
               ),
               BottomNavigationBarItem(
                 icon: _buildProfileIcon(userProvider, false),
