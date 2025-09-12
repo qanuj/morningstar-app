@@ -11,8 +11,7 @@ import '../matches/matches.dart';
 import '../wallet/transactions.dart';
 import '../settings/profile.dart';
 import '../social/social_feed_screen.dart';
-import '../debug/share_test_screen.dart';
-import '../qr_scanner_screen.dart';
+import '../../debug/share_test_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -63,41 +62,6 @@ class _HomeScreenState extends State<HomeScreen> {
           : Theme.of(context).bottomNavigationBarTheme.unselectedItemColor,
       fallbackIcon: LucideIcons.user,
       iconSize: 18,
-    );
-  }
-
-  Widget _buildAdminSpeedDial() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        FloatingActionButton(
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => const ShareTestScreen(),
-              ),
-            );
-          },
-          backgroundColor: Colors.grey[700],
-          tooltip: 'Admin Tools',
-          heroTag: "admin_tools",
-          child: const Icon(LucideIcons.settings, color: Colors.white, size: 20),
-        ),
-        SizedBox(height: 16),
-        FloatingActionButton(
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => const QRScannerScreen(),
-              ),
-            );
-          },
-          backgroundColor: const Color(0xFF003f9b),
-          tooltip: 'Scan QR Code',
-          heroTag: "qr_scanner",
-          child: const Icon(LucideIcons.qrCode, color: Colors.white),
-        ),
-      ],
     );
   }
 
@@ -159,29 +123,34 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         },
       ),
-      // QR Scanner and Admin tools floating action button
+      // Admin tools floating action button (admin only)
       floatingActionButton: Consumer<UserProvider>(
         builder: (context, userProvider, child) {
           final isAdmin = userProvider.user?.role.toUpperCase() == 'ADMIN';
-          
-          // For admin users, show speed dial with both options
+
+          // Only show admin tools for admin users
           if (isAdmin) {
-            return _buildAdminSpeedDial();
+            return FloatingActionButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const ShareTestScreen(),
+                  ),
+                );
+              },
+              backgroundColor: Colors.grey[700],
+              tooltip: 'Admin Tools',
+              heroTag: "admin_tools",
+              child: const Icon(
+                LucideIcons.settings,
+                color: Colors.white,
+                size: 20,
+              ),
+            );
           }
-          
-          // For regular users, show QR scanner button
-          return FloatingActionButton(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const QRScannerScreen(),
-                ),
-              );
-            },
-            backgroundColor: const Color(0xFF003f9b),
-            tooltip: 'Scan QR Code',
-            child: const Icon(LucideIcons.qrCode, color: Colors.white),
-          );
+
+          // No floating action button for regular users
+          return const SizedBox.shrink();
         },
       ),
     );

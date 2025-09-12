@@ -1,11 +1,11 @@
 // lib/screens/debug/share_test_screen.dart
 
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import '../shared/share_target_screen.dart';
-import '../../models/shared_content.dart';
-import '../../services/share_handler_service.dart';
+import '../screens/shared/share_target_screen.dart';
+import '../models/shared_content.dart';
+import '../services/share_handler_service.dart';
+import '../screens/qr_scanner.dart';
 
 class ShareTestScreen extends StatefulWidget {
   const ShareTestScreen({super.key});
@@ -69,18 +69,15 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
                   SizedBox(height: 8),
                   Text(
                     'Hidden toolbox for testing sharing functionality',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                     textAlign: TextAlign.center,
                   ),
                 ],
               ),
             ),
-            
+
             SizedBox(height: 24),
-            
+
             // Content Sharing Tests
             _buildToolSection(
               title: 'Content Sharing Tests',
@@ -107,9 +104,9 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
                 ),
               ],
             ),
-            
+
             SizedBox(height: 24),
-            
+
             // Media Sharing Tests
             _buildToolSection(
               title: 'Media Sharing Tests',
@@ -130,9 +127,26 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
                 ),
               ],
             ),
-            
+
             SizedBox(height: 24),
-            
+
+            // QR Tools
+            _buildToolSection(
+              title: 'QR Code Tools',
+              icon: Icons.qr_code,
+              color: const Color(0xFF8B5CF6),
+              children: [
+                _buildToolButton(
+                  label: 'QR Code Scanner (Raw JSON)',
+                  icon: Icons.qr_code_scanner,
+                  onPressed: () => _scanQRCode(context),
+                  color: const Color(0xFF8B5CF6),
+                ),
+              ],
+            ),
+
+            SizedBox(height: 24),
+
             // Advanced Testing
             _buildToolSection(
               title: 'Advanced Testing',
@@ -147,9 +161,9 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
                 ),
               ],
             ),
-            
+
             SizedBox(height: 24),
-            
+
             // Testing Instructions
             Container(
               padding: const EdgeInsets.all(16),
@@ -163,7 +177,11 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
+                      Icon(
+                        Icons.info_outline,
+                        color: Colors.blue.shade700,
+                        size: 20,
+                      ),
                       SizedBox(width: 8),
                       Text(
                         'Testing Instructions',
@@ -189,7 +207,7 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
                 ],
               ),
             ),
-            
+
             SizedBox(height: 16),
           ],
         ),
@@ -244,9 +262,7 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Column(
-              children: children,
-            ),
+            child: Column(children: children),
           ),
         ],
       ),
@@ -270,9 +286,7 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
           backgroundColor: color,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           elevation: 2,
         ),
       ),
@@ -303,7 +317,9 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
 
   void _testVideoShare(BuildContext context) {
     // Test with a YouTube video URL like the user mentioned
-    final sharedContent = SharedContent.fromText('https://youtube.com/watch?v=dQw4w9WgXcQ');
+    final sharedContent = SharedContent.fromText(
+      'https://youtube.com/watch?v=dQw4w9WgXcQ',
+    );
 
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -385,7 +401,9 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
 
   void _showMockSingleImageShare(NavigatorState navigator) {
     // Create a single mock image path for testing UI
-    final mockImagePaths = ['/storage/emulated/0/Pictures/test_single_image.jpg'];
+    final mockImagePaths = [
+      '/storage/emulated/0/Pictures/test_single_image.jpg',
+    ];
 
     final sharedContent = SharedContent.fromImages(mockImagePaths);
 
@@ -422,5 +440,89 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
 
     // Simulate a real share by using the ShareHandlerService
     ShareHandlerService().simulateShare(sharedContent);
+  }
+
+  void _scanQRCode(BuildContext context) async {
+    try {
+      final String? qrData = await Navigator.of(context).push<String>(
+        MaterialPageRoute(
+          builder: (context) =>
+              const QRScanner(title: 'QR Code Scanner (Debug)'),
+        ),
+      );
+
+      print('QR Scan Result: $qrData');
+
+      if (qrData != null && mounted) {
+        // Show the raw JSON data in a native alert dialog that auto-closes
+        showDialog(
+          context: this.context,
+          builder: (BuildContext dialogContext) {
+            return AlertDialog(
+              title: Row(
+                children: [
+                  Icon(Icons.qr_code, color: const Color(0xFF8B5CF6)),
+                  SizedBox(width: 8),
+                  Text('QR Code Data'),
+                ],
+              ),
+              content: Container(
+                width: double.maxFinite,
+                constraints: BoxConstraints(maxHeight: 400),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Raw Data:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey[300]!),
+                        ),
+                        child: SelectableText(
+                          qrData,
+                          style: TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 12,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: Text('Close Now'),
+                ),
+              ],
+            );
+          },
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(this.context).showSnackBar(
+          SnackBar(
+            content: Text('Error scanning QR code: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../models/club.dart';
+import '../widgets/svg_avatar.dart';
 
 class ClubInviteQRScreen extends StatelessWidget {
   final Club club;
@@ -77,52 +77,13 @@ class ClubInviteQRScreen extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // Club logo
-                    if (club.logo != null && club.logo!.isNotEmpty)
-                      Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                          color: Colors.grey[100],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: CachedNetworkImage(
-                            imageUrl: club.logo!,
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => Container(
-                              color: Colors.grey[200],
-                              child: const Icon(
-                                Icons.sports_cricket,
-                                size: 30,
-                                color: Color(0xFF003f9b),
-                              ),
-                            ),
-                            errorWidget: (context, url, error) => Container(
-                              color: Colors.grey[200],
-                              child: const Icon(
-                                Icons.sports_cricket,
-                                size: 30,
-                                color: Color(0xFF003f9b),
-                              ),
-                            ),
-                          ),
-                        ),
-                      )
-                    else
-                      Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                          color: const Color(0xFF003f9b).withOpacity(0.1),
-                        ),
-                        child: const Icon(
-                          Icons.sports_cricket,
-                          size: 30,
-                          color: Color(0xFF003f9b),
-                        ),
-                      ),
+                    SVGAvatar(
+                      imageUrl: club.logo,
+                      size: 60,
+                      backgroundColor: const Color(0xFF003f9b).withOpacity(0.1),
+                      fallbackIcon: Icons.sports_cricket,
+                      iconSize: 30,
+                    ),
                     
                     const SizedBox(height: 12),
                     

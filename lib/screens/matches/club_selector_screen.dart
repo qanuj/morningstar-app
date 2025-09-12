@@ -1,9 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../models/club.dart';
 import '../../services/club_service.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/svg_avatar.dart';
-import '../club_qr_scanner.dart';
+import '../qr_scanner.dart';
 
 class ClubSelectorScreen extends StatefulWidget {
   final String title;
@@ -77,27 +78,38 @@ class _ClubSelectorScreenState extends State<ClubSelectorScreen>
 
   Future<void> _scanQRCode() async {
     try {
-      final Club? scannedClub = await Navigator.of(context).push<Club>(
+      final String? qrData = await Navigator.of(context).push<String>(
         MaterialPageRoute(
-          builder: (context) => const ClubQRScanner(),
+          builder: (context) => const QRScanner(title: 'Scan Club QR Code'),
         ),
       );
-      
-      if (scannedClub != null && mounted) {
-        // Check if this club should be excluded
-        if (scannedClub.id == widget.excludeClubId) {
+
+      if (qrData != null && mounted) {
+        final Club? parsedClub = _parseClubFromQRData(qrData);
+
+        if (parsedClub != null) {
+          // Check if this club should be excluded
+          if (parsedClub.id == widget.excludeClubId) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Cannot select this club'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+            return;
+          }
+
+          // Call the selection callback and close the screen
+          widget.onClubSelected(parsedClub);
+          Navigator.of(context).pop();
+        } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Cannot select this club'),
+              content: Text('QR code does not contain valid club information'),
               backgroundColor: Colors.orange,
             ),
           );
-          return;
         }
-        
-        // Call the selection callback and close the screen
-        widget.onClubSelected(scannedClub);
-        Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
@@ -109,6 +121,66 @@ class _ClubSelectorScreenState extends State<ClubSelectorScreen>
         );
       }
     }
+  }
+
+  Club? _parseClubFromQRData(String qrData) {
+    try {
+      final jsonData = json.decode(qrData);
+      if (jsonData is Map<String, dynamic>) {
+        final type = jsonData['type'] as String?;
+
+        if (type == 'club_invite') {
+          final clubId = jsonData['club_id'] as String?;
+          final clubName = jsonData['club_name'] as String?;
+
+          if (clubId != null && clubName != null) {
+            return Club(
+              id: clubId,
+              name: clubName,
+              isVerified: false,
+              membershipFee: 0.0,
+              membershipFeeCurrency: 'INR',
+              upiIdCurrency: 'INR',
+              owners: [],
+            );
+          }
+        } else if (type == 'club_info') {
+          final clubId = jsonData['id'] as String?;
+          final clubName = jsonData['name'] as String?;
+          final clubDescription = jsonData['description'] as String?;
+          final clubCity = jsonData['city'] as String?;
+          final clubState = jsonData['state'] as String?;
+          final clubCountry = jsonData['country'] as String?;
+          final clubLogo = jsonData['logo'] as String?;
+          final isVerified = jsonData['isVerified'] as bool? ?? false;
+          final contactPhone = jsonData['contactPhone'] as String?;
+          final contactEmail = jsonData['contactEmail'] as String?;
+
+          if (clubId != null && clubName != null) {
+            return Club(
+              id: clubId,
+              name: clubName,
+              description: clubDescription,
+              city: clubCity,
+              state: clubState,
+              country: clubCountry,
+              logo: clubLogo,
+              isVerified: isVerified,
+              contactPhone: contactPhone,
+              contactEmail: contactEmail,
+              membershipFee: 0.0,
+              membershipFeeCurrency: 'INR',
+              upiIdCurrency: 'INR',
+              owners: [],
+            );
+          }
+        }
+      }
+    } catch (e) {
+      // Not valid JSON
+    }
+
+    return null; // Could not parse club data
   }
 
   Widget _buildClubTile(Club club) {
@@ -202,7 +274,11 @@ class _ClubSelectorScreenState extends State<ClubSelectorScreen>
           return Center(child: CircularProgressIndicator());
         }
 
-        final myClubs = snapshot.data?.where((club) => club.id != widget.excludeClubId).toList() ?? [];
+        final myClubs =
+            snapshot.data
+                ?.where((club) => club.id != widget.excludeClubId)
+                .toList() ??
+            [];
 
         if (myClubs.isEmpty) {
           return Center(
