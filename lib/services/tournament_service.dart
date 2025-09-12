@@ -113,6 +113,28 @@ class TournamentOrganizer {
 }
 
 class TournamentService {
+  /// Get tournaments for a club (owned tournaments)
+  static Future<List<Tournament>> getClubTournaments(String clubId) async {
+    try {
+      final response = await ApiService.get('/clubs/$clubId/tournaments');
+
+      if (response['tournaments'] is List) {
+        return (response['tournaments'] as List)
+            .map((json) => Tournament.fromJson(json as Map<String, dynamic>))
+            .toList();
+      } else if (response is List) {
+        return (response as List)
+            .map((json) => Tournament.fromJson(json as Map<String, dynamic>))
+            .toList();
+      }
+
+      return [];
+    } catch (e) {
+      print('Error fetching club tournaments: $e');
+      return [];
+    }
+  }
+
   /// Get participating tournaments for a club
   static Future<List<Tournament>> getParticipatingTournaments(String clubId) async {
     try {

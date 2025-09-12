@@ -17,202 +17,124 @@ class VenuePickerScreen extends StatefulWidget {
   State<VenuePickerScreen> createState() => _VenuePickerScreenState();
 }
 
-class _VenuePickerScreenState extends State<VenuePickerScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _VenuePickerScreenState extends State<VenuePickerScreen> {
   final TextEditingController _searchController = TextEditingController();
-  final ScrollController _popularScrollController = ScrollController();
-  final ScrollController _allVenuesScrollController = ScrollController();
+  final ScrollController _scrollController = ScrollController();
   
   List<Venue> _searchResults = [];
-  List<Venue> _popularVenues = [];
-  List<Venue> _allVenues = [];
+  List<Venue> _venues = [];
   
   bool _isSearching = false;
   bool _showSearch = false;
-  bool _isLoadingPopular = false;
-  bool _isLoadingAll = false;
-  bool _isLoadingMorePopular = false;
-  bool _isLoadingMoreAll = false;
-  bool _hasMorePopular = true;
-  bool _hasMoreAll = true;
+  bool _isLoading = false;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
   
-  int _popularOffset = 0;
-  int _allVenuesOffset = 0;
+  int _offset = 0;
   static const int _pageSize = 20;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _setupScrollListeners();
-    _loadPopularVenues();
-    _loadAllVenues();
+    _setupScrollListener();
+    _loadVenues();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
     _searchController.dispose();
-    _popularScrollController.dispose();
-    _allVenuesScrollController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  void _setupScrollListeners() {
-    _popularScrollController.addListener(() {
-      if (_popularScrollController.position.pixels >= 
-          _popularScrollController.position.maxScrollExtent - 200) {
-        _loadMorePopularVenues();
-      }
-    });
-
-    _allVenuesScrollController.addListener(() {
-      if (_allVenuesScrollController.position.pixels >= 
-          _allVenuesScrollController.position.maxScrollExtent - 200) {
-        _loadMoreAllVenues();
+  void _setupScrollListener() {
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >= 
+          _scrollController.position.maxScrollExtent - 200) {
+        _loadMoreVenues();
       }
     });
   }
 
-  Future<void> _loadPopularVenues({bool refresh = false}) async {
+  Future<void> _loadVenues({bool refresh = false}) async {
     if (refresh) {
       setState(() {
-        _popularOffset = 0;
-        _hasMorePopular = true;
-        _popularVenues.clear();
+        _offset = 0;
+        _hasMore = true;
+        _venues.clear();
       });
     }
 
-    if (_isLoadingPopular) return;
+    if (_isLoading) return;
 
-    setState(() => _isLoadingPopular = true);
+    setState(() => _isLoading = true);
 
     try {
-      final venues = await VenueService.getPopularVenues(
+      print('🏟️ VenuePicker _loadVenues - Calling VenueService.getAllVenues');
+      final venues = await VenueService.getAllVenues(
         limit: _pageSize,
-        offset: refresh ? 0 : _popularOffset,
+        offset: refresh ? 0 : _offset,
       );
+
+      print('🏟️ VenuePicker _loadVenues - Received ${venues.length} venues');
+      venues.forEach((venue) {
+        print('🏟️ Venue: ${venue.name} - ${venue.city} (Active: ${venue.isActive})');
+      });
 
       if (mounted) {
         setState(() {
           if (refresh) {
-            _popularVenues = venues;
+            _venues = venues;
+            print('🏟️ VenuePicker _loadVenues - Set _venues to ${_venues.length} venues (refresh)');
           } else {
-            _popularVenues.addAll(venues);
+            _venues.addAll(venues);
+            print('🏟️ VenuePicker _loadVenues - Added venues, total now ${_venues.length}');
           }
-          _popularOffset = _popularVenues.length;
-          _hasMorePopular = venues.length >= _pageSize;
-          _isLoadingPopular = false;
+          _offset = _venues.length;
+          _hasMore = venues.length >= _pageSize;
+          _isLoading = false;
         });
+        
+        print('🏟️ VenuePicker _loadVenues - UI State updated: ${_venues.length} venues, hasMore: $_hasMore');
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isLoadingPopular = false);
+        setState(() => _isLoading = false);
       }
-      print('Error loading popular venues: $e');
+      print('Error loading venues: $e');
+      print('Stack trace: ${StackTrace.current}');
     }
   }
 
-  Future<void> _loadAllVenues({bool refresh = false}) async {
-    if (refresh) {
-      setState(() {
-        _allVenuesOffset = 0;
-        _hasMoreAll = true;
-        _allVenues.clear();
-      });
-    }
+  Future<void> _loadMoreVenues() async {
+    if (!_hasMore || _isLoadingMore) return;
 
-    if (_isLoadingAll) return;
-
-    setState(() => _isLoadingAll = true);
+    setState(() => _isLoadingMore = true);
 
     try {
       final venues = await VenueService.getAllVenues(
         limit: _pageSize,
-        offset: refresh ? 0 : _allVenuesOffset,
+        offset: _offset,
       );
 
       if (mounted) {
         setState(() {
-          if (refresh) {
-            _allVenues = venues;
-          } else {
-            _allVenues.addAll(venues);
-          }
-          _allVenuesOffset = _allVenues.length;
-          _hasMoreAll = venues.length >= _pageSize;
-          _isLoadingAll = false;
+          _venues.addAll(venues);
+          _offset = _venues.length;
+          _hasMore = venues.length >= _pageSize;
+          _isLoadingMore = false;
         });
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isLoadingAll = false);
-      }
-      print('Error loading all venues: $e');
-    }
-  }
-
-  Future<void> _loadMorePopularVenues() async {
-    if (!_hasMorePopular || _isLoadingMorePopular) return;
-
-    setState(() => _isLoadingMorePopular = true);
-
-    try {
-      final venues = await VenueService.getPopularVenues(
-        limit: _pageSize,
-        offset: _popularOffset,
-      );
-
-      if (mounted) {
-        setState(() {
-          _popularVenues.addAll(venues);
-          _popularOffset = _popularVenues.length;
-          _hasMorePopular = venues.length >= _pageSize;
-          _isLoadingMorePopular = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoadingMorePopular = false);
-      }
-      print('Error loading more popular venues: $e');
-    }
-  }
-
-  Future<void> _loadMoreAllVenues() async {
-    if (!_hasMoreAll || _isLoadingMoreAll) return;
-
-    setState(() => _isLoadingMoreAll = true);
-
-    try {
-      final venues = await VenueService.getAllVenues(
-        limit: _pageSize,
-        offset: _allVenuesOffset,
-      );
-
-      if (mounted) {
-        setState(() {
-          _allVenues.addAll(venues);
-          _allVenuesOffset = _allVenues.length;
-          _hasMoreAll = venues.length >= _pageSize;
-          _isLoadingMoreAll = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoadingMoreAll = false);
+        setState(() => _isLoadingMore = false);
       }
       print('Error loading more venues: $e');
     }
   }
 
-  Future<void> _refreshPopularVenues() async {
-    await _loadPopularVenues(refresh: true);
-  }
-
-  Future<void> _refreshAllVenues() async {
-    await _loadAllVenues(refresh: true);
+  Future<void> _refreshVenues() async {
+    await _loadVenues(refresh: true);
   }
 
   Future<void> _performSearch(String query) async {
@@ -440,82 +362,11 @@ class _VenuePickerScreenState extends State<VenuePickerScreen>
     );
   }
 
-  Widget _buildPopularVenuesTab() {
+  Widget _buildVenuesList() {
     return RefreshIndicator(
-      onRefresh: _refreshPopularVenues,
+      onRefresh: _refreshVenues,
       color: Theme.of(context).primaryColor,
-      child: _isLoadingPopular && _popularVenues.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(color: Theme.of(context).primaryColor),
-                  SizedBox(height: 16),
-                  Text('Loading popular venues...'),
-                ],
-              ),
-            )
-          : _popularVenues.isEmpty
-              ? ListView(
-                  physics: AlwaysScrollableScrollPhysics(),
-                  children: [
-                    Container(
-                      height: MediaQuery.of(context).size.height - 300,
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.location_on, size: 64, color: Colors.grey[400]),
-                            SizedBox(height: 16),
-                            Text(
-                              'No popular venues found',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'Pull down to refresh or search for venues',
-                              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                )
-              : ListView.builder(
-                  controller: _popularScrollController,
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  physics: AlwaysScrollableScrollPhysics(),
-                  itemCount: _popularVenues.length + (_hasMorePopular ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    if (index == _popularVenues.length) {
-                      return Container(
-                        padding: EdgeInsets.all(16),
-                        child: Center(
-                          child: _isLoadingMorePopular
-                              ? CircularProgressIndicator(
-                                  color: Theme.of(context).primaryColor,
-                                )
-                              : SizedBox.shrink(),
-                        ),
-                      );
-                    }
-                    return _buildVenueTile(_popularVenues[index]);
-                  },
-                ),
-    );
-  }
-
-  Widget _buildAllVenuesTab() {
-    return RefreshIndicator(
-      onRefresh: _refreshAllVenues,
-      color: Theme.of(context).primaryColor,
-      child: _isLoadingAll && _allVenues.isEmpty
+      child: _isLoading && _venues.isEmpty
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -526,7 +377,7 @@ class _VenuePickerScreenState extends State<VenuePickerScreen>
                 ],
               ),
             )
-          : _allVenues.isEmpty
+          : _venues.isEmpty
               ? ListView(
                   physics: AlwaysScrollableScrollPhysics(),
                   children: [
@@ -559,16 +410,16 @@ class _VenuePickerScreenState extends State<VenuePickerScreen>
                   ],
                 )
               : ListView.builder(
-                  controller: _allVenuesScrollController,
+                  controller: _scrollController,
                   padding: EdgeInsets.symmetric(vertical: 8),
                   physics: AlwaysScrollableScrollPhysics(),
-                  itemCount: _allVenues.length + (_hasMoreAll ? 1 : 0),
+                  itemCount: _venues.length + (_hasMore ? 1 : 0),
                   itemBuilder: (context, index) {
-                    if (index == _allVenues.length) {
+                    if (index == _venues.length) {
                       return Container(
                         padding: EdgeInsets.all(16),
                         child: Center(
-                          child: _isLoadingMoreAll
+                          child: _isLoadingMore
                               ? CircularProgressIndicator(
                                   color: Theme.of(context).primaryColor,
                                 )
@@ -576,7 +427,7 @@ class _VenuePickerScreenState extends State<VenuePickerScreen>
                         ),
                       );
                     }
-                    return _buildVenueTile(_allVenues[index]);
+                    return _buildVenueTile(_venues[index]);
                   },
                 ),
     );
@@ -724,43 +575,11 @@ class _VenuePickerScreenState extends State<VenuePickerScreen>
             Divider(height: 1),
           ],
 
-          // Tab Bar (when not searching)
-          if (!_showSearch) ...[
-            Container(
-              color: Colors.white,
-              child: TabBar(
-                controller: _tabController,
-                labelColor: Theme.of(context).primaryColor,
-                unselectedLabelColor: Colors.grey[600],
-                indicatorColor: Theme.of(context).primaryColor,
-                indicatorWeight: 3,
-                labelStyle: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 16,
-                ),
-                unselectedLabelStyle: TextStyle(
-                  fontWeight: FontWeight.w400,
-                  fontSize: 16,
-                ),
-                tabs: [
-                  Tab(text: 'Popular'),
-                  Tab(text: 'All Venues'),
-                ],
-              ),
-            ),
-          ],
-
-          // Content Area
+          // Content Area - Single List View
           Expanded(
             child: _showSearch
                 ? _buildSearchResults()
-                : TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildPopularVenuesTab(),
-                      _buildAllVenuesTab(),
-                    ],
-                  ),
+                : _buildVenuesList(),
           ),
         ],
       ),

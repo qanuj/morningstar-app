@@ -34,14 +34,24 @@ class VenueService {
         queryParams: queryParams,
       );
 
+      // Handle both direct List and wrapped {data: []} response formats
+      List<dynamic> venueList = [];
       if (response is List) {
-        return (response as List)
+        venueList = response as List;
+      } else if (response is Map<String, dynamic> && response['data'] is List) {
+        venueList = response['data'] as List;
+      }
+
+      if (venueList.isNotEmpty) {
+        return venueList
             .map((json) => Venue.fromJson({
               'id': json['id'],
               'name': json['name'],
               'address': json['address'],
               'city': json['city'],
-              'isActive': true,
+              'contactPhone': json['contactPhone'],
+              'isActive': json['isPublic'] ?? true, // Map isPublic to isActive
+              'createdAt': json['createdAt'],
             }))
             .toList();
       }
@@ -118,14 +128,24 @@ class VenueService {
         queryParams: queryParams,
       );
 
+      // Handle both direct List and wrapped {data: []} response formats
+      List<dynamic> venueList = [];
       if (response is List) {
-        final venues = (response as List)
+        venueList = response as List;
+      } else if (response is Map<String, dynamic> && response['data'] is List) {
+        venueList = response['data'] as List;
+      }
+
+      if (venueList.isNotEmpty) {
+        final venues = venueList
             .map((json) => Venue.fromJson({
               'id': json['id'],
               'name': json['name'],
               'address': json['address'],
               'city': json['city'],
-              'isActive': true,
+              'contactPhone': json['contactPhone'],
+              'isActive': json['isPublic'] ?? true, // Map isPublic to isActive
+              'createdAt': json['createdAt'],
             }))
             .toList();
         return venues;
@@ -159,26 +179,53 @@ class VenueService {
         queryParams['state'] = state;
       }
 
+      print('🔍 VenueService getAllVenues - Making API call with params: $queryParams');
+
       final response = await ApiService.get(
         '/ground-locations',
         queryParams: queryParams,
       );
 
+      print('🔍 VenueService getAllVenues - Raw response type: ${response.runtimeType}');
+      print('🔍 VenueService getAllVenues - Raw response: $response');
+
+      // Handle both direct List and wrapped {data: []} response formats
+      List<dynamic> venueList = [];
       if (response is List) {
-        return (response as List)
-            .map((json) => Venue.fromJson({
-              'id': json['id'],
-              'name': json['name'],
-              'address': json['address'],
-              'city': json['city'],
-              'isActive': true,
-            }))
-            .toList();
+        venueList = response as List;
+      } else if (response is Map<String, dynamic> && response['data'] is List) {
+        venueList = response['data'] as List;
       }
 
+      if (venueList.isNotEmpty) {
+        final venues = venueList
+            .map((json) {
+              print('🔍 Processing venue JSON: $json');
+              final mappedData = {
+                'id': json['id'],
+                'name': json['name'],
+                'address': json['address'],
+                'city': json['city'],
+                'contactPhone': json['contactPhone'],
+                'isActive': json['isPublic'] ?? true, // Map isPublic to isActive
+                'createdAt': json['createdAt'],
+              };
+              print('🔍 Mapped venue data: $mappedData');
+              final venue = Venue.fromJson(mappedData);
+              print('🔍 Created venue: ${venue.name} (${venue.id})');
+              return venue;
+            })
+            .toList();
+        
+        print('🔍 Total venues created: ${venues.length}');
+        return venues;
+      }
+
+      print('🔍 VenueService getAllVenues - Response is not a List, returning empty array');
       return [];
     } catch (e) {
       print('Error fetching venues: $e');
+      print('Stack trace: ${StackTrace.current}');
       return [];
     }
   }

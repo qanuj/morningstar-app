@@ -6,11 +6,13 @@ import '../../models/venue.dart';
 import '../../services/match_service.dart';
 import '../../services/ground_service.dart';
 import '../../services/club_service.dart';
+import '../../services/tournament_service.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/autocomplete_field.dart';
 import '../../widgets/svg_avatar.dart';
 import 'club_selector_screen.dart';
 import 'venue_picker_screen.dart';
+import 'tournament_picker_screen.dart';
 
 class CreateMatchScreen extends StatefulWidget {
   final VoidCallback? onMatchCreated;
@@ -32,9 +34,10 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
   Club? _selectedHomeClub;
   Club? _selectedOpponentClub;
   Venue? _selectedVenue;
+  Tournament? _selectedTournament;
 
   // Form values
-  String _selectedType = 'Match/Game';
+  String _selectedType = 'GAME'; // Updated to match API enum
   String _selectedBall = 'Red';
   DateTime _matchDate = DateTime.now().add(Duration(days: 1));
   late TimeOfDay _matchTime;
@@ -123,6 +126,17 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       return;
     }
 
+    // Validate tournament selection for Tournament matches
+    if (_selectedType == 'TOURNAMENT' && _selectedTournament == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please select a tournament'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -143,7 +157,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       await MatchService.createMatch(
         clubId: _selectedHomeClub!.id,
         type: _selectedType,
-        tournamentId: null,
+        tournamentId: _selectedTournament?.id,
         location: _selectedVenue!.name,
         city: _selectedVenue!.city,
         opponent: _selectedOpponentClub!.name,
@@ -180,7 +194,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
   }
 
   Future<void> _selectMatchType(BuildContext context) async {
-    final types = ['Match/Game', 'Tournament'];
+    final types = ['GAME', 'TOURNAMENT']; // Updated to match API enum
 
     final result = await showModalBottomSheet<String>(
       context: context,
@@ -210,14 +224,26 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
               ...types
                   .map(
                     (type) => ListTile(
-                      title: Text(type),
+                      title: Text(
+                        type == 'GAME'
+                            ? 'Match'
+                            : (type == 'TOURNAMENT' ? 'Tournament' : type),
+                      ),
                       trailing: _selectedType == type
                           ? Icon(
                               Icons.check,
                               color: Theme.of(context).primaryColor,
                             )
                           : null,
-                      onTap: () => Navigator.pop(context, type),
+                      onTap: () {
+                        // Reset tournament selection when switching to GAME
+                        if (type == 'GAME' && _selectedTournament != null) {
+                          setState(() {
+                            _selectedTournament = null;
+                          });
+                        }
+                        Navigator.pop(context, type);
+                      },
                     ),
                   )
                   .toList(),
@@ -359,9 +385,9 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
           // Match Type Selection (no label)
           Row(
             children: [
-              _buildTypeButton('Match/Game', Icons.sports_cricket),
+              _buildTypeButton('GAME', Icons.sports_cricket),
               SizedBox(width: 24),
-              _buildTypeButton('Tournament', Icons.emoji_events),
+              _buildTypeButton('TOURNAMENT', Icons.emoji_events),
             ],
           ),
           SizedBox(height: 32),
@@ -552,6 +578,83 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
           ),
           SizedBox(height: 32),
 
+          // Tournament Selection (only for Tournament type)
+          if (_selectedType == 'TOURNAMENT') ...[
+            InkWell(
+              onTap: () => _selectTournament(),
+              child: Container(
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _selectedTournament == null
+                        ? Colors.grey.shade300
+                        : Theme.of(context).primaryColor,
+                    width: _selectedTournament == null ? 1 : 2,
+                  ),
+                  color: _selectedTournament == null
+                      ? Colors.grey.shade50
+                      : Theme.of(context).primaryColor.withOpacity(0.05),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.emoji_events,
+                      color: _selectedTournament == null
+                          ? Colors.grey.shade500
+                          : Theme.of(context).primaryColor,
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _selectedTournament?.name ?? 'Select tournament',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: _selectedTournament == null
+                                  ? Colors.grey.shade500
+                                  : Colors.black87,
+                              fontWeight: _selectedTournament == null
+                                  ? FontWeight.normal
+                                  : FontWeight.w500,
+                            ),
+                          ),
+                          if (_selectedTournament != null) ...[
+                            SizedBox(height: 4),
+                            Text(
+                              '${_selectedTournament!.location}, ${_selectedTournament!.city}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey.shade600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              '${DateFormat('MMM dd').format(_selectedTournament!.startDate)} - ${DateFormat('MMM dd, yyyy').format(_selectedTournament!.endDate)}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade500,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      size: 16,
+                      color: Colors.grey.shade400,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(height: 32),
+          ],
+
           // Ball Selection
           Container(
             height: 80,
@@ -606,6 +709,10 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
         onTap: () {
           setState(() {
             _selectedType = type;
+            // Reset tournament selection when switching to GAME
+            if (type == 'GAME') {
+              _selectedTournament = null;
+            }
           });
         },
         child: Container(
@@ -633,7 +740,9 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
               ),
               SizedBox(height: 4),
               Text(
-                type == 'Match/Game' ? 'Match' : type,
+                type == 'GAME'
+                    ? 'Match'
+                    : (type == 'TOURNAMENT' ? 'Tournament' : type),
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
@@ -743,7 +852,8 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                               : null,
                         ),
                         // Owner profile picture badge
-                        if (club!.owners.isNotEmpty && club!.owners.first.profilePicture != null)
+                        if (club!.owners.isNotEmpty &&
+                            club!.owners.first.profilePicture != null)
                           Positioned(
                             right: 0,
                             bottom: 0,
@@ -751,14 +861,18 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                  color: Theme.of(context).scaffoldBackgroundColor,
+                                  color: Theme.of(
+                                    context,
+                                  ).scaffoldBackgroundColor,
                                   width: 3,
                                 ),
                               ),
                               child: SVGAvatar(
                                 imageUrl: club!.owners.first.profilePicture,
                                 size: 30,
-                                backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+                                backgroundColor: Theme.of(
+                                  context,
+                                ).primaryColor.withOpacity(0.1),
                                 iconColor: Theme.of(context).primaryColor,
                                 fallbackIcon: Icons.person,
                                 showBorder: false,
@@ -774,7 +888,9 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                  color: Theme.of(context).scaffoldBackgroundColor,
+                                  color: Theme.of(
+                                    context,
+                                  ).scaffoldBackgroundColor,
                                   width: 3,
                                 ),
                                 color: Colors.grey.withOpacity(0.3),
@@ -798,10 +914,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                             child: Container(
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.red,
-                                  width: 2,
-                                ),
+                                border: Border.all(color: Colors.red, width: 2),
                                 color: Colors.red.withOpacity(0.1),
                               ),
                               child: Container(
@@ -904,6 +1017,32 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
           onVenueSelected: (venue) {
             setState(() {
               _selectedVenue = venue;
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  void _selectTournament() {
+    if (_selectedHomeClub == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please select home club first'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => TournamentPickerScreen(
+          clubId: _selectedHomeClub!.id,
+          title: 'Select Tournament',
+          onTournamentSelected: (tournament) {
+            setState(() {
+              _selectedTournament = tournament;
             });
           },
         ),
