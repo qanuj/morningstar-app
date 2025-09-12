@@ -56,39 +56,17 @@ class _MatchesScreenState extends State<MatchesScreen> {
   }
 
   void _showCreateMatchDialog() {
-    if (widget.clubFilter != null) {
-      // Direct to create match screen for specific club
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => CreateMatchScreen(
-            club: widget.clubFilter!,
-            onMatchCreated: () {
-              // Refresh the matches list
-              _matchesListKey.currentState?.refreshMatches();
-            },
-          ),
+    // Direct to create match screen - let it handle club selection
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => CreateMatchScreen(
+          onMatchCreated: () {
+            // Refresh the matches list
+            _matchesListKey.currentState?.refreshMatches();
+          },
         ),
-      );
-    } else {
-      // Show club selection dialog first
-      ClubSelectorDialogFactory.showForMatchCreation(
-        context: context,
-        onClubSelected: (club) {
-          // Navigate to create match screen - let it handle permissions
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => CreateMatchScreen(
-                club: club,
-                onMatchCreated: () {
-                  // Refresh the matches list
-                  _matchesListKey.currentState?.refreshMatches();
-                },
-              ),
-            ),
-          );
-        },
-      );
-    }
+      ),
+    );
   }
 
   void _showFilterBottomSheet() {

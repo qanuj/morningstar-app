@@ -1,89 +1,125 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import '../../models/club.dart';
+import '../../models/venue.dart';
 import '../../services/match_service.dart';
 import '../../services/ground_service.dart';
-import '../../services/tournament_service.dart';
 import '../../services/club_service.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/autocomplete_field.dart';
+import '../../widgets/svg_avatar.dart';
+import 'club_selector_screen.dart';
+import 'venue_picker_screen.dart';
 
 class CreateMatchScreen extends StatefulWidget {
-  final Club club;
   final VoidCallback? onMatchCreated;
 
-  const CreateMatchScreen({
-    super.key,
-    required this.club,
-    this.onMatchCreated,
-  });
+  const CreateMatchScreen({super.key, this.onMatchCreated});
 
   @override
   State<CreateMatchScreen> createState() => _CreateMatchScreenState();
 }
 
-class _CreateMatchScreenState extends State<CreateMatchScreen>
-    with SingleTickerProviderStateMixin {
+class _CreateMatchScreenState extends State<CreateMatchScreen> {
   final _formKey = GlobalKey<FormState>();
-  late TabController _tabController;
   bool _isLoading = false;
 
   // Form controllers
-  final _locationController = TextEditingController();
-  final _cityController = TextEditingController();
   final _opponentController = TextEditingController();
-  final _notesController = TextEditingController();
-  final _spotsController = TextEditingController(text: '13');
 
   // Selected data
-  GroundLocation? _selectedGroundLocation;
-  City? _selectedCity;
-  Tournament? _selectedTournament;
+  Club? _selectedHomeClub;
   Club? _selectedOpponentClub;
+  Venue? _selectedVenue;
 
   // Form values
   String _selectedType = 'Match/Game';
+  String _selectedBall = 'Red';
   DateTime _matchDate = DateTime.now().add(Duration(days: 1));
-  TimeOfDay _matchTime = TimeOfDay(hour: 10, minute: 0);
-  
-  // RSVP Settings
-  bool _hideUntilRSVP = false;
-  bool _notifyMembers = false;
-  DateTime? _rsvpAfterDate;
-  TimeOfDay? _rsvpAfterTime;
-  DateTime? _rsvpBeforeDate;
-  TimeOfDay? _rsvpBeforeTime;
+  late TimeOfDay _matchTime;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    // Set default RSVP before date to match time minus 2 hours
-    _rsvpBeforeDate = _matchDate;
-    _rsvpBeforeTime = TimeOfDay(
-      hour: _matchTime.hour >= 2 ? _matchTime.hour - 2 : 18,
-      minute: 0,
-    );
+    _matchTime = _getDefaultMatchTime(); // Set intelligent default time
+  }
+
+  TimeOfDay _getDefaultMatchTime() {
+    final now = DateTime.now();
+    final currentMinutes = now.minute;
+
+    // Calculate next 15 or 45 minute mark that's at least 30 minutes from now
+    int targetMinutes;
+    int targetHour = now.hour;
+
+    if (currentMinutes < 15) {
+      // If before :15, set to :15 if that's 30+ minutes away, otherwise :45
+      if (15 - currentMinutes >= 30) {
+        targetMinutes = 15;
+      } else {
+        targetMinutes = 45;
+      }
+    } else if (currentMinutes < 45) {
+      // If before :45, set to :45 if that's 30+ minutes away, otherwise next hour :15
+      if (45 - currentMinutes >= 30) {
+        targetMinutes = 45;
+      } else {
+        targetMinutes = 15;
+        targetHour = (targetHour + 1) % 24;
+      }
+    } else {
+      // If after :45, set to next hour :15 or :45
+      targetHour = (targetHour + 1) % 24;
+      if (60 - currentMinutes + 15 >= 30) {
+        targetMinutes = 15;
+      } else {
+        targetMinutes = 45;
+      }
+    }
+
+    return TimeOfDay(hour: targetHour, minute: targetMinutes);
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
-    _locationController.dispose();
-    _cityController.dispose();
     _opponentController.dispose();
-    _notesController.dispose();
-    _spotsController.dispose();
     super.dispose();
   }
 
   Future<void> _createMatch() async {
     if (!_formKey.currentState!.validate()) {
-      // Switch to Basic Details tab if validation fails there
-      if (_locationController.text.trim().isEmpty ||
-          (int.tryParse(_spotsController.text) ?? 0) < 1) {
-        _tabController.animateTo(0);
-      }
+      return;
+    }
+
+    // Check if both clubs are selected
+    if (_selectedHomeClub == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please select home club'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (_selectedOpponentClub == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please select opponent club'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (_selectedVenue == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please select a venue'),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
 
@@ -99,43 +135,26 @@ class _CreateMatchScreenState extends State<CreateMatchScreen>
         _matchTime.minute,
       );
 
-      DateTime? rsvpAfterDateTime;
-      if (_rsvpAfterDate != null && _rsvpAfterTime != null) {
-        rsvpAfterDateTime = DateTime(
-          _rsvpAfterDate!.year,
-          _rsvpAfterDate!.month,
-          _rsvpAfterDate!.day,
-          _rsvpAfterTime!.hour,
-          _rsvpAfterTime!.minute,
-        );
-      }
-
-      DateTime? rsvpBeforeDateTime;
-      if (_rsvpBeforeDate != null && _rsvpBeforeTime != null) {
-        rsvpBeforeDateTime = DateTime(
-          _rsvpBeforeDate!.year,
-          _rsvpBeforeDate!.month,
-          _rsvpBeforeDate!.day,
-          _rsvpBeforeTime!.hour,
-          _rsvpBeforeTime!.minute,
-        );
+      // Ensure match is in the future
+      if (matchDateTime.isBefore(DateTime.now().add(Duration(hours: 1)))) {
+        throw Exception('Match time must be at least 1 hour in the future');
       }
 
       await MatchService.createMatch(
-        clubId: widget.club.id,
+        clubId: _selectedHomeClub!.id,
         type: _selectedType,
-        tournamentId: _selectedTournament?.id,
-        location: _locationController.text.trim(),
-        city: _cityController.text.trim().isEmpty ? null : _cityController.text.trim(),
-        opponent: _opponentController.text.trim().isEmpty ? null : _opponentController.text.trim(),
-        opponentClubId: _selectedOpponentClub?.id,
-        notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+        tournamentId: null,
+        location: _selectedVenue!.name,
+        city: _selectedVenue!.city,
+        opponent: _selectedOpponentClub!.name,
+        opponentClubId: _selectedOpponentClub!.id,
+        notes: 'Ball Type: $_selectedBall',
         matchDate: matchDateTime,
-        spots: int.tryParse(_spotsController.text) ?? 13,
-        hideUntilRSVP: _hideUntilRSVP,
-        rsvpAfterDate: rsvpAfterDateTime,
-        rsvpBeforeDate: rsvpBeforeDateTime,
-        notifyMembers: _notifyMembers,
+        spots: 13,
+        hideUntilRSVP: false,
+        rsvpAfterDate: null,
+        rsvpBeforeDate: null,
+        notifyMembers: false,
       );
 
       if (mounted) {
@@ -146,7 +165,9 @@ class _CreateMatchScreenState extends State<CreateMatchScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to create match: ${e.toString().replaceAll('Exception: ', '')}'),
+            content: Text(
+              'Failed to create match: ${e.toString().replaceAll('Exception: ', '')}',
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -159,9 +180,8 @@ class _CreateMatchScreenState extends State<CreateMatchScreen>
   }
 
   Future<void> _selectMatchType(BuildContext context) async {
-    final types = ['Match/Game', 'Training', 'Practice', 'Tournament'];
-    final selectedIndex = types.indexOf(_selectedType);
-    
+    final types = ['Match/Game', 'Tournament'];
+
     final result = await showModalBottomSheet<String>(
       context: context,
       shape: RoundedRectangleBorder(
@@ -184,19 +204,23 @@ class _CreateMatchScreenState extends State<CreateMatchScreen>
               SizedBox(height: 16),
               Text(
                 'Select Match Type',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               ),
               SizedBox(height: 16),
-              ...types.map((type) => ListTile(
-                title: Text(type),
-                trailing: _selectedType == type 
-                    ? Icon(Icons.check, color: Theme.of(context).primaryColor)
-                    : null,
-                onTap: () => Navigator.pop(context, type),
-              )).toList(),
+              ...types
+                  .map(
+                    (type) => ListTile(
+                      title: Text(type),
+                      trailing: _selectedType == type
+                          ? Icon(
+                              Icons.check,
+                              color: Theme.of(context).primaryColor,
+                            )
+                          : null,
+                      onTap: () => Navigator.pop(context, type),
+                    ),
+                  )
+                  .toList(),
               SizedBox(height: 16),
             ],
           ),
@@ -207,30 +231,22 @@ class _CreateMatchScreenState extends State<CreateMatchScreen>
     if (result != null) {
       setState(() {
         _selectedType = result;
-        // Clear tournament selection when type changes
-        if (result != 'Tournament') {
-          _selectedTournament = null;
-        }
       });
     }
   }
 
-  Future<void> _selectDate(BuildContext context, {bool isRsvpAfter = false, bool isRsvpBefore = false}) async {
+  Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: isRsvpAfter 
-          ? _rsvpAfterDate ?? DateTime.now()
-          : isRsvpBefore 
-              ? _rsvpBeforeDate ?? DateTime.now()
-              : _matchDate,
-      firstDate: DateTime.now(),
+      initialDate: _matchDate,
+      firstDate: DateTime.now().add(Duration(hours: 1)),
       lastDate: DateTime.now().add(Duration(days: 365)),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-              primary: Theme.of(context).primaryColor,
-            ),
+            colorScheme: Theme.of(
+              context,
+            ).colorScheme.copyWith(primary: Theme.of(context).primaryColor),
           ),
           child: child!,
         );
@@ -239,35 +255,21 @@ class _CreateMatchScreenState extends State<CreateMatchScreen>
 
     if (picked != null) {
       setState(() {
-        if (isRsvpAfter) {
-          _rsvpAfterDate = picked;
-        } else if (isRsvpBefore) {
-          _rsvpBeforeDate = picked;
-        } else {
-          _matchDate = picked;
-          // Update RSVP before date to match
-          if (_rsvpBeforeDate != null) {
-            _rsvpBeforeDate = picked;
-          }
-        }
+        _matchDate = picked;
       });
     }
   }
 
-  Future<void> _selectTime(BuildContext context, {bool isRsvpAfter = false, bool isRsvpBefore = false}) async {
+  Future<void> _selectTime(BuildContext context) async {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
-      initialTime: isRsvpAfter
-          ? _rsvpAfterTime ?? TimeOfDay.now()
-          : isRsvpBefore
-              ? _rsvpBeforeTime ?? TimeOfDay.now()
-              : _matchTime,
+      initialTime: _matchTime,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-              primary: Theme.of(context).primaryColor,
-            ),
+            colorScheme: Theme.of(
+              context,
+            ).colorScheme.copyWith(primary: Theme.of(context).primaryColor),
           ),
           child: child!,
         );
@@ -276,13 +278,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen>
 
     if (picked != null) {
       setState(() {
-        if (isRsvpAfter) {
-          _rsvpAfterTime = picked;
-        } else if (isRsvpBefore) {
-          _rsvpBeforeTime = picked;
-        } else {
-          _matchTime = picked;
-        }
+        _matchTime = picked;
       });
     }
   }
@@ -291,48 +287,12 @@ class _CreateMatchScreenState extends State<CreateMatchScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: DetailAppBar(
-        pageTitle: 'Create Match',
-        showBackButton: true,
-      ),
+      appBar: DetailAppBar(pageTitle: 'Create Match', showBackButton: true),
       body: Column(
         children: [
-          // Tab Bar
-          Container(
-            color: Colors.white,
-            child: TabBar(
-              controller: _tabController,
-              labelColor: Theme.of(context).primaryColor,
-              unselectedLabelColor: Colors.grey[600],
-              indicatorColor: Theme.of(context).primaryColor,
-              indicatorWeight: 3,
-              labelStyle: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-              ),
-              unselectedLabelStyle: TextStyle(
-                fontWeight: FontWeight.w400,
-                fontSize: 16,
-              ),
-              tabs: [
-                Tab(text: 'Basic Details'),
-                Tab(text: 'RSVP Settings'),
-              ],
-            ),
-          ),
-          
-          // Tab Content
+          // Content
           Expanded(
-            child: Form(
-              key: _formKey,
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildBasicDetailsTab(),
-                  _buildRSVPSettingsTab(),
-                ],
-              ),
-            ),
+            child: Form(key: _formKey, child: _buildCreateMatchForm()),
           ),
 
           // Bottom Action Bar
@@ -340,9 +300,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen>
             padding: EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: Colors.white,
-              border: Border(
-                top: BorderSide(color: Colors.grey.shade200),
-              ),
+              border: Border(top: BorderSide(color: Colors.grey.shade200)),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.05),
@@ -371,7 +329,9 @@ class _CreateMatchScreenState extends State<CreateMatchScreen>
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
                           ),
                         )
                       : Text(
@@ -390,243 +350,52 @@ class _CreateMatchScreenState extends State<CreateMatchScreen>
     );
   }
 
-  Widget _buildBasicDetailsTab() {
+  Widget _buildCreateMatchForm() {
     return SingleChildScrollView(
       padding: EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Match Type
-          _buildSectionTitle('Match Type', required: true),
-          InkWell(
-            onTap: () => _selectMatchType(context),
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade300),
-                borderRadius: BorderRadius.circular(8),
-                color: Colors.grey.shade50,
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _selectedType,
-                      style: TextStyle(fontSize: 16),
-                    ),
-                  ),
-                  Icon(Icons.arrow_drop_down, color: Colors.grey[600]),
-                ],
-              ),
-            ),
-          ),
-          SizedBox(height: 24),
-
-          // Tournament Selection (only when type is Tournament)
-          if (_selectedType == 'Tournament') ...[
-            _buildSectionTitle('Tournament', required: true),
-            FutureBuilder<List<Tournament>>(
-              future: TournamentService.getParticipatingTournaments(widget.club.id),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(8),
-                      color: Colors.grey.shade50,
-                    ),
-                    child: Row(
-                      children: [
-                        SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                        SizedBox(width: 12),
-                        Text('Loading tournaments...', style: TextStyle(color: Colors.grey[600])),
-                      ],
-                    ),
-                  );
-                }
-
-                final tournaments = snapshot.data ?? [];
-                
-                // Remove any duplicate tournaments to prevent dropdown issues
-                final uniqueTournaments = <Tournament>[];
-                final seenIds = <String>{};
-                
-                for (final tournament in tournaments) {
-                  if (!seenIds.contains(tournament.id)) {
-                    uniqueTournaments.add(tournament);
-                    seenIds.add(tournament.id);
-                  }
-                }
-                
-                // Ensure selected tournament exists in the list
-                if (_selectedTournament != null && 
-                    uniqueTournaments.isNotEmpty && 
-                    !uniqueTournaments.any((t) => t.id == _selectedTournament!.id)) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    setState(() => _selectedTournament = null);
-                  });
-                }
-                
-                if (uniqueTournaments.isEmpty) {
-                  return Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(8),
-                      color: Colors.grey.shade50,
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.info_outline, size: 16, color: Colors.grey[600]),
-                        SizedBox(width: 12),
-                        Text('No tournaments available', style: TextStyle(color: Colors.grey[600])),
-                      ],
-                    ),
-                  );
-                }
-
-                return DropdownButtonFormField<Tournament>(
-                  value: _selectedTournament,
-                  items: uniqueTournaments.map((tournament) {
-                    return DropdownMenuItem(
-                      value: tournament,
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: Text(
-                          '${tournament.name} • ${tournament.organizer.name}',
-                          style: TextStyle(fontWeight: FontWeight.w500),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (tournament) {
-                    setState(() => _selectedTournament = tournament);
-                  },
-                  decoration: _inputDecoration('Select tournament...'),
-                  validator: (value) {
-                    if (_selectedType == 'Tournament' && value == null) {
-                      return 'Tournament is required when match type is Tournament';
-                    }
-                    return null;
-                  },
-                );
-              },
-            ),
-            SizedBox(height: 24),
-          ],
-
-          // Number of Spots
-          _buildSectionTitle('Number of Spots', required: true),
-          TextFormField(
-            controller: _spotsController,
-            decoration: _inputDecoration('13').copyWith(
-              helperText: 'Maximum players for this match (1-50)',
-              helperStyle: TextStyle(color: Colors.grey[600], fontSize: 12),
-            ),
-            keyboardType: TextInputType.number,
-            validator: (value) {
-              final spots = int.tryParse(value ?? '');
-              if (spots == null || spots < 1 || spots > 50) {
-                return 'Spots must be between 1 and 50';
-              }
-              return null;
-            },
-          ),
-          SizedBox(height: 24),
-
-          // Opponent Team
-          _buildSectionTitle('Opponent Team'),
-          AutocompleteField<Club>(
-            controller: _opponentController,
-            hintText: 'Type opponent team name or search existing clubs...',
-            helperText: 'You can select an existing club or type any team name as opponent',
-            searchFunction: (query) => ClubService.searchClubs(query, excludeClubId: widget.club.id),
-            displayStringForOption: (club) => club.name,
-            onSelected: (club) {
-              setState(() {
-                _selectedOpponentClub = club;
-              });
-            },
-            onChanged: (value) {
-              // Clear selected club when user types manually
-              if (_selectedOpponentClub != null && value != _selectedOpponentClub!.name) {
-                setState(() {
-                  _selectedOpponentClub = null;
-                });
-              }
-            },
-          ),
-          SizedBox(height: 24),
-
-          // Location & City
+          // Match Type Selection (no label)
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildTypeButton('Match/Game', Icons.sports_cricket),
+              SizedBox(width: 24),
+              _buildTypeButton('Tournament', Icons.emoji_events),
+            ],
+          ),
+          SizedBox(height: 32),
+
+          // Team Circles
+          Row(
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildSectionTitle('Location', required: true),
-                    AutocompleteField<GroundLocation>(
-                      controller: _locationController,
-                      hintText: 'Search for venue/ground name',
-                      searchFunction: (query) => GroundService.searchGroundLocations(query),
-                      displayStringForOption: (location) => location.name,
-                      onSelected: (location) {
-                        setState(() {
-                          _selectedGroundLocation = location;
-                          // Auto-fill city if ground location has city
-                          if (location.city.isNotEmpty && _cityController.text.isEmpty) {
-                            _cityController.text = location.city;
-                            _selectedCity = City(
-                              id: '',
-                              name: location.city,
-                              state: '',
-                              country: '',
-                            );
-                          }
-                        });
-                      },
-                      validator: (value) {
-                        if (value?.trim().isEmpty ?? true) {
-                          return 'Location is required';
-                        }
-                        return null;
-                      },
-                    ),
-                  ],
+                child: _buildTeamCircle(
+                  title: 'Home',
+                  club: _selectedHomeClub,
+                  onTap: () => _selectHomeClub(),
                 ),
               ),
-              SizedBox(width: 16),
+              SizedBox(width: 24),
+              Text(
+                'VS',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Theme.of(context).primaryColor,
+                ),
+              ),
+              SizedBox(width: 24),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildSectionTitle('City'),
-                    AutocompleteField<City>(
-                      controller: _cityController,
-                      hintText: 'Search for city',
-                      helperText: 'Required for new locations',
-                      searchFunction: (query) => GroundService.searchCities(query),
-                      displayStringForOption: (city) => city.displayName,
-                      onSelected: (city) {
-                        setState(() {
-                          _selectedCity = city;
-                        });
-                      },
-                    ),
-                  ],
+                child: _buildTeamCircle(
+                  title: 'Opponent',
+                  club: _selectedOpponentClub,
+                  onTap: () => _selectOpponentClub(),
                 ),
               ),
             ],
           ),
-          SizedBox(height: 24),
+          SizedBox(height: 40),
 
           // Match Date & Time
           Row(
@@ -636,23 +405,34 @@ class _CreateMatchScreenState extends State<CreateMatchScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSectionTitle('Match Date', required: true),
                     InkWell(
                       onTap: () => _selectDate(context),
                       child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 20,
+                        ),
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
                           color: Colors.grey.shade50,
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.calendar_today, size: 20, color: Colors.grey[600]),
-                            SizedBox(width: 8),
-                            Text(
-                              DateFormat('dd/MM/yyyy').format(_matchDate),
-                              style: TextStyle(fontSize: 16),
+                            Icon(
+                              Icons.calendar_today,
+                              size: 22,
+                              color: Theme.of(context).primaryColor,
+                            ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                DateFormat('dd/MM/yyyy').format(_matchDate),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -666,23 +446,34 @@ class _CreateMatchScreenState extends State<CreateMatchScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSectionTitle('Match Time', required: true),
                     InkWell(
                       onTap: () => _selectTime(context),
                       child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 20,
+                        ),
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
                           color: Colors.grey.shade50,
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.access_time, size: 20, color: Colors.grey[600]),
-                            SizedBox(width: 8),
-                            Text(
-                              _matchTime.format(context),
-                              style: TextStyle(fontSize: 16),
+                            Icon(
+                              Icons.access_time,
+                              size: 22,
+                              color: Theme.of(context).primaryColor,
+                            ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                _matchTime.format(context),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -693,206 +484,112 @@ class _CreateMatchScreenState extends State<CreateMatchScreen>
               ),
             ],
           ),
-          SizedBox(height: 24),
+          SizedBox(height: 32),
 
-          // Additional Notes
-          _buildSectionTitle('Additional Notes'),
-          TextFormField(
-            controller: _notesController,
-            decoration: _inputDecoration('Any additional information about the match...'),
-            maxLines: 4,
-            minLines: 3,
-          ),
-          SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRSVPSettingsTab() {
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Toggle switches
-          Card(
-            elevation: 0,
-            color: Colors.grey.shade50,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            child: Padding(
+          // Venue Selection
+          InkWell(
+            onTap: () => _selectVenue(),
+            child: Container(
               padding: EdgeInsets.all(16),
-              child: Column(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _selectedVenue == null
+                      ? Colors.grey.shade300
+                      : Theme.of(context).primaryColor,
+                  width: _selectedVenue == null ? 1 : 2,
+                ),
+                color: _selectedVenue == null
+                    ? Colors.grey.shade50
+                    : Theme.of(context).primaryColor.withOpacity(0.05),
+              ),
+              child: Row(
                 children: [
-                  SwitchListTile(
-                    title: Text(
-                      'Hide match details until RSVP opens',
-                      style: TextStyle(fontWeight: FontWeight.w500),
-                    ),
-                    subtitle: Text(
-                      'Send notifications to club members',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                    ),
-                    value: _hideUntilRSVP,
-                    onChanged: (value) => setState(() => _hideUntilRSVP = value),
-                    activeColor: Theme.of(context).primaryColor,
-                    inactiveTrackColor: Colors.grey[300],
-                    inactiveThumbColor: Colors.white,
-                    contentPadding: EdgeInsets.zero,
+                  Icon(
+                    Icons.location_on,
+                    color: _selectedVenue == null
+                        ? Colors.grey.shade500
+                        : Theme.of(context).primaryColor,
                   ),
-                  Divider(height: 1),
-                  SwitchListTile(
-                    title: Text(
-                      'Send notifications to club members',
-                      style: TextStyle(fontWeight: FontWeight.w500),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _selectedVenue?.name ?? 'Select venue',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: _selectedVenue == null
+                                ? Colors.grey.shade500
+                                : Colors.black87,
+                            fontWeight: _selectedVenue == null
+                                ? FontWeight.normal
+                                : FontWeight.w500,
+                          ),
+                        ),
+                        if (_selectedVenue?.fullAddress.isNotEmpty ?? false)
+                          Text(
+                            _selectedVenue!.fullAddress,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
                     ),
-                    value: _notifyMembers,
-                    onChanged: (value) => setState(() => _notifyMembers = value),
-                    activeColor: Theme.of(context).primaryColor,
-                    inactiveTrackColor: Colors.grey[300],
-                    inactiveThumbColor: Colors.white,
-                    contentPadding: EdgeInsets.zero,
+                  ),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16,
+                    color: Colors.grey.shade400,
                   ),
                 ],
               ),
             ),
           ),
-          SizedBox(height: 24),
+          SizedBox(height: 32),
 
-          // RSVP Opens At (Optional)
-          _buildSectionTitle('RSVP Opens At (Optional)'),
-          Row(
-            children: [
-              Expanded(
-                child: InkWell(
-                  onTap: () => _selectDate(context, isRsvpAfter: true),
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(8),
-                      color: Colors.grey.shade50,
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.calendar_today, size: 18, color: Colors.grey[600]),
-                        SizedBox(width: 8),
-                        Text(
-                          _rsvpAfterDate != null 
-                              ? DateFormat('dd/MM/yyyy').format(_rsvpAfterDate!)
-                              : '05/09/2025',
-                          style: TextStyle(
-                            color: _rsvpAfterDate != null ? null : Colors.grey[600],
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+          // Ball Selection
+          Container(
+            height: 80,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                _buildBallOption('Pink', Color(0xFFFF1493), useSvg: true),
+                SizedBox(width: 16),
+                _buildBallOption('White', Color(0xFFF5F5F5), useSvg: true),
+                SizedBox(width: 16),
+                _buildBallOption(
+                  'Red',
+                  Color.fromARGB(255, 88, 0, 25),
+                  useSvg: true,
                 ),
-              ),
-              SizedBox(width: 12),
-              Expanded(
-                child: InkWell(
-                  onTap: () => _selectTime(context, isRsvpAfter: true),
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(8),
-                      color: Colors.grey.shade50,
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.access_time, size: 18, color: Colors.grey[600]),
-                        SizedBox(width: 8),
-                        Text(
-                          _rsvpAfterTime != null 
-                              ? _rsvpAfterTime!.format(context)
-                              : '10:00 AM',
-                          style: TextStyle(
-                            color: _rsvpAfterTime != null ? null : Colors.grey[600],
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                SizedBox(width: 16),
+                _buildBallOption(
+                  'Tennis',
+                  Color(0xFFC7D32B),
+                  useSvg: true,
+                  svgAsset: 'assets/images/tennis.svg',
                 ),
-              ),
-            ],
-          ),
-          Padding(
-            padding: EdgeInsets.only(top: 8),
-            child: Text(
-              'Members can only RSVP after this time',
-              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                SizedBox(width: 16),
+                _buildBallOption('Other', Colors.orange),
+              ],
             ),
           ),
-          SizedBox(height: 24),
 
-          // RSVP Closes At (Optional)
-          _buildSectionTitle('RSVP Closes At (Optional)'),
-          Row(
-            children: [
-              Expanded(
-                child: InkWell(
-                  onTap: () => _selectDate(context, isRsvpBefore: true),
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(8),
-                      color: Colors.grey.shade50,
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.calendar_today, size: 18, color: Colors.grey[600]),
-                        SizedBox(width: 8),
-                        Text(
-                          _rsvpBeforeDate != null 
-                              ? DateFormat('dd/MM/yyyy').format(_rsvpBeforeDate!)
-                              : DateFormat('dd/MM/yyyy').format(_matchDate),
-                          style: TextStyle(fontSize: 14),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(width: 12),
-              Expanded(
-                child: InkWell(
-                  onTap: () => _selectTime(context, isRsvpBefore: true),
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(8),
-                      color: Colors.grey.shade50,
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.access_time, size: 18, color: Colors.grey[600]),
-                        SizedBox(width: 8),
-                        Text(
-                          _rsvpBeforeTime != null 
-                              ? _rsvpBeforeTime!.format(context)
-                              : '06:00 PM',
-                          style: TextStyle(fontSize: 14),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          Padding(
-            padding: EdgeInsets.only(top: 8),
+          // Selected ball name
+          SizedBox(height: 8),
+          Center(
             child: Text(
-              'RSVP deadline (cannot be after match time)',
-              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              _selectedBall,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Theme.of(context).primaryColor,
+              ),
             ),
           ),
           SizedBox(height: 20),
@@ -901,26 +598,252 @@ class _CreateMatchScreenState extends State<CreateMatchScreen>
     );
   }
 
-  Widget _buildSectionTitle(String title, {bool required = false}) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: 8),
-      child: RichText(
-        text: TextSpan(
-          text: title,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Colors.black87,
-          ),
-          children: required ? [
-            TextSpan(
-              text: ' *',
-              style: TextStyle(
-                color: Colors.red,
-                fontWeight: FontWeight.w600,
-              ),
+  Widget _buildTypeButton(String type, IconData icon) {
+    final isSelected = _selectedType == type;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _selectedType = type;
+          });
+        },
+        child: Container(
+          padding: EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? Theme.of(context).primaryColor.withOpacity(0.1)
+                : Colors.grey.shade50,
+            border: Border.all(
+              color: isSelected
+                  ? Theme.of(context).primaryColor
+                  : Colors.grey.shade300,
+              width: isSelected ? 2 : 1,
             ),
-          ] : null,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            children: [
+              Icon(
+                icon,
+                size: 20,
+                color: isSelected
+                    ? Theme.of(context).primaryColor
+                    : Colors.grey[600],
+              ),
+              SizedBox(height: 4),
+              Text(
+                type == 'Match/Game' ? 'Match' : type,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  color: isSelected
+                      ? Theme.of(context).primaryColor
+                      : Colors.grey[700],
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBallOption(
+    String ballType,
+    Color ballColor, {
+    bool useSvg = false,
+    String? svgAsset,
+  }) {
+    final isSelected = _selectedBall == ballType;
+    final ballSize = isSelected ? 75.0 : 50.0;
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedBall = ballType;
+        });
+      },
+      child: AnimatedContainer(
+        duration: Duration(milliseconds: 200),
+        width: ballSize,
+        height: ballSize,
+        decoration: BoxDecoration(
+          color: ballColor,
+          shape: BoxShape.circle,
+          boxShadow: [
+            if (isSelected)
+              BoxShadow(
+                color: Theme.of(context).primaryColor.withOpacity(0.3),
+                blurRadius: 8,
+                offset: Offset(0, 4),
+              ),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 4,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: useSvg
+            ? ClipOval(
+                child: SvgPicture.asset(
+                  svgAsset ?? 'assets/images/ball.svg',
+                  width: ballSize,
+                  height: ballSize,
+                  colorFilter: ColorFilter.mode(
+                    Colors.white.withOpacity(0.3),
+                    BlendMode.overlay,
+                  ),
+                  fit: BoxFit.contain,
+                ),
+              )
+            : null,
+      ),
+    );
+  }
+
+  Widget _buildTeamCircle({
+    required String title,
+    Club? club,
+    required VoidCallback onTap,
+  }) {
+    final bool hasClub = club != null;
+
+    return Column(
+      children: [
+        GestureDetector(
+          onTap: onTap,
+          child: hasClub
+              ? Column(
+                  children: [
+                    // Club logo replaces the circle completely
+                    SVGAvatar(
+                      imageUrl: club!.logo,
+                      size: 120,
+                      backgroundColor: Theme.of(
+                        context,
+                      ).primaryColor.withOpacity(0.1),
+                      iconColor: Theme.of(context).primaryColor,
+                      fallbackIcon: Icons.sports_cricket,
+                      showBorder: false,
+                      child: club!.logo == null
+                          ? Text(
+                              club!.name.substring(0, 1).toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).primaryColor,
+                              ),
+                            )
+                          : null,
+                    ),
+                    SizedBox(height: 12),
+                    // Club name below the circle
+                    Text(
+                      club!.name,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).primaryColor,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                )
+              : Column(
+                  children: [
+                    Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.grey.shade100,
+                        border: Border.all(
+                          color: Colors.grey.shade300,
+                          width: 2,
+                        ),
+                      ),
+                      child: Center(
+                        child: Icon(
+                          Icons.add,
+                          size: 40,
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 12),
+                    // Placeholder text below the circle
+                    Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[600],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+
+  void _selectHomeClub() {
+    _showClubSelector(
+      title: 'Select Home Club',
+      onClubSelected: (club) {
+        setState(() {
+          _selectedHomeClub = club;
+        });
+      },
+    );
+  }
+
+  void _selectOpponentClub() {
+    _showClubSelector(
+      title: 'Select Opponent Club',
+      excludeClubId: _selectedHomeClub?.id,
+      onClubSelected: (club) {
+        setState(() {
+          _selectedOpponentClub = club;
+        });
+      },
+    );
+  }
+
+  void _selectVenue() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => VenuePickerScreen(
+          title: 'Select Venue',
+          onVenueSelected: (venue) {
+            setState(() {
+              _selectedVenue = venue;
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  void _showClubSelector({
+    required String title,
+    String? excludeClubId,
+    required Function(Club) onClubSelected,
+  }) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ClubSelectorScreen(
+          title: title,
+          excludeClubId: excludeClubId,
+          onClubSelected: onClubSelected,
         ),
       ),
     );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../providers/user_provider.dart';
 import '../../models/social_post.dart';
 import '../../widgets/svg_avatar.dart';
@@ -248,13 +249,13 @@ class _SocialFeedAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.search, color: Colors.white),
+            icon: Icon(LucideIcons.search, color: Colors.white),
             onPressed: () {
               // TODO: Implement search
             },
           ),
           IconButton(
-            icon: Icon(Icons.notifications_outlined, color: Colors.white),
+            icon: Icon(LucideIcons.bell, color: Colors.white),
             onPressed: () {
               // TODO: Implement notifications
             },
@@ -389,7 +390,7 @@ class _PostCardState extends State<_PostCard> with SingleTickerProviderStateMixi
             ),
           ),
           IconButton(
-            icon: Icon(Icons.more_vert),
+            icon: Icon(LucideIcons.moreVertical),
             onPressed: () {
               // TODO: Show post options
             },
@@ -421,7 +422,7 @@ class _PostCardState extends State<_PostCard> with SingleTickerProviderStateMixi
           height: 200,
           color: Colors.grey[300],
           child: Icon(
-            Icons.image_not_supported,
+            LucideIcons.imageOff,
             size: 50,
             color: Colors.grey[600],
           ),
@@ -457,7 +458,7 @@ class _PostCardState extends State<_PostCard> with SingleTickerProviderStateMixi
             color: Colors.grey[900],
           ),
           Icon(
-            Icons.play_circle_fill,
+            LucideIcons.playCircle,
             size: 64,
             color: Colors.white.withOpacity(0.8),
           ),
@@ -497,7 +498,7 @@ class _PostCardState extends State<_PostCard> with SingleTickerProviderStateMixi
                 scale: _scaleAnimation.value,
                 child: IconButton(
                   icon: Icon(
-                    isLiked ? Icons.favorite : Icons.favorite_border,
+                    isLiked ? LucideIcons.heart : LucideIcons.heart,
                     color: isLiked ? Colors.red : Theme.of(context).iconTheme.color,
                   ),
                   onPressed: _toggleLike,
@@ -508,7 +509,7 @@ class _PostCardState extends State<_PostCard> with SingleTickerProviderStateMixi
           
           // Comment button
           IconButton(
-            icon: Icon(Icons.chat_bubble_outline),
+            icon: Icon(LucideIcons.messageCircle),
             onPressed: () {
               _showCommentsBottomSheet();
             },
@@ -516,7 +517,7 @@ class _PostCardState extends State<_PostCard> with SingleTickerProviderStateMixi
           
           // Share button
           IconButton(
-            icon: Icon(Icons.share_outlined),
+            icon: Icon(LucideIcons.share),
             onPressed: () {
               _showShareOptions();
             },
@@ -526,7 +527,7 @@ class _PostCardState extends State<_PostCard> with SingleTickerProviderStateMixi
           
           // Bookmark button
           IconButton(
-            icon: Icon(Icons.bookmark_border),
+            icon: Icon(LucideIcons.bookmark),
             onPressed: () {
               // TODO: Implement bookmark
             },
@@ -682,7 +683,7 @@ class _CommentsBottomSheet extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  icon: Icon(Icons.close),
+                  icon: Icon(LucideIcons.x),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
@@ -800,7 +801,7 @@ class _CommentsBottomSheet extends StatelessWidget {
             ),
           ),
           IconButton(
-            icon: Icon(Icons.favorite_border, size: 18),
+            icon: Icon(LucideIcons.heart, size: 18),
             onPressed: () {
               // TODO: Like comment
             },
@@ -847,7 +848,7 @@ class _CommentsBottomSheet extends StatelessWidget {
           ),
           SizedBox(width: 8),
           IconButton(
-            icon: Icon(Icons.send, color: Theme.of(context).primaryColor),
+            icon: Icon(LucideIcons.send, color: Theme.of(context).primaryColor),
             onPressed: () {
               // TODO: Send comment
             },
@@ -899,7 +900,7 @@ class _ShareBottomSheet extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               _buildShareOption(
-                icon: Icons.copy,
+                icon: LucideIcons.copy,
                 label: 'Copy Link',
                 onTap: () {
                   Navigator.pop(context);
@@ -907,7 +908,7 @@ class _ShareBottomSheet extends StatelessWidget {
                 },
               ),
               _buildShareOption(
-                icon: Icons.message,
+                icon: LucideIcons.messageSquare,
                 label: 'Message',
                 onTap: () {
                   Navigator.pop(context);
@@ -915,7 +916,7 @@ class _ShareBottomSheet extends StatelessWidget {
                 },
               ),
               _buildShareOption(
-                icon: Icons.share,
+                icon: LucideIcons.moreHorizontal,
                 label: 'More',
                 onTap: () {
                   Navigator.pop(context);
