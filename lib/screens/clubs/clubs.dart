@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:qr_flutter/qr_flutter.dart';
-import 'package:share_plus/share_plus.dart';
 import '../../providers/club_provider.dart';
 import '../../models/club.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/svg_avatar.dart';
 import 'club_chat.dart';
 import 'create_club_screen.dart';
+import '../club_invite_qr_screen.dart';
 
 class ClubsScreen extends StatefulWidget {
   const ClubsScreen({super.key});
@@ -335,146 +334,13 @@ class ClubsScreenState extends State<ClubsScreen> {
   }
 
   void _showClubQRCode(Club club) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Container(
-            padding: EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Club Info Header
-                Row(
-                  children: [
-                    SVGAvatar(
-                      imageUrl: club.logo,
-                      size: 40,
-                      backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
-                      fallbackIcon: Icons.groups,
-                      iconSize: 24,
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            club.name,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 18,
-                              color: Theme.of(context).textTheme.titleLarge?.color,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            'Share to invite members',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                
-                SizedBox(height: 24),
-                
-                // QR Code
-                Container(
-                  padding: EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: QrImageView(
-                    data: _generateClubInviteData(club),
-                    version: QrVersions.auto,
-                    size: 200.0,
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
-                  ),
-                ),
-                
-                SizedBox(height: 16),
-                
-                // Club ID
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    'Club ID: ${club.id}',
-                    style: TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 12,
-                      color: Theme.of(context).primaryColor,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                
-                SizedBox(height: 24),
-                
-                // Action Buttons
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: Icon(Icons.close, size: 18),
-                        label: Text('Close'),
-                        style: OutlinedButton.styleFrom(
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => _shareClubInvite(club),
-                        icon: Icon(Icons.share, size: 18, color: Colors.white),
-                        label: Text('Share', style: TextStyle(color: Colors.white)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).primaryColor,
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ClubInviteQRScreen(club: club),
+      ),
     );
   }
 
-  String _generateClubInviteData(Club club) {
-    // Generate a deep link or invitation data
-    // This could be a URL that opens the app and auto-joins the club
-    
-    // For now, return a simple invitation string
-    // In production, this could be a deep link like: duggy://join-club?id=${club.id}
-    return 'Join ${club.name} cricket club!\nClub ID: ${club.id}\nDownload Duggy app and enter this club ID to join.';
-  }
 
-  void _shareClubInvite(Club club) {
-    final inviteText = _generateClubInviteData(club);
-    Share.share(
-      inviteText,
-      subject: 'Join ${club.name} Cricket Club',
-    );
-  }
 }

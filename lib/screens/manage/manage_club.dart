@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:qr_flutter/qr_flutter.dart';
-import 'package:share_plus/share_plus.dart';
 import 'dart:convert';
 import '../../providers/club_provider.dart';
 import '../../models/club.dart';
@@ -11,6 +9,7 @@ import 'enhanced_club_members.dart';
 import 'club_transactions.dart';
 import 'club_settings.dart';
 import 'club_matches.dart';
+import '../club_invite_qr_screen.dart';
 
 class ManageClubScreen extends StatefulWidget {
   final Club club;
