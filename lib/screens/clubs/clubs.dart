@@ -252,16 +252,6 @@ class ClubsScreenState extends State<ClubsScreen> {
 
                     SizedBox(height: 4),
 
-                    // Balance
-                    Text(
-                      '₹${membership.balance.toStringAsFixed(0)}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.green[700],
-                      ),
-                    ),
-
                     // Approval Status (if pending)
                     if (!membership.approved) ...[
                       SizedBox(height: 6),
@@ -299,13 +289,14 @@ class ClubsScreenState extends State<ClubsScreen> {
                 ),
               ),
 
-              // Last Message Time (if available) - moved to right side
-              if (club.latestMessage != null)
-                Container(
-                  margin: EdgeInsets.only(left: 8),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
+              // Last Message Time and Balance (if available) - moved to right side
+              Container(
+                margin: EdgeInsets.only(left: 8),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (club.latestMessage != null)
                       Text(
                         _formatMessageTime(club.latestMessage!.createdAt),
                         style: TextStyle(
@@ -313,9 +304,19 @@ class ClubsScreenState extends State<ClubsScreen> {
                           color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6),
                         ),
                       ),
-                    ],
-                  ),
+                    SizedBox(height: 4),
+                    // Balance
+                    Text(
+                      '₹${membership.balance.toStringAsFixed(0)}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.green[700],
+                      ),
+                    ),
+                  ],
                 ),
+              ),
             ],
           ),
         ),
