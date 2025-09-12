@@ -728,6 +728,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                       iconColor: Theme.of(context).primaryColor,
                       fallbackIcon: Icons.sports_cricket,
                       showBorder: false,
+                      fit: BoxFit.contain,
                       child: club!.logo == null
                           ? Text(
                               club!.name.substring(0, 1).toUpperCase(),

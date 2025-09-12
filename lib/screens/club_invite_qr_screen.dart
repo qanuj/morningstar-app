@@ -19,6 +19,7 @@ class ClubInviteQRScreen extends StatelessWidget {
       'type': 'club_invite',
       'club_id': club.id,
       'club_name': club.name,
+      'logo': club.logo,
       'timestamp': DateTime.now().millisecondsSinceEpoch,
     });
 

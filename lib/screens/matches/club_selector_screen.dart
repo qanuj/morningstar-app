@@ -132,11 +132,13 @@ class _ClubSelectorScreenState extends State<ClubSelectorScreen>
         if (type == 'club_invite') {
           final clubId = jsonData['club_id'] as String?;
           final clubName = jsonData['club_name'] as String?;
+          final clubLogo = jsonData['logo'] as String?;
 
           if (clubId != null && clubName != null) {
             return Club(
               id: clubId,
               name: clubName,
+              logo: clubLogo,
               isVerified: false,
               membershipFee: 0.0,
               membershipFeeCurrency: 'INR',
