@@ -21,36 +21,198 @@ class _VenuePickerScreenState extends State<VenuePickerScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _popularScrollController = ScrollController();
+  final ScrollController _allVenuesScrollController = ScrollController();
+  
   List<Venue> _searchResults = [];
   List<Venue> _popularVenues = [];
+  List<Venue> _allVenues = [];
+  
   bool _isSearching = false;
   bool _showSearch = false;
+  bool _isLoadingPopular = false;
+  bool _isLoadingAll = false;
+  bool _isLoadingMorePopular = false;
+  bool _isLoadingMoreAll = false;
+  bool _hasMorePopular = true;
+  bool _hasMoreAll = true;
+  
+  int _popularOffset = 0;
+  int _allVenuesOffset = 0;
+  static const int _pageSize = 20;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _setupScrollListeners();
     _loadPopularVenues();
+    _loadAllVenues();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     _searchController.dispose();
+    _popularScrollController.dispose();
+    _allVenuesScrollController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadPopularVenues() async {
+  void _setupScrollListeners() {
+    _popularScrollController.addListener(() {
+      if (_popularScrollController.position.pixels >= 
+          _popularScrollController.position.maxScrollExtent - 200) {
+        _loadMorePopularVenues();
+      }
+    });
+
+    _allVenuesScrollController.addListener(() {
+      if (_allVenuesScrollController.position.pixels >= 
+          _allVenuesScrollController.position.maxScrollExtent - 200) {
+        _loadMoreAllVenues();
+      }
+    });
+  }
+
+  Future<void> _loadPopularVenues({bool refresh = false}) async {
+    if (refresh) {
+      setState(() {
+        _popularOffset = 0;
+        _hasMorePopular = true;
+        _popularVenues.clear();
+      });
+    }
+
+    if (_isLoadingPopular) return;
+
+    setState(() => _isLoadingPopular = true);
+
     try {
-      final venues = await VenueService.getPopularVenues();
+      final venues = await VenueService.getPopularVenues(
+        limit: _pageSize,
+        offset: refresh ? 0 : _popularOffset,
+      );
+
       if (mounted) {
         setState(() {
-          _popularVenues = venues;
+          if (refresh) {
+            _popularVenues = venues;
+          } else {
+            _popularVenues.addAll(venues);
+          }
+          _popularOffset = _popularVenues.length;
+          _hasMorePopular = venues.length >= _pageSize;
+          _isLoadingPopular = false;
         });
       }
     } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingPopular = false);
+      }
       print('Error loading popular venues: $e');
     }
+  }
+
+  Future<void> _loadAllVenues({bool refresh = false}) async {
+    if (refresh) {
+      setState(() {
+        _allVenuesOffset = 0;
+        _hasMoreAll = true;
+        _allVenues.clear();
+      });
+    }
+
+    if (_isLoadingAll) return;
+
+    setState(() => _isLoadingAll = true);
+
+    try {
+      final venues = await VenueService.getAllVenues(
+        limit: _pageSize,
+        offset: refresh ? 0 : _allVenuesOffset,
+      );
+
+      if (mounted) {
+        setState(() {
+          if (refresh) {
+            _allVenues = venues;
+          } else {
+            _allVenues.addAll(venues);
+          }
+          _allVenuesOffset = _allVenues.length;
+          _hasMoreAll = venues.length >= _pageSize;
+          _isLoadingAll = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingAll = false);
+      }
+      print('Error loading all venues: $e');
+    }
+  }
+
+  Future<void> _loadMorePopularVenues() async {
+    if (!_hasMorePopular || _isLoadingMorePopular) return;
+
+    setState(() => _isLoadingMorePopular = true);
+
+    try {
+      final venues = await VenueService.getPopularVenues(
+        limit: _pageSize,
+        offset: _popularOffset,
+      );
+
+      if (mounted) {
+        setState(() {
+          _popularVenues.addAll(venues);
+          _popularOffset = _popularVenues.length;
+          _hasMorePopular = venues.length >= _pageSize;
+          _isLoadingMorePopular = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingMorePopular = false);
+      }
+      print('Error loading more popular venues: $e');
+    }
+  }
+
+  Future<void> _loadMoreAllVenues() async {
+    if (!_hasMoreAll || _isLoadingMoreAll) return;
+
+    setState(() => _isLoadingMoreAll = true);
+
+    try {
+      final venues = await VenueService.getAllVenues(
+        limit: _pageSize,
+        offset: _allVenuesOffset,
+      );
+
+      if (mounted) {
+        setState(() {
+          _allVenues.addAll(venues);
+          _allVenuesOffset = _allVenues.length;
+          _hasMoreAll = venues.length >= _pageSize;
+          _isLoadingMoreAll = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingMoreAll = false);
+      }
+      print('Error loading more venues: $e');
+    }
+  }
+
+  Future<void> _refreshPopularVenues() async {
+    await _loadPopularVenues(refresh: true);
+  }
+
+  Future<void> _refreshAllVenues() async {
+    await _loadAllVenues(refresh: true);
   }
 
   Future<void> _performSearch(String query) async {
@@ -279,37 +441,144 @@ class _VenuePickerScreenState extends State<VenuePickerScreen>
   }
 
   Widget _buildPopularVenuesTab() {
-    if (_popularVenues.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.location_on, size: 64, color: Colors.grey[400]),
-            SizedBox(height: 16),
-            Text(
-              'No popular venues found',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey[600],
+    return RefreshIndicator(
+      onRefresh: _refreshPopularVenues,
+      color: Theme.of(context).primaryColor,
+      child: _isLoadingPopular && _popularVenues.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(color: Theme.of(context).primaryColor),
+                  SizedBox(height: 16),
+                  Text('Loading popular venues...'),
+                ],
               ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Search or add a new venue',
-              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-            ),
-          ],
-        ),
-      );
-    }
+            )
+          : _popularVenues.isEmpty
+              ? ListView(
+                  physics: AlwaysScrollableScrollPhysics(),
+                  children: [
+                    Container(
+                      height: MediaQuery.of(context).size.height - 300,
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.location_on, size: 64, color: Colors.grey[400]),
+                            SizedBox(height: 16),
+                            Text(
+                              'No popular venues found',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Pull down to refresh or search for venues',
+                              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : ListView.builder(
+                  controller: _popularScrollController,
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  physics: AlwaysScrollableScrollPhysics(),
+                  itemCount: _popularVenues.length + (_hasMorePopular ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    if (index == _popularVenues.length) {
+                      return Container(
+                        padding: EdgeInsets.all(16),
+                        child: Center(
+                          child: _isLoadingMorePopular
+                              ? CircularProgressIndicator(
+                                  color: Theme.of(context).primaryColor,
+                                )
+                              : SizedBox.shrink(),
+                        ),
+                      );
+                    }
+                    return _buildVenueTile(_popularVenues[index]);
+                  },
+                ),
+    );
+  }
 
-    return ListView.builder(
-      padding: EdgeInsets.symmetric(vertical: 8),
-      itemCount: _popularVenues.length,
-      itemBuilder: (context, index) {
-        return _buildVenueTile(_popularVenues[index]);
-      },
+  Widget _buildAllVenuesTab() {
+    return RefreshIndicator(
+      onRefresh: _refreshAllVenues,
+      color: Theme.of(context).primaryColor,
+      child: _isLoadingAll && _allVenues.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(color: Theme.of(context).primaryColor),
+                  SizedBox(height: 16),
+                  Text('Loading venues...'),
+                ],
+              ),
+            )
+          : _allVenues.isEmpty
+              ? ListView(
+                  physics: AlwaysScrollableScrollPhysics(),
+                  children: [
+                    Container(
+                      height: MediaQuery.of(context).size.height - 300,
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.location_on, size: 64, color: Colors.grey[400]),
+                            SizedBox(height: 16),
+                            Text(
+                              'No venues found',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Pull down to refresh or add a new venue',
+                              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : ListView.builder(
+                  controller: _allVenuesScrollController,
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  physics: AlwaysScrollableScrollPhysics(),
+                  itemCount: _allVenues.length + (_hasMoreAll ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    if (index == _allVenues.length) {
+                      return Container(
+                        padding: EdgeInsets.all(16),
+                        child: Center(
+                          child: _isLoadingMoreAll
+                              ? CircularProgressIndicator(
+                                  color: Theme.of(context).primaryColor,
+                                )
+                              : SizedBox.shrink(),
+                        ),
+                      );
+                    }
+                    return _buildVenueTile(_allVenues[index]);
+                  },
+                ),
     );
   }
 
@@ -489,7 +758,7 @@ class _VenuePickerScreenState extends State<VenuePickerScreen>
                     controller: _tabController,
                     children: [
                       _buildPopularVenuesTab(),
-                      _buildPopularVenuesTab(), // For now, same content
+                      _buildAllVenuesTab(),
                     ],
                   ),
           ),

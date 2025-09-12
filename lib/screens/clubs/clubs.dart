@@ -6,7 +6,6 @@ import '../../widgets/custom_app_bar.dart';
 import '../../widgets/svg_avatar.dart';
 import 'club_chat.dart';
 import 'create_club_screen.dart';
-import '../club_invite_qr_screen.dart';
 
 class ClubsScreen extends StatefulWidget {
   const ClubsScreen({super.key});
@@ -187,6 +186,29 @@ class ClubsScreenState extends State<ClubsScreen> {
                         ),
                       ),
                     ),
+                  // Unread Message Indicator
+                  if (membership.hasUnreadMessage)
+                    Positioned(
+                      right: -2,
+                      top: -2,
+                      child: Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Theme.of(context).scaffoldBackgroundColor,
+                            width: 2,
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.circle,
+                          color: Colors.red,
+                          size: 10,
+                        ),
+                      ),
+                    ),
                 ],
               ),
 
@@ -213,52 +235,31 @@ class ClubsScreenState extends State<ClubsScreen> {
 
                     SizedBox(height: 4),
 
-                    // Balance & Points Row
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Member count
-                        Text(
-                          '${club.membersCount ?? 0} members',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Theme.of(
-                              context,
-                            ).textTheme.bodyMedium?.color?.withOpacity(0.7),
-                          ),
+                    // Latest Message with Sender Name
+                    if (club.latestMessage != null)
+                      Text(
+                        '${club.latestMessage!.senderName}: ${club.latestMessage!.content.body}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.8),
+                          height: 1.2,
                         ),
+                      )
+                    else
+                      SizedBox(height: 16), // Empty space when no message
 
-                        // Balance & Points
-                        Row(
-                          children: [
-                            Text(
-                              '₹${membership.balance.toStringAsFixed(0)}',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.green[700],
-                              ),
-                            ),
-                            SizedBox(width: 12),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.star, size: 12, color: Colors.amber),
-                                SizedBox(width: 2),
-                                Text(
-                                  '${membership.points}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Theme.of(
-                                      context,
-                                    ).textTheme.bodySmall?.color,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
+                    SizedBox(height: 4),
+
+                    // Balance
+                    Text(
+                      '₹${membership.balance.toStringAsFixed(0)}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.green[700],
+                      ),
                     ),
 
                     // Approval Status (if pending)
@@ -298,19 +299,23 @@ class ClubsScreenState extends State<ClubsScreen> {
                 ),
               ),
 
-              // QR Code Button
-              Container(
-                margin: EdgeInsets.only(left: 8),
-                child: IconButton(
-                  onPressed: () => _showClubQRCode(club),
-                  icon: Icon(
-                    Icons.qr_code,
-                    color: Theme.of(context).primaryColor,
-                    size: 24,
+              // Last Message Time (if available) - moved to right side
+              if (club.latestMessage != null)
+                Container(
+                  margin: EdgeInsets.only(left: 8),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _formatMessageTime(club.latestMessage!.createdAt),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6),
+                        ),
+                      ),
+                    ],
                   ),
-                  tooltip: 'Show QR Code',
                 ),
-              ),
             ],
           ),
         ),
@@ -320,6 +325,9 @@ class ClubsScreenState extends State<ClubsScreen> {
 
   void _openClubChat(ClubMembership membership) {
     final club = membership.club;
+
+    // Mark club as read when opened
+    Provider.of<ClubProvider>(context, listen: false).markClubAsRead(club.id);
 
     // Directly open the club chat screen
     Navigator.of(
@@ -333,14 +341,36 @@ class ClubsScreenState extends State<ClubsScreen> {
     ).push(MaterialPageRoute(builder: (context) => CreateClubScreen()));
   }
 
-  void _showClubQRCode(Club club) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ClubInviteQRScreen(club: club),
-      ),
-    );
-  }
 
+  String _formatMessageTime(DateTime messageTime) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final messageDate = DateTime(messageTime.year, messageTime.month, messageTime.day);
+    final yesterday = today.subtract(Duration(days: 1));
+    
+    final difference = now.difference(messageTime);
+
+    if (messageDate == today) {
+      // Last 24 hours - show time
+      final hour = messageTime.hour;
+      final minute = messageTime.minute.toString().padLeft(2, '0');
+      final period = hour >= 12 ? 'PM' : 'AM';
+      final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+      return '$displayHour:$minute $period';
+    } else if (messageDate == yesterday) {
+      // Yesterday
+      return 'Yesterday';
+    } else if (difference.inDays <= 7) {
+      // Within the last week - show day name
+      final weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      return weekdays[messageTime.weekday - 1];
+    } else {
+      // More than a week ago - show date in MM-dd-YYYY format
+      final month = messageTime.month.toString().padLeft(2, '0');
+      final day = messageTime.day.toString().padLeft(2, '0');
+      final year = messageTime.year.toString();
+      return '$month-$day-$year';
+    }
+  }
 
 }

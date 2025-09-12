@@ -133,4 +133,80 @@ class ClubProvider with ChangeNotifier {
     _isLoading = false;
     notifyListeners();
   }
+
+  /// Update latest message for a specific club from push notification data
+  void updateClubLatestMessage({
+    required String clubId,
+    required String messageId,
+    required String messageContent,
+    required String senderName,
+    required String senderId,
+    required DateTime createdAt,
+    bool isRead = false, // New messages from notifications are unread by default
+  }) {
+    final clubIndex = _clubs.indexWhere((membership) => membership.club.id == clubId);
+    if (clubIndex != -1) {
+      final currentMembership = _clubs[clubIndex];
+      
+      // Create new latest message with read status
+      final newLatestMessage = LatestMessage(
+        id: messageId,
+        content: MessageContent(body: messageContent, type: 'text'),
+        createdAt: createdAt,
+        senderName: senderName,
+        senderId: senderId,
+        isRead: isRead,
+      );
+
+      // Update club with new latest message
+      final updatedClub = currentMembership.club.copyWith(
+        latestMessage: newLatestMessage,
+      );
+
+      final updatedMembership = currentMembership.copyWith(
+        club: updatedClub,
+      );
+
+      _clubs[clubIndex] = updatedMembership;
+      notifyListeners();
+
+      print('✅ Updated latest message for club $clubId (isRead: $isRead)');
+    } else {
+      print('❌ Club $clubId not found in provider');
+    }
+  }
+
+  /// Mark a club as read (clear unread indicator)
+  void markClubAsRead(String clubId) {
+    final clubIndex = _clubs.indexWhere((membership) => membership.club.id == clubId);
+    if (clubIndex != -1) {
+      final currentMembership = _clubs[clubIndex];
+      
+      // Only update if there's a latest message that's unread
+      if (currentMembership.hasUnreadMessage && currentMembership.club.latestMessage != null) {
+        final currentLatestMessage = currentMembership.club.latestMessage!;
+        
+        // Update the latest message to mark it as read
+        final updatedLatestMessage = currentLatestMessage.copyWith(isRead: true);
+        
+        final updatedClub = currentMembership.club.copyWith(
+          latestMessage: updatedLatestMessage,
+        );
+
+        final updatedMembership = currentMembership.copyWith(
+          club: updatedClub,
+        );
+
+        _clubs[clubIndex] = updatedMembership;
+        notifyListeners();
+
+        print('✅ Marked club $clubId as read');
+      }
+    }
+  }
+
+  /// Get unread clubs count
+  int get unreadClubsCount {
+    return _clubs.where((membership) => membership.hasUnreadMessage).length;
+  }
 }

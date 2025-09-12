@@ -7,10 +7,7 @@ import '../widgets/svg_avatar.dart';
 class ClubInviteQRScreen extends StatelessWidget {
   final Club club;
 
-  const ClubInviteQRScreen({
-    super.key,
-    required this.club,
-  });
+  const ClubInviteQRScreen({super.key, required this.club});
 
   @override
   Widget build(BuildContext context) {
@@ -20,6 +17,15 @@ class ClubInviteQRScreen extends StatelessWidget {
       'club_id': club.id,
       'club_name': club.name,
       'logo': club.logo,
+      'owners': club.owners
+          .map(
+            (owner) => {
+              'id': owner.id,
+              'name': owner.name,
+              'profile_picture': owner.profilePicture,
+            },
+          )
+          .toList(),
       'timestamp': DateTime.now().millisecondsSinceEpoch,
     });
 
@@ -70,9 +76,9 @@ class ClubInviteQRScreen extends StatelessWidget {
                     },
                   ),
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // Club logo and name
                 Column(
                   mainAxisSize: MainAxisSize.min,
@@ -85,9 +91,9 @@ class ClubInviteQRScreen extends StatelessWidget {
                       fallbackIcon: Icons.sports_cricket,
                       iconSize: 30,
                     ),
-                    
+
                     const SizedBox(height: 12),
-                    
+
                     // Club name
                     Text(
                       club.name,

@@ -133,9 +133,50 @@ class _ClubSelectorScreenState extends State<ClubSelectorScreen>
           final clubId = jsonData['club_id'] as String?;
           final clubName = jsonData['club_name'] as String?;
           final clubLogo = jsonData['logo'] as String?;
+          
+          // Handle both old and new formats
+          final ownerData = jsonData['owner'] as Map<String, dynamic>?; // Old format
+          final ownersData = jsonData['owners'] as List<dynamic>?; // New format
 
           if (clubId != null && clubName != null) {
-            return Club(
+            // Parse owner information if available
+            final owners = <ClubMember>[];
+            
+            // Handle new format (owners array)
+            if (ownersData != null && ownersData.isNotEmpty) {
+              for (final ownerJson in ownersData) {
+                if (ownerJson is Map<String, dynamic>) {
+                  final ownerId = ownerJson['id'] as String?;
+                  final ownerName = ownerJson['name'] as String?;
+                  final ownerProfilePicture = ownerJson['profile_picture'] as String? ?? 
+                                            ownerJson['profilePicture'] as String?; // Handle both formats
+                  
+                  if (ownerId != null && ownerName != null) {
+                    owners.add(ClubMember(
+                      id: ownerId,
+                      name: ownerName,
+                      profilePicture: ownerProfilePicture,
+                    ));
+                  }
+                }
+              }
+            }
+            // Handle old format (single owner)
+            else if (ownerData != null) {
+              final ownerId = ownerData['id'] as String?;
+              final ownerName = ownerData['name'] as String?;
+              final ownerProfilePicture = ownerData['profilePicture'] as String?;
+              
+              if (ownerId != null && ownerName != null) {
+                owners.add(ClubMember(
+                  id: ownerId,
+                  name: ownerName,
+                  profilePicture: ownerProfilePicture,
+                ));
+              }
+            }
+
+            final club = Club(
               id: clubId,
               name: clubName,
               logo: clubLogo,
@@ -143,8 +184,17 @@ class _ClubSelectorScreenState extends State<ClubSelectorScreen>
               membershipFee: 0.0,
               membershipFeeCurrency: 'INR',
               upiIdCurrency: 'INR',
-              owners: [],
+              owners: owners,
             );
+            
+            // Debug: Print parsed club data
+            print('Parsed QR Club - ID: ${club.id}, Name: ${club.name}');
+            print('Parsed QR Owners: ${club.owners.length} owners');
+            if (club.owners.isNotEmpty) {
+              print('Parsed QR First Owner: ID=${club.owners.first.id}, Name=${club.owners.first.name}, ProfilePicture=${club.owners.first.profilePicture}');
+            }
+            
+            return club;
           }
         } else if (type == 'club_info') {
           final clubId = jsonData['id'] as String?;
@@ -186,6 +236,13 @@ class _ClubSelectorScreenState extends State<ClubSelectorScreen>
   }
 
   Widget _buildClubTile(Club club) {
+    // Debug: Print club tile data
+    print('Club Tile - ID: ${club.id}, Name: ${club.name}');
+    print('Club Tile Owners: ${club.owners.length} owners');
+    if (club.owners.isNotEmpty) {
+      print('Club Tile First Owner: ID=${club.owners.first.id}, Name=${club.owners.first.name}, ProfilePicture=${club.owners.first.profilePicture}');
+    }
+    
     return Card(
       margin: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       elevation: 2,
@@ -200,28 +257,55 @@ class _ClubSelectorScreenState extends State<ClubSelectorScreen>
           padding: EdgeInsets.all(16),
           child: Row(
             children: [
-              // SVG Avatar for club logo
-              SVGAvatar(
-                imageUrl: club.logo,
-                size: 50,
-                backgroundColor: Theme.of(
-                  context,
-                ).primaryColor.withOpacity(0.1),
-                iconColor: Theme.of(context).primaryColor,
-                fallbackIcon: Icons.sports_cricket,
-                showBorder: false,
-                borderColor: Theme.of(context).primaryColor,
-                borderWidth: 2,
-                child: club.logo == null
-                    ? Text(
-                        club.name.substring(0, 1).toUpperCase(),
-                        style: TextStyle(
-                          color: Theme.of(context).primaryColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 20,
+              // SVG Avatar for club logo with owner profile picture badge
+              Stack(
+                children: [
+                  SVGAvatar(
+                    imageUrl: club.logo,
+                    size: 50,
+                    backgroundColor: Theme.of(
+                      context,
+                    ).primaryColor.withOpacity(0.1),
+                    iconColor: Theme.of(context).primaryColor,
+                    fallbackIcon: Icons.sports_cricket,
+                    showBorder: false,
+                    borderColor: Theme.of(context).primaryColor,
+                    borderWidth: 2,
+                    child: club.logo == null
+                        ? Text(
+                            club.name.substring(0, 1).toUpperCase(),
+                            style: TextStyle(
+                              color: Theme.of(context).primaryColor,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20,
+                            ),
+                          )
+                        : null,
+                  ),
+                  // Owner profile picture badge
+                  if (club.owners.isNotEmpty && club.owners.first.profilePicture != null)
+                    Positioned(
+                      right: -2,
+                      bottom: -2,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Theme.of(context).scaffoldBackgroundColor,
+                            width: 2,
+                          ),
                         ),
-                      )
-                    : null,
+                        child: SVGAvatar(
+                          imageUrl: club.owners.first.profilePicture,
+                          size: 18,
+                          backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+                          iconColor: Theme.of(context).primaryColor,
+                          fallbackIcon: Icons.person,
+                          showBorder: false,
+                        ),
+                      ),
+                    ),
+                ],
               ),
               SizedBox(width: 16),
 
@@ -272,47 +356,71 @@ class _ClubSelectorScreenState extends State<ClubSelectorScreen>
     return FutureBuilder<List<Club>>(
       future: ClubService.getUserClubs(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
-        }
-
         final myClubs =
             snapshot.data
                 ?.where((club) => club.id != widget.excludeClubId)
                 .toList() ??
             [];
 
-        if (myClubs.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.sports_cricket, size: 64, color: Colors.grey[400]),
-                SizedBox(height: 16),
-                Text(
-                  'No clubs found',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'Join a club to see it here',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-                ),
-              ],
-            ),
-          );
-        }
-
-        return ListView.builder(
-          padding: EdgeInsets.symmetric(vertical: 8),
-          itemCount: myClubs.length,
-          itemBuilder: (context, index) {
-            return _buildClubTile(myClubs[index]);
+        return RefreshIndicator(
+          onRefresh: () async {
+            setState(() {});
           },
+          color: Theme.of(context).primaryColor,
+          child: snapshot.connectionState == ConnectionState.waiting
+              ? ListView(
+                  physics: AlwaysScrollableScrollPhysics(),
+                  children: [
+                    Container(
+                      height: MediaQuery.of(context).size.height - 300,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: Theme.of(context).primaryColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : myClubs.isEmpty
+                  ? ListView(
+                      physics: AlwaysScrollableScrollPhysics(),
+                      children: [
+                        Container(
+                          height: MediaQuery.of(context).size.height - 300,
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.sports_cricket, size: 64, color: Colors.grey[400]),
+                                SizedBox(height: 16),
+                                Text(
+                                  'No clubs found',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Pull down to refresh or join a club',
+                                  style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : ListView.builder(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      physics: AlwaysScrollableScrollPhysics(),
+                      itemCount: myClubs.length,
+                      itemBuilder: (context, index) {
+                        return _buildClubTile(myClubs[index]);
+                      },
+                    ),
         );
       },
     );
@@ -322,43 +430,67 @@ class _ClubSelectorScreenState extends State<ClubSelectorScreen>
     return FutureBuilder<List<Club>>(
       future: ClubService.getOpponentClubs(excludeClubId: widget.excludeClubId),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
-        }
-
         final opponents = snapshot.data ?? [];
 
-        if (opponents.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.group, size: 64, color: Colors.grey[400]),
-                SizedBox(height: 16),
-                Text(
-                  'No opponent clubs found',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'Try searching for clubs',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-                ),
-              ],
-            ),
-          );
-        }
-
-        return ListView.builder(
-          padding: EdgeInsets.symmetric(vertical: 8),
-          itemCount: opponents.length,
-          itemBuilder: (context, index) {
-            return _buildClubTile(opponents[index]);
+        return RefreshIndicator(
+          onRefresh: () async {
+            setState(() {});
           },
+          color: Theme.of(context).primaryColor,
+          child: snapshot.connectionState == ConnectionState.waiting
+              ? ListView(
+                  physics: AlwaysScrollableScrollPhysics(),
+                  children: [
+                    Container(
+                      height: MediaQuery.of(context).size.height - 300,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: Theme.of(context).primaryColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : opponents.isEmpty
+                  ? ListView(
+                      physics: AlwaysScrollableScrollPhysics(),
+                      children: [
+                        Container(
+                          height: MediaQuery.of(context).size.height - 300,
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.group, size: 64, color: Colors.grey[400]),
+                                SizedBox(height: 16),
+                                Text(
+                                  'No opponent clubs found',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Pull down to refresh or try searching',
+                                  style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : ListView.builder(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      physics: AlwaysScrollableScrollPhysics(),
+                      itemCount: opponents.length,
+                      itemBuilder: (context, index) {
+                        return _buildClubTile(opponents[index]);
+                      },
+                    ),
         );
       },
     );

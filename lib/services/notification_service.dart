@@ -5,6 +5,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../providers/club_provider.dart';
 
 class NotificationService {
   static final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
@@ -15,6 +16,9 @@ class NotificationService {
   
   // Callbacks for real-time message updates by club
   static final Map<String, Function(Map<String, dynamic>)> _clubMessageCallbacks = {};
+  
+  // Global club provider reference for updating clubs list
+  static ClubProvider? _clubProvider;
   
   // Notification channel details
   static const String _channelId = 'duggy_notifications';
@@ -334,8 +338,39 @@ class NotificationService {
     final data = message.data;
     print('💬 Handling club message notification: $data');
 
-    // Always trigger the callback if registered, regardless of foreground/background state
     final clubId = data['clubId'] as String?;
+    final messageId = data['messageId'] as String?;
+    final messageContent = data['messageContent'] as String?;
+    final senderName = data['senderName'] as String?;
+    final senderId = data['senderId'] as String?;
+    final createdAt = data['createdAt'] as String?;
+
+    // Update club provider with latest message if available
+    if (_clubProvider != null && 
+        clubId != null && 
+        messageId != null && 
+        messageContent != null && 
+        senderName != null && 
+        senderId != null && 
+        createdAt != null) {
+      try {
+        final messageDateTime = DateTime.parse(createdAt);
+        _clubProvider!.updateClubLatestMessage(
+          clubId: clubId,
+          messageId: messageId,
+          messageContent: messageContent,
+          senderName: senderName,
+          senderId: senderId,
+          createdAt: messageDateTime,
+          isRead: false, // New messages from notifications are unread
+        );
+        print('✅ Updated club provider with latest message for club: $clubId');
+      } catch (e) {
+        print('❌ Failed to update club provider: $e');
+      }
+    }
+
+    // Always trigger the callback if registered, regardless of foreground/background state
     if (clubId != null && _clubMessageCallbacks.containsKey(clubId)) {
       print('🔄 Triggering real-time chat update via callback for club: $clubId');
       _clubMessageCallbacks[clubId]!(data);
@@ -484,6 +519,18 @@ class NotificationService {
   static void clearAllClubMessageCallbacks() {
     _clubMessageCallbacks.clear();
     print('🗑️ All club message callbacks cleared');
+  }
+
+  /// Set club provider reference for updating clubs list
+  static void setClubProvider(ClubProvider clubProvider) {
+    _clubProvider = clubProvider;
+    print('✅ Club provider reference set for notifications');
+  }
+
+  /// Clear club provider reference
+  static void clearClubProvider() {
+    _clubProvider = null;
+    print('🗑️ Club provider reference cleared');
   }
 }
 

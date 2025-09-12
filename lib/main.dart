@@ -114,6 +114,16 @@ class MyAppState extends State<MyApp> {
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
+          // Set club provider reference for notifications after context is available
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            try {
+              final clubProvider = Provider.of<ClubProvider>(context, listen: false);
+              NotificationService.setClubProvider(clubProvider);
+            } catch (e) {
+              print('⚠️ Failed to set club provider reference: $e');
+            }
+          });
+
           return MaterialApp(
             title: 'Duggy',
             navigatorKey: _navigatorKey,

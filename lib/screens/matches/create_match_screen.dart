@@ -718,27 +718,104 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
           child: hasClub
               ? Column(
                   children: [
-                    // Club logo replaces the circle completely
-                    SVGAvatar(
-                      imageUrl: club!.logo,
-                      size: 120,
-                      backgroundColor: Theme.of(
-                        context,
-                      ).primaryColor.withOpacity(0.1),
-                      iconColor: Theme.of(context).primaryColor,
-                      fallbackIcon: Icons.sports_cricket,
-                      showBorder: false,
-                      fit: BoxFit.contain,
-                      child: club!.logo == null
-                          ? Text(
-                              club!.name.substring(0, 1).toUpperCase(),
-                              style: TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).primaryColor,
+                    // Club logo with owner profile picture badge
+                    Stack(
+                      children: [
+                        SVGAvatar(
+                          imageUrl: club!.logo,
+                          size: 120,
+                          backgroundColor: Theme.of(
+                            context,
+                          ).primaryColor.withOpacity(0.1),
+                          iconColor: Theme.of(context).primaryColor,
+                          fallbackIcon: Icons.sports_cricket,
+                          showBorder: false,
+                          fit: BoxFit.contain,
+                          child: club!.logo == null
+                              ? Text(
+                                  club!.name.substring(0, 1).toUpperCase(),
+                                  style: TextStyle(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).primaryColor,
+                                  ),
+                                )
+                              : null,
+                        ),
+                        // Owner profile picture badge
+                        if (club!.owners.isNotEmpty && club!.owners.first.profilePicture != null)
+                          Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Theme.of(context).scaffoldBackgroundColor,
+                                  width: 3,
+                                ),
                               ),
-                            )
-                          : null,
+                              child: SVGAvatar(
+                                imageUrl: club!.owners.first.profilePicture,
+                                size: 30,
+                                backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+                                iconColor: Theme.of(context).primaryColor,
+                                fallbackIcon: Icons.person,
+                                showBorder: false,
+                              ),
+                            ),
+                          )
+                        else if (club!.owners.isNotEmpty)
+                          // Debug: Show a debug badge when owner exists but no profile picture
+                          Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Theme.of(context).scaffoldBackgroundColor,
+                                  width: 3,
+                                ),
+                                color: Colors.grey.withOpacity(0.3),
+                              ),
+                              child: Container(
+                                width: 30,
+                                height: 30,
+                                child: Icon(
+                                  Icons.person,
+                                  size: 16,
+                                  color: Theme.of(context).primaryColor,
+                                ),
+                              ),
+                            ),
+                          )
+                        else
+                          // Debug: Show when no owners at all
+                          Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.red,
+                                  width: 2,
+                                ),
+                                color: Colors.red.withOpacity(0.1),
+                              ),
+                              child: Container(
+                                width: 30,
+                                height: 30,
+                                child: Icon(
+                                  Icons.help_outline,
+                                  size: 16,
+                                  color: Colors.red,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                     SizedBox(height: 12),
                     // Club name below the circle

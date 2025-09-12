@@ -6,11 +6,15 @@ class VenueService {
   static Future<List<Venue>> searchVenues(
     String query, {
     int limit = 20,
+    int offset = 0,
     String? city,
     String? state,
   }) async {
     try {
-      final queryParams = <String, String>{};
+      final queryParams = <String, String>{
+        'limit': limit.toString(),
+        'offset': offset.toString(),
+      };
 
       // Add search query if provided
       if (query.trim().isNotEmpty) {
@@ -19,6 +23,10 @@ class VenueService {
       
       if (city != null && city.isNotEmpty) {
         queryParams['city'] = city;
+      }
+
+      if (state != null && state.isNotEmpty) {
+        queryParams['state'] = state;
       }
 
       final response = await ApiService.get(
@@ -94,14 +102,24 @@ class VenueService {
   }
 
   /// Get popular venues (most used) - using general ground-locations
-  static Future<List<Venue>> getPopularVenues({int limit = 10}) async {
+  static Future<List<Venue>> getPopularVenues({
+    int limit = 10,
+    int offset = 0,
+  }) async {
     try {
-      final response = await ApiService.get('/ground-locations');
+      final queryParams = <String, String>{
+        'limit': limit.toString(),
+        'offset': offset.toString(),
+        'popular': 'true', // Request popular venues from API
+      };
+
+      final response = await ApiService.get(
+        '/ground-locations',
+        queryParams: queryParams,
+      );
 
       if (response is List) {
-        // Take first 10 venues as "popular" since the API orders by city and name
         final venues = (response as List)
-            .take(limit)
             .map((json) => Venue.fromJson({
               'id': json['id'],
               'name': json['name'],
@@ -116,6 +134,51 @@ class VenueService {
       return [];
     } catch (e) {
       print('Error fetching popular venues: $e');
+      return [];
+    }
+  }
+
+  /// Get all venues with pagination
+  static Future<List<Venue>> getAllVenues({
+    int limit = 20,
+    int offset = 0,
+    String? city,
+    String? state,
+  }) async {
+    try {
+      final queryParams = <String, String>{
+        'limit': limit.toString(),
+        'offset': offset.toString(),
+      };
+
+      if (city != null && city.isNotEmpty) {
+        queryParams['city'] = city;
+      }
+
+      if (state != null && state.isNotEmpty) {
+        queryParams['state'] = state;
+      }
+
+      final response = await ApiService.get(
+        '/ground-locations',
+        queryParams: queryParams,
+      );
+
+      if (response is List) {
+        return (response as List)
+            .map((json) => Venue.fromJson({
+              'id': json['id'],
+              'name': json['name'],
+              'address': json['address'],
+              'city': json['city'],
+              'isActive': true,
+            }))
+            .toList();
+      }
+
+      return [];
+    } catch (e) {
+      print('Error fetching venues: $e');
       return [];
     }
   }

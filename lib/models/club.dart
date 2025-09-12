@@ -20,6 +20,7 @@ class Club {
   final bool? isActive;
   final int? membersCount;
   final List<ClubMember> owners;
+  final LatestMessage? latestMessage;
 
   Club({
     required this.id,
@@ -42,6 +43,7 @@ class Club {
     this.isActive,
     this.membersCount,
     this.owners = const [],
+    this.latestMessage,
   });
 
   factory Club.fromJson(Map<String, dynamic> json) {
@@ -69,6 +71,131 @@ class Club {
       owners: (json['owners'] as List?)
           ?.map((owner) => ClubMember.fromJson(owner as Map<String, dynamic>))
           .toList() ?? [],
+      latestMessage: json['latestMessage'] != null 
+          ? LatestMessage.fromJson(json['latestMessage'])
+          : null,
+    );
+  }
+
+  Club copyWith({
+    String? id,
+    String? name,
+    String? description,
+    String? logo,
+    String? website,
+    String? contactEmail,
+    String? contactPhone,
+    String? city,
+    String? state,
+    String? country,
+    bool? isVerified,
+    double? membershipFee,
+    String? membershipFeeDescription,
+    String? membershipFeeCurrency,
+    String? upiId,
+    String? upiIdDescription,
+    String? upiIdCurrency,
+    bool? isActive,
+    int? membersCount,
+    List<ClubMember>? owners,
+    LatestMessage? latestMessage,
+  }) {
+    return Club(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      logo: logo ?? this.logo,
+      website: website ?? this.website,
+      contactEmail: contactEmail ?? this.contactEmail,
+      contactPhone: contactPhone ?? this.contactPhone,
+      city: city ?? this.city,
+      state: state ?? this.state,
+      country: country ?? this.country,
+      isVerified: isVerified ?? this.isVerified,
+      membershipFee: membershipFee ?? this.membershipFee,
+      membershipFeeDescription: membershipFeeDescription ?? this.membershipFeeDescription,
+      membershipFeeCurrency: membershipFeeCurrency ?? this.membershipFeeCurrency,
+      upiId: upiId ?? this.upiId,
+      upiIdDescription: upiIdDescription ?? this.upiIdDescription,
+      upiIdCurrency: upiIdCurrency ?? this.upiIdCurrency,
+      isActive: isActive ?? this.isActive,
+      membersCount: membersCount ?? this.membersCount,
+      owners: owners ?? this.owners,
+      latestMessage: latestMessage ?? this.latestMessage,
+    );
+  }
+}
+
+class LatestMessage {
+  final String id;
+  final MessageContent content;
+  final DateTime createdAt;
+  final String senderName;
+  final String senderId;
+  final bool isRead;
+
+  LatestMessage({
+    required this.id,
+    required this.content,
+    required this.createdAt,
+    required this.senderName,
+    required this.senderId,
+    required this.isRead,
+  });
+
+  factory LatestMessage.fromJson(Map<String, dynamic> json) {
+    // Handle isRead with proper null safety
+    bool isReadValue = true; // Default to read if not specified
+    if (json['isRead'] != null) {
+      if (json['isRead'] is bool) {
+        isReadValue = json['isRead'];
+      } else if (json['isRead'] is String) {
+        isReadValue = json['isRead'].toLowerCase() == 'true';
+      }
+    }
+
+    return LatestMessage(
+      id: json['id'] ?? '',
+      content: MessageContent.fromJson(json['content'] ?? {}),
+      createdAt: DateTime.parse(json['createdAt']),
+      senderName: json['senderName'] ?? '',
+      senderId: json['senderId'] ?? '',
+      isRead: isReadValue,
+    );
+  }
+
+  LatestMessage copyWith({
+    String? id,
+    MessageContent? content,
+    DateTime? createdAt,
+    String? senderName,
+    String? senderId,
+    bool? isRead,
+  }) {
+    return LatestMessage(
+      id: id ?? this.id,
+      content: content ?? this.content,
+      createdAt: createdAt ?? this.createdAt,
+      senderName: senderName ?? this.senderName,
+      senderId: senderId ?? this.senderId,
+      isRead: isRead ?? this.isRead,
+    );
+  }
+}
+
+class MessageContent {
+  final String body;
+  final String type;
+
+  MessageContent({
+    required this.body,
+    required this.type,
+  });
+
+  factory MessageContent.fromJson(Map<String, dynamic> json) {
+    return MessageContent(
+      body: json['body'] ?? '',
+      type: json['type'] ?? 'text',
     );
   }
 }
@@ -105,6 +232,33 @@ class ClubMembership {
       points: json['points'] ?? 0,
       club: Club.fromJson(json['club'] ?? {}),
     );
+  }
+
+  ClubMembership copyWith({
+    String? role,
+    bool? approved,
+    bool? isActive,
+    bool? isBanned,
+    double? balance,
+    double? totalExpenses,
+    int? points,
+    Club? club,
+  }) {
+    return ClubMembership(
+      role: role ?? this.role,
+      approved: approved ?? this.approved,
+      isActive: isActive ?? this.isActive,
+      isBanned: isBanned ?? this.isBanned,
+      balance: balance ?? this.balance,
+      totalExpenses: totalExpenses ?? this.totalExpenses,
+      points: points ?? this.points,
+      club: club ?? this.club,
+    );
+  }
+
+  /// Helper method to check if club has unread messages
+  bool get hasUnreadMessage {
+    return club.latestMessage?.isRead == false;
   }
 }
 
