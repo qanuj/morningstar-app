@@ -319,21 +319,24 @@ class _ClubSelectorScreenState extends State<ClubSelectorScreen>
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 16,
-                        color: Colors.black87,
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
                       ),
                     ),
                     SizedBox(height: 4),
                     if (club.city?.isNotEmpty ?? false)
                       Text(
                         club.city!,
-                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                        style: TextStyle(
+                          color: Theme.of(context).textTheme.bodySmall?.color,
+                          fontSize: 14,
+                        ),
                       ),
                     if (club.owners.isNotEmpty) ...[
                       SizedBox(height: 2),
                       Text(
                         '${club.owners.first.name}${club.owners.length > 1 ? ' +${club.owners.length - 1} more' : ''}',
                         style: TextStyle(
-                          color: Colors.grey[500],
+                          color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
                           fontSize: 12,
                           fontStyle: FontStyle.italic,
                         ),
@@ -344,7 +347,13 @@ class _ClubSelectorScreenState extends State<ClubSelectorScreen>
               ),
 
               // Arrow
-              Icon(Icons.arrow_forward_ios, size: 18, color: Colors.grey[400]),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 18,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Theme.of(context).colorScheme.onSurface.withOpacity(0.6)
+                    : Theme.of(context).textTheme.bodySmall?.color,
+              ),
             ],
           ),
         ),
@@ -391,20 +400,29 @@ class _ClubSelectorScreenState extends State<ClubSelectorScreen>
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.sports_cricket, size: 64, color: Colors.grey[400]),
+                                Icon(
+                                  Icons.sports_cricket,
+                                  size: 64,
+                                  color: Theme.of(context).brightness == Brightness.dark
+                                      ? Theme.of(context).colorScheme.onSurface.withOpacity(0.5)
+                                      : Theme.of(context).textTheme.bodySmall?.color,
+                                ),
                                 SizedBox(height: 16),
                                 Text(
                                   'No clubs found',
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.w500,
-                                    color: Colors.grey[600],
+                                    color: Theme.of(context).textTheme.bodySmall?.color,
                                   ),
                                 ),
                                 SizedBox(height: 8),
                                 Text(
                                   'Pull down to refresh or join a club',
-                                  style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
+                                  ),
                                   textAlign: TextAlign.center,
                                 ),
                               ],
@@ -461,20 +479,29 @@ class _ClubSelectorScreenState extends State<ClubSelectorScreen>
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.group, size: 64, color: Colors.grey[400]),
+                                Icon(
+                                  Icons.group,
+                                  size: 64,
+                                  color: Theme.of(context).brightness == Brightness.dark
+                                      ? Theme.of(context).colorScheme.onSurface.withOpacity(0.5)
+                                      : Theme.of(context).textTheme.bodySmall?.color,
+                                ),
                                 SizedBox(height: 16),
                                 Text(
                                   'No opponent clubs found',
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.w500,
-                                    color: Colors.grey[600],
+                                    color: Theme.of(context).textTheme.bodySmall?.color,
                                   ),
                                 ),
                                 SizedBox(height: 8),
                                 Text(
                                   'Pull down to refresh or try searching',
-                                  style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
+                                  ),
                                   textAlign: TextAlign.center,
                                 ),
                               ],
@@ -515,20 +542,29 @@ class _ClubSelectorScreenState extends State<ClubSelectorScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
+            Icon(
+              Icons.search_off,
+              size: 64,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Theme.of(context).colorScheme.onSurface.withOpacity(0.5)
+                  : Theme.of(context).textTheme.bodySmall?.color,
+            ),
             SizedBox(height: 16),
             Text(
               'No clubs found',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w500,
-                color: Colors.grey[600],
+                color: Theme.of(context).textTheme.bodySmall?.color,
               ),
             ),
             SizedBox(height: 8),
             Text(
               'Try different search terms',
-              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
+              ),
             ),
           ],
         ),
@@ -540,20 +576,29 @@ class _ClubSelectorScreenState extends State<ClubSelectorScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search, size: 64, color: Colors.grey[400]),
+            Icon(
+              Icons.search,
+              size: 64,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Theme.of(context).colorScheme.onSurface.withOpacity(0.5)
+                  : Theme.of(context).textTheme.bodySmall?.color,
+            ),
             SizedBox(height: 16),
             Text(
               'Search for clubs',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w500,
-                color: Colors.grey[600],
+                color: Theme.of(context).textTheme.bodySmall?.color,
               ),
             ),
             SizedBox(height: 8),
             Text(
               'Enter club name to search',
-              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
+              ),
             ),
           ],
         ),
@@ -596,7 +641,7 @@ class _ClubSelectorScreenState extends State<ClubSelectorScreen>
           // Search Field (when visible)
           if (_showSearch) ...[
             Container(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               padding: EdgeInsets.all(16),
               child: TextField(
                 controller: _searchController,
@@ -604,19 +649,25 @@ class _ClubSelectorScreenState extends State<ClubSelectorScreen>
                   hintText: 'Search for clubs...',
                   prefixIcon: Icon(
                     Icons.search,
-                    color: Theme.of(context).primaryColor,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).primaryColor,
                   ),
                   suffixIcon: IconButton(
                     icon: Icon(
                       Icons.qr_code_scanner,
-                      color: Theme.of(context).primaryColor,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).primaryColor,
                     ),
                     onPressed: _scanQRCode,
                     tooltip: 'Scan QR Code',
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).dividerColor.withOpacity(0.5),
+                    ),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -626,7 +677,7 @@ class _ClubSelectorScreenState extends State<ClubSelectorScreen>
                     ),
                   ),
                   filled: true,
-                  fillColor: Colors.grey.shade50,
+                  fillColor: Theme.of(context).inputDecorationTheme.fillColor,
                   contentPadding: EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 12,
@@ -643,11 +694,11 @@ class _ClubSelectorScreenState extends State<ClubSelectorScreen>
           // Tab Bar (when not searching)
           if (!_showSearch) ...[
             Container(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               child: TabBar(
                 controller: _tabController,
                 labelColor: Theme.of(context).primaryColor,
-                unselectedLabelColor: Colors.grey[600],
+                unselectedLabelColor: Theme.of(context).textTheme.bodySmall?.color,
                 indicatorColor: Theme.of(context).primaryColor,
                 indicatorWeight: 3,
                 labelStyle: TextStyle(

@@ -318,7 +318,9 @@ class _VenuePickerScreenState extends State<VenuePickerScreen> {
                 ),
                 child: Icon(
                   Icons.location_on,
-                  color: Theme.of(context).primaryColor,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).primaryColor,
                   size: 28,
                 ),
               ),
@@ -334,7 +336,7 @@ class _VenuePickerScreenState extends State<VenuePickerScreen> {
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 16,
-                        color: Colors.black87,
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
                       ),
                     ),
                     if (venue.fullAddress.isNotEmpty) ...[
@@ -342,7 +344,7 @@ class _VenuePickerScreenState extends State<VenuePickerScreen> {
                       Text(
                         venue.fullAddress,
                         style: TextStyle(
-                          color: Colors.grey[600], 
+                          color: Theme.of(context).textTheme.bodySmall?.color,
                           fontSize: 14
                         ),
                         maxLines: 2,
@@ -354,7 +356,11 @@ class _VenuePickerScreenState extends State<VenuePickerScreen> {
               ),
 
               // Arrow
-              Icon(Icons.arrow_forward_ios, size: 18, color: Colors.grey[400]),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 18,
+                color: Theme.of(context).textTheme.bodySmall?.color,
+              ),
             ],
           ),
         ),
@@ -387,20 +393,29 @@ class _VenuePickerScreenState extends State<VenuePickerScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.location_on, size: 64, color: Colors.grey[400]),
+                            Icon(
+                              Icons.location_on,
+                              size: 64,
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? Theme.of(context).colorScheme.onSurface.withOpacity(0.5)
+                                  : Theme.of(context).textTheme.bodySmall?.color,
+                            ),
                             SizedBox(height: 16),
                             Text(
                               'No venues found',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w500,
-                                color: Colors.grey[600],
+                                color: Theme.of(context).textTheme.bodySmall?.color,
                               ),
                             ),
                             SizedBox(height: 8),
                             Text(
                               'Pull down to refresh or add a new venue',
-                              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
+              ),
                               textAlign: TextAlign.center,
                             ),
                           ],
@@ -452,20 +467,29 @@ class _VenuePickerScreenState extends State<VenuePickerScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
+            Icon(
+              Icons.search_off,
+              size: 64,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Theme.of(context).colorScheme.onSurface.withOpacity(0.5)
+                  : Theme.of(context).textTheme.bodySmall?.color,
+            ),
             SizedBox(height: 16),
             Text(
               'No venues found',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w500,
-                color: Colors.grey[600],
+                color: Theme.of(context).textTheme.bodySmall?.color,
               ),
             ),
             SizedBox(height: 8),
             Text(
               'Try different search terms or add a new venue',
-              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -478,20 +502,29 @@ class _VenuePickerScreenState extends State<VenuePickerScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search, size: 64, color: Colors.grey[400]),
+            Icon(
+              Icons.search,
+              size: 64,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Theme.of(context).colorScheme.onSurface.withOpacity(0.5)
+                  : Theme.of(context).textTheme.bodySmall?.color,
+            ),
             SizedBox(height: 16),
             Text(
               'Search for venues',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w500,
-                color: Colors.grey[600],
+                color: Theme.of(context).textTheme.bodySmall?.color,
               ),
             ),
             SizedBox(height: 8),
             Text(
               'Enter venue name or location to search',
-              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
+              ),
             ),
           ],
         ),
@@ -539,7 +572,7 @@ class _VenuePickerScreenState extends State<VenuePickerScreen> {
           // Search Field (when visible)
           if (_showSearch) ...[ 
             Container(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               padding: EdgeInsets.all(16),
               child: TextField(
                 controller: _searchController,
@@ -547,11 +580,15 @@ class _VenuePickerScreenState extends State<VenuePickerScreen> {
                   hintText: 'Search venues...',
                   prefixIcon: Icon(
                     Icons.search,
-                    color: Theme.of(context).primaryColor,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).primaryColor,
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).dividerColor.withOpacity(0.5),
+                    ),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -561,7 +598,7 @@ class _VenuePickerScreenState extends State<VenuePickerScreen> {
                     ),
                   ),
                   filled: true,
-                  fillColor: Colors.grey.shade50,
+                  fillColor: Theme.of(context).inputDecorationTheme.fillColor,
                   contentPadding: EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 12,

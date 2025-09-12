@@ -95,21 +95,30 @@ class _TournamentPickerScreenState extends State<TournamentPickerScreen> {
               onChanged: _filterTournaments,
               decoration: InputDecoration(
                 hintText: 'Search tournaments...',
-                prefixIcon: Icon(Icons.search),
+                prefixIcon: Icon(
+                  Icons.search,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).primaryColor,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
+                  borderSide: BorderSide(
+                    color: Theme.of(context).dividerColor.withOpacity(0.5),
+                  ),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
+                  borderSide: BorderSide(
+                    color: Theme.of(context).dividerColor.withOpacity(0.5),
+                  ),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: Theme.of(context).primaryColor, width: 2),
                 ),
                 filled: true,
-                fillColor: Colors.grey.shade50,
+                fillColor: Theme.of(context).inputDecorationTheme.fillColor,
                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
             ),
@@ -147,7 +156,9 @@ class _TournamentPickerScreenState extends State<TournamentPickerScreen> {
           Icon(
             Icons.emoji_events_outlined,
             size: 64,
-            color: Colors.grey.shade400,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Theme.of(context).colorScheme.onSurface.withOpacity(0.5)
+                : Theme.of(context).textTheme.bodySmall?.color,
           ),
           SizedBox(height: 16),
           Text(
@@ -155,7 +166,7 @@ class _TournamentPickerScreenState extends State<TournamentPickerScreen> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
-              color: Colors.grey.shade600,
+              color: Theme.of(context).textTheme.bodySmall?.color,
             ),
           ),
           SizedBox(height: 8),
@@ -165,7 +176,7 @@ class _TournamentPickerScreenState extends State<TournamentPickerScreen> {
                 : 'Create a tournament first to schedule matches',
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey.shade500,
+              color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
             ),
             textAlign: TextAlign.center,
           ),
@@ -197,7 +208,7 @@ class _TournamentPickerScreenState extends State<TournamentPickerScreen> {
     final isOngoing = tournament.startDate.isBefore(now) && tournament.endDate.isAfter(now);
     final isPast = tournament.endDate.isBefore(now);
 
-    Color statusColor = Colors.grey;
+    Color statusColor = Theme.of(context).textTheme.bodySmall?.color ?? Colors.grey;
     String statusText = 'Past';
     IconData statusIcon = Icons.history;
 
@@ -239,7 +250,9 @@ class _TournamentPickerScreenState extends State<TournamentPickerScreen> {
                   child: Icon(
                     Icons.emoji_events,
                     size: 28,
-                    color: Theme.of(context).primaryColor,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).primaryColor,
                   ),
                 ),
               ),
@@ -259,7 +272,7 @@ class _TournamentPickerScreenState extends State<TournamentPickerScreen> {
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
-                              color: Colors.black87,
+                              color: Theme.of(context).textTheme.bodyLarge?.color,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -301,7 +314,9 @@ class _TournamentPickerScreenState extends State<TournamentPickerScreen> {
                         Icon(
                           Icons.location_on,
                           size: 14,
-                          color: Colors.grey.shade600,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Theme.of(context).colorScheme.onSurface.withOpacity(0.6)
+                              : Theme.of(context).textTheme.bodySmall?.color,
                         ),
                         SizedBox(width: 4),
                         Expanded(
@@ -309,7 +324,7 @@ class _TournamentPickerScreenState extends State<TournamentPickerScreen> {
                             '${tournament.venue.isNotEmpty ? tournament.venue + ', ' : ''}${tournament.city}',
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.grey.shade600,
+                              color: Theme.of(context).textTheme.bodySmall?.color,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -325,14 +340,16 @@ class _TournamentPickerScreenState extends State<TournamentPickerScreen> {
                         Icon(
                           Icons.calendar_today,
                           size: 14,
-                          color: Colors.grey.shade600,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Theme.of(context).colorScheme.onSurface.withOpacity(0.6)
+                              : Theme.of(context).textTheme.bodySmall?.color,
                         ),
                         SizedBox(width: 4),
                         Text(
                           '${DateFormat('MMM dd').format(tournament.startDate)} - ${DateFormat('MMM dd, yyyy').format(tournament.endDate)}',
                           style: TextStyle(
                             fontSize: 13,
-                            color: Colors.grey.shade600,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
                           ),
                         ),
                       ],
@@ -345,7 +362,7 @@ class _TournamentPickerScreenState extends State<TournamentPickerScreen> {
               Icon(
                 Icons.arrow_forward_ios,
                 size: 16,
-                color: Colors.grey.shade400,
+                color: Theme.of(context).textTheme.bodySmall?.color,
               ),
             ],
           ),

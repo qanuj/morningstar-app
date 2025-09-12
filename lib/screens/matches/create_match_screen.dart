@@ -204,6 +204,10 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       builder: (BuildContext context) {
         return Container(
           padding: EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -211,14 +215,18 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
+                  color: Theme.of(context).dividerColor,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
               SizedBox(height: 16),
               Text(
                 'Select Match Type',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).textTheme.titleLarge?.color,
+                ),
               ),
               SizedBox(height: 16),
               ...types
@@ -323,10 +331,14 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
 
           // Bottom Action Bar
           Container(
-            padding: EdgeInsets.all(20),
+            padding: EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: Colors.grey.shade200)),
+              color: Theme.of(context).cardColor,
+              border: Border(
+                top: BorderSide(
+                  color: Theme.of(context).dividerColor.withOpacity(0.3),
+                ),
+              ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.05),
@@ -378,7 +390,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
 
   Widget _buildCreateMatchForm() {
     return SingleChildScrollView(
-      padding: EdgeInsets.all(20),
+      padding: EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -386,11 +398,11 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
           Row(
             children: [
               _buildTypeButton('GAME', Icons.sports_cricket),
-              SizedBox(width: 24),
+              SizedBox(width: 16),
               _buildTypeButton('TOURNAMENT', Icons.emoji_events),
             ],
           ),
-          SizedBox(height: 32),
+          SizedBox(height: 20),
 
           // Team Circles
           Row(
@@ -402,16 +414,16 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                   onTap: () => _selectHomeClub(),
                 ),
               ),
-              SizedBox(width: 24),
+              SizedBox(width: 16),
               Text(
                 'VS',
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color: Theme.of(context).primaryColor,
+                  color: Theme.of(context).textTheme.titleLarge?.color,
                 ),
               ),
-              SizedBox(width: 24),
+              SizedBox(width: 16),
               Expanded(
                 child: _buildTeamCircle(
                   title: 'Opponent',
@@ -421,7 +433,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
               ),
             ],
           ),
-          SizedBox(height: 40),
+          SizedBox(height: 24),
 
           // Match Date & Time
           Row(
@@ -435,13 +447,15 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                       onTap: () => _selectDate(context),
                       child: Container(
                         padding: EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 20,
+                          horizontal: 12,
+                          vertical: 14,
                         ),
                         decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
+                          border: Border.all(
+                            color: Theme.of(context).dividerColor.withOpacity(0.5),
+                          ),
                           borderRadius: BorderRadius.circular(12),
-                          color: Colors.grey.shade50,
+                          color: Theme.of(context).inputDecorationTheme.fillColor,
                         ),
                         child: Row(
                           children: [
@@ -457,6 +471,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w500,
+                                  color: Theme.of(context).textTheme.bodyLarge?.color,
                                 ),
                               ),
                             ),
@@ -467,7 +482,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                   ],
                 ),
               ),
-              SizedBox(width: 16),
+              SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -476,13 +491,15 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                       onTap: () => _selectTime(context),
                       child: Container(
                         padding: EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 20,
+                          horizontal: 12,
+                          vertical: 14,
                         ),
                         decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
+                          border: Border.all(
+                            color: Theme.of(context).dividerColor.withOpacity(0.5),
+                          ),
                           borderRadius: BorderRadius.circular(12),
-                          color: Colors.grey.shade50,
+                          color: Theme.of(context).inputDecorationTheme.fillColor,
                         ),
                         child: Row(
                           children: [
@@ -498,6 +515,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w500,
+                                  color: Theme.of(context).textTheme.bodyLarge?.color,
                                 ),
                               ),
                             ),
@@ -510,23 +528,23 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
               ),
             ],
           ),
-          SizedBox(height: 32),
+          SizedBox(height: 20),
 
           // Venue Selection
           InkWell(
             onTap: () => _selectVenue(),
             child: Container(
-              padding: EdgeInsets.all(16),
+              padding: EdgeInsets.all(12),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: _selectedVenue == null
-                      ? Colors.grey.shade300
+                      ? Theme.of(context).dividerColor.withOpacity(0.5)
                       : Theme.of(context).primaryColor,
                   width: _selectedVenue == null ? 1 : 2,
                 ),
                 color: _selectedVenue == null
-                    ? Colors.grey.shade50
+                    ? Theme.of(context).inputDecorationTheme.fillColor
                     : Theme.of(context).primaryColor.withOpacity(0.05),
               ),
               child: Row(
@@ -534,8 +552,10 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                   Icon(
                     Icons.location_on,
                     color: _selectedVenue == null
-                        ? Colors.grey.shade500
-                        : Theme.of(context).primaryColor,
+                        ? Theme.of(context).textTheme.bodyMedium?.color
+                        : (Theme.of(context).brightness == Brightness.dark
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context).primaryColor),
                   ),
                   SizedBox(width: 12),
                   Expanded(
@@ -547,8 +567,8 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                           style: TextStyle(
                             fontSize: 16,
                             color: _selectedVenue == null
-                                ? Colors.grey.shade500
-                                : Colors.black87,
+                                ? Theme.of(context).textTheme.bodySmall?.color
+                                : Theme.of(context).textTheme.bodyLarge?.color,
                             fontWeight: _selectedVenue == null
                                 ? FontWeight.normal
                                 : FontWeight.w500,
@@ -559,7 +579,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                             _selectedVenue!.fullAddress,
                             style: TextStyle(
                               fontSize: 14,
-                              color: Colors.grey.shade600,
+                              color: Theme.of(context).textTheme.bodySmall?.color,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -570,30 +590,30 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                   Icon(
                     Icons.arrow_forward_ios,
                     size: 16,
-                    color: Colors.grey.shade400,
+                    color: Theme.of(context).textTheme.bodySmall?.color,
                   ),
                 ],
               ),
             ),
           ),
-          SizedBox(height: 32),
+          SizedBox(height: 20),
 
           // Tournament Selection (only for Tournament type)
           if (_selectedType == 'TOURNAMENT') ...[
             InkWell(
               onTap: () => _selectTournament(),
               child: Container(
-                padding: EdgeInsets.all(16),
+                padding: EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: _selectedTournament == null
-                        ? Colors.grey.shade300
+                        ? Theme.of(context).dividerColor.withOpacity(0.5)
                         : Theme.of(context).primaryColor,
                     width: _selectedTournament == null ? 1 : 2,
                   ),
                   color: _selectedTournament == null
-                      ? Colors.grey.shade50
+                      ? Theme.of(context).inputDecorationTheme.fillColor
                       : Theme.of(context).primaryColor.withOpacity(0.05),
                 ),
                 child: Row(
@@ -601,8 +621,10 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                     Icon(
                       Icons.emoji_events,
                       color: _selectedTournament == null
-                          ? Colors.grey.shade500
-                          : Theme.of(context).primaryColor,
+                          ? Theme.of(context).textTheme.bodyMedium?.color
+                          : (Theme.of(context).brightness == Brightness.dark
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).primaryColor),
                     ),
                     SizedBox(width: 12),
                     Expanded(
@@ -614,8 +636,8 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                             style: TextStyle(
                               fontSize: 16,
                               color: _selectedTournament == null
-                                  ? Colors.grey.shade500
-                                  : Colors.black87,
+                                  ? Theme.of(context).textTheme.bodySmall?.color
+                                  : Theme.of(context).textTheme.bodyLarge?.color,
                               fontWeight: _selectedTournament == null
                                   ? FontWeight.normal
                                   : FontWeight.w500,
@@ -627,7 +649,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                               '${_selectedTournament!.location}, ${_selectedTournament!.city}',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: Colors.grey.shade600,
+                                color: Theme.of(context).textTheme.bodySmall?.color,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -636,7 +658,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                               '${DateFormat('MMM dd').format(_selectedTournament!.startDate)} - ${DateFormat('MMM dd, yyyy').format(_selectedTournament!.endDate)}',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.grey.shade500,
+                                color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
                               ),
                             ),
                           ],
@@ -646,50 +668,50 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                     Icon(
                       Icons.arrow_forward_ios,
                       size: 16,
-                      color: Colors.grey.shade400,
+                      color: Theme.of(context).textTheme.bodySmall?.color,
                     ),
                   ],
                 ),
               ),
             ),
-            SizedBox(height: 32),
+            SizedBox(height: 20),
           ],
 
           // Ball Selection
           Container(
-            height: 80,
+            height: 70,
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: [
                 _buildBallOption('Pink', Color(0xFFFF1493), useSvg: true),
-                SizedBox(width: 16),
+                SizedBox(width: 12),
                 _buildBallOption('White', Color(0xFFF5F5F5), useSvg: true),
-                SizedBox(width: 16),
+                SizedBox(width: 12),
                 _buildBallOption(
                   'Red',
                   Color.fromARGB(255, 88, 0, 25),
                   useSvg: true,
                 ),
-                SizedBox(width: 16),
+                SizedBox(width: 12),
                 _buildBallOption(
                   'Tennis',
                   Color(0xFFC7D32B),
                   useSvg: true,
                   svgAsset: 'assets/images/tennis.svg',
                 ),
-                SizedBox(width: 16),
+                SizedBox(width: 12),
                 _buildBallOption('Other', Colors.orange),
               ],
             ),
           ),
 
           // Selected ball name
-          SizedBox(height: 8),
+          SizedBox(height: 6),
           Center(
             child: Text(
               _selectedBall,
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 12,
                 fontWeight: FontWeight.w500,
                 color: Theme.of(context).primaryColor,
               ),
@@ -716,15 +738,15 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
           });
         },
         child: Container(
-          padding: EdgeInsets.symmetric(vertical: 12),
+          padding: EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
             color: isSelected
                 ? Theme.of(context).primaryColor.withOpacity(0.1)
-                : Colors.grey.shade50,
+                : Theme.of(context).inputDecorationTheme.fillColor,
             border: Border.all(
               color: isSelected
                   ? Theme.of(context).primaryColor
-                  : Colors.grey.shade300,
+                  : Theme.of(context).dividerColor.withOpacity(0.5),
               width: isSelected ? 2 : 1,
             ),
             borderRadius: BorderRadius.circular(8),
@@ -735,8 +757,10 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                 icon,
                 size: 20,
                 color: isSelected
-                    ? Theme.of(context).primaryColor
-                    : Colors.grey[600],
+                    ? (Theme.of(context).brightness == Brightness.dark
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).primaryColor)
+                    : Theme.of(context).textTheme.bodySmall?.color,
               ),
               SizedBox(height: 4),
               Text(
@@ -747,8 +771,10 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                   fontSize: 11,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                   color: isSelected
-                      ? Theme.of(context).primaryColor
-                      : Colors.grey[700],
+                      ? (Theme.of(context).brightness == Brightness.dark
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).primaryColor)
+                      : Theme.of(context).textTheme.bodyLarge?.color,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -781,6 +807,12 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
         decoration: BoxDecoration(
           color: ballColor,
           shape: BoxShape.circle,
+          border: ballType == 'White'
+              ? Border.all(
+                  color: Theme.of(context).dividerColor.withOpacity(0.3),
+                  width: 1,
+                )
+              : null,
           boxShadow: [
             if (isSelected)
               BoxShadow(
@@ -789,7 +821,9 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                 offset: Offset(0, 4),
               ),
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white.withOpacity(0.1)
+                  : Colors.black.withOpacity(0.1),
               blurRadius: 4,
               offset: Offset(0, 4),
             ),
@@ -893,7 +927,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                                   ).scaffoldBackgroundColor,
                                   width: 3,
                                 ),
-                                color: Colors.grey.withOpacity(0.3),
+                                color: Theme.of(context).cardColor,
                               ),
                               child: Container(
                                 width: 30,
@@ -930,13 +964,13 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                           ),
                       ],
                     ),
-                    SizedBox(height: 12),
+                    SizedBox(height: 8),
                     // Club name below the circle
                     Text(
                       club!.name,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: Theme.of(context).primaryColor,
                       ),
@@ -948,33 +982,35 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
               : Column(
                   children: [
                     Container(
-                      width: 120,
-                      height: 120,
+                      width: 100,
+                      height: 100,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.grey.shade100,
+                        color: Theme.of(context).inputDecorationTheme.fillColor,
                         border: Border.all(
-                          color: Colors.grey.shade300,
+                          color: Theme.of(context).dividerColor.withOpacity(0.5),
                           width: 2,
                         ),
                       ),
                       child: Center(
                         child: Icon(
                           Icons.add,
-                          size: 40,
-                          color: Colors.grey[500],
+                          size: 32,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Theme.of(context).colorScheme.onSurface.withOpacity(0.6)
+                              : Theme.of(context).textTheme.bodySmall?.color,
                         ),
                       ),
                     ),
-                    SizedBox(height: 12),
+                    SizedBox(height: 8),
                     // Placeholder text below the circle
                     Text(
                       title,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: Colors.grey[600],
+                        color: Theme.of(context).textTheme.bodySmall?.color,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -1069,14 +1105,21 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
   InputDecoration _inputDecoration(String hintText) {
     return InputDecoration(
       hintText: hintText,
-      hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
+      hintStyle: TextStyle(
+        color: Theme.of(context).textTheme.bodySmall?.color,
+        fontSize: 14,
+      ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: Colors.grey.shade300),
+        borderSide: BorderSide(
+          color: Theme.of(context).dividerColor.withOpacity(0.5),
+        ),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: Colors.grey.shade300),
+        borderSide: BorderSide(
+          color: Theme.of(context).dividerColor.withOpacity(0.5),
+        ),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
@@ -1091,7 +1134,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
         borderSide: BorderSide(color: Colors.red, width: 2),
       ),
       filled: true,
-      fillColor: Colors.grey.shade50,
+      fillColor: Theme.of(context).inputDecorationTheme.fillColor,
       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
     );
   }
