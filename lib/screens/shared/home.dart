@@ -9,7 +9,7 @@ import '../clubs/clubs.dart';
 import '../matches/matches.dart';
 import '../wallet/transactions.dart';
 import '../settings/profile.dart';
-import '../news/conversations.dart';
+import '../social/social_feed_screen.dart';
 import '../debug/share_test_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -33,7 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   List<Widget> get _screens => [
-    ConversationsScreen(), // News (using conversations for announcements)
+    SocialFeedScreen(), // Home (social feed)
     ClubsScreen(), // Clubs
     MatchesScreen(), // Matches
     TransactionsScreen(), // Wallet (transactions)  
