@@ -8,6 +8,7 @@ import 'enhanced_club_members.dart';
 import 'club_transactions.dart';
 import 'club_settings.dart';
 import 'club_matches.dart';
+import 'club_teams_screen.dart';
 import '../club_invite_qr_screen.dart';
 
 class ManageClubScreen extends StatefulWidget {
@@ -330,6 +331,27 @@ class ManageClubScreenState extends State<ManageClubScreen> {
                             Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) => ClubMatchesScreen(club: club),
+                              ),
+                            );
+                          },
+                        ),
+
+                        Divider(
+                          height: 1,
+                          color: Theme.of(
+                            context,
+                          ).dividerColor.withOpacity(0.3),
+                        ),
+
+                        // Team Management
+                        _buildExpandableSection(
+                          icon: Icons.sports_outlined,
+                          title: 'Teams',
+                          subtitle: 'Manage club teams & players',
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => ClubTeamsScreen(club: club),
                               ),
                             );
                           },

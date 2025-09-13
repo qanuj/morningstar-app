@@ -2,15 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import '../../models/club.dart';
+import '../../models/team.dart';
 import '../../models/venue.dart';
 import '../../services/match_service.dart';
-import '../../services/ground_service.dart';
-import '../../services/club_service.dart';
 import '../../services/tournament_service.dart';
 import '../../widgets/custom_app_bar.dart';
-import '../../widgets/autocomplete_field.dart';
 import '../../widgets/svg_avatar.dart';
-import 'club_selector_screen.dart';
+import '../../widgets/team_selector_dialog.dart';
 import 'venue_picker_screen.dart';
 import 'tournament_picker_screen.dart';
 
@@ -31,8 +29,8 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
   final _opponentController = TextEditingController();
 
   // Selected data
-  Club? _selectedHomeClub;
-  Club? _selectedOpponentClub;
+  Team? _selectedHomeTeam;
+  Team? _selectedOpponentTeam;
   Venue? _selectedVenue;
   Tournament? _selectedTournament;
 
@@ -95,21 +93,21 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       return;
     }
 
-    // Check if both clubs are selected
-    if (_selectedHomeClub == null) {
+    // Check if both teams are selected
+    if (_selectedHomeTeam == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Please select home club'),
+          content: Text('Please select home team'),
           backgroundColor: Colors.red,
         ),
       );
       return;
     }
 
-    if (_selectedOpponentClub == null) {
+    if (_selectedOpponentTeam == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Please select opponent club'),
+          content: Text('Please select opponent team'),
           backgroundColor: Colors.red,
         ),
       );
@@ -155,14 +153,14 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       }
 
       await MatchService.createMatch(
-        clubId: _selectedHomeClub!.id,
+        clubId: _selectedHomeTeam!.club?.id ?? '',
         type: _selectedType,
         tournamentId: _selectedTournament?.id,
         location: _selectedVenue!.name,
         city: _selectedVenue!.city,
-        opponent: _selectedOpponentClub!.name,
-        opponentClubId: _selectedOpponentClub!.id,
-        notes: 'Ball Type: $_selectedBall',
+        opponent: _selectedOpponentTeam!.name,
+        opponentClubId: _selectedOpponentTeam!.club?.id,
+        notes: 'Ball Type: $_selectedBall | Home Team: ${_selectedHomeTeam!.name} vs ${_selectedOpponentTeam!.name}',
         matchDate: matchDateTime,
         spots: 13,
         hideUntilRSVP: false,
@@ -409,9 +407,9 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
             children: [
               Expanded(
                 child: _buildTeamCircle(
-                  title: 'Home',
-                  club: _selectedHomeClub,
-                  onTap: () => _selectHomeClub(),
+                  title: 'Home Team',
+                  team: _selectedHomeTeam,
+                  onTap: () => _selectHomeTeam(),
                 ),
               ),
               SizedBox(width: 16),
@@ -426,9 +424,9 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
               SizedBox(width: 16),
               Expanded(
                 child: _buildTeamCircle(
-                  title: 'Opponent',
-                  club: _selectedOpponentClub,
-                  onTap: () => _selectOpponentClub(),
+                  title: 'Opponent Team',
+                  team: _selectedOpponentTeam,
+                  onTap: () => _selectOpponentTeam(),
                 ),
               ),
             ],
@@ -849,23 +847,23 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
 
   Widget _buildTeamCircle({
     required String title,
-    Club? club,
+    Team? team,
     required VoidCallback onTap,
   }) {
-    final bool hasClub = club != null;
+    final bool hasTeam = team != null;
 
     return Column(
       children: [
         GestureDetector(
           onTap: onTap,
-          child: hasClub
+          child: hasTeam
               ? Column(
                   children: [
-                    // Club logo with owner profile picture badge
+                    // Team logo with badges
                     Stack(
                       children: [
                         SVGAvatar(
-                          imageUrl: club!.logo,
+                          imageUrl: team!.logo,
                           size: 120,
                           backgroundColor: Theme.of(
                             context,
@@ -874,9 +872,9 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                           fallbackIcon: Icons.sports_cricket,
                           showBorder: false,
                           fit: BoxFit.contain,
-                          child: club!.logo == null
+                          child: team!.logo == null
                               ? Text(
-                                  club!.name.substring(0, 1).toUpperCase(),
+                                  team!.name.substring(0, 1).toUpperCase(),
                                   style: TextStyle(
                                     fontSize: 32,
                                     fontWeight: FontWeight.bold,
@@ -885,14 +883,16 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                                 )
                               : null,
                         ),
-                        // Owner profile picture badge
-                        if (club!.owners.isNotEmpty &&
-                            club!.owners.first.profilePicture != null)
+                        // Verified Badge
+                        if (team!.isVerified)
                           Positioned(
-                            right: 0,
-                            bottom: 0,
+                            right: 2,
+                            bottom: 2,
                             child: Container(
+                              width: 24,
+                              height: 24,
                               decoration: BoxDecoration(
+                                color: Colors.blue,
                                 shape: BoxShape.circle,
                                 border: Border.all(
                                   color: Theme.of(
@@ -901,25 +901,23 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                                   width: 3,
                                 ),
                               ),
-                              child: SVGAvatar(
-                                imageUrl: club!.owners.first.profilePicture,
-                                size: 30,
-                                backgroundColor: Theme.of(
-                                  context,
-                                ).primaryColor.withOpacity(0.1),
-                                iconColor: Theme.of(context).primaryColor,
-                                fallbackIcon: Icons.person,
-                                showBorder: false,
+                              child: Icon(
+                                Icons.verified,
+                                color: Colors.white,
+                                size: 12,
                               ),
                             ),
-                          )
-                        else if (club!.owners.isNotEmpty)
-                          // Debug: Show a debug badge when owner exists but no profile picture
+                          ),
+                        // Primary team badge
+                        if (team!.isPrimary)
                           Positioned(
-                            right: 0,
-                            bottom: 0,
+                            left: 2,
+                            top: 2,
                             child: Container(
+                              width: 24,
+                              height: 24,
                               decoration: BoxDecoration(
+                                color: Colors.green,
                                 shape: BoxShape.circle,
                                 border: Border.all(
                                   color: Theme.of(
@@ -927,47 +925,20 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                                   ).scaffoldBackgroundColor,
                                   width: 3,
                                 ),
-                                color: Theme.of(context).cardColor,
                               ),
-                              child: Container(
-                                width: 30,
-                                height: 30,
-                                child: Icon(
-                                  Icons.person,
-                                  size: 16,
-                                  color: Theme.of(context).primaryColor,
-                                ),
-                              ),
-                            ),
-                          )
-                        else
-                          // Debug: Show when no owners at all
-                          Positioned(
-                            right: 0,
-                            bottom: 0,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.red, width: 2),
-                                color: Colors.red.withOpacity(0.1),
-                              ),
-                              child: Container(
-                                width: 30,
-                                height: 30,
-                                child: Icon(
-                                  Icons.help_outline,
-                                  size: 16,
-                                  color: Colors.red,
-                                ),
+                              child: Icon(
+                                Icons.star,
+                                color: Colors.white,
+                                size: 12,
                               ),
                             ),
                           ),
                       ],
                     ),
                     SizedBox(height: 8),
-                    // Club name below the circle
+                    // Team name below the circle
                     Text(
-                      club!.name,
+                      team!.name,
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 14,
@@ -977,6 +948,19 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    if (team!.club != null) ...[
+                      SizedBox(height: 2),
+                      Text(
+                        team!.club!.name,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ],
                 )
               : Column(
@@ -1022,24 +1006,25 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
     );
   }
 
-  void _selectHomeClub() {
-    _showClubSelector(
-      title: 'Select Home Club',
-      onClubSelected: (club) {
+  void _selectHomeTeam() {
+    TeamSelectorDialogFactory.showForMatchCreation(
+      context: context,
+      title: 'Select Home Team',
+      onTeamSelected: (team) {
         setState(() {
-          _selectedHomeClub = club;
+          _selectedHomeTeam = team;
         });
       },
     );
   }
 
-  void _selectOpponentClub() {
-    _showClubSelector(
-      title: 'Select Opponent Club',
-      excludeClubId: _selectedHomeClub?.id,
-      onClubSelected: (club) {
+  void _selectOpponentTeam() {
+    TeamSelectorDialogFactory.showForMatchCreation(
+      context: context,
+      title: 'Select Opponent Team',
+      onTeamSelected: (team) {
         setState(() {
-          _selectedOpponentClub = club;
+          _selectedOpponentTeam = team;
         });
       },
     );
@@ -1061,10 +1046,10 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
   }
 
   void _selectTournament() {
-    if (_selectedHomeClub == null) {
+    if (_selectedHomeTeam == null || _selectedHomeTeam!.club == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Please select home club first'),
+          content: Text('Please select home team first'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -1074,7 +1059,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => TournamentPickerScreen(
-          clubId: _selectedHomeClub!.id,
+          clubId: _selectedHomeTeam!.club!.id,
           title: 'Select Tournament',
           onTournamentSelected: (tournament) {
             setState(() {
@@ -1086,56 +1071,4 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
     );
   }
 
-  void _showClubSelector({
-    required String title,
-    String? excludeClubId,
-    required Function(Club) onClubSelected,
-  }) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => ClubSelectorScreen(
-          title: title,
-          excludeClubId: excludeClubId,
-          onClubSelected: onClubSelected,
-        ),
-      ),
-    );
-  }
-
-  InputDecoration _inputDecoration(String hintText) {
-    return InputDecoration(
-      hintText: hintText,
-      hintStyle: TextStyle(
-        color: Theme.of(context).textTheme.bodySmall?.color,
-        fontSize: 14,
-      ),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(
-          color: Theme.of(context).dividerColor.withOpacity(0.5),
-        ),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(
-          color: Theme.of(context).dividerColor.withOpacity(0.5),
-        ),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: Theme.of(context).primaryColor, width: 2),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: Colors.red, width: 1),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: Colors.red, width: 2),
-      ),
-      filled: true,
-      fillColor: Theme.of(context).inputDecorationTheme.fillColor,
-      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-    );
-  }
 }

@@ -1,0 +1,246 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import '../models/team.dart';
+import '../config/app_config.dart';
+
+class TeamService {
+  static String get baseUrl => AppConfig.apiBaseUrl;
+
+  static Future<String?> _getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('token');
+  }
+
+  /// Search all teams with optional filters
+  static Future<List<Team>> searchTeams({
+    String? query,
+    int limit = 20,
+    String? excludeTeamId,
+    bool includeUserTeams = false,
+    bool onlyUserTeams = false,
+    String? sport,
+  }) async {
+    try {
+      final token = await _getToken();
+      if (token == null) {
+        throw Exception('Authentication required');
+      }
+
+      final uri = Uri.parse('$baseUrl/teams/search').replace(queryParameters: {
+        if (query != null && query.isNotEmpty) 'q': query,
+        'limit': limit.toString(),
+        if (excludeTeamId != null) 'excludeTeamId': excludeTeamId,
+        'includeUserTeams': includeUserTeams.toString(),
+        'onlyUserTeams': onlyUserTeams.toString(),
+        if (sport != null) 'sport': sport,
+      });
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> teamsJson = jsonDecode(response.body);
+        return teamsJson.map((team) => Team.fromJson(team)).toList();
+      } else if (response.statusCode == 401) {
+        throw Exception('Unauthorized access');
+      } else {
+        throw Exception('Failed to search teams: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error searching teams: $e');
+      throw Exception('Failed to search teams: $e');
+    }
+  }
+
+  /// Get user's teams
+  static Future<List<Team>> getUserTeams() async {
+    return await searchTeams(onlyUserTeams: true);
+  }
+
+  /// Get opponent teams (teams from clubs user is not a member of)
+  static Future<List<Team>> getOpponentTeams({String? excludeTeamId}) async {
+    return await searchTeams(
+      includeUserTeams: false,
+      excludeTeamId: excludeTeamId,
+    );
+  }
+
+  /// Get teams for a specific club
+  static Future<List<Team>> getClubTeams({
+    required String clubId,
+    String? search,
+    String? provider,
+    int limit = 50,
+  }) async {
+    try {
+      final token = await _getToken();
+      if (token == null) {
+        throw Exception('Authentication required');
+      }
+
+      final uri = Uri.parse('$baseUrl/clubs/$clubId/teams').replace(queryParameters: {
+        if (search != null && search.isNotEmpty) 'search': search,
+        if (provider != null) 'provider': provider,
+        'limit': limit.toString(),
+      });
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseBody = jsonDecode(response.body);
+        final List<dynamic> teamsJson = responseBody['teams'];
+        return teamsJson.map((team) => Team.fromJson(team)).toList();
+      } else if (response.statusCode == 401) {
+        throw Exception('Unauthorized access');
+      } else {
+        throw Exception('Failed to get club teams: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error getting club teams: $e');
+      throw Exception('Failed to get club teams: $e');
+    }
+  }
+
+  /// Create a new team for a club
+  static Future<Team> createTeam({
+    required String clubId,
+    required String name,
+    required String sport,
+    required String provider,
+    required String providerId,
+    String? logo,
+  }) async {
+    try {
+      final token = await _getToken();
+      if (token == null) {
+        throw Exception('Authentication required');
+      }
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/clubs/$clubId/teams'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'name': name,
+          'sport': sport,
+          'provider': provider,
+          'providerId': providerId,
+          if (logo != null && logo.isNotEmpty) 'logo': logo,
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        final Map<String, dynamic> responseBody = jsonDecode(response.body);
+        return Team.fromJson(responseBody['team']);
+      } else if (response.statusCode == 401) {
+        throw Exception('Unauthorized access');
+      } else if (response.statusCode == 400) {
+        final Map<String, dynamic> errorBody = jsonDecode(response.body);
+        throw Exception(errorBody['error'] ?? 'Invalid team data');
+      } else {
+        throw Exception('Failed to create team: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error creating team: $e');
+      throw Exception('Failed to create team: $e');
+    }
+  }
+
+  /// Update an existing team
+  static Future<Team> updateTeam({
+    required String teamId,
+    required String clubId,
+    String? name,
+    String? sport,
+    String? provider,
+    String? providerId,
+    String? logo,
+  }) async {
+    try {
+      final token = await _getToken();
+      if (token == null) {
+        throw Exception('Authentication required');
+      }
+
+      final Map<String, dynamic> updateData = {};
+      if (name != null) updateData['name'] = name;
+      if (sport != null) updateData['sport'] = sport;
+      if (provider != null) updateData['provider'] = provider;
+      if (providerId != null) updateData['providerId'] = providerId;
+      if (logo != null) updateData['logo'] = logo.isEmpty ? null : logo;
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/clubs/$clubId/teams/$teamId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(updateData),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseBody = jsonDecode(response.body);
+        return Team.fromJson(responseBody['team']);
+      } else if (response.statusCode == 401) {
+        throw Exception('Unauthorized access');
+      } else if (response.statusCode == 400) {
+        final Map<String, dynamic> errorBody = jsonDecode(response.body);
+        throw Exception(errorBody['error'] ?? 'Invalid team data');
+      } else {
+        throw Exception('Failed to update team: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error updating team: $e');
+      throw Exception('Failed to update team: $e');
+    }
+  }
+
+  /// Delete a team
+  static Future<void> deleteTeam({
+    required String teamId,
+    required String clubId,
+  }) async {
+    try {
+      final token = await _getToken();
+      if (token == null) {
+        throw Exception('Authentication required');
+      }
+
+      final response = await http.delete(
+        Uri.parse('$baseUrl/clubs/$clubId/teams/$teamId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return;
+      } else if (response.statusCode == 401) {
+        throw Exception('Unauthorized access');
+      } else if (response.statusCode == 400) {
+        final Map<String, dynamic> errorBody = jsonDecode(response.body);
+        throw Exception(errorBody['error'] ?? 'Cannot delete team');
+      } else {
+        throw Exception('Failed to delete team: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error deleting team: $e');
+      throw Exception('Failed to delete team: $e');
+    }
+  }
+}
