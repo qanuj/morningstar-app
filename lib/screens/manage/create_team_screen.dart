@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:file_picker/file_picker.dart';
@@ -253,20 +254,20 @@ class _CreateTeamScreenState extends State<CreateTeamScreen> {
   Future<void> _deleteTeam() async {
     if (widget.teamToEdit == null) return;
 
-    // Show confirmation dialog
-    final confirm = await showDialog<bool>(
+    // Show native confirmation dialog
+    final confirm = await showCupertinoDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => CupertinoAlertDialog(
         title: Text('Delete Team'),
         content: Text('Are you sure you want to delete "${widget.teamToEdit!.name}"?\n\nThis action cannot be undone.'),
         actions: [
-          TextButton(
+          CupertinoDialogAction(
             onPressed: () => Navigator.pop(context, false),
             child: Text('Cancel'),
           ),
-          TextButton(
+          CupertinoDialogAction(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            isDestructiveAction: true,
             child: Text('Delete'),
           ),
         ],
@@ -372,12 +373,6 @@ class _CreateTeamScreenState extends State<CreateTeamScreen> {
       if (mounted) {
         Navigator.pop(context);
         widget.onTeamSaved();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.teamToEdit == null ? 'Team created successfully' : 'Team updated successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
       }
     } catch (e) {
       if (mounted) {
@@ -460,250 +455,104 @@ class _CreateTeamScreenState extends State<CreateTeamScreen> {
         clubName: widget.club.name,
         clubLogo: widget.club.logo,
         subtitle: widget.teamToEdit == null ? 'Create Team' : 'Edit Team',
+        actions: [
+          IconButton(
+            onPressed: (_isLoading || _isUploading) ? null : _saveTeam,
+            icon: Icon(_isLoading || _isUploading ? Icons.hourglass_empty : Icons.check),
+            tooltip: widget.teamToEdit == null ? 'Create Team' : 'Update Team',
+          ),
+        ],
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: Form(
-              key: _formKey,
-              child: SingleChildScrollView(
-                padding: EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      body: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Logo Section
+              _buildLogoSection(),
+              SizedBox(height: 32),
+
+              // Team Name Field
+              TextFormField(
+                controller: _nameController,
+                decoration: InputDecoration(
+                  hintText: 'Team Name',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: Colors.grey.shade300,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).primaryColor,
+                    ),
+                  ),
+                  filled: true,
+                  fillColor: Theme.of(context).inputDecorationTheme.fillColor,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Team name is required';
+                  }
+                  return null;
+                },
+              ),
+
+              SizedBox(height: 24),
+
+              // Info text
+              Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
                   children: [
-                    // Logo Section
-                    _buildLogoSection(),
-                    SizedBox(height: 32),
-
-                    // Team Name Field
-                    Text(
-                      'Team Name',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
+                    Icon(
+                      Icons.info_outline,
+                      color: Theme.of(context).colorScheme.primary,
+                      size: 20,
                     ),
-                    SizedBox(height: 8),
-                    TextFormField(
-                      controller: _nameController,
-                      decoration: InputDecoration(
-                        hintText: 'Enter team name',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Upload a team logo and enter the team name to create your team.',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: Colors.grey.shade300,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: Theme.of(context).primaryColor,
-                          ),
-                        ),
-                        filled: true,
-                        fillColor: Theme.of(context).inputDecorationTheme.fillColor,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 16,
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Team name is required';
-                        }
-                        return null;
-                      },
-                    ),
-
-                    SizedBox(height: 24),
-
-                    // Info text
-                    Container(
-                      padding: EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline,
-                            color: Theme.of(context).colorScheme.primary,
-                            size: 20,
-                          ),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Upload a team logo and enter the team name to create your team.',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                            ),
-                          ),
-                        ],
                       ),
                     ),
                   ],
                 ),
               ),
-            ),
+            ],
           ),
-
-          // Bottom Action Bar
-          Container(
-            padding: EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              border: Border(
-                top: BorderSide(
-                  color: Theme.of(context).dividerColor.withOpacity(0.3),
-                ),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  offset: Offset(0, -2),
-                  blurRadius: 8,
-                ),
-              ],
-            ),
-            child: SafeArea(
-              child: widget.teamToEdit == null
-                  ? SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: (_isLoading || _isUploading) ? null : _saveTeam,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).primaryColor,
-                          foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: _isLoading || _isUploading
-                            ? Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                    ),
-                                  ),
-                                  SizedBox(width: 12),
-                                  Text(
-                                    _isUploading ? 'Uploading...' : 'Saving...',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              )
-                            : Text(
-                                'Create Team',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                      ),
-                    )
-                  : Row(
-                      children: [
-                        // Delete button (only for non-primary teams)
-                        if (!widget.teamToEdit!.isPrimary) ...[
-                          Expanded(
-                            flex: 2,
-                            child: OutlinedButton(
-                              onPressed: (_isLoading || _isUploading) ? null : _deleteTeam,
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.red,
-                                side: BorderSide(color: Colors.red),
-                                padding: EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.delete_outline, size: 18),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'Delete',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          SizedBox(width: 16),
-                        ],
-                        
-                        // Save button
-                        Expanded(
-                          flex: 3,
-                          child: ElevatedButton(
-                            onPressed: (_isLoading || _isUploading) ? null : _saveTeam,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(context).primaryColor,
-                              foregroundColor: Colors.white,
-                              padding: EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              elevation: 0,
-                            ),
-                            child: _isLoading || _isUploading
-                                ? Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      SizedBox(
-                                        height: 20,
-                                        width: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                        ),
-                                      ),
-                                      SizedBox(width: 12),
-                                      Text(
-                                        _isUploading ? 'Uploading...' : 'Saving...',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  )
-                                : Text(
-                                    'Update Team',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                          ),
-                        ),
-                      ],
-                    ),
-            ),
-          ),
-        ],
+        ),
       ),
+      floatingActionButton: widget.teamToEdit != null && !widget.teamToEdit!.isPrimary
+          ? FloatingActionButton(
+              onPressed: (_isLoading || _isUploading) ? null : _deleteTeam,
+              backgroundColor: Colors.transparent,
+              foregroundColor: Colors.red,
+              elevation: 0,
+              mini: true,
+              tooltip: 'Delete Team',
+              child: Icon(Icons.delete, size: 20),
+            )
+          : null,
     );
   }
 }

@@ -57,9 +57,6 @@ class _ClubMatchesScreenState extends State<ClubMatchesScreen> {
     );
   }
 
-  void _showFilterBottomSheet() {
-    _matchesListKey.currentState?.showFilterBottomSheet();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,12 +67,6 @@ class _ClubMatchesScreenState extends State<ClubMatchesScreen> {
         clubLogo: widget.club.logo,
         subtitle: 'Matches',
         actions: [
-          // Filter Icon
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: _showFilterBottomSheet,
-            tooltip: 'Filter matches',
-          ),
           // Create Match Icon (if user has permissions)
           if (_canCreateMatches && !_isCheckingPermissions)
             IconButton(

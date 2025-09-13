@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../screens/news/notifications.dart';
 import '../screens/clubs/clubs.dart';
 import 'duggy_logo.dart';
@@ -217,116 +218,101 @@ class ClubAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Theme.of(context).primaryColor,
-            Theme.of(context).primaryColor.withOpacity(0.9),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).primaryColor.withOpacity(0.3),
-            offset: Offset(0, 2),
-            blurRadius: 8,
+    return AppBar(
+      backgroundColor: const Color(0xFF003f9b),
+      elevation: 0,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back, color: Colors.white),
+        onPressed: onBackPressed ?? () => Navigator.of(context).pop(),
+      ),
+      title: Row(
+        children: [
+          // Club Logo
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: clubLogo != null && clubLogo!.isNotEmpty
+                  ? _buildClubLogo()
+                  : _buildDefaultClubLogo(),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Club Name and Subtitle
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  clubName,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
-      child: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: Colors.white, size: 22),
-          onPressed: onBackPressed ?? () => Navigator.of(context).pop(),
-        ),
-        title: Row(
-          children: [
-            // Club logo
-            clubLogo != null && clubLogo!.isNotEmpty
-                ? Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.2),
-                        width: 1,
-                      ),
-                    ),
-                    child: ClipOval(
-                      child: Image.network(
-                        clubLogo!,
-                        width: 40,
-                        height: 40,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            _buildFallbackLogo(),
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return _buildFallbackLogo();
-                        },
-                      ),
-                    ),
-                  )
-                : _buildFallbackLogo(),
-            SizedBox(width: 12),
-
-            // Club name and subtitle
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    clubName,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.3,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: _buildActions(),
-      ),
+      actions: _buildActions(),
     );
   }
 
-  Widget _buildFallbackLogo() {
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Colors.white.withOpacity(0.2),
-        border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
-      ),
-      child: Center(
-        child: Text(
-          clubName.isNotEmpty ? clubName.substring(0, 1).toUpperCase() : 'C',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
+  Widget _buildClubLogo() {
+    // Check if the URL is an SVG
+    if (clubLogo!.toLowerCase().contains('.svg') || 
+        clubLogo!.toLowerCase().contains('svg?')) {
+      return SvgPicture.network(
+        clubLogo!,
+        fit: BoxFit.cover,
+        placeholderBuilder: (context) => _buildDefaultClubLogo(),
+      );
+    } else {
+      // Regular image (PNG, JPG, etc.)
+      return Image.network(
+        clubLogo!,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return _buildDefaultClubLogo();
+        },
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return _buildDefaultClubLogo();
+        },
+      );
+    }
+  }
+
+  Widget _buildDefaultClubLogo() {
+    return Builder(
+      builder: (context) => Container(
+        color: Theme.of(context).primaryColor.withOpacity(0.1),
+        child: Center(
+          child: Text(
+            clubName.isNotEmpty
+                ? clubName.substring(0, 1).toUpperCase()
+                : 'C',
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
           ),
         ),
       ),
@@ -343,7 +329,6 @@ class ClubAppBar extends StatelessWidget implements PreferredSizeWidget {
           onPressed: action.onPressed,
           icon: Icon((action.icon as Icon).icon, color: Colors.white, size: 24),
           tooltip: action.tooltip,
-          padding: EdgeInsets.all(8),
         );
       }
       return action;
@@ -351,7 +336,7 @@ class ClubAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   @override
-  Size get preferredSize => Size.fromHeight(kToolbarHeight);
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 }
 
 class DuggyAppBar extends StatelessWidget implements PreferredSizeWidget {

@@ -10,6 +10,8 @@ class SVGAvatar extends StatelessWidget {
   final Color? iconColor;
   final IconData fallbackIcon;
   final double? iconSize;
+  final String? fallbackText;
+  final TextStyle? fallbackTextStyle;
   final BoxFit fit;
   final Widget? child;
   final bool showBorder;
@@ -25,6 +27,8 @@ class SVGAvatar extends StatelessWidget {
     this.iconColor,
     this.fallbackIcon = Icons.person,
     this.iconSize,
+    this.fallbackText,
+    this.fallbackTextStyle,
     this.fit = BoxFit.cover,
     this.child,
     this.showBorder = false,
@@ -145,8 +149,40 @@ class SVGAvatar extends StatelessWidget {
     return isDark ? Colors.white.withOpacity(0.8) : Colors.black54;
   }
 
-  /// Build the fallback icon widget
-  Widget _buildFallbackIcon(BuildContext context) {
+  /// Generate initials from text (e.g., "Morningstar" -> "MO", "Spartan Kings" -> "SK")
+  String _generateInitials(String text) {
+    if (text.isEmpty) return '';
+    
+    final words = text.trim().split(RegExp(r'\s+'));
+    if (words.length == 1) {
+      // Single word: take first two characters
+      return words[0].length >= 2 
+          ? words[0].substring(0, 2).toUpperCase()
+          : words[0].substring(0, 1).toUpperCase();
+    } else {
+      // Multiple words: take first letter of first two words
+      return (words[0].substring(0, 1) + words[1].substring(0, 1)).toUpperCase();
+    }
+  }
+
+  /// Build the fallback widget (text or icon)
+  Widget _buildFallback(BuildContext context) {
+    // If fallbackText is provided, use text instead of icon
+    if (fallbackText != null && fallbackText!.isNotEmpty) {
+      final initials = _generateInitials(fallbackText!);
+      return Center(
+        child: Text(
+          initials,
+          style: fallbackTextStyle ?? TextStyle(
+            fontSize: size * 0.4,
+            fontWeight: FontWeight.bold,
+            color: _getIconColor(context),
+          ),
+        ),
+      );
+    }
+    
+    // Default to icon fallback
     return Icon(
       fallbackIcon,
       size: iconSize ?? (size * 0.6),
@@ -157,7 +193,7 @@ class SVGAvatar extends StatelessWidget {
   /// Build the image widget (SVG or regular)
   Widget _buildImage(BuildContext context) {
     if (imageUrl == null || imageUrl!.isEmpty) {
-      return _buildFallbackIcon(context);
+      return _buildFallback(context);
     }
 
     if (_isSvg(imageUrl!)) {
@@ -166,7 +202,7 @@ class SVGAvatar extends StatelessWidget {
         width: size,
         height: size,
         fit: fit,
-        placeholderBuilder: (context) => _buildFallbackIcon(context),
+        placeholderBuilder: (context) => _buildFallback(context),
         // Handle errors gracefully
         // ignore: deprecated_member_use
         semanticsLabel: 'User avatar',
@@ -177,10 +213,10 @@ class SVGAvatar extends StatelessWidget {
         width: size,
         height: size,
         fit: fit,
-        errorBuilder: (context, error, stackTrace) => _buildFallbackIcon(context),
+        errorBuilder: (context, error, stackTrace) => _buildFallback(context),
         loadingBuilder: (context, child, loadingProgress) {
           if (loadingProgress == null) return child;
-          return _buildFallbackIcon(context);
+          return _buildFallback(context);
         },
       );
     }

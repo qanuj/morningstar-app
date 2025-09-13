@@ -133,8 +133,6 @@ class TeamService {
     required String clubId,
     required String name,
     String? logo,
-    String sport = 'Cricket',
-    String provider = 'DUGGY',
   }) async {
     try {
       final token = await _getToken();
@@ -150,9 +148,6 @@ class TeamService {
         },
         body: jsonEncode({
           'name': name,
-          'sport': sport,
-          'provider': provider,
-          'providerId': DateTime.now().millisecondsSinceEpoch.toString(), // Generate unique ID
           if (logo != null && logo.isNotEmpty) 'logo': logo,
         }),
       );
@@ -180,7 +175,6 @@ class TeamService {
     required String clubId,
     String? name,
     String? logo,
-    String? sport,
   }) async {
     try {
       final token = await _getToken();
@@ -190,7 +184,6 @@ class TeamService {
 
       final Map<String, dynamic> updateData = {};
       if (name != null) updateData['name'] = name;
-      if (sport != null) updateData['sport'] = sport;
       if (logo != null) updateData['logo'] = logo.isEmpty ? null : logo;
 
       final response = await http.put(
