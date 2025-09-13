@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../models/club.dart';
 import '../../widgets/matches_list_widget.dart';
-import '../../widgets/create_match_dialog.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../services/match_service.dart';
+import '../matches/create_match_screen.dart';
 
 class ClubMatchesScreen extends StatefulWidget {
   final Club club;
@@ -45,14 +45,14 @@ class _ClubMatchesScreenState extends State<ClubMatchesScreen> {
   }
 
   void _showCreateMatchDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => CreateMatchDialog(
-        club: widget.club,
-        onMatchCreated: () {
-          // Refresh the matches list
-          _matchesListKey.currentState?.refreshMatches();
-        },
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => CreateMatchScreen(
+          onMatchCreated: () {
+            // Refresh the matches list
+            _matchesListKey.currentState?.refreshMatches();
+          },
+        ),
       ),
     );
   }

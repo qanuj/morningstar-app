@@ -4,6 +4,7 @@ import '../../models/team.dart';
 import '../../services/team_service.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/svg_avatar.dart';
+import '../team_qr_screen.dart';
 import 'create_team_screen.dart';
 
 class ClubTeamsScreen extends StatefulWidget {
@@ -68,6 +69,14 @@ class _ClubTeamsScreenState extends State<ClubTeamsScreen> {
     );
   }
 
+  void _showTeamQR(Team team) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => TeamQRScreen(team: team),
+      ),
+    );
+  }
+
   Widget _buildTeamCard(Team team) {
     return GestureDetector(
       onTap: () => _showCreateTeamDialog(team),
@@ -90,9 +99,12 @@ class _ClubTeamsScreenState extends State<ClubTeamsScreen> {
                     colors: [Colors.white, Colors.grey.shade50],
                   ),
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+          child: Stack(
             children: [
+              // Main content
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
               // Team logo with contrasting background
               Stack(
                 children: [
@@ -178,6 +190,29 @@ class _ClubTeamsScreenState extends State<ClubTeamsScreen> {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+                ],
+              ),
+              
+              // QR Button positioned in top-right corner
+              Positioned(
+                top: 0,
+                right: 0,
+                child: GestureDetector(
+                  onTap: () => _showTeamQR(team),
+                  child: Container(
+                    padding: EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.qr_code,
+                      size: 18,
+                      color: Theme.of(context).primaryColor,
+                    ),
                   ),
                 ),
               ),

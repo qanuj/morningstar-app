@@ -8,7 +8,7 @@ import '../../services/match_service.dart';
 import '../../services/tournament_service.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/svg_avatar.dart';
-import '../../widgets/team_selector_dialog.dart';
+import 'team_selector_screen.dart';
 import 'venue_picker_screen.dart';
 import 'tournament_picker_screen.dart';
 
@@ -1007,26 +1007,32 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
   }
 
   void _selectHomeTeam() {
-    TeamSelectorDialogFactory.showForMatchCreation(
-      context: context,
-      title: 'Select Home Team',
-      onTeamSelected: (team) {
-        setState(() {
-          _selectedHomeTeam = team;
-        });
-      },
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => TeamSelectorScreen(
+          title: 'Select Home Team',
+          onTeamSelected: (team) {
+            setState(() {
+              _selectedHomeTeam = team;
+            });
+          },
+        ),
+      ),
     );
   }
 
   void _selectOpponentTeam() {
-    TeamSelectorDialogFactory.showForMatchCreation(
-      context: context,
-      title: 'Select Opponent Team',
-      onTeamSelected: (team) {
-        setState(() {
-          _selectedOpponentTeam = team;
-        });
-      },
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => TeamSelectorScreen(
+          title: 'Select Opponent Team',
+          onTeamSelected: (team) {
+            setState(() {
+              _selectedOpponentTeam = team;
+            });
+          },
+        ),
+      ),
     );
   }
 
