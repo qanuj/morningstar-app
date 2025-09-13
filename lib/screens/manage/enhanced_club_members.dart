@@ -7,6 +7,7 @@ import '../../models/club.dart';
 import '../../models/user.dart';
 import '../../services/api_service.dart';
 import '../../widgets/svg_avatar.dart';
+import '../../widgets/custom_app_bar.dart';
 import '../../widgets/transaction_dialog_helper.dart';
 import '../transactions/bulk_transaction_screen.dart';
 import '../points/bulk_points_screen.dart';
@@ -1467,71 +1468,18 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
               foregroundColor: Colors.white,
               elevation: 0,
             )
-          : AppBar(
-              backgroundColor: const Color(0xFF003f9b),
-              elevation: 0,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-              title: Row(
-                children: [
-                  // Club Logo
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.3),
-                        width: 1,
-                      ),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(18),
-                      child:
-                          widget.club.logo != null &&
-                              widget.club.logo!.isNotEmpty
-                          ? _buildClubLogo()
-                          : _buildDefaultClubLogo(),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Club Name and Subtitle
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.club.name,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          'Members',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.8),
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+          : ClubAppBar(
+              clubName: widget.club.name,
+              clubLogo: widget.club.logo,
+              subtitle: 'Members',
               actions: [
                 IconButton(
-                  icon: Icon(Icons.search, color: Colors.white),
+                  icon: Icon(Icons.search),
                   onPressed: _showSearchAndFilterDrawer,
                   tooltip: 'Search & Filter',
                 ),
                 IconButton(
-                  icon: Icon(Icons.person_add, color: Colors.white),
+                  icon: Icon(Icons.person_add),
                   onPressed: _showAddMemberOptions,
                   tooltip: 'Add Member',
                 ),

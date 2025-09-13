@@ -52,10 +52,8 @@ class ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: CricketStyleAppBar(
-        title: 'Duggy',
-        subtitle: 'Profile & settings',
-        leadingIcon: Icons.person,
+      appBar: DuggyAppBar(
+        subtitle: 'You',
       ),
       body: Consumer2<UserProvider, ThemeProvider>(
         builder: (context, userProvider, themeProvider, child) {

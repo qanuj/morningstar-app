@@ -3,58 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import '../screens/news/notifications.dart';
 import '../screens/clubs/clubs.dart';
-
-/// Custom AppBar widget that provides consistent styling and functionality across the app.
-/// 
-/// This widget provides three main variants:
-/// 
-/// 1. **CustomAppBar** - Base widget with full customization options
-/// 2. **HomeAppBar** - For the main home screen with club switch and notifications
-/// 3. **PageAppBar** - For internal pages showing "Duggy [PageName]" format
-/// 4. **DetailAppBar** - For detail screens with back navigation and minimal actions
-/// 
-/// ## Usage Examples:
-/// 
-/// ### Home Screen:
-/// ```dart
-/// appBar: HomeAppBar(
-///   onDrawerTap: () => _scaffoldKey.currentState?.openDrawer(),
-/// ),
-/// ```
-/// 
-/// ### Regular Pages (Matches, Polls, Store, etc.):
-/// ```dart
-/// appBar: PageAppBar(
-///   pageName: 'Polls',
-///   onDrawerTap: () => _scaffoldKey.currentState?.openDrawer(),
-/// ),
-/// ```
-/// 
-/// ### Detail Screens (Profile, Match Details, etc.):
-/// ```dart
-/// appBar: DetailAppBar(
-///   pageTitle: 'Profile',
-///   customActions: [
-///     IconButton(
-///       icon: Icon(Icons.home_outlined),
-///       onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
-///     ),
-///   ],
-/// ),
-/// ```
-/// 
-/// ### Custom Configuration:
-/// ```dart
-/// appBar: CustomAppBar(
-///   title: 'Custom Title',
-///   subtitle: 'Subtitle',
-///   showNotifications: false,
-///   showBackButton: true,
-///   customActions: [
-///     IconButton(icon: Icon(Icons.settings), onPressed: () {}),
-///   ],
-/// ),
-/// ```
+import 'duggy_logo.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -84,7 +33,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     final canGoBack = Navigator.of(context).canPop();
     final shouldShowBackButton = showBackButton && canGoBack;
     final shouldShowDrawer = onDrawerTap != null && !shouldShowBackButton;
-    
+
     return AppBar(
       backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
       elevation: 0,
@@ -109,22 +58,22 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               ),
             )
           : shouldShowDrawer
-              ? GestureDetector(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    if (onDrawerTap != null) {
-                      onDrawerTap!();
-                    } else {
-                      Scaffold.of(context).openDrawer();
-                    }
-                  },
-                  child: Icon(
-                    Icons.menu,
-                    color: Theme.of(context).appBarTheme.foregroundColor,
-                    size: 24,
-                  ),
-                )
-              : null,
+          ? GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                if (onDrawerTap != null) {
+                  onDrawerTap!();
+                } else {
+                  Scaffold.of(context).openDrawer();
+                }
+              },
+              child: Icon(
+                Icons.menu,
+                color: Theme.of(context).appBarTheme.foregroundColor,
+                size: 24,
+              ),
+            )
+          : null,
       title: _buildTitle(context),
       actions: _buildAllActions(context),
     );
@@ -158,15 +107,15 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   List<Widget> _buildAllActions(BuildContext context) {
     List<Widget> allActions = [];
-    
+
     // Add custom actions first if they exist
     if (customActions != null) {
       allActions.addAll(customActions!);
     }
-    
+
     // Add default actions
     allActions.addAll(_buildDefaultActions(context));
-    
+
     return allActions;
   }
 
@@ -185,16 +134,16 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     NotificationsScreen(),
                 transitionsBuilder:
                     (context, animation, secondaryAnimation, child) {
-                  return SlideTransition(
-                    position: animation.drive(
-                      Tween(
-                        begin: Offset(1.0, 0.0),
-                        end: Offset.zero,
-                      ).chain(CurveTween(curve: Curves.easeOutCubic)),
-                    ),
-                    child: child,
-                  );
-                },
+                      return SlideTransition(
+                        position: animation.drive(
+                          Tween(
+                            begin: Offset(1.0, 0.0),
+                            end: Offset.zero,
+                          ).chain(CurveTween(curve: Curves.easeOutCubic)),
+                        ),
+                        child: child,
+                      );
+                    },
               ),
             );
           },
@@ -216,9 +165,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         GestureDetector(
           onTap: () {
             HapticFeedback.lightImpact();
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (context) => ClubsScreen()),
-            );
+            Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (context) => ClubsScreen()));
           },
           child: Padding(
             padding: EdgeInsets.only(right: 16),
@@ -239,32 +188,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   Size get preferredSize => Size.fromHeight(kToolbarHeight);
 }
 
-// Convenience constructors for common app bar types
-
-class HomeAppBar extends CustomAppBar {
-  const HomeAppBar({
-    super.key,
-    super.onDrawerTap,
-  }) : super(
-          title: 'Home',
-          showNotifications: true,
-          showClubSwitch: true,
-        );
-}
-
-class PageAppBar extends CustomAppBar {
-  const PageAppBar({
-    super.key,
-    required String pageName,
-    super.onDrawerTap,
-    super.showNotifications = true,
-    super.customActions,
-  }) : super(
-          title: '',
-          subtitle: pageName,
-        );
-}
-
 class DetailAppBar extends CustomAppBar {
   const DetailAppBar({
     super.key,
@@ -273,10 +196,7 @@ class DetailAppBar extends CustomAppBar {
     super.showNotifications = false,
     super.customActions,
     bool showBackButton = true,
-  }) : super(
-          title: pageTitle,
-          showBackButton: showBackButton,
-        );
+  }) : super(title: pageTitle, showBackButton: showBackButton);
 }
 
 class ClubAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -320,11 +240,7 @@ class ClubAppBar extends StatelessWidget implements PreferredSizeWidget {
         elevation: 0,
         automaticallyImplyLeading: false,
         leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios,
-            color: Colors.white,
-            size: 22,
-          ),
+          icon: Icon(Icons.arrow_back_ios, color: Colors.white, size: 22),
           onPressed: onBackPressed ?? () => Navigator.of(context).pop(),
         ),
         title: Row(
@@ -347,7 +263,8 @@ class ClubAppBar extends StatelessWidget implements PreferredSizeWidget {
                         width: 40,
                         height: 40,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => _buildFallbackLogo(),
+                        errorBuilder: (context, error, stackTrace) =>
+                            _buildFallbackLogo(),
                         loadingBuilder: (context, child, loadingProgress) {
                           if (loadingProgress == null) return child;
                           return _buildFallbackLogo();
@@ -357,7 +274,7 @@ class ClubAppBar extends StatelessWidget implements PreferredSizeWidget {
                   )
                 : _buildFallbackLogo(),
             SizedBox(width: 12),
-            
+
             // Club name and subtitle
             Expanded(
               child: Column(
@@ -401,10 +318,7 @@ class ClubAppBar extends StatelessWidget implements PreferredSizeWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: Colors.white.withOpacity(0.2),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.3),
-          width: 1,
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
       ),
       child: Center(
         child: Text(
@@ -421,17 +335,13 @@ class ClubAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   List<Widget> _buildActions() {
     if (actions == null || actions!.isEmpty) return [];
-    
+
     return actions!.map((action) {
       // Style IconButtons with white color
       if (action is IconButton) {
         return IconButton(
           onPressed: action.onPressed,
-          icon: Icon(
-            (action.icon as Icon).icon,
-            color: Colors.white,
-            size: 24,
-          ),
+          icon: Icon((action.icon as Icon).icon, color: Colors.white, size: 24),
           tooltip: action.tooltip,
           padding: EdgeInsets.all(8),
         );
@@ -444,21 +354,11 @@ class ClubAppBar extends StatelessWidget implements PreferredSizeWidget {
   Size get preferredSize => Size.fromHeight(kToolbarHeight);
 }
 
-class CricketStyleAppBar extends StatelessWidget implements PreferredSizeWidget {
-  final String title;
-  final String? subtitle;
-  final IconData? leadingIcon;
-  final List<Widget>? customActions;
-  final VoidCallback? onSearchPressed;
+class DuggyAppBar extends StatelessWidget implements PreferredSizeWidget {
+  final String subtitle;
+  final List<Widget>? actions;
 
-  const CricketStyleAppBar({
-    super.key,
-    required this.title,
-    this.subtitle,
-    this.leadingIcon,
-    this.customActions,
-    this.onSearchPressed,
-  });
+  const DuggyAppBar({super.key, required this.subtitle, this.actions});
 
   @override
   Widget build(BuildContext context) {
@@ -484,17 +384,17 @@ class CricketStyleAppBar extends StatelessWidget implements PreferredSizeWidget 
         backgroundColor: Colors.transparent,
         elevation: 0,
         automaticallyImplyLeading: false,
-        leading: leadingIcon != null 
-          ? IconButton(
-              icon: Icon(leadingIcon, color: Colors.white, size: 24),
-              onPressed: null, // Decorative only
-            )
-          : null,
+        leading: Container(
+          width: 40,
+          height: 40,
+          padding: EdgeInsets.all(8),
+          child: DuggyLogo(size: 36, color: Colors.white),
+        ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              title,
+              'Duggy',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 24,
@@ -502,71 +402,36 @@ class CricketStyleAppBar extends StatelessWidget implements PreferredSizeWidget 
                 letterSpacing: 0.5,
               ),
             ),
-            if (subtitle != null)
-              Text(
-                subtitle!,
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.8),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                ),
+            Text(
+              subtitle,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.9),
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
               ),
+            ),
           ],
         ),
-        actions: _buildActions(context),
+        actions: _buildActions(),
       ),
     );
   }
 
-  List<Widget> _buildActions(BuildContext context) {
-    List<Widget> actions = [];
+  List<Widget> _buildActions() {
+    if (actions == null || actions!.isEmpty) return [];
 
-    // Add custom actions first
-    if (customActions != null) {
-      for (Widget action in customActions!) {
-        // Style IconButtons as plain white icons without backgrounds
-        if (action is IconButton) {
-          actions.add(
-            IconButton(
-              onPressed: action.onPressed,
-              icon: Icon(
-                (action.icon as Icon).icon,
-                color: Colors.white,
-                size: 24,
-              ),
-              tooltip: action.tooltip,
-              padding: EdgeInsets.all(8),
-            ),
-          );
-        } else {
-          actions.add(action);
-        }
+    return actions!.map((action) {
+      // Style IconButtons with white color
+      if (action is IconButton) {
+        return IconButton(
+          onPressed: action.onPressed,
+          icon: Icon((action.icon as Icon).icon, color: Colors.white, size: 24),
+          tooltip: action.tooltip,
+          padding: EdgeInsets.all(8),
+        );
       }
-    }
-
-    // Add search button if callback provided
-    if (onSearchPressed != null) {
-      actions.add(
-        Container(
-          margin: EdgeInsets.only(right: 8),
-          child: Material(
-            color: Colors.white.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(24),
-            child: InkWell(
-              onTap: onSearchPressed,
-              borderRadius: BorderRadius.circular(24),
-              child: Container(
-                width: 48,
-                height: 48,
-                child: Icon(Icons.search, color: Colors.white, size: 22),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return actions;
+      return action;
+    }).toList();
   }
 
   @override

@@ -36,11 +36,9 @@ class ClubsScreenState extends State<ClubsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: CricketStyleAppBar(
-        title: 'Duggy',
-        subtitle: 'Manage your clubs',
-        leadingIcon: Icons.groups,
-        customActions: [
+      appBar: DuggyAppBar(
+        subtitle: 'Clubs',
+        actions: [
           IconButton(
             icon: Icon(Icons.add),
             onPressed: _showCreateClubDialog,

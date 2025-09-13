@@ -572,94 +572,14 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      child: CupertinoPageScaffold(
-        backgroundColor: CupertinoColors.systemGroupedBackground,
-        navigationBar: CupertinoNavigationBar(
-          backgroundColor: CupertinoColors.systemBackground,
-          border: null,
-          leading: CupertinoButton(
-            padding: EdgeInsets.zero,
-            child: Icon(
-              CupertinoIcons.xmark,
-              color: CupertinoColors.systemBlue,
-              size: 20,
-            ),
-            onPressed: () => Navigator.pop(context),
-          ),
-          middle: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Club Logo
-              Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppTheme.primaryBlue,
-                ),
-                child: widget.club.logo != null && widget.club.logo!.isNotEmpty
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          widget.club.logo!,
-                          width: 24,
-                          height: 24,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              width: 24,
-                              height: 24,
-                              decoration: BoxDecoration(
-                                color: AppTheme.primaryBlue,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Center(
-                                child: Text(
-                                  widget.club.name.isNotEmpty
-                                      ? widget.club.name[0].toUpperCase()
-                                      : 'C',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      )
-                    : Center(
-                        child: Text(
-                          widget.club.name.isNotEmpty
-                              ? widget.club.name[0].toUpperCase()
-                              : 'C',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-              ),
-              SizedBox(width: 8),
-              // Club Name
-              Flexible(
-                child: Text(
-                  widget.club.name,
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                    color: CupertinoColors.label,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ),
-        child: _isLoading
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: ClubAppBar(
+        clubName: widget.club.name,
+        clubLogo: widget.club.logo,
+        subtitle: 'Member Management',
+      ),
+      body: _isLoading
             ? Center(child: CupertinoActivityIndicator())
             : RefreshIndicator(
                 color: AppTheme.primaryBlue,
@@ -700,7 +620,6 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
                   ),
                 ),
               ),
-      ),
     );
   }
 

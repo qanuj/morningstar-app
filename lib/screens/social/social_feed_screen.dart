@@ -5,6 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../providers/user_provider.dart';
 import '../../models/social_post.dart';
 import '../../widgets/svg_avatar.dart';
+import '../../widgets/custom_app_bar.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class SocialFeedScreen extends StatefulWidget {
@@ -77,7 +78,23 @@ class SocialFeedScreenState extends State<SocialFeedScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: _SocialFeedAppBar(),
+      appBar: DuggyAppBar(
+        subtitle: 'Social Feed',
+        actions: [
+          IconButton(
+            icon: Icon(LucideIcons.search),
+            onPressed: () {
+              // TODO: Implement search
+            },
+          ),
+          IconButton(
+            icon: Icon(LucideIcons.bell),
+            onPressed: () {
+              // TODO: Implement notifications
+            },
+          ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: _onRefresh,
         child: ListView.builder(
@@ -188,86 +205,6 @@ class SocialFeedScreenState extends State<SocialFeedScreen> {
   }
 }
 
-class _SocialFeedAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const _SocialFeedAppBar();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Theme.of(context).primaryColor,
-            Theme.of(context).primaryColorDark,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).primaryColor.withOpacity(0.3),
-            offset: Offset(0, 2),
-            blurRadius: 8,
-          ),
-        ],
-      ),
-      child: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: Container(
-          width: 40,
-          height: 40,
-          padding: EdgeInsets.all(8),
-          child: SvgPicture.asset(
-            'assets/images/duggy_logo.svg',
-            width: 24,
-            height: 24,
-            fit: BoxFit.contain,
-          ),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Duggy',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.5,
-              ),
-            ),
-            Text(
-              'Social Feed',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.9),
-                fontSize: 12,
-                fontWeight: FontWeight.w400,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(LucideIcons.search, color: Colors.white),
-            onPressed: () {
-              // TODO: Implement search
-            },
-          ),
-          IconButton(
-            icon: Icon(LucideIcons.bell, color: Colors.white),
-            onPressed: () {
-              // TODO: Implement notifications
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Size get preferredSize => Size.fromHeight(kToolbarHeight);
-}
 
 class _PostCard extends StatefulWidget {
   final SocialPost post;

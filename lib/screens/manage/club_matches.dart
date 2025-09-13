@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/club.dart';
 import '../../widgets/matches_list_widget.dart';
 import '../../widgets/create_match_dialog.dart';
-import '../../widgets/svg_avatar.dart';
+import '../../widgets/custom_app_bar.dart';
 import '../../services/match_service.dart';
 
 class ClubMatchesScreen extends StatefulWidget {
@@ -65,78 +65,21 @@ class _ClubMatchesScreenState extends State<ClubMatchesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF003f9b), // Brand blue
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Row(
-          children: [
-            // Club Logo
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(18),
-                child: SVGAvatar(
-                  imageUrl: widget.club.logo,
-                  size: 36,
-                  backgroundColor: Colors.white.withOpacity(0.1),
-                  fallbackIcon: Icons.groups,
-                  iconSize: 20,
-                  iconColor: Colors.white,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            // Club Name and Subtitle
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    widget.club.name,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const Text(
-                    'Matches',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+      appBar: ClubAppBar(
+        clubName: widget.club.name,
+        clubLogo: widget.club.logo,
+        subtitle: 'Matches',
         actions: [
           // Filter Icon
           IconButton(
-            icon: const Icon(Icons.filter_list, color: Colors.white),
+            icon: const Icon(Icons.filter_list),
             onPressed: _showFilterBottomSheet,
             tooltip: 'Filter matches',
           ),
           // Create Match Icon (if user has permissions)
           if (_canCreateMatches && !_isCheckingPermissions)
             IconButton(
-              icon: const Icon(Icons.add, color: Colors.white),
+              icon: const Icon(Icons.add),
               onPressed: _showCreateMatchDialog,
               tooltip: 'Create Match',
             ),

@@ -260,11 +260,9 @@ class TransactionsScreenState extends State<TransactionsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: CricketStyleAppBar(
-        title: 'Duggy',
-        subtitle: 'Kitty & transactions',
-        leadingIcon: Icons.account_balance_wallet,
-        customActions: [
+      appBar: DuggyAppBar(
+        subtitle: 'Kitty',
+        actions: [
           // Search toggle button
           IconButton(
             icon: Icon(_isSearchExpanded ? Icons.close : Icons.search),
@@ -281,10 +279,7 @@ class TransactionsScreenState extends State<TransactionsScreen> {
           ),
           // Filter button
           IconButton(
-            icon: Icon(
-              Icons.filter_list,
-              color: Theme.of(context).appBarTheme.foregroundColor,
-            ),
+            icon: Icon(Icons.filter_list),
             onPressed: _showFilterBottomSheet,
           ),
         ],

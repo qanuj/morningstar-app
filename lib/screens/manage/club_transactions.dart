@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import '../../widgets/svg_avatar.dart';
+import '../../widgets/custom_app_bar.dart';
 import '../../services/api_service.dart';
 import '../../widgets/transactions_list_widget.dart';
 import '../../models/transaction.dart';
@@ -195,66 +196,14 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF003f9b),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Row(
-          children: [
-            // Club Logo
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(18),
-                child: widget.club.logo != null && widget.club.logo!.isNotEmpty
-                    ? _buildClubLogo()
-                    : _buildDefaultClubLogo(),
-              ),
-            ),
-            const SizedBox(width: 12),
-            // Club Name and Subtitle
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.club.name,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    'Transactions',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+      appBar: ClubAppBar(
+        clubName: widget.club.name,
+        clubLogo: widget.club.logo,
+        subtitle: 'Transactions',
         actions: [
           IconButton(
             icon: Icon(
               _showSearch ? Icons.search_off : Icons.search,
-              color: Colors.white,
             ),
             onPressed: () {
               setState(() {
@@ -268,7 +217,7 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
             tooltip: _showSearch ? 'Hide Search' : 'Search',
           ),
           IconButton(
-            icon: Icon(Icons.filter_list, color: Colors.white),
+            icon: Icon(Icons.filter_list),
             onPressed: () => _showFilterDialog(),
             tooltip: 'Filter',
           ),

@@ -76,13 +76,11 @@ class _MatchesScreenState extends State<MatchesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CricketStyleAppBar(
-        title: 'Duggy',
+      appBar: DuggyAppBar(
         subtitle: widget.clubFilter != null
             ? '${widget.clubFilter!.name} Matches'
-            : 'Upcoming matches',
-        leadingIcon: Icons.sports_cricket,
-        customActions: [
+            : 'Matches',
+        actions: [
           IconButton(
             icon: Icon(Icons.add),
             onPressed: _showCreateMatchDialog,
