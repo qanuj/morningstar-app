@@ -90,6 +90,9 @@ class TeamService {
         'limit': limit.toString(),
       });
 
+      print('🚀 Making request to: $uri');
+      print('🔑 Token available: ${token != null}');
+
       final response = await http.get(
         uri,
         headers: {
@@ -98,18 +101,30 @@ class TeamService {
         },
       );
 
+      print('📡 Response status: ${response.statusCode}');
+      print('📡 Response body: ${response.body}');
+
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseBody = jsonDecode(response.body);
-        final List<dynamic> teamsJson = responseBody['teams'];
+        final List<dynamic> teamsJson = responseBody['teams'] ?? [];
+        print('📊 Teams count: ${teamsJson.length}');
         return teamsJson.map((team) => Team.fromJson(team)).toList();
       } else if (response.statusCode == 401) {
         throw Exception('Unauthorized access');
+      } else if (response.statusCode == 403) {
+        throw Exception('Access forbidden - you may not have permission to manage this club');
       } else {
-        throw Exception('Failed to get club teams: ${response.statusCode}');
+        try {
+          final Map<String, dynamic>? errorBody = jsonDecode(response.body);
+          final errorMessage = errorBody?['error'] ?? 'Failed to get club teams';
+          throw Exception('$errorMessage (${response.statusCode})');
+        } catch (jsonError) {
+          throw Exception('Failed to get club teams: ${response.statusCode}');
+        }
       }
     } catch (e) {
-      print('Error getting club teams: $e');
-      throw Exception('Failed to get club teams: $e');
+      print('❌ Error getting club teams: $e');
+      rethrow;
     }
   }
 
@@ -117,10 +132,9 @@ class TeamService {
   static Future<Team> createTeam({
     required String clubId,
     required String name,
-    required String sport,
-    required String provider,
-    required String providerId,
     String? logo,
+    String sport = 'Cricket',
+    String provider = 'DUGGY',
   }) async {
     try {
       final token = await _getToken();
@@ -138,7 +152,7 @@ class TeamService {
           'name': name,
           'sport': sport,
           'provider': provider,
-          'providerId': providerId,
+          'providerId': DateTime.now().millisecondsSinceEpoch.toString(), // Generate unique ID
           if (logo != null && logo.isNotEmpty) 'logo': logo,
         }),
       );
@@ -165,10 +179,8 @@ class TeamService {
     required String teamId,
     required String clubId,
     String? name,
-    String? sport,
-    String? provider,
-    String? providerId,
     String? logo,
+    String? sport,
   }) async {
     try {
       final token = await _getToken();
@@ -179,8 +191,6 @@ class TeamService {
       final Map<String, dynamic> updateData = {};
       if (name != null) updateData['name'] = name;
       if (sport != null) updateData['sport'] = sport;
-      if (provider != null) updateData['provider'] = provider;
-      if (providerId != null) updateData['providerId'] = providerId;
       if (logo != null) updateData['logo'] = logo.isEmpty ? null : logo;
 
       final response = await http.put(

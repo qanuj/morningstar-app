@@ -279,6 +279,171 @@ class DetailAppBar extends CustomAppBar {
         );
 }
 
+class ClubAppBar extends StatelessWidget implements PreferredSizeWidget {
+  final String clubName;
+  final String? clubLogo;
+  final String subtitle;
+  final List<Widget>? actions;
+  final VoidCallback? onBackPressed;
+
+  const ClubAppBar({
+    super.key,
+    required this.clubName,
+    this.clubLogo,
+    required this.subtitle,
+    this.actions,
+    this.onBackPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Theme.of(context).primaryColor,
+            Theme.of(context).primaryColor.withOpacity(0.9),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).primaryColor.withOpacity(0.3),
+            offset: Offset(0, 2),
+            blurRadius: 8,
+          ),
+        ],
+      ),
+      child: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back_ios,
+            color: Colors.white,
+            size: 22,
+          ),
+          onPressed: onBackPressed ?? () => Navigator.of(context).pop(),
+        ),
+        title: Row(
+          children: [
+            // Club logo
+            clubLogo != null && clubLogo!.isNotEmpty
+                ? Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.2),
+                        width: 1,
+                      ),
+                    ),
+                    child: ClipOval(
+                      child: Image.network(
+                        clubLogo!,
+                        width: 40,
+                        height: 40,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => _buildFallbackLogo(),
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return _buildFallbackLogo();
+                        },
+                      ),
+                    ),
+                  )
+                : _buildFallbackLogo(),
+            SizedBox(width: 12),
+            
+            // Club name and subtitle
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    clubName,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.3,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.9),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: _buildActions(),
+      ),
+    );
+  }
+
+  Widget _buildFallbackLogo() {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white.withOpacity(0.2),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Center(
+        child: Text(
+          clubName.isNotEmpty ? clubName.substring(0, 1).toUpperCase() : 'C',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildActions() {
+    if (actions == null || actions!.isEmpty) return [];
+    
+    return actions!.map((action) {
+      // Style IconButtons with white color
+      if (action is IconButton) {
+        return IconButton(
+          onPressed: action.onPressed,
+          icon: Icon(
+            (action.icon as Icon).icon,
+            color: Colors.white,
+            size: 24,
+          ),
+          tooltip: action.tooltip,
+          padding: EdgeInsets.all(8),
+        );
+      }
+      return action;
+    }).toList();
+  }
+
+  @override
+  Size get preferredSize => Size.fromHeight(kToolbarHeight);
+}
+
 class CricketStyleAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final String? subtitle;

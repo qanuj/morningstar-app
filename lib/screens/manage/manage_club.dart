@@ -357,22 +357,6 @@ class ManageClubScreenState extends State<ManageClubScreen> {
                           },
                         ),
 
-                        Divider(
-                          height: 1,
-                          color: Theme.of(
-                            context,
-                          ).dividerColor.withOpacity(0.3),
-                        ),
-
-                        // Store Management
-                        _buildExpandableSection(
-                          icon: Icons.store_outlined,
-                          title: 'Store',
-                          subtitle: 'Manage club merchandise & inventory',
-                          onTap: () {
-                            // TODO: Navigate to store management
-                          },
-                        ),
                       ],
                     ),
                   ),
