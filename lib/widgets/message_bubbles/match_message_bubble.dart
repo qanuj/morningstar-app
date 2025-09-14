@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/club_message.dart';
 import '../../services/chat_api_service.dart';
-import '../dialogs/match_rsvp_dialog.dart';
 import '../svg_avatar.dart';
 import 'base_message_bubble.dart';
 
@@ -35,7 +34,8 @@ class MatchMessageBubble extends StatefulWidget {
 }
 
 class _MatchMessageBubbleState extends State<MatchMessageBubble> {
-  String? _currentRSVPStatus; // Track current RSVP status: 'YES', 'NO', 'MAYBE', or null
+  String?
+  _currentRSVPStatus; // Track current RSVP status: 'YES', 'NO', 'MAYBE', or null
 
   @override
   void initState() {
@@ -60,7 +60,6 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
       isOwn: widget.isOwn,
       isPinned: widget.isPinned,
       isSelected: widget.isSelected,
-      customColor: Color(0xFF4CAF50).withOpacity(0.1),
       showMetaOverlay: true,
       showShadow: true,
       onReactionRemoved: widget.onReactionRemoved,
@@ -112,7 +111,7 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
 
           SizedBox(height: 16),
 
-          // RSVP Buttons Row (IN, OUT, Maybe, Info)
+          // RSVP Buttons Row (IN, OUT, Maybe)
           Row(
             children: [
               // IN Button
@@ -120,17 +119,17 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
                 child: ElevatedButton(
                   onPressed: () => _handleDirectRSVP(context, 'YES'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _currentRSVPStatus == 'YES' 
-                      ? Color(0xFF4CAF50) 
-                      : Color(0xFF4CAF50).withOpacity(0.2),
-                    foregroundColor: _currentRSVPStatus == 'YES' 
-                      ? Colors.white 
-                      : Color(0xFF4CAF50),
+                    backgroundColor: _currentRSVPStatus == 'YES'
+                        ? Color(0xFF4CAF50)
+                        : Color(0xFF4CAF50).withOpacity(0.2),
+                    foregroundColor: _currentRSVPStatus == 'YES'
+                        ? Colors.white
+                        : Color(0xFF4CAF50),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                       side: _currentRSVPStatus == 'YES'
-                        ? BorderSide.none
-                        : BorderSide(color: Color(0xFF4CAF50), width: 1),
+                          ? BorderSide.none
+                          : BorderSide(color: Color(0xFF4CAF50), width: 1),
                     ),
                     padding: EdgeInsets.symmetric(vertical: 10),
                     elevation: _currentRSVPStatus == 'YES' ? 2 : 0,
@@ -140,8 +139,7 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
                     children: [
                       if (_currentRSVPStatus == 'YES')
                         Icon(Icons.check, size: 14),
-                      if (_currentRSVPStatus == 'YES')
-                        SizedBox(width: 4),
+                      if (_currentRSVPStatus == 'YES') SizedBox(width: 4),
                       Text(
                         'IN',
                         style: TextStyle(
@@ -153,25 +151,25 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
                   ),
                 ),
               ),
-              
+
               SizedBox(width: 8),
-              
+
               // OUT Button
               Expanded(
                 child: ElevatedButton(
                   onPressed: () => _handleDirectRSVP(context, 'NO'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _currentRSVPStatus == 'NO' 
-                      ? Color(0xFFFF5722) 
-                      : Color(0xFFFF5722).withOpacity(0.2),
-                    foregroundColor: _currentRSVPStatus == 'NO' 
-                      ? Colors.white 
-                      : Color(0xFFFF5722),
+                    backgroundColor: _currentRSVPStatus == 'NO'
+                        ? Color(0xFFFF5722)
+                        : Color(0xFFFF5722).withOpacity(0.2),
+                    foregroundColor: _currentRSVPStatus == 'NO'
+                        ? Colors.white
+                        : Color(0xFFFF5722),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                       side: _currentRSVPStatus == 'NO'
-                        ? BorderSide.none
-                        : BorderSide(color: Color(0xFFFF5722), width: 1),
+                          ? BorderSide.none
+                          : BorderSide(color: Color(0xFFFF5722), width: 1),
                     ),
                     padding: EdgeInsets.symmetric(vertical: 10),
                     elevation: _currentRSVPStatus == 'NO' ? 2 : 0,
@@ -181,8 +179,7 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
                     children: [
                       if (_currentRSVPStatus == 'NO')
                         Icon(Icons.close, size: 14),
-                      if (_currentRSVPStatus == 'NO')
-                        SizedBox(width: 4),
+                      if (_currentRSVPStatus == 'NO') SizedBox(width: 4),
                       Text(
                         'OUT',
                         style: TextStyle(
@@ -194,25 +191,25 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
                   ),
                 ),
               ),
-              
+
               SizedBox(width: 8),
-              
+
               // Maybe Button
               Expanded(
                 child: ElevatedButton(
                   onPressed: () => _handleDirectRSVP(context, 'MAYBE'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _currentRSVPStatus == 'MAYBE' 
-                      ? Color(0xFFFF9800) 
-                      : Color(0xFFFF9800).withOpacity(0.2),
-                    foregroundColor: _currentRSVPStatus == 'MAYBE' 
-                      ? Colors.white 
-                      : Color(0xFFFF9800),
+                    backgroundColor: _currentRSVPStatus == 'MAYBE'
+                        ? Color(0xFFFF9800)
+                        : Color(0xFFFF9800).withOpacity(0.2),
+                    foregroundColor: _currentRSVPStatus == 'MAYBE'
+                        ? Colors.white
+                        : Color(0xFFFF9800),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                       side: _currentRSVPStatus == 'MAYBE'
-                        ? BorderSide.none
-                        : BorderSide(color: Color(0xFFFF9800), width: 1),
+                          ? BorderSide.none
+                          : BorderSide(color: Color(0xFFFF9800), width: 1),
                     ),
                     padding: EdgeInsets.symmetric(vertical: 10),
                     elevation: _currentRSVPStatus == 'MAYBE' ? 2 : 0,
@@ -222,8 +219,7 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
                     children: [
                       if (_currentRSVPStatus == 'MAYBE')
                         Icon(Icons.help_outline, size: 14),
-                      if (_currentRSVPStatus == 'MAYBE')
-                        SizedBox(width: 4),
+                      if (_currentRSVPStatus == 'MAYBE') SizedBox(width: 4),
                       Text(
                         'MAYBE',
                         style: TextStyle(
@@ -232,30 +228,6 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
                         ),
                       ),
                     ],
-                  ),
-                ),
-              ),
-              
-              SizedBox(width: 8),
-              
-              // Info Button
-              SizedBox(
-                width: 40,
-                height: 40,
-                child: ElevatedButton(
-                  onPressed: () => _showRSVPDialog(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey[600],
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    padding: EdgeInsets.zero,
-                    elevation: 0,
-                  ),
-                  child: Icon(
-                    Icons.info_outline,
-                    size: 18,
                   ),
                 ),
               ),
@@ -434,61 +406,6 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
     );
   }
 
-  void _showRSVPDialog(BuildContext context) {
-    if (widget.message.matchId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Unable to RSVP: Match ID not found'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    showDialog(
-      context: context,
-      builder: (context) => MatchRSVPDialog(
-        matchId: widget.message.matchId!,
-        onRSVP: (status) => _handleRSVP(context, status),
-      ),
-    );
-  }
-
-  void _handleRSVP(BuildContext context, String status) async {
-    if (widget.message.matchId == null) return;
-
-    try {
-      final success = await ChatApiService.rsvpToMatch(
-        widget.message.clubId,
-        widget.message.id,
-        widget.message.matchId!,
-        status,
-      );
-
-      if (success && context.mounted) {
-        // RSVP successful - the dialog will show success message
-        // In a real app, you might want to update the UI to show current RSVP status
-        widget.onRSVP?.call();
-      } else if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update RSVP. Please try again.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error updating RSVP: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
   void _handleDirectRSVP(BuildContext context, String status) async {
     if (widget.message.matchId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -513,10 +430,13 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
         setState(() {
           _currentRSVPStatus = status;
         });
-        
+
         // Show success message based on RSVP status
-        final statusText = status == 'YES' ? 'confirmed' : 
-                          status == 'NO' ? 'declined' : 'marked as maybe';
+        final statusText = status == 'YES'
+            ? 'confirmed'
+            : status == 'NO'
+            ? 'declined'
+            : 'marked as maybe';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('RSVP $statusText successfully!'),
