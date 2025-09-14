@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/match.dart';
-import '../../services/match_service.dart';
+import '../../services/practice_service.dart';
 
 /// Dialog for selecting existing practice or creating new practice
 class PracticeSelectionDialog extends StatefulWidget {
@@ -37,17 +37,12 @@ class _PracticeSelectionDialogState extends State<PracticeSelectionDialog> {
         _error = null;
       });
 
-      // Fetch matches for the club and filter for practice sessions
-      final allMatches = await MatchService.getMatches(
+      // Fetch practice sessions using the dedicated practice API
+      final practices = await PracticeService.getPracticeSessions(
         clubId: widget.clubId,
         upcomingOnly: true,
+        limit: 20,
       );
-
-      // Filter for practice sessions only (assuming type field exists)
-      final practices = allMatches.where((match) => 
-        match.type?.toLowerCase() == 'practice' || 
-        match.opponent?.toLowerCase().contains('practice') == true
-      ).toList();
       
       setState(() {
         _practices = practices;

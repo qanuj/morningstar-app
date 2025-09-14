@@ -97,6 +97,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
   bool _canActivateRecording = false; // Only true if tapped in bottom 20%
   bool _isInRecordingMode = false; // True during entire recording flow
 
+
   @override
   void initState() {
     super.initState();
@@ -1342,10 +1343,14 @@ class ClubChatScreenState extends State<ClubChatScreen>
         onExistingMatchSelected: (match) {
           // Send existing match message to chat
           _sendExistingMatchMessage(match);
+          // Unfocus text field to prevent keyboard from opening
+          _textFieldFocusNode.unfocus();
         },
         onCreateNewMatch: () {
           // Navigate to create new match
           _navigateToCreateNewMatch();
+          // Unfocus text field to prevent keyboard from opening
+          _textFieldFocusNode.unfocus();
         },
       ),
     );
@@ -1360,10 +1365,14 @@ class ClubChatScreenState extends State<ClubChatScreen>
         onExistingPracticeSelected: (practice) {
           // Send existing practice message to chat
           _sendExistingPracticeMessage(practice);
+          // Unfocus text field to prevent keyboard from opening
+          _textFieldFocusNode.unfocus();
         },
         onCreateNewPractice: () {
           // Navigate to create new practice
           _navigateToCreateNewPractice();
+          // Unfocus text field to prevent keyboard from opening
+          _textFieldFocusNode.unfocus();
         },
       ),
     );
@@ -1373,10 +1382,8 @@ class ClubChatScreenState extends State<ClubChatScreen>
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => CreatePracticeScreen(
-          onPracticeCreated: () {
-            // Practice was created successfully, now send practice message to chat
-            _createPracticeMessage();
-          },
+          clubId: widget.club.id,
+          // Server handles practice message posting automatically when notifyMembers: true
         ),
       ),
     );
@@ -1402,7 +1409,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
         .where((m) => m.club.id == widget.club.id)
         .firstOrNull;
 
-    // Create a practice message from existing practice
+    // Create temporary message for immediate UI feedback with 'sent' status to prevent duplicate sending
     final tempMessage = ClubMessage(
       id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
       clubId: widget.club.id,
@@ -1426,7 +1433,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
         'isJoined': practice.userRsvp != null && practice.userRsvp!.status == 'YES',
       },
       createdAt: DateTime.now(),
-      status: MessageStatus.sending,
+      status: MessageStatus.sent, // Use 'sent' to prevent SelfSendingMessageBubble from sending again
       starred: StarredInfo(isStarred: false),
       pin: PinInfo(isPinned: false),
     );
@@ -1434,12 +1441,23 @@ class ClubChatScreenState extends State<ClubChatScreen>
     // Add to local messages immediately for UI feedback
     _handleNewMessage(tempMessage);
 
-    // Send practice message to backend
+    // Send practice message to backend directly
     try {
       final practiceData = {
         'content': '⚽ Practice session: ${practice.opponent?.isNotEmpty == true ? practice.opponent! : 'Practice Session'}',
         'practiceId': practice.id,
-        'practiceDetails': tempMessage.practiceDetails,
+        'practiceDetails': {
+          'title': practice.opponent?.isNotEmpty == true ? practice.opponent! : 'Practice Session',
+          'description': 'Join our training session',
+          'date': practice.matchDate.toIso8601String().split('T')[0],
+          'time': '${practice.matchDate.hour.toString().padLeft(2, '0')}:${practice.matchDate.minute.toString().padLeft(2, '0')}',
+          'venue': practice.location.isNotEmpty ? practice.location : 'Training Ground',
+          'duration': '2 hours',
+          'type': 'Training',
+          'maxParticipants': practice.spots,
+          'currentParticipants': practice.confirmedPlayers,
+          'isJoined': practice.userRsvp != null && practice.userRsvp!.status == 'YES',
+        },
       };
 
       await ChatApiService.sendPracticeMessage(widget.club.id, practiceData);
@@ -1469,7 +1487,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
         .where((m) => m.club.id == widget.club.id)
         .firstOrNull;
 
-    // Create a match message from existing match
+    // Create temporary message for immediate UI feedback with 'sent' status to prevent duplicate sending
     final tempMessage = ClubMessage(
       id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
       clubId: widget.club.id,
@@ -1496,7 +1514,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
         },
       },
       createdAt: DateTime.now(),
-      status: MessageStatus.sending,
+      status: MessageStatus.sent, // Use 'sent' to prevent SelfSendingMessageBubble from sending again
       starred: StarredInfo(isStarred: false),
       pin: PinInfo(isPinned: false),
     );
@@ -1504,7 +1522,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
     // Add to local messages immediately for UI feedback
     _handleNewMessage(tempMessage);
 
-    // Send match message to backend
+    // Send match message to backend directly
     try {
       final matchData = {
         'content': '📅 Match announcement: ${match.club.name} vs ${match.opponent ?? "TBD"}',
@@ -1552,7 +1570,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
         .where((m) => m.club.id == widget.club.id)
         .firstOrNull;
 
-    // Create a temporary match message for immediate UI feedback
+    // Create temporary message for immediate UI feedback with 'sent' status to prevent duplicate sending
     final tempMessage = ClubMessage(
       id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
       clubId: widget.club.id,
@@ -1562,7 +1580,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
       senderRole: membership?.role ?? 'ADMIN',
       content: '📅 New match created! Check your matches to view details and RSVP.',
       messageType: 'match',
-      matchId: 'placeholder_match_id', // This would be the actual match ID from the API
+      matchId: 'placeholder_match_id',
       matchDetails: {
         'homeTeam': {
           'name': 'Home Team',
@@ -1579,7 +1597,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
         },
       },
       createdAt: DateTime.now(),
-      status: MessageStatus.sending,
+      status: MessageStatus.sent, // Use 'sent' to prevent SelfSendingMessageBubble from sending again
       starred: StarredInfo(isStarred: false),
       pin: PinInfo(isPinned: false),
     );
@@ -1587,7 +1605,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
     // Add to local messages immediately for UI feedback
     _handleNewMessage(tempMessage);
 
-    // Send match message to backend
+    // Send match message to backend directly
     try {
       final matchData = {
         'content': '📅 New match created! Check your matches to view details and RSVP.',
@@ -1632,86 +1650,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
     }
   }
 
-  void _createPracticeMessage() async {
-    // Get user's membership to determine role
-    final clubProvider = context.read<ClubProvider>();
-    final membership = clubProvider.clubs
-        .where((m) => m.club.id == widget.club.id)
-        .firstOrNull;
-
-    // Create a temporary practice message for immediate UI feedback
-    final tempMessage = ClubMessage(
-      id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
-      clubId: widget.club.id,
-      senderId: 'current_user',
-      senderName: 'You',
-      senderProfilePicture: null,
-      senderRole: membership?.role ?? 'ADMIN',
-      content: '⚽ New practice session scheduled! Join the practice session.',
-      messageType: 'practice',
-      practiceId: 'placeholder_practice_id', // This would be the actual practice ID from the API
-      practiceDetails: {
-        'title': 'Practice Session',
-        'description': 'Regular training session',
-        'date': DateTime.now().add(Duration(days: 1)).toIso8601String().split('T')[0],
-        'time': '18:00',
-        'venue': 'Training Ground',
-        'duration': '2 hours',
-        'type': 'Training',
-        'maxParticipants': 20,
-        'currentParticipants': 0,
-        'isJoined': false,
-      },
-      createdAt: DateTime.now(),
-      status: MessageStatus.sending,
-      starred: StarredInfo(isStarred: false),
-      pin: PinInfo(isPinned: false),
-    );
-
-    // Add to local messages immediately for UI feedback
-    _handleNewMessage(tempMessage);
-
-    // Send practice message to backend
-    try {
-      final practiceData = {
-        'content': '⚽ New practice session scheduled! Join the practice session.',
-        'practiceId': 'placeholder_practice_id', // In real implementation, this would come from CreatePracticeScreen
-        'practiceDetails': {
-          'title': 'Practice Session',
-          'description': 'Regular training session',
-          'date': DateTime.now().add(Duration(days: 1)).toIso8601String().split('T')[0],
-          'time': '18:00',
-          'venue': 'Training Ground',
-          'duration': '2 hours',
-          'type': 'Training',
-          'maxParticipants': 20,
-          'currentParticipants': 0,
-          'isJoined': false,
-        },
-      };
-
-      await ChatApiService.sendPracticeMessage(widget.club.id, practiceData);
-      
-      // Update message status to sent
-      // In a real implementation, you'd update the message in your state management
-      
-    } catch (e) {
-      print('❌ Error sending practice message: $e');
-      // Handle error - show snackbar or retry
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to send practice announcement'),
-            backgroundColor: Colors.red,
-            action: SnackBarAction(
-              label: 'Retry',
-              onPressed: () => _createPracticeMessage(),
-            ),
-          ),
-        );
-      }
-    }
-  }
 
   void _handleNewMessage(ClubMessage tempMessage) {
     debugPrint(
@@ -1750,6 +1688,14 @@ class ClubChatScreenState extends State<ClubChatScreen>
       audio: tempMessage.audio,
       linkMeta: tempMessage.linkMeta,
       gifUrl: tempMessage.gifUrl,
+      // ✅ RICH MESSAGE TYPE FIELDS - Critical for practice/match/poll messages
+      practiceId: tempMessage.practiceId,
+      practiceDetails: tempMessage.practiceDetails,
+      matchId: tempMessage.matchId,
+      matchDetails: tempMessage.matchDetails,
+      locationDetails: tempMessage.locationDetails,
+      pollId: tempMessage.pollId,
+      pollDetails: tempMessage.pollDetails,
       // ✅ OTHER FIELDS
       reactions: tempMessage.reactions,
       deleted: tempMessage.deleted,
