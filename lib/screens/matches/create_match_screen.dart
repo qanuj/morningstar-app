@@ -1,3 +1,4 @@
+import 'package:duggy/services/ground_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
@@ -88,6 +89,18 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
     super.dispose();
   }
 
+  // Check if the same team is selected for both home and opponent
+  bool get _isSameTeamSelected {
+    return _selectedHomeTeam != null &&
+        _selectedOpponentTeam != null &&
+        _selectedHomeTeam!.id == _selectedOpponentTeam!.id;
+  }
+
+  // Check if create button should be enabled
+  bool get _canCreateMatch {
+    return !_isSameTeamSelected && !_isLoading;
+  }
+
   Future<void> _createMatch() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -108,6 +121,17 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Please select opponent team'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Check if same team is selected for both home and opponent
+    if (_isSameTeamSelected) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Home team and opponent team cannot be the same'),
           backgroundColor: Colors.red,
         ),
       );
@@ -152,15 +176,24 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
         throw Exception('Match time must be at least 1 hour in the future');
       }
 
+      // Debug logging for team IDs
+      print('🔍 Debug: Home Team ID: ${_selectedHomeTeam!.id}');
+      print('🔍 Debug: Opponent Team ID: ${_selectedOpponentTeam!.id}');
+      print('🔍 Debug: Home Team Club ID: ${_selectedHomeTeam!.club?.id}');
+      print('🔍 Debug: Opponent Team Club ID: ${_selectedOpponentTeam!.club?.id}');
+
       await MatchService.createMatch(
-        clubId: _selectedHomeTeam!.club?.id ?? '',
+        clubId: _selectedHomeTeam!.clubId ?? '',
         type: _selectedType,
         tournamentId: _selectedTournament?.id,
-        location: _selectedVenue!.name,
+        locationId: _selectedVenue!.id,
         city: _selectedVenue!.city,
         opponent: _selectedOpponentTeam!.name,
         opponentClubId: _selectedOpponentTeam!.club?.id,
-        notes: 'Ball Type: $_selectedBall | Home Team: ${_selectedHomeTeam!.name} vs ${_selectedOpponentTeam!.name}',
+        teamId: _selectedHomeTeam!.id,
+        opponentTeamId: _selectedOpponentTeam!.id,
+        notes:
+            'Ball Type: $_selectedBall | Home Team: ${_selectedHomeTeam!.name} vs ${_selectedOpponentTeam!.name}',
         matchDate: matchDateTime,
         spots: 13,
         hideUntilRSVP: false,
@@ -349,7 +382,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : _createMatch,
+                  onPressed: _canCreateMatch ? _createMatch : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Theme.of(context).primaryColor,
                     foregroundColor: Colors.white,
@@ -431,6 +464,37 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
               ),
             ],
           ),
+          // Warning message for same team selection
+          if (_isSameTeamSelected) ...[
+            Container(
+              margin: EdgeInsets.only(bottom: 16),
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Colors.red.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.warning, color: Colors.red, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Home team and opponent team cannot be the same. Please select different teams.',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           SizedBox(height: 24),
 
           // Match Date & Time
@@ -450,10 +514,14 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                         ),
                         decoration: BoxDecoration(
                           border: Border.all(
-                            color: Theme.of(context).dividerColor.withOpacity(0.5),
+                            color: Theme.of(
+                              context,
+                            ).dividerColor.withOpacity(0.5),
                           ),
                           borderRadius: BorderRadius.circular(12),
-                          color: Theme.of(context).inputDecorationTheme.fillColor,
+                          color: Theme.of(
+                            context,
+                          ).inputDecorationTheme.fillColor,
                         ),
                         child: Row(
                           children: [
@@ -469,7 +537,9 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w500,
-                                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                                  color: Theme.of(
+                                    context,
+                                  ).textTheme.bodyLarge?.color,
                                 ),
                               ),
                             ),
@@ -494,10 +564,14 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                         ),
                         decoration: BoxDecoration(
                           border: Border.all(
-                            color: Theme.of(context).dividerColor.withOpacity(0.5),
+                            color: Theme.of(
+                              context,
+                            ).dividerColor.withOpacity(0.5),
                           ),
                           borderRadius: BorderRadius.circular(12),
-                          color: Theme.of(context).inputDecorationTheme.fillColor,
+                          color: Theme.of(
+                            context,
+                          ).inputDecorationTheme.fillColor,
                         ),
                         child: Row(
                           children: [
@@ -513,7 +587,9 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w500,
-                                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                                  color: Theme.of(
+                                    context,
+                                  ).textTheme.bodyLarge?.color,
                                 ),
                               ),
                             ),
@@ -552,8 +628,8 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                     color: _selectedVenue == null
                         ? Theme.of(context).textTheme.bodyMedium?.color
                         : (Theme.of(context).brightness == Brightness.dark
-                            ? Theme.of(context).colorScheme.primary
-                            : Theme.of(context).primaryColor),
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).primaryColor),
                   ),
                   SizedBox(width: 12),
                   Expanded(
@@ -577,7 +653,9 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                             _selectedVenue!.fullAddress,
                             style: TextStyle(
                               fontSize: 14,
-                              color: Theme.of(context).textTheme.bodySmall?.color,
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodySmall?.color,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -621,8 +699,8 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                       color: _selectedTournament == null
                           ? Theme.of(context).textTheme.bodyMedium?.color
                           : (Theme.of(context).brightness == Brightness.dark
-                              ? Theme.of(context).colorScheme.primary
-                              : Theme.of(context).primaryColor),
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).primaryColor),
                     ),
                     SizedBox(width: 12),
                     Expanded(
@@ -635,7 +713,9 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                               fontSize: 16,
                               color: _selectedTournament == null
                                   ? Theme.of(context).textTheme.bodySmall?.color
-                                  : Theme.of(context).textTheme.bodyLarge?.color,
+                                  : Theme.of(
+                                      context,
+                                    ).textTheme.bodyLarge?.color,
                               fontWeight: _selectedTournament == null
                                   ? FontWeight.normal
                                   : FontWeight.w500,
@@ -647,7 +727,9 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                               '${_selectedTournament!.location}, ${_selectedTournament!.city}',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: Theme.of(context).textTheme.bodySmall?.color,
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.bodySmall?.color,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -656,7 +738,9 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                               '${DateFormat('MMM dd').format(_selectedTournament!.startDate)} - ${DateFormat('MMM dd, yyyy').format(_selectedTournament!.endDate)}',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.bodySmall?.color?.withOpacity(0.7),
                               ),
                             ),
                           ],
@@ -756,8 +840,8 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                 size: 20,
                 color: isSelected
                     ? (Theme.of(context).brightness == Brightness.dark
-                        ? Theme.of(context).colorScheme.primary
-                        : Theme.of(context).primaryColor)
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).primaryColor)
                     : Theme.of(context).textTheme.bodySmall?.color,
               ),
               SizedBox(height: 4),
@@ -770,8 +854,8 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                   color: isSelected
                       ? (Theme.of(context).brightness == Brightness.dark
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).primaryColor)
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context).primaryColor)
                       : Theme.of(context).textTheme.bodyLarge?.color,
                 ),
                 textAlign: TextAlign.center,
@@ -953,10 +1037,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                       Text(
                         team!.club!.name,
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -972,7 +1053,9 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                         shape: BoxShape.circle,
                         color: Theme.of(context).inputDecorationTheme.fillColor,
                         border: Border.all(
-                          color: Theme.of(context).dividerColor.withOpacity(0.5),
+                          color: Theme.of(
+                            context,
+                          ).dividerColor.withOpacity(0.5),
                           width: 2,
                         ),
                       ),
@@ -981,7 +1064,9 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                           Icons.add,
                           size: 32,
                           color: Theme.of(context).brightness == Brightness.dark
-                              ? Theme.of(context).colorScheme.onSurface.withOpacity(0.6)
+                              ? Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withOpacity(0.6)
                               : Theme.of(context).textTheme.bodySmall?.color,
                         ),
                       ),
@@ -1076,5 +1161,4 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       ),
     );
   }
-
 }

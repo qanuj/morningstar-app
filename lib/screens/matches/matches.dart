@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../models/club.dart';
-import '../../providers/club_provider.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/matches_list_widget.dart';
-import '../../widgets/club_selector_dialog.dart';
 import '../../services/match_service.dart';
 import 'create_match_screen.dart';
 
 class MatchesScreen extends StatefulWidget {
   final Club? clubFilter;
+  final bool isFromHome;
 
-  const MatchesScreen({super.key, this.clubFilter});
+  const MatchesScreen({super.key, this.clubFilter, this.isFromHome = false});
 
   @override
   State<MatchesScreen> createState() => _MatchesScreenState();
@@ -56,7 +54,6 @@ class _MatchesScreenState extends State<MatchesScreen> {
   }
 
   void _showCreateMatchDialog() {
-    // Direct to create match screen - let it handle club selection
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => CreateMatchScreen(
@@ -69,22 +66,25 @@ class _MatchesScreenState extends State<MatchesScreen> {
     );
   }
 
-  void _showFilterBottomSheet() {
-    _matchesListKey.currentState?.showFilterBottomSheet();
-  }
-
   @override
   Widget build(BuildContext context) {
+    // Determine if we should show create button
+    final showCreateButton = widget.clubFilter != null 
+        ? (_canCreateMatches && !_isCheckingPermissions)  // For club matches, check permissions
+        : true; // For home matches, always show
+
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: DuggyAppBar(
         subtitle: widget.clubFilter != null
             ? '${widget.clubFilter!.name} Matches'
             : 'Matches',
         actions: [
-          IconButton(
-            icon: Icon(Icons.add),
-            onPressed: _showCreateMatchDialog,
-            tooltip: 'Create new match',
+          if (showCreateButton)
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: _showCreateMatchDialog,
+              tooltip: 'Create Match',
             ),
         ],
       ),
@@ -92,6 +92,10 @@ class _MatchesScreenState extends State<MatchesScreen> {
         key: _matchesListKey,
         clubFilter: widget.clubFilter,
         showHeader: false,
+        isFromHome: widget.isFromHome,
+        customEmptyMessage: widget.clubFilter != null 
+            ? 'No matches scheduled for ${widget.clubFilter!.name} yet'
+            : 'No matches found for your clubs',
       ),
     );
   }

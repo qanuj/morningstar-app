@@ -16,6 +16,7 @@ class Team {
   final String? country;
   final List<ClubMember> owners;
   final Club? club; // Optional club reference
+  final String? clubId; // Optional club ID reference
 
   Team({
     required this.id,
@@ -32,6 +33,7 @@ class Team {
     this.country,
     this.owners = const [],
     this.club,
+    this.clubId,
   });
 
   factory Team.fromJson(Map<String, dynamic> json) {
@@ -43,19 +45,22 @@ class Team {
       isPrimary: json['isPrimary'] ?? false,
       provider: json['provider'] ?? '',
       providerId: json['providerId'] ?? '',
-      createdAt: json['createdAt'] != null 
+      createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'])
           : DateTime.now(),
       isVerified: json['isVerified'] ?? false,
       city: json['city'],
       state: json['state'],
       country: json['country'],
-      owners: (json['owners'] as List?)
-          ?.map((owner) => ClubMember.fromJson(owner as Map<String, dynamic>))
-          .toList() ?? [],
-      club: json['club'] != null 
-          ? Club.fromJson(json['club'])
-          : null,
+      owners:
+          (json['owners'] as List?)
+              ?.map(
+                (owner) => ClubMember.fromJson(owner as Map<String, dynamic>),
+              )
+              .toList() ??
+          [],
+      club: json['club'] != null ? Club.fromJson(json['club']) : null,
+      clubId: json['clubId'],
     );
   }
 
@@ -73,16 +78,18 @@ class Team {
       'city': city,
       'state': state,
       'country': country,
-      'owners': owners.map((owner) => {
-        'id': owner.id,
-        'name': owner.name,
-        'profilePicture': owner.profilePicture,
-      }).toList(),
-      if (club != null) 'club': {
-        'id': club!.id,
-        'name': club!.name,
-        'logo': club!.logo,
-      },
+      'clubId': clubId,
+      'owners': owners
+          .map(
+            (owner) => {
+              'id': owner.id,
+              'name': owner.name,
+              'profilePicture': owner.profilePicture,
+            },
+          )
+          .toList(),
+      if (club != null)
+        'club': {'id': club!.id, 'name': club!.name, 'logo': club!.logo},
     };
   }
 
@@ -101,6 +108,7 @@ class Team {
     String? country,
     List<ClubMember>? owners,
     Club? club,
+    String? clubId,
   }) {
     return Team(
       id: id ?? this.id,
@@ -117,7 +125,7 @@ class Team {
       country: country ?? this.country,
       owners: owners ?? this.owners,
       club: club ?? this.club,
+      clubId: clubId ?? this.clubId,
     );
   }
 }
-

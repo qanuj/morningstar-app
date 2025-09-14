@@ -3,6 +3,79 @@ import '../models/match.dart';
 import 'api_service.dart';
 
 class MatchService {
+  /// Transform user match data from /matches?me=true API to MatchListItem format
+  static Map<String, dynamic> _transformUserMatch(dynamic match) {
+    final matchMap = match as Map<String, dynamic>;
+    
+    return {
+      ...matchMap,
+      // Ensure location is a string (API returns it as location field)
+      'location': matchMap['location'] ?? '',
+      // Add missing fields with defaults
+      'spots': matchMap['spots'] ?? 13,
+      'hideUntilRSVP': matchMap['hideUntilRSVP'] ?? false,
+      'notifyMembers': matchMap['notifyMembers'] ?? true,
+      'isSquadReleased': matchMap['isSquadReleased'] ?? false,
+      'totalExpensed': matchMap['totalExpensed'] ?? 0.0,
+      'paidAmount': matchMap['paidAmount'] ?? 0.0,
+      'canSeeDetails': matchMap['canSeeDetails'] ?? true,
+      'canRsvp': matchMap['canRsvp'] ?? true, // Enable RSVP for user matches
+      'availableSpots': matchMap['availableSpots'] ?? 0,
+      'confirmedPlayers': matchMap['confirmedPlayers'] ?? 0,
+      // Use the club field from API response
+      'club': matchMap['club'] ?? {
+        'id': matchMap['clubId'],
+        'name': 'Unknown Club',
+        'logo': null,
+        'city': matchMap['city'],
+        'membershipFeeCurrency': 'USD',
+      },
+    };
+  }
+
+  /// Fetch user's matches from /matches endpoint with me=true
+  static Future<List<MatchListItem>> getUserMatches({
+    bool includeCancelled = false,
+    bool showFullyPaid = false,
+    bool upcomingOnly = false,
+  }) async {
+    try {
+      final params = <String>[];
+      params.add('me=true');
+      params.add('includeCancelled=${includeCancelled ? 'true' : 'false'}');
+      params.add('showFullyPaid=${showFullyPaid ? 'true' : 'false'}');
+      params.add('upcomingOnly=${upcomingOnly ? 'true' : 'false'}');
+
+      final endpoint = '/matches?${params.join('&')}';
+      
+      print('🔍 MatchService Debug: Fetching user matches from: $endpoint');
+      
+      final response = await ApiService.get(endpoint);
+      final matchesData = response['matches'] ?? response['data'] ?? response;
+
+      if (matchesData is List) {
+        print('🔍 MatchService Debug: Number of matches received = ${matchesData.length}');
+        if (matchesData.isNotEmpty) {
+          print('🔍 MatchService Debug: First match structure = ${matchesData[0]}');
+        }
+        
+        try {
+          return matchesData
+              .map((match) => _transformUserMatch(match))
+              .map((match) => MatchListItem.fromJson(match))
+              .toList();
+        } catch (e) {
+          print('❌ MatchService Error parsing matches: $e');
+          return [];
+        }
+      }
+
+      return [];
+    } catch (e) {
+      throw Exception('Failed to fetch user matches: $e');
+    }
+  }
+
   /// Fetch matches for a specific club or all user's matches
   static Future<List<MatchListItem>> getMatches({
     String? clubId,
@@ -61,10 +134,12 @@ class MatchService {
   static Future<Map<String, dynamic>> createMatch({
     required String clubId,
     required String type,
-    required String location,
+    required String locationId,
     String? city,
     String? opponent,
     String? opponentClubId,
+    String? teamId,
+    String? opponentTeamId,
     String? notes,
     required DateTime matchDate,
     int spots = 13,
@@ -79,10 +154,12 @@ class MatchService {
       final data = {
         'clubId': clubId,
         'type': type,
-        'location': location,
+        'locationId': locationId,
         if (city != null) 'city': city,
         if (opponent != null && opponent.isNotEmpty) 'opponent': opponent,
         if (opponentClubId != null) 'opponentClubId': opponentClubId,
+        if (teamId != null) 'teamId': teamId,
+        if (opponentTeamId != null) 'opponentTeamId': opponentTeamId,
         if (notes != null && notes.isNotEmpty) 'notes': notes,
         'matchDate': matchDate.toIso8601String(),
         'spots': spots,
@@ -95,6 +172,9 @@ class MatchService {
         if (tournamentId != null) 'tournamentId': tournamentId,
         if (bookingId != null) 'bookingId': bookingId,
       };
+
+      // Debug logging for match creation
+      print('🔍 MatchService Debug: Request data = $data');
 
       final response = await ApiService.post('/matches', data);
       return response;

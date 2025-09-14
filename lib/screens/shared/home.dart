@@ -36,7 +36,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Widget> get _screens => [
     SocialFeedScreen(), // Home (social feed)
     ClubsScreen(), // Clubs
-    MatchesScreen(), // Matches
+    MatchesScreen(isFromHome: true), // Matches
     TransactionsScreen(), // Wallet (transactions)
     ProfileScreen(), // Settings (profile)
   ];

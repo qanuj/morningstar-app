@@ -11,12 +11,14 @@ class MatchesListWidget extends StatefulWidget {
   final Club? clubFilter;
   final bool showHeader;
   final String? customEmptyMessage;
+  final bool isFromHome;
 
   const MatchesListWidget({
     super.key,
     this.clubFilter,
     this.showHeader = false,
     this.customEmptyMessage,
+    this.isFromHome = false,
   });
 
   @override
@@ -77,6 +79,10 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
       List<MatchListItem> newMatches;
       Map<String, dynamic>? paginationInfo;
 
+      // Debug logging
+      print('🔍 MatchesListWidget Debug: clubFilter = ${widget.clubFilter?.id}');
+      print('🔍 MatchesListWidget Debug: isFromHome = ${widget.isFromHome}');
+
       // Use MatchService to get matches - it will use the appropriate endpoint
       if (widget.clubFilter != null) {
         // For club-specific matches, get paginated matches
@@ -88,8 +94,17 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
         );
         // Club matches don't have pagination info from API yet
         paginationInfo = null;
+      } else if (widget.isFromHome) {
+        // For home screen matches, use /matches endpoint with me=true
+        newMatches = await MatchService.getUserMatches(
+          includeCancelled: false,
+          showFullyPaid: false,
+          upcomingOnly: false,
+        );
+        // User matches from /matches endpoint don't have pagination info yet
+        paginationInfo = null;
       } else {
-        // For user's matches, get paginated matches from RSVP endpoint
+        // For user's matches from matches screen, get paginated matches from RSVP endpoint
         final response = await ApiService.get('/rsvp?page=$page&limit=20');
         final responseMap = response;
         final matchesList = responseMap['matches'] as List;
