@@ -94,6 +94,7 @@ class MatchService {
         params.add('showFullyPaid=${showFullyPaid ? 'true' : 'false'}');
         params.add('upcomingOnly=${upcomingOnly ? 'true' : 'false'}');
 
+        print('🔍 MatchService Debug: Fetching club matches for clubId = $clubId');
         print('🔍 MatchService Debug: upcomingOnly parameter = $upcomingOnly');
         print(
           '🔍 MatchService Debug: Final endpoint = /matches?${params.join('&')}',
@@ -106,16 +107,49 @@ class MatchService {
       }
 
       final response = await ApiService.get(endpoint);
-      final matchesData = response['data'] ?? response;
+      
+      // Handle different response formats based on endpoint
+      List<dynamic> matchesData;
+      if (clubId != null) {
+        // Club-specific matches endpoint returns { matches: [...] }
+        matchesData = response['matches'] ?? [];
+        print('🔍 MatchService Debug: Club matches response structure = ${response.keys.toList()}');
+        print('🔍 MatchService Debug: Number of club matches received = ${matchesData.length}');
+      } else {
+        // User RSVP endpoint returns { data: [...] } or direct array
+        matchesData = response['data'] ?? response ?? [];
+      }
 
       if (matchesData is List) {
-        return matchesData
-            .map((match) => MatchListItem.fromJson(match))
-            .toList();
+        if (matchesData.isNotEmpty && clubId != null) {
+          print('🔍 MatchService Debug: First club match structure = ${matchesData[0]}');
+        }
+        
+        try {
+          if (clubId != null) {
+            // For club matches, transform them similar to user matches
+            return matchesData
+                .map((match) => _transformUserMatch(match))
+                .map((match) => MatchListItem.fromJson(match))
+                .toList();
+          } else {
+            // For user matches from RSVP endpoint, parse directly
+            return matchesData
+                .map((match) => MatchListItem.fromJson(match))
+                .toList();
+          }
+        } catch (e) {
+          print('❌ MatchService Error parsing club matches: $e');
+          if (matchesData.isNotEmpty) {
+            print('🔍 MatchService Debug: Sample match data causing error: ${matchesData[0]}');
+          }
+          return [];
+        }
       }
 
       return [];
     } catch (e) {
+      print('❌ MatchService Error fetching matches: $e');
       throw Exception('Failed to fetch matches: $e');
     }
   }

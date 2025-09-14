@@ -55,16 +55,16 @@ class MatchListItem {
 
   factory MatchListItem.fromJson(Map<String, dynamic> json) {
     return MatchListItem(
-      id: json['id'],
-      clubId: json['clubId'],
-      type: json['type'],
-      location: json['location'],
-      opponent: json['opponent'],
+      id: json['id'] ?? '',
+      clubId: json['club']?['id'] ?? '', // Extract from club object
+      type: json['type'] ?? '',
+      location: json['location'] ?? '',
+      opponent: json['opponent'] ?? json['opponentClub']?['name'], // Use opponent or opponentClub name
       notes: json['notes'],
       spots: json['spots'] ?? 13,
       matchDate: DateTime.parse(json['matchDate']),
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
+      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now(),
+      updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : DateTime.now(),
       hideUntilRSVP: json['hideUntilRSVP'] ?? false,
       rsvpAfterDate: json['rsvpAfterDate'] != null ? DateTime.parse(json['rsvpAfterDate']) : null,
       rsvpBeforeDate: json['rsvpBeforeDate'] != null ? DateTime.parse(json['rsvpBeforeDate']) : null,
@@ -74,10 +74,10 @@ class MatchListItem {
       isSquadReleased: json['isSquadReleased'] ?? false,
       totalExpensed: (json['totalExpensed'] ?? 0).toDouble(),
       paidAmount: (json['paidAmount'] ?? 0).toDouble(),
-      club: ClubModel.fromJson(json['club']),
+      club: ClubModel.fromJson(json['club'] ?? {}),
       canSeeDetails: json['canSeeDetails'] ?? true,
-      canRsvp: json['canRsvp'] ?? false,
-      availableSpots: json['availableSpots'] ?? 0,
+      canRsvp: json['canRsvp'] ?? true,
+      availableSpots: json['availableSpots'] ?? (json['spots'] ?? 13),
       confirmedPlayers: json['confirmedPlayers'] ?? 0,
       userRsvp: json['userRsvp'] != null ? MatchRSVPSimple.fromJson(json['userRsvp']) : null,
     );
@@ -131,8 +131,8 @@ class MatchRSVPSimple {
 
   factory MatchRSVPSimple.fromJson(Map<String, dynamic> json) {
     return MatchRSVPSimple(
-      id: json['id'],
-      status: json['status'],
+      id: json['id'] ?? '',
+      status: json['status'] ?? '',
       selectedRole: json['selectedRole'],
       isConfirmed: json['isConfirmed'] ?? false,
       waitlistPosition: json['waitlistPosition'],
@@ -163,8 +163,8 @@ class ClubModel {
 
   factory ClubModel.fromJson(Map<String, dynamic> json) {
     return ClubModel(
-      id: json['id'],
-      name: json['name'],
+      id: json['id'] ?? '',
+      name: json['name'] ?? '',
       logo: json['logo'],
     );
   }
