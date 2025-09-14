@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import '../../models/club_message.dart';
+import '../../screens/matches/match_detail.dart';
 import 'text_message_bubble.dart';
 import 'audio_message_bubble.dart';
 import 'document_message_bubble.dart';
 import 'link_message_bubble.dart';
 import 'gif_message_bubble.dart';
 import 'emoji_message_bubble.dart';
+import 'match_message_bubble.dart';
+import 'practice_message_bubble.dart';
+import 'location_message_bubble.dart';
+import 'poll_message_bubble.dart';
 import 'base_message_bubble.dart';
 
 /// Factory widget that creates the appropriate message bubble based on content type
@@ -108,6 +113,59 @@ class MessageBubbleFactory extends StatelessWidget {
         isSelected: isSelected,
         showSenderInfo: showSenderInfo,
       );
+    } else if (message.messageType == 'match') {
+      // MATCH MESSAGE: Special match announcement with RSVP buttons
+      return MatchMessageBubble(
+        message: message,
+        isOwn: isOwn,
+        isPinned: isPinned,
+        isSelected: isSelected,
+        showSenderInfo: showSenderInfo,
+        onReactionRemoved: onReactionRemoved,
+        onViewMatch: () => _navigateToMatchDetail(context, message),
+        onRSVP: () {
+          // RSVP is handled internally by the MatchMessageBubble
+        },
+      );
+    } else if (message.messageType == 'practice') {
+      // PRACTICE MESSAGE: Practice session announcement with join buttons
+      return PracticeMessageBubble(
+        message: message,
+        isOwn: isOwn,
+        isPinned: isPinned,
+        isSelected: isSelected,
+        showSenderInfo: showSenderInfo,
+        onReactionRemoved: onReactionRemoved,
+        onJoinPractice: () {
+          // Practice join/leave is handled internally by the PracticeMessageBubble
+        },
+      );
+    } else if (message.messageType == 'location') {
+      // LOCATION MESSAGE: Location sharing with map integration
+      return LocationMessageBubble(
+        message: message,
+        isOwn: isOwn,
+        isPinned: isPinned,
+        isSelected: isSelected,
+        showSenderInfo: showSenderInfo,
+        onReactionRemoved: onReactionRemoved,
+        onOpenMap: () {
+          // Map opening is handled internally by the LocationMessageBubble
+        },
+      );
+    } else if (message.messageType == 'poll') {
+      // POLL MESSAGE: Interactive poll with voting functionality
+      return PollMessageBubble(
+        message: message,
+        isOwn: isOwn,
+        isPinned: isPinned,
+        isSelected: isSelected,
+        showSenderInfo: showSenderInfo,
+        onReactionRemoved: onReactionRemoved,
+        onViewPoll: () {
+          // Poll details viewing is handled internally by the PollMessageBubble
+        },
+      );
     } else {
       // TEXT MESSAGE: Images/videos first, then body below
       return TextMessageBubble(
@@ -151,6 +209,18 @@ class MessageBubbleFactory extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _navigateToMatchDetail(BuildContext context, ClubMessage message) {
+    if (message.matchId == null) return;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => MatchDetailScreen(
+          matchId: message.matchId!,
         ),
       ),
     );

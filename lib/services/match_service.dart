@@ -3,7 +3,7 @@ import '../models/match.dart';
 import 'api_service.dart';
 
 class MatchService {
-  /// Transform user match data from /matches?me=true API to MatchListItem format
+  /// Transform match data from API to MatchListItem format
   static Map<String, dynamic> _transformUserMatch(dynamic match) {
     final matchMap = match as Map<String, dynamic>;
     
@@ -19,17 +19,22 @@ class MatchService {
       'totalExpensed': matchMap['totalExpensed'] ?? 0.0,
       'paidAmount': matchMap['paidAmount'] ?? 0.0,
       'canSeeDetails': matchMap['canSeeDetails'] ?? true,
-      'canRsvp': matchMap['canRsvp'] ?? true, // Enable RSVP for user matches
-      'availableSpots': matchMap['availableSpots'] ?? 0,
+      'canRsvp': matchMap['canRsvp'] ?? true, // Enable RSVP for matches
+      'availableSpots': matchMap['availableSpots'] ?? matchMap['spots'] ?? 13,
       'confirmedPlayers': matchMap['confirmedPlayers'] ?? 0,
-      // Use the club field from API response
+      // Use the club field from API response, handle both user and club match formats
       'club': matchMap['club'] ?? {
-        'id': matchMap['clubId'],
-        'name': 'Unknown Club',
-        'logo': null,
-        'city': matchMap['city'],
-        'membershipFeeCurrency': 'USD',
+        'id': matchMap['clubId'] ?? matchMap['club']?['id'] ?? '',
+        'name': matchMap['club']?['name'] ?? 'Unknown Club',
+        'logo': matchMap['club']?['logo'],
+        'city': matchMap['city'] ?? matchMap['club']?['city'],
+        'membershipFeeCurrency': matchMap['club']?['membershipFeeCurrency'] ?? 'USD',
       },
+      // Handle opponentClub format from club-specific matches
+      'opponent': matchMap['opponent'] ?? matchMap['opponentClub']?['name'],
+      // Add default timestamps if missing
+      'createdAt': matchMap['createdAt'] ?? DateTime.now().toIso8601String(),
+      'updatedAt': matchMap['updatedAt'] ?? DateTime.now().toIso8601String(),
     };
   }
 
@@ -120,31 +125,29 @@ class MatchService {
         matchesData = response['data'] ?? response ?? [];
       }
 
-      if (matchesData is List) {
-        if (matchesData.isNotEmpty && clubId != null) {
-          print('🔍 MatchService Debug: First club match structure = ${matchesData[0]}');
+      if (matchesData.isNotEmpty && clubId != null) {
+        print('🔍 MatchService Debug: First club match structure = ${matchesData[0]}');
+      }
+      
+      try {
+        if (clubId != null) {
+          // For club matches, transform them similar to user matches
+          return matchesData
+              .map((match) => _transformUserMatch(match))
+              .map((match) => MatchListItem.fromJson(match))
+              .toList();
+        } else {
+          // For user matches from RSVP endpoint, parse directly
+          return matchesData
+              .map((match) => MatchListItem.fromJson(match))
+              .toList();
         }
-        
-        try {
-          if (clubId != null) {
-            // For club matches, transform them similar to user matches
-            return matchesData
-                .map((match) => _transformUserMatch(match))
-                .map((match) => MatchListItem.fromJson(match))
-                .toList();
-          } else {
-            // For user matches from RSVP endpoint, parse directly
-            return matchesData
-                .map((match) => MatchListItem.fromJson(match))
-                .toList();
-          }
-        } catch (e) {
-          print('❌ MatchService Error parsing club matches: $e');
-          if (matchesData.isNotEmpty) {
-            print('🔍 MatchService Debug: Sample match data causing error: ${matchesData[0]}');
-          }
-          return [];
+      } catch (e) {
+        print('❌ MatchService Error parsing matches: $e');
+        if (matchesData.isNotEmpty) {
+          print('🔍 MatchService Debug: Sample match data causing error: ${matchesData[0]}');
         }
+        return [];
       }
 
       return [];

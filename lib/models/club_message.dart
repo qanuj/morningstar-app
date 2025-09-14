@@ -39,7 +39,7 @@ class ClubMessage {
   final List<LinkMetadata> linkMeta;
   final String? gifUrl; // For GIF messages
   final String?
-  messageType; // 'text', 'image', 'link', 'emoji', 'gif', 'document', 'audio'
+  messageType; // 'text', 'image', 'link', 'emoji', 'gif', 'document', 'audio', 'match'
   final DateTime createdAt;
   final MessageStatus status;
   final String? errorMessage;
@@ -50,6 +50,17 @@ class ClubMessage {
   final String? deletedBy;
   final StarredInfo starred;
   final PinInfo pin;
+  // Match-specific fields
+  final String? matchId; // ID of the associated match
+  final Map<String, dynamic>? matchDetails; // Match details (teams, date, venue)
+  // Practice-specific fields
+  final String? practiceId; // ID of the associated practice session
+  final Map<String, dynamic>? practiceDetails; // Practice details (date, venue, type, etc.)
+  // Location-specific fields
+  final Map<String, dynamic>? locationDetails; // Location details (name, address, coordinates)
+  // Poll-specific fields
+  final String? pollId; // ID of the associated poll
+  final Map<String, dynamic>? pollDetails; // Poll details (question, options, votes, etc.)
   // Local-only fields for read/delivered tracking
   final DateTime? deliveredAt;
   final DateTime? readAt;
@@ -80,6 +91,13 @@ class ClubMessage {
     this.deleted = false,
     this.deletedBy,
     required this.starred,
+    this.matchId,
+    this.matchDetails,
+    this.practiceId,
+    this.practiceDetails,
+    this.locationDetails,
+    this.pollId,
+    this.pollDetails,
     this.deliveredAt,
     this.readAt,
     required this.pin,
@@ -102,6 +120,13 @@ class ClubMessage {
     bool? deleted,
     String? deletedBy,
     StarredInfo? starred,
+    String? matchId,
+    Map<String, dynamic>? matchDetails,
+    String? practiceId,
+    Map<String, dynamic>? practiceDetails,
+    Map<String, dynamic>? locationDetails,
+    String? pollId,
+    Map<String, dynamic>? pollDetails,
     PinInfo? pin,
     DateTime? deliveredAt,
     DateTime? readAt,
@@ -131,6 +156,13 @@ class ClubMessage {
       deleted: deleted ?? this.deleted,
       deletedBy: deletedBy ?? this.deletedBy,
       starred: starred ?? this.starred,
+      matchId: matchId ?? this.matchId,
+      matchDetails: matchDetails ?? this.matchDetails,
+      practiceId: practiceId ?? this.practiceId,
+      practiceDetails: practiceDetails ?? this.practiceDetails,
+      locationDetails: locationDetails ?? this.locationDetails,
+      pollId: pollId ?? this.pollId,
+      pollDetails: pollDetails ?? this.pollDetails,
       pin: pin ?? this.pin,
       deliveredAt: deliveredAt ?? this.deliveredAt,
       readAt: readAt ?? this.readAt,
@@ -148,6 +180,15 @@ class ClubMessage {
     MessageDocument? document;
     MessageAudio? audio;
     List<LinkMetadata> linkMeta = [];
+    
+    // New message type fields
+    String? matchId;
+    Map<String, dynamic>? matchDetails;
+    String? practiceId;
+    Map<String, dynamic>? practiceDetails;
+    Map<String, dynamic>? locationDetails;
+    String? pollId;
+    Map<String, dynamic>? pollDetails;
 
     // Check for deleted message
     bool isDeleted = false;
@@ -267,6 +308,26 @@ class ClubMessage {
         }
       }
 
+      // Extract type-specific data from content for new message types
+      if (content is Map<String, dynamic>) {
+        if (messageType == 'match') {
+          // Extract match-specific fields from content
+          matchId = content['matchId'] as String?;
+          matchDetails = content['matchDetails'] as Map<String, dynamic>?;
+        } else if (messageType == 'practice') {
+          // Extract practice-specific fields from content
+          practiceId = content['practiceId'] as String?;
+          practiceDetails = content['practiceDetails'] as Map<String, dynamic>?;
+        } else if (messageType == 'location') {
+          // Extract location-specific fields from content
+          locationDetails = content['locationDetails'] as Map<String, dynamic>?;
+        } else if (messageType == 'poll') {
+          // Extract poll-specific fields from content
+          pollId = content['pollId'] as String?;
+          pollDetails = content['pollDetails'] as Map<String, dynamic>?;
+        }
+      }
+
       // Parse images array (as URLs) - for text messages and other non-link types
       if (content['images'] is List &&
           messageType != 'link' &&
@@ -313,6 +374,11 @@ class ClubMessage {
       );
       // Override messageType to document if we found document data
       messageType = 'document';
+    }
+
+    // Check for top-level messageType field (for API consistency)
+    if (json['messageType'] != null && !isDeleted) {
+      messageType = json['messageType'];
     }
 
     // Extract sender info from nested objects if available
@@ -508,6 +574,13 @@ class ClubMessage {
       deleted: isDeleted,
       deletedBy: deletedByName,
       starred: starredInfo,
+      matchId: matchId ?? (json['matchId'] as String?),
+      matchDetails: matchDetails ?? (json['matchDetails'] as Map<String, dynamic>?),
+      practiceId: practiceId ?? (json['practiceId'] as String?),
+      practiceDetails: practiceDetails ?? (json['practiceDetails'] as Map<String, dynamic>?),
+      locationDetails: locationDetails ?? (json['locationDetails'] as Map<String, dynamic>?),
+      pollId: pollId ?? (json['pollId'] as String?),
+      pollDetails: pollDetails ?? (json['pollDetails'] as Map<String, dynamic>?),
       pin: PinInfo(
         isPinned: isPinned,
         pinStart: pinStart,
@@ -590,6 +663,13 @@ class ClubMessage {
       'deletedBy': deletedBy,
       'starred': starred.toJson(),
       'pin': pin.toJson(),
+      'matchId': matchId,
+      'matchDetails': matchDetails,
+      'practiceId': practiceId,
+      'practiceDetails': practiceDetails,
+      'locationDetails': locationDetails,
+      'pollId': pollId,
+      'pollDetails': pollDetails,
       // Local-only fields for storage
       'deliveredAt': deliveredAt?.toIso8601String(),
       'readAt': readAt?.toIso8601String(),

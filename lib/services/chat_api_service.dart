@@ -74,6 +74,109 @@ class ChatApiService {
     }
   }
 
+  /// Send a match announcement message
+  static Future<Map<String, dynamic>?> sendMatchMessage(
+    String clubId,
+    Map<String, dynamic> matchData,
+  ) async {
+    try {
+      final requestData = {
+        'content': {
+          'type': 'match',
+          'body': matchData['content'] ?? 'New match created! Check your matches to view details and RSVP.',
+          'matchId': matchData['matchId'],
+          'matchDetails': matchData['matchDetails'], // Optional match details
+        },
+      };
+      
+      final response = await ApiService.post(
+        '/conversations/$clubId/messages',
+        requestData,
+      );
+      return response;
+    } catch (e) {
+      print('❌ Error sending match message: $e');
+      return null;
+    }
+  }
+
+  /// Send a practice session message
+  static Future<Map<String, dynamic>?> sendPracticeMessage(
+    String clubId,
+    Map<String, dynamic> practiceData,
+  ) async {
+    try {
+      final requestData = {
+        'content': {
+          'type': 'practice',
+          'body': practiceData['content'] ?? 'New practice session scheduled!',
+          'practiceId': practiceData['practiceId'],
+          'practiceDetails': practiceData['practiceDetails'],
+        },
+      };
+      
+      final response = await ApiService.post(
+        '/conversations/$clubId/messages',
+        requestData,
+      );
+      return response;
+    } catch (e) {
+      print('❌ Error sending practice message: $e');
+      return null;
+    }
+  }
+
+  /// Send a location message
+  static Future<Map<String, dynamic>?> sendLocationMessage(
+    String clubId,
+    Map<String, dynamic> locationData,
+  ) async {
+    try {
+      final requestData = {
+        'content': {
+          'type': 'location',
+          'body': locationData['content'] ?? '',
+          'locationDetails': locationData['locationDetails'],
+        },
+      };
+      
+      final response = await ApiService.post(
+        '/conversations/$clubId/messages',
+        requestData,
+      );
+      return response;
+    } catch (e) {
+      print('❌ Error sending location message: $e');
+      return null;
+    }
+  }
+
+  /// Send a poll message
+  static Future<Map<String, dynamic>?> sendPollMessage(
+    String clubId,
+    Map<String, dynamic> pollData,
+  ) async {
+    try {
+      final requestData = {
+        'content': {
+          'type': 'poll',
+          'body': pollData['content'] ?? pollData['question'] ?? 'New poll created',
+          'pollId': pollData['pollId'],
+          'pollDetails': pollData['pollDetails'],
+        },
+      };
+      
+      final response = await ApiService.post(
+        '/conversations/$clubId/messages',
+        requestData,
+      );
+      return response;
+    } catch (e) {
+      print('❌ Error sending poll message: $e');
+      return null;
+    }
+  }
+
   // Message Status Operations
 
   /// Mark a message as delivered
@@ -292,6 +395,47 @@ class ChatApiService {
       return null;
     } catch (e) {
       print('❌ Error fetching image: $e');
+      return null;
+    }
+  }
+
+  // Match Message Operations
+  
+  /// RSVP to a match from a chat message
+  static Future<bool> rsvpToMatch(
+    String clubId,
+    String messageId,
+    String matchId,
+    String status, // 'going', 'not_going', 'maybe'
+  ) async {
+    try {
+      await ApiService.post(
+        '/conversations/$clubId/messages/$messageId/match/rsvp',
+        {
+          'matchId': matchId,
+          'status': status,
+        },
+      );
+      return true;
+    } catch (e) {
+      print('❌ Error RSVP to match: $e');
+      return false;
+    }
+  }
+
+  /// Get RSVP status for a match message
+  static Future<Map<String, dynamic>?> getMatchRSVPStatus(
+    String clubId,
+    String messageId,
+    String matchId,
+  ) async {
+    try {
+      final response = await ApiService.get(
+        '/conversations/$clubId/messages/$messageId/match/rsvp?matchId=$matchId',
+      );
+      return response;
+    } catch (e) {
+      print('❌ Error getting match RSVP status: $e');
       return null;
     }
   }

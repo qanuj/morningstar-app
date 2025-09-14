@@ -20,9 +20,12 @@ class MessageInput extends StatefulWidget {
   final String clubId;
   final GlobalKey<AudioRecordingWidgetState> audioRecordingKey;
   final String? upiId;
+  final String? userRole;
 
   // Simplified callbacks - only what's needed
   final Function(ClubMessage) onSendMessage;
+  final VoidCallback? onCreateMatch;
+  final VoidCallback? onCreatePractice;
 
   const MessageInput({
     super.key,
@@ -32,6 +35,9 @@ class MessageInput extends StatefulWidget {
     required this.audioRecordingKey,
     required this.onSendMessage,
     this.upiId,
+    this.userRole,
+    this.onCreateMatch,
+    this.onCreatePractice,
   });
 
   @override
@@ -58,6 +64,11 @@ class _MessageInputState extends State<MessageInput> {
         _isComposing = isComposing;
       });
     }
+  }
+
+  bool get _isAdminOrOwner {
+    return widget.userRole?.toLowerCase() == 'admin' || 
+           widget.userRole?.toLowerCase() == 'owner';
   }
 
   void _sendTextMessage() {
@@ -331,7 +342,7 @@ class _MessageInputState extends State<MessageInput> {
                   padding: EdgeInsets.all(20),
                   child: Column(
                     children: [
-                      // First row - Photos, Document
+                      // First row - Photos, Document, Location
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
@@ -365,7 +376,7 @@ class _MessageInputState extends State<MessageInput> {
                         ],
                       ),
                       SizedBox(height: 30),
-                      // Coming soon options
+                      // Second row - Contact, Poll, Event (for regular users)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
@@ -387,6 +398,7 @@ class _MessageInputState extends State<MessageInput> {
                               // Poll creation coming soon
                             },
                           ),
+                          // Show Event for all users (simplified)
                           _buildGridOption(
                             icon: Icons.event,
                             iconColor: Color(0xFFE53935),
@@ -398,6 +410,40 @@ class _MessageInputState extends State<MessageInput> {
                           ),
                         ],
                       ),
+                      // Third row - Admin/Owner only options (Match and Practice)
+                      if (_isAdminOrOwner) ...[
+                        SizedBox(height: 30),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            if (widget.onCreateMatch != null)
+                              _buildGridOption(
+                                icon: Icons.sports_cricket,
+                                iconColor: Color(0xFF4CAF50),
+                                title: 'Match',
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  widget.onCreateMatch!();
+                                },
+                              )
+                            else
+                              SizedBox(width: 70), // Placeholder
+                            if (widget.onCreatePractice != null)
+                              _buildGridOption(
+                                icon: Icons.fitness_center,
+                                iconColor: Color(0xFF00BCD4),
+                                title: 'Practice',
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  widget.onCreatePractice!();
+                                },
+                              )
+                            else
+                              SizedBox(width: 70), // Placeholder
+                            SizedBox(width: 70), // Placeholder for symmetry
+                          ],
+                        ),
+                      ],
                       SizedBox(height: 50),
                     ],
                   ),
