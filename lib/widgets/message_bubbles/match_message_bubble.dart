@@ -1,7 +1,10 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/club_message.dart';
 import '../../services/match_service.dart';
+import '../../services/notification_service.dart';
 import '../svg_avatar.dart';
 import 'base_message_bubble.dart';
 
@@ -39,6 +42,7 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
   Map<String, dynamic>? _resolvedMatchDetails;
   bool _isLoadingMatchDetails = false;
   String? _matchDetailsError;
+  String? _registeredMatchId;
 
   @override
   void initState() {
@@ -48,7 +52,37 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
     _currentRSVPStatus = _extractRSVPStatus();
 
     if (widget.message.matchId != null) {
+      _registerForMatchUpdates();
       _loadMatchDetails();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant MatchMessageBubble oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    final oldMatchId = oldWidget.message.matchId;
+    final newMatchId = widget.message.matchId;
+
+    final matchIdChanged = oldMatchId != newMatchId;
+    final messageChanged = oldWidget.message.id != widget.message.id;
+    final detailsChanged = oldWidget.message.matchDetails != widget.message.matchDetails;
+
+    if (matchIdChanged || messageChanged || detailsChanged) {
+      _resolvedMatchDetails = widget.message.matchDetails;
+      _currentRSVPStatus = _extractRSVPStatus();
+      _matchDetailsError = null;
+
+      if (matchIdChanged) {
+        _unregisterMatchUpdates(oldMatchId);
+        if (newMatchId != null) {
+          _registerForMatchUpdates();
+          _loadMatchDetails();
+        }
+      } else if (newMatchId != null) {
+        // Refresh counts if match details changed
+        _loadMatchDetails();
+      }
     }
   }
 
@@ -138,8 +172,9 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
       return text.isEmpty ? null : text;
     }
 
-    final existing =
-        _resolvedMatchDetails ?? widget.message.matchDetails ?? <String, dynamic>{};
+    final existing = Map<String, dynamic>.from(
+      _resolvedMatchDetails ?? widget.message.matchDetails ?? <String, dynamic>{},
+    );
     final existingHome = existing['homeTeam'] as Map<String, dynamic>? ?? {};
     final existingOpponent =
         existing['opponentTeam'] as Map<String, dynamic>? ?? {};
@@ -181,21 +216,20 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
         (clubMatch?['userRsvp'] as Map<String, dynamic>?) ??
         (existing['userRsvp'] as Map<String, dynamic>?);
 
-    final result = <String, dynamic>{
-      'homeTeam': {
+    final result = Map<String, dynamic>.from(existing)
+      ..['homeTeam'] = {
         'name': homeName,
         if (homeLogo != null) 'logo': homeLogo,
-      },
-      'opponentTeam': {
+      }
+      ..['opponentTeam'] = {
         'name': opponentName,
         if (opponentLogo != null) 'logo': opponentLogo,
-      },
-      'venue': {
+      }
+      ..['venue'] = {
         'name': venueName,
         if (venueAddress != null && venueAddress.isNotEmpty)
           'address': venueAddress,
-      },
-    };
+      };
 
     if (matchDateIso != null) {
       result['dateTime'] = matchDateIso;
@@ -205,7 +239,92 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
       result['userRsvp'] = userRsvp;
     }
 
+    if (detail != null) {
+      final detailCounts = detail['counts'];
+      if (detailCounts is Map) {
+        result['counts'] = Map<String, dynamic>.from(detailCounts);
+      }
+
+      if (detail['rsvps'] != null) {
+        result['rsvps'] = detail['rsvps'];
+      }
+    }
+
+    if (clubMatch != null) {
+      final clubCounts = clubMatch['counts'];
+      if (clubCounts is Map && result['counts'] == null) {
+        result['counts'] = Map<String, dynamic>.from(clubCounts);
+      }
+
+      if (clubMatch['rsvps'] != null && result['rsvps'] == null) {
+        result['rsvps'] = clubMatch['rsvps'];
+      }
+    }
+
+    result['statusCounts'] = _extractStatusCounts(result);
+
     return result;
+  }
+
+  void _registerForMatchUpdates() {
+    final matchId = widget.message.matchId;
+    if (matchId == null) {
+      return;
+    }
+
+    if (_registeredMatchId == matchId) {
+      return;
+    }
+
+    NotificationService.addMatchUpdateCallback(matchId, _handleMatchUpdatePush);
+    _registeredMatchId = matchId;
+  }
+
+  void _unregisterMatchUpdates([String? matchId]) {
+    final targetMatchId = matchId ?? _registeredMatchId;
+    if (targetMatchId == null) {
+      return;
+    }
+
+    NotificationService.removeMatchUpdateCallback(targetMatchId, _handleMatchUpdatePush);
+    if (targetMatchId == _registeredMatchId) {
+      _registeredMatchId = null;
+    }
+  }
+
+  Map<String, int> _extractStatusCounts(Map<String, dynamic> details) {
+    final counts = <String, int>{
+      'YES': 0,
+      'NO': 0,
+      'MAYBE': 0,
+    };
+
+    final aggregate = details['counts'];
+    if (aggregate is Map<String, dynamic>) {
+      counts['YES'] = ((aggregate['confirmed'] as num?)?.toInt() ?? 0) +
+          ((aggregate['waitlisted'] as num?)?.toInt() ?? 0);
+      counts['NO'] = (aggregate['declined'] as num?)?.toInt() ?? 0;
+      counts['MAYBE'] = (aggregate['maybe'] as num?)?.toInt() ?? 0;
+    }
+
+    if (counts.values.every((value) => value == 0)) {
+      final rsvps = details['rsvps'];
+      if (rsvps is List) {
+        for (final rsvp in rsvps) {
+          if (rsvp is Map<String, dynamic>) {
+            final status =
+                (rsvp['status']?.toString().toUpperCase() ?? '').trim();
+            if (counts.containsKey(status)) {
+              counts[status] = (counts[status] ?? 0) + 1;
+            }
+          }
+        }
+      }
+    }
+
+    counts.updateAll((key, value) => value < 0 ? 0 : value);
+
+    return counts;
   }
 
   @override
@@ -236,167 +355,38 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
         ? DateTime.tryParse(matchDetails['dateTime'].toString())
         : null;
 
-    return Padding(
-      padding: EdgeInsets.all(16),
-      child: Column(
+    if (matchDetails.isEmpty) {
+      return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Show content if no match details, otherwise show rich match info
-          if (matchDetails.isEmpty) ...[
-            if (_isLoadingMatchDetails)
-              _buildLoadingState()
-            else if (_matchDetailsError != null)
-              _buildErrorState(context, _matchDetailsError!, isDarkMode)
-            else if (widget.message.content.isNotEmpty)
-              Text(
-                widget.message.content,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: isDarkMode
-                      ? Colors.white.withOpacity(0.87)
-                      : Colors.black.withOpacity(0.87),
-                ),
+          if (_isLoadingMatchDetails)
+            _buildLoadingState()
+          else if (_matchDetailsError != null)
+            _buildErrorState(context, _matchDetailsError!, isDarkMode)
+          else if (widget.message.content.isNotEmpty)
+            Text(
+              widget.message.content,
+              style: TextStyle(
+                fontSize: 14,
+                color: isDarkMode
+                    ? Colors.white.withOpacity(0.87)
+                    : Colors.black.withOpacity(0.87),
               ),
-          ] else ...[
-            // Rich match display when we have match details
-            // Teams Section
-            _buildTeamsSection(context, homeTeam, opponentTeam),
+            ),
+        ],
+      );
+    }
 
-            SizedBox(height: 16),
-
-            // Match details (Date, Time, Venue)
-            _buildMatchDetails(context, matchDateTime, venue),
-
-            if (_isLoadingMatchDetails) ...[
-              SizedBox(height: 16),
-              _buildLoadingState(compact: true),
-            ],
-          ],
-
-          SizedBox(height: 16),
-
-          // RSVP Buttons Row (IN, OUT, Maybe)
-          Row(
-            children: [
-              // IN Button
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () => _handleDirectRSVP(context, 'YES'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _currentRSVPStatus == 'YES'
-                        ? Color(0xFF4CAF50)
-                        : Color(0xFF4CAF50).withOpacity(0.2),
-                    foregroundColor: _currentRSVPStatus == 'YES'
-                        ? Colors.white
-                        : Color(0xFF4CAF50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      side: _currentRSVPStatus == 'YES'
-                          ? BorderSide.none
-                          : BorderSide(color: Color(0xFF4CAF50), width: 1),
-                    ),
-                    padding: EdgeInsets.symmetric(vertical: 10),
-                    elevation: _currentRSVPStatus == 'YES' ? 2 : 0,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (_currentRSVPStatus == 'YES')
-                        Icon(Icons.check, size: 14),
-                      if (_currentRSVPStatus == 'YES') SizedBox(width: 4),
-                      Text(
-                        'IN',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              SizedBox(width: 8),
-
-              // OUT Button
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () => _handleDirectRSVP(context, 'NO'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _currentRSVPStatus == 'NO'
-                        ? Color(0xFFFF5722)
-                        : Color(0xFFFF5722).withOpacity(0.2),
-                    foregroundColor: _currentRSVPStatus == 'NO'
-                        ? Colors.white
-                        : Color(0xFFFF5722),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      side: _currentRSVPStatus == 'NO'
-                          ? BorderSide.none
-                          : BorderSide(color: Color(0xFFFF5722), width: 1),
-                    ),
-                    padding: EdgeInsets.symmetric(vertical: 10),
-                    elevation: _currentRSVPStatus == 'NO' ? 2 : 0,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (_currentRSVPStatus == 'NO')
-                        Icon(Icons.close, size: 14),
-                      if (_currentRSVPStatus == 'NO') SizedBox(width: 4),
-                      Text(
-                        'OUT',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              SizedBox(width: 8),
-
-              // Maybe Button
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () => _handleDirectRSVP(context, 'MAYBE'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _currentRSVPStatus == 'MAYBE'
-                        ? Color(0xFFFF9800)
-                        : Color(0xFFFF9800).withOpacity(0.2),
-                    foregroundColor: _currentRSVPStatus == 'MAYBE'
-                        ? Colors.white
-                        : Color(0xFFFF9800),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      side: _currentRSVPStatus == 'MAYBE'
-                          ? BorderSide.none
-                          : BorderSide(color: Color(0xFFFF9800), width: 1),
-                    ),
-                    padding: EdgeInsets.symmetric(vertical: 10),
-                    elevation: _currentRSVPStatus == 'MAYBE' ? 2 : 0,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (_currentRSVPStatus == 'MAYBE')
-                        Icon(Icons.help_outline, size: 14),
-                      if (_currentRSVPStatus == 'MAYBE') SizedBox(width: 4),
-                      Text(
-                        'MAYBE',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildTeamsSection(context, homeTeam, opponentTeam),
+          SizedBox(height: 18),
+          _buildInfoSection(context, matchDateTime, venue),
+          SizedBox(height: 18),
+          _buildRsvpSummarySection(context, matchDetails),
         ],
       ),
     );
@@ -458,106 +448,183 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
         opponentTeam['teamName']?.toString() ??
         'Away Team';
 
-    return Container(
-      padding: EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        children: [
-          // Home Team
-          Expanded(
-            child: _buildTeamInfo(
-              context,
-              homeTeamName,
-              homeTeam['logo']?.toString(),
-              isHome: true,
-            ),
-          ),
-
-          // VS indicator
-          Container(
-            margin: EdgeInsets.symmetric(horizontal: 12),
-            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Color(0xFF4CAF50),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              'VS',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
-            ),
-          ),
-
-          // Opponent Team
-          Expanded(
-            child: _buildTeamInfo(
-              context,
-              opponentTeamName,
-              opponentTeam['logo']?.toString(),
-              isHome: false,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTeamInfo(
-    BuildContext context,
-    String teamName,
-    String? logoUrl, {
-    required bool isHome,
-  }) {
-    return Column(
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // Team Logo
-        Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            color: Color(0xFF4CAF50).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(25),
+        Expanded(
+          child: Align(
+            alignment: Alignment.center,
+            child: _buildTeamTile(
+              context,
+              teamName: homeTeamName,
+              logoUrl: homeTeam['logo']?.toString(),
+            ),
           ),
-          child: logoUrl != null && logoUrl.isNotEmpty
-              ? SVGAvatar(
-                  imageUrl: logoUrl,
-                  size: 50,
-                  backgroundColor: Color(0xFF4CAF50).withOpacity(0.1),
-                  iconColor: Color(0xFF4CAF50),
-                  fallbackIcon: Icons.sports_cricket,
-                  showBorder: false, // We handle border ourselves
-                  fit: BoxFit.contain,
-                )
-              : Icon(Icons.sports_cricket, color: Color(0xFF4CAF50), size: 24),
         ),
-
-        SizedBox(height: 6),
-
-        // Team Name
-        Text(
-          teamName.isNotEmpty ? teamName : (isHome ? 'Home Team' : 'Away Team'),
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Theme.of(context).textTheme.titleMedium?.color,
+        SizedBox(width: 12),
+        _buildVsChip(context),
+        SizedBox(width: 12),
+        Expanded(
+          child: Align(
+            alignment: Alignment.center,
+            child: _buildTeamTile(
+              context,
+              teamName: opponentTeamName,
+              logoUrl: opponentTeam['logo']?.toString(),
+            ),
           ),
-          textAlign: TextAlign.center,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
         ),
       ],
     );
   }
 
-  Widget _buildMatchDetails(
+  Widget _buildTeamTile(
+    BuildContext context, {
+    required String teamName,
+    required String? logoUrl,
+  }) {
+    final displayName = _formatTeamName(teamName);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        _buildTeamLogo(logoUrl),
+        SizedBox(height: 8),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 8),
+          child: Text(
+            displayName,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).textTheme.titleMedium?.color,
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            softWrap: true,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatTeamName(String name) {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) {
+      return 'TBD';
+    }
+
+    if (trimmed.length <= 20) {
+      return trimmed;
+    }
+
+    final tokens = trimmed
+        .split(RegExp(r'[^A-Za-z0-9]+'))
+        .where((token) => token.isNotEmpty)
+        .toList();
+
+    if (tokens.length >= 2) {
+      final acronym = tokens.map((token) => token[0]).join().toUpperCase();
+      if (acronym.length >= 2) {
+        return acronym;
+      }
+    }
+
+    final condensed = trimmed.replaceAll(RegExp(r'[^A-Za-z0-9]'), '');
+    if (condensed.length >= 3) {
+      return condensed.substring(0, math.min(3, condensed.length)).toUpperCase();
+    }
+
+    return trimmed.substring(0, math.min(20, trimmed.length));
+  }
+
+  Widget _buildTeamLogo(String? logoUrl) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      width: 56,
+      height: 56,
+      child: logoUrl != null && logoUrl.isNotEmpty
+          ? ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: SVGAvatar(
+                imageUrl: logoUrl,
+                size: 56,
+                backgroundColor: Colors.transparent,
+                iconColor: theme.colorScheme.primary,
+                fallbackIcon: Icons.sports_cricket,
+                showBorder: false,
+                fit: BoxFit.cover,
+              ),
+            )
+          : Container(
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withOpacity(0.18),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Icon(
+                Icons.shield_outlined,
+                color: theme.colorScheme.primary,
+                size: 28,
+              ),
+            ),
+    );
+  }
+
+  String _formatMatchDateLabel(DateTime? dateTime) {
+    if (dateTime == null) {
+      return 'Date & time to be announced';
+    }
+
+    final local = dateTime.toLocal();
+    final day = local.day;
+    final suffix = _ordinalSuffix(day);
+    final dayPart = '${DateFormat('EEE').format(local)}, $day$suffix ${DateFormat('MMM').format(local)}';
+    final timePart = DateFormat('h:mma').format(local).toLowerCase();
+    return '$dayPart at $timePart';
+  }
+
+  String _ordinalSuffix(int day) {
+    if (day >= 11 && day <= 13) {
+      return 'th';
+    }
+    switch (day % 10) {
+      case 1:
+        return 'st';
+      case 2:
+        return 'nd';
+      case 3:
+        return 'rd';
+      default:
+        return 'th';
+    }
+  }
+
+  Widget _buildVsChip(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Text(
+        'VS',
+        style: TextStyle(
+          color: theme.colorScheme.onPrimary,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoSection(
     BuildContext context,
     DateTime? matchDateTime,
     Map<String, dynamic> venue,
   ) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final localMatchDateTime = matchDateTime?.toLocal();
     final venueName = venue['name']?.toString() ?? 'Venue TBD';
     final venueAddress = venue['address']?.toString();
     final venueDisplay = (venueAddress != null &&
@@ -566,55 +633,173 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
         ? '$venueName • $venueAddress'
         : venueName;
 
-    return Container(
-      padding: EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isDarkMode
-            ? Colors.black.withOpacity(0.1)
-            : Colors.white.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        children: [
-          // Date & Time
-          if (localMatchDateTime != null) ...[
-            Row(
-              children: [
-                Icon(Icons.calendar_today, size: 16, color: Color(0xFF4CAF50)),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    '${DateFormat('EEE, MMM d, yyyy').format(localMatchDateTime)} at ${DateFormat('h:mm a').format(localMatchDateTime)}',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: Theme.of(context).textTheme.bodyMedium?.color,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 8),
-          ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildInfoRow(
+          context,
+          icon: Icons.calendar_today,
+          label: _formatMatchDateLabel(matchDateTime),
+        ),
+        SizedBox(height: 8),
+        _buildInfoRow(
+          context,
+          icon: Icons.location_on,
+          label: venueDisplay.isNotEmpty ? venueDisplay : 'Venue to be decided',
+        ),
+      ],
+    );
+  }
 
-          // Venue
-          Row(
-            children: [
-              Icon(Icons.location_on, size: 16, color: Color(0xFF4CAF50)),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  venueDisplay,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: Theme.of(context).textTheme.bodyMedium?.color,
-                  ),
-                ),
-              ),
-            ],
+  Widget _buildInfoRow(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+  }) {
+    final theme = Theme.of(context);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: theme.colorScheme.primary),
+        SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: theme.textTheme.bodyLarge?.color,
+            ),
           ),
-        ],
+        ),
+      ],
+    );
+  }
+
+  void _handleMatchUpdatePush(Map<String, dynamic> data) {
+    if (!mounted) {
+      return;
+    }
+
+    final matchId = widget.message.matchId;
+    if (matchId == null) {
+      return;
+    }
+
+    final incomingMatchId = data['matchId']?.toString();
+    if (incomingMatchId != null && incomingMatchId != matchId) {
+      return;
+    }
+
+    // Re-fetch details to refresh counts and user RSVP status
+    _loadMatchDetails();
+  }
+
+
+  Widget _buildRsvpSummarySection(
+    BuildContext context,
+    Map<String, dynamic> matchDetails,
+  ) {
+    final counts = _statusCountsFromRaw(matchDetails['statusCounts']) ??
+        _extractStatusCounts(matchDetails);
+
+    return Row(
+      children: [
+        _buildRsvpButton(
+          context,
+          label: 'In',
+          status: 'YES',
+          count: counts['YES'] ?? 0,
+          color: Color(0xFF4CAF50),
+        ),
+        SizedBox(width: 8),
+        _buildRsvpButton(
+          context,
+          label: 'Out',
+          status: 'NO',
+          count: counts['NO'] ?? 0,
+          color: Color(0xFFFF5722),
+        ),
+        SizedBox(width: 8),
+        _buildRsvpButton(
+          context,
+          label: 'Maybe',
+          status: 'MAYBE',
+          count: counts['MAYBE'] ?? 0,
+          color: Color(0xFFFF9800),
+        ),
+      ],
+    );
+  }
+
+  Map<String, int>? _statusCountsFromRaw(dynamic raw) {
+    if (raw is Map) {
+      final normalized = <String, int>{
+        'YES': 0,
+        'NO': 0,
+        'MAYBE': 0,
+      };
+
+      raw.forEach((key, value) {
+        final upperKey = key.toString().toUpperCase();
+        if (normalized.containsKey(upperKey)) {
+          if (value is num) {
+            normalized[upperKey] = value.toInt();
+          } else {
+            final parsed = int.tryParse(value.toString());
+            if (parsed != null) {
+              normalized[upperKey] = parsed;
+            }
+          }
+        }
+      });
+
+      normalized.updateAll((key, value) => value < 0 ? 0 : value);
+      return normalized;
+    }
+
+    return null;
+  }
+
+  Widget _buildRsvpButton(
+    BuildContext context, {
+    required String label,
+    required String status,
+    required int count,
+    required Color color,
+  }) {
+    final isSelected = _currentRSVPStatus == status;
+    final theme = Theme.of(context);
+    final backgroundColor = isSelected
+        ? color
+        : theme.colorScheme.surfaceVariant.withOpacity(
+            theme.brightness == Brightness.dark ? 0.4 : 0.7,
+          );
+    final foregroundColor = isSelected
+        ? Colors.white
+        : theme.textTheme.labelLarge?.color ?? theme.colorScheme.onSurfaceVariant;
+    final displayLabel = count > 0 ? count.toString() : label;
+
+    return Expanded(
+      child: ElevatedButton(
+        onPressed: () => _handleDirectRSVP(context, status),
+        style: ElevatedButton.styleFrom(
+          elevation: isSelected ? 2 : 0,
+          backgroundColor: backgroundColor,
+          foregroundColor: foregroundColor,
+          padding: EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        child: Text(
+          displayLabel,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.4,
+          ),
+        ),
       ),
     );
   }
@@ -631,6 +816,11 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
     }
 
     final normalizedStatus = status.toUpperCase();
+    final previousStatus = _currentRSVPStatus;
+
+    if (previousStatus != null && previousStatus == normalizedStatus) {
+      return;
+    }
 
     try {
       final response = await MatchService.rsvpToMatch(
@@ -660,18 +850,28 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
         updatedUserRsvp['status'] = normalizedStatus;
         updatedDetails['userRsvp'] = updatedUserRsvp;
 
+        final statusCounts = _statusCountsFromRaw(updatedDetails['statusCounts']) ??
+            _extractStatusCounts(updatedDetails);
+
+        if (previousStatus != null && statusCounts.containsKey(previousStatus)) {
+          statusCounts[previousStatus] =
+              (statusCounts[previousStatus] ?? 1) - 1;
+          if ((statusCounts[previousStatus] ?? 0) < 0) {
+            statusCounts[previousStatus] = 0;
+          }
+        }
+
+        if (statusCounts.containsKey(normalizedStatus)) {
+          statusCounts[normalizedStatus] =
+              (statusCounts[normalizedStatus] ?? 0) + 1;
+        }
+
+        updatedDetails['statusCounts'] = statusCounts;
+
         setState(() {
           _currentRSVPStatus = normalizedStatus;
           _resolvedMatchDetails = updatedDetails;
         });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_statusSuccessMessage(normalizedStatus)),
-            backgroundColor: Color(0xFF4CAF50),
-            duration: Duration(seconds: 2),
-          ),
-        );
 
         widget.onRSVP?.call();
 
@@ -697,16 +897,9 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
     }
   }
 
-  String _statusSuccessMessage(String status) {
-    switch (status.toUpperCase()) {
-      case 'YES':
-        return 'RSVP confirmed successfully!';
-      case 'NO':
-        return 'RSVP declined successfully.';
-      case 'MAYBE':
-        return 'RSVP updated to maybe.';
-      default:
-        return 'RSVP updated.';
-    }
+  @override
+  void dispose() {
+    _unregisterMatchUpdates();
+    super.dispose();
   }
 }

@@ -16,6 +16,9 @@ class NotificationService {
   
   // Callbacks for real-time message updates by club
   static final Map<String, Function(Map<String, dynamic>)> _clubMessageCallbacks = {};
+
+  // Callbacks for match-specific updates (e.g., RSVP changes)
+  static final Map<String, List<Function(Map<String, dynamic>)>> _matchUpdateCallbacks = {};
   
   // Global club provider reference for updating clubs list
   static ClubProvider? _clubProvider;
@@ -285,6 +288,11 @@ class NotificationService {
       return;
     }
 
+    if (data['type'] == 'match_rsvp') {
+      await _handleMatchRsvpNotification(message, inForeground: true);
+      return;
+    }
+
     if (notification != null) {
       await _localNotifications.show(
         notification.hashCode,
@@ -410,6 +418,45 @@ class NotificationService {
     }
   }
 
+  /// Handle match RSVP notifications
+  static Future<void> _handleMatchRsvpNotification(RemoteMessage message, {required bool inForeground}) async {
+    final data = message.data;
+    print('🏏 Handling match RSVP notification: $data');
+
+    final matchId = data['matchId'] as String?;
+    if (matchId != null) {
+      _dispatchMatchUpdate(matchId, data);
+    }
+
+    final notification = message.notification;
+    if (notification != null) {
+      await _localNotifications.show(
+        message.hashCode,
+        notification.title ?? 'Match RSVP Update',
+        notification.body ?? 'A teammate updated their RSVP.',
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            _channelId,
+            _channelName,
+            channelDescription: _channelDescription,
+            importance: Importance.high,
+            priority: Priority.high,
+            icon: '@drawable/ic_notification',
+            color: const Color(0xFF4CAF50),
+            playSound: true,
+            enableVibration: true,
+          ),
+          iOS: const DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
+        ),
+        payload: data.isNotEmpty ? data.toString() : null,
+      );
+    }
+  }
+
   /// Handle notification tapped - navigate to appropriate screen
   static void _handleNotificationTapped(Map<String, dynamic> data) {
     print('📱 Handling notification tap with data: $data');
@@ -427,6 +474,9 @@ class NotificationService {
         break;
       case 'match_reminder':
         print('🏏 Navigate to match: $matchId');
+        break;
+      case 'match_rsvp':
+        print('🏏 Navigate to match from RSVP: $matchId');
         break;
       case 'order_update':
         print('🛒 Navigate to order: $orderId');
@@ -515,9 +565,56 @@ class NotificationService {
     print('🗑️ Club message callback cleared for club: $clubId');
   }
 
+  static void _dispatchMatchUpdate(String matchId, Map<String, dynamic> data) {
+    final callbacks = _matchUpdateCallbacks[matchId];
+    if (callbacks == null || callbacks.isEmpty) {
+      print('ℹ️ No match update callbacks registered for match: $matchId');
+      return;
+    }
+
+    print('🔄 Dispatching match update to ${callbacks.length} listener(s) for match: $matchId');
+    final snapshot = List<Function(Map<String, dynamic>)>.from(callbacks);
+    for (final callback in snapshot) {
+      try {
+        callback(data);
+      } catch (e) {
+        print('❌ Error in match update callback: $e');
+      }
+    }
+  }
+
+  /// Register for match update notifications (e.g., RSVP changes)
+  static void addMatchUpdateCallback(
+    String matchId,
+    Function(Map<String, dynamic>) callback,
+  ) {
+    final callbacks = _matchUpdateCallbacks.putIfAbsent(matchId, () => []);
+    callbacks.add(callback);
+    print('✅ Match update callback registered for match: $matchId (total: ${callbacks.length})');
+  }
+
+  /// Remove a previously registered match update callback
+  static void removeMatchUpdateCallback(
+    String matchId,
+    Function(Map<String, dynamic>) callback,
+  ) {
+    final callbacks = _matchUpdateCallbacks[matchId];
+    if (callbacks == null) {
+      return;
+    }
+
+    callbacks.remove(callback);
+    if (callbacks.isEmpty) {
+      _matchUpdateCallbacks.remove(matchId);
+    }
+
+    print('🗑️ Match update callback removed for match: $matchId (remaining: ${_matchUpdateCallbacks[matchId]?.length ?? 0})');
+  }
+
   /// Clear all callbacks
   static void clearAllClubMessageCallbacks() {
     _clubMessageCallbacks.clear();
+    _matchUpdateCallbacks.clear();
     print('🗑️ All club message callbacks cleared');
   }
 
@@ -549,6 +646,13 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     if (clubId != null && NotificationService._clubMessageCallbacks.containsKey(clubId)) {
       print('🔄 Triggering callback from background for club: $clubId');
       NotificationService._clubMessageCallbacks[clubId]!(message.data);
+    }
+  }
+
+  if (message.data['type'] == 'match_rsvp') {
+    final matchId = message.data['matchId'] as String?;
+    if (matchId != null) {
+      NotificationService._dispatchMatchUpdate(matchId, message.data);
     }
   }
 }
