@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import '../../models/club.dart';
+import '../../models/match.dart';
 import '../../models/team.dart';
 import '../../models/venue.dart';
 import '../../services/match_service.dart';
@@ -14,7 +15,7 @@ import 'venue_picker_screen.dart';
 import 'tournament_picker_screen.dart';
 
 class CreateMatchScreen extends StatefulWidget {
-  final VoidCallback? onMatchCreated;
+  final ValueChanged<MatchListItem>? onMatchCreated;
 
   const CreateMatchScreen({super.key, this.onMatchCreated});
 
@@ -182,7 +183,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       print('🔍 Debug: Home Team Club ID: ${_selectedHomeTeam!.club?.id}');
       print('🔍 Debug: Opponent Team Club ID: ${_selectedOpponentTeam!.club?.id}');
 
-      await MatchService.createMatch(
+      final response = await MatchService.createMatch(
         clubId: _selectedHomeTeam!.clubId ?? '',
         type: _selectedType,
         tournamentId: _selectedTournament?.id,
@@ -204,7 +205,47 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
 
       if (mounted) {
         Navigator.of(context).pop();
-        widget.onMatchCreated?.call();
+
+        final matchId = (response['id'] ?? response['match']?['id'])?.toString() ?? '';
+        if (matchId.isEmpty) {
+          print('❌ CreateMatchScreen: match ID missing from response - $response');
+          return;
+        }
+
+        final homeTeamClub = _selectedHomeTeam!.club;
+        final matchItem = MatchListItem(
+          id: matchId,
+          clubId: homeTeamClub?.id ?? _selectedHomeTeam!.clubId ?? '',
+          type: _selectedType,
+          location: _selectedVenue!.name,
+          opponent: _selectedOpponentTeam?.name,
+          notes: null,
+          spots: 13,
+          matchDate: matchDateTime,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          hideUntilRSVP: false,
+          rsvpAfterDate: null,
+          rsvpBeforeDate: null,
+          notifyMembers: false,
+          isCancelled: false,
+          cancellationReason: null,
+          isSquadReleased: false,
+          totalExpensed: 0,
+          paidAmount: 0,
+          club: homeTeamClub != null
+              ? ClubModel(id: homeTeamClub.id, name: homeTeamClub.name, logo: homeTeamClub.logo)
+              : ClubModel(id: _selectedHomeTeam!.clubId ?? '', name: _selectedHomeTeam!.name, logo: _selectedHomeTeam!.logo),
+          canSeeDetails: true,
+          canRsvp: true,
+          availableSpots: 13,
+          confirmedPlayers: 0,
+          userRsvp: null,
+          team: _selectedHomeTeam!,
+          opponentTeam: _selectedOpponentTeam,
+        );
+
+        widget.onMatchCreated?.call(matchItem);
       }
     } catch (e) {
       if (mounted) {

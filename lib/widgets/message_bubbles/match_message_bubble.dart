@@ -796,7 +796,7 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
     final foregroundColor = isSelected
         ? Colors.white
         : theme.textTheme.labelLarge?.color ?? theme.colorScheme.onSurfaceVariant;
-    final displayLabel = count > 0 ? count.toString() : label;
+    final displayLabel = _buttonLabel(status, count, label);
 
     return Expanded(
       child: ElevatedButton(
@@ -819,6 +819,13 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
         ),
       ),
     );
+  }
+
+  String _buttonLabel(String status, int count, String fallback) {
+    if (count > 0) {
+      return '$fallback ($count)';
+    }
+    return fallback;
   }
 
   void _handleDirectRSVP(BuildContext context, String status) async {

@@ -30,6 +30,8 @@ class MatchService {
         'city': matchMap['city'] ?? matchMap['club']?['city'],
         'membershipFeeCurrency': matchMap['club']?['membershipFeeCurrency'] ?? 'USD',
       },
+      'team': matchMap['team'] ?? matchMap['homeTeam'],
+      'opponentTeam': matchMap['opponentTeam'] ?? matchMap['awayTeam'],
       // Handle opponentClub format from club-specific matches
       'opponent': matchMap['opponent'] ?? matchMap['opponentClub']?['name'],
       // Add default timestamps if missing

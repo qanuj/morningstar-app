@@ -48,7 +48,7 @@ class _ClubMatchesScreenState extends State<ClubMatchesScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => CreateMatchScreen(
-          onMatchCreated: () {
+          onMatchCreated: (_) {
             // Refresh the matches list
             _matchesListKey.currentState?.refreshMatches();
           },

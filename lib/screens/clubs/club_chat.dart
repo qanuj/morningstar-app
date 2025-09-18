@@ -26,7 +26,7 @@ import '../../widgets/chat_header.dart';
 import '../manage/manage_club.dart';
 import '../../providers/club_provider.dart';
 import '../../models/shared_content.dart';
-import '../../widgets/dialogs/match_selection_dialog.dart';
+import '../matches/match_selection_screen.dart';
 import '../../widgets/dialogs/practice_selection_dialog.dart';
 import '../matches/create_match_screen.dart';
 import '../practices/create_practice_screen.dart';
@@ -1335,25 +1335,20 @@ class ClubChatScreenState extends State<ClubChatScreen>
   }
 
   void _navigateToCreateMatch() async {
-    // Show match selection dialog
-    showDialog(
-      context: context,
-      builder: (context) => MatchSelectionDialog(
-        clubId: widget.club.id,
-        onExistingMatchSelected: (match) {
-          // Send existing match message to chat
-          _sendExistingMatchMessage(match);
-          // Unfocus text field to prevent keyboard from opening
-          _textFieldFocusNode.unfocus();
-        },
-        onCreateNewMatch: () {
-          // Navigate to create new match
-          _navigateToCreateNewMatch();
-          // Unfocus text field to prevent keyboard from opening
-          _textFieldFocusNode.unfocus();
-        },
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MatchSelectionScreen(
+          clubId: widget.club.id,
+          onExistingMatchSelected: (match) {
+            _sendExistingMatchMessage(match);
+          },
+          onCreateNewMatch: () {
+            _navigateToCreateNewMatch();
+          },
+        ),
       ),
     );
+    _textFieldFocusNode.unfocus();
   }
 
   void _navigateToCreatePractice() async {
@@ -1393,9 +1388,9 @@ class ClubChatScreenState extends State<ClubChatScreen>
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => CreateMatchScreen(
-          onMatchCreated: () {
-            // Match was created successfully, now send match message to chat
-            _createMatchMessage();
+          onMatchCreated: (match) {
+            // Reuse existing flow for sending match announcements
+            _sendExistingMatchMessage(match);
           },
         ),
       ),
@@ -1495,17 +1490,17 @@ class ClubChatScreenState extends State<ClubChatScreen>
       senderName: 'You',
       senderProfilePicture: null,
       senderRole: membership?.role ?? 'ADMIN',
-      content: '📅 Match announcement: ${match.club.name} vs ${match.opponent ?? "TBD"}',
+      content: '📅 Match announcement: ${match.team?.name ?? match.club.name} vs ${match.opponentTeam?.name ?? match.opponent ?? "TBD"}',
       messageType: 'match',
       matchId: match.id,
       matchDetails: {
         'homeTeam': {
-          'name': match.club.name,
-          'logo': match.club.logo,
+          'name': match.team?.name ?? match.club.name,
+          'logo': match.team?.logo ?? match.club.logo,
         },
         'opponentTeam': {
-          'name': match.opponent ?? 'TBD',
-          'logo': null,
+          'name': match.opponentTeam?.name ?? match.opponent ?? 'TBD',
+          'logo': match.opponentTeam?.logo,
         },
         'dateTime': match.matchDate.toIso8601String(),
         'venue': {
@@ -1525,16 +1520,16 @@ class ClubChatScreenState extends State<ClubChatScreen>
     // Send match message to backend directly
     try {
       final matchData = {
-        'content': '📅 Match announcement: ${match.club.name} vs ${match.opponent ?? "TBD"}',
+        'content': '📅 Match announcement: ${match.team?.name ?? match.club.name} vs ${match.opponentTeam?.name ?? match.opponent ?? "TBD"}',
         'matchId': match.id,
         'matchDetails': {
           'homeTeam': {
-            'name': match.club.name,
-            'logo': match.club.logo,
+            'name': match.team?.name ?? match.club.name,
+            'logo': match.team?.logo ?? match.club.logo,
           },
           'opponentTeam': {
-            'name': match.opponent ?? 'TBD',
-            'logo': null,
+            'name': match.opponentTeam?.name ?? match.opponent ?? 'TBD',
+            'logo': match.opponentTeam?.logo,
           },
           'dateTime': match.matchDate.toIso8601String(),
           'venue': {
@@ -1556,93 +1551,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
             action: SnackBarAction(
               label: 'Retry',
               onPressed: () => _sendExistingMatchMessage(match),
-            ),
-          ),
-        );
-      }
-    }
-  }
-
-  void _createMatchMessage() async {
-    // Get user's membership to determine role
-    final clubProvider = context.read<ClubProvider>();
-    final membership = clubProvider.clubs
-        .where((m) => m.club.id == widget.club.id)
-        .firstOrNull;
-
-    // Create temporary message for immediate UI feedback with 'sent' status to prevent duplicate sending
-    final tempMessage = ClubMessage(
-      id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
-      clubId: widget.club.id,
-      senderId: 'current_user',
-      senderName: 'You',
-      senderProfilePicture: null,
-      senderRole: membership?.role ?? 'ADMIN',
-      content: '📅 New match created! Check your matches to view details and RSVP.',
-      messageType: 'match',
-      matchId: 'placeholder_match_id',
-      matchDetails: {
-        'homeTeam': {
-          'name': 'Home Team',
-          'logo': null,
-        },
-        'opponentTeam': {
-          'name': 'Opponent Team', 
-          'logo': null,
-        },
-        'dateTime': DateTime.now().add(Duration(days: 1)).toIso8601String(),
-        'venue': {
-          'name': 'Cricket Ground',
-          'address': 'TBD',
-        },
-      },
-      createdAt: DateTime.now(),
-      status: MessageStatus.sent, // Use 'sent' to prevent SelfSendingMessageBubble from sending again
-      starred: StarredInfo(isStarred: false),
-      pin: PinInfo(isPinned: false),
-    );
-
-    // Add to local messages immediately for UI feedback
-    _handleNewMessage(tempMessage);
-
-    // Send match message to backend directly
-    try {
-      final matchData = {
-        'content': '📅 New match created! Check your matches to view details and RSVP.',
-        'matchId': 'placeholder_match_id', // In real implementation, this would come from CreateMatchScreen
-        'matchDetails': {
-          'homeTeam': {
-            'name': 'Home Team',
-            'logo': null,
-          },
-          'opponentTeam': {
-            'name': 'Opponent Team', 
-            'logo': null,
-          },
-          'dateTime': DateTime.now().add(Duration(days: 1)).toIso8601String(),
-          'venue': {
-            'name': 'Cricket Ground',
-            'address': 'TBD',
-          },
-        },
-      };
-
-      await ChatApiService.sendMatchMessage(widget.club.id, matchData);
-      
-      // Update message status to sent
-      // In a real implementation, you'd update the message in your state management
-      
-    } catch (e) {
-      print('❌ Error sending match message: $e');
-      // Handle error - show snackbar or retry
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to send match announcement'),
-            backgroundColor: Colors.red,
-            action: SnackBarAction(
-              label: 'Retry',
-              onPressed: () => _createMatchMessage(),
             ),
           ),
         );

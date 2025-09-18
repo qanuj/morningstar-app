@@ -57,7 +57,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => CreateMatchScreen(
-          onMatchCreated: () {
+          onMatchCreated: (_) {
             // Refresh the matches list
             _matchesListKey.currentState?.refreshMatches();
           },

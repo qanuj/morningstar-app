@@ -1,3 +1,5 @@
+import 'team.dart';
+
 class MatchListItem {
   final String id;
   final String clubId;
@@ -24,6 +26,8 @@ class MatchListItem {
   final int availableSpots;
   final int confirmedPlayers;
   final MatchRSVPSimple? userRsvp;
+  final Team? team;
+  final Team? opponentTeam;
 
   MatchListItem({
     required this.id,
@@ -51,6 +55,8 @@ class MatchListItem {
     required this.availableSpots,
     required this.confirmedPlayers,
     this.userRsvp,
+    this.team,
+    this.opponentTeam,
   });
 
   factory MatchListItem.fromJson(Map<String, dynamic> json) {
@@ -80,6 +86,8 @@ class MatchListItem {
       availableSpots: json['availableSpots'] ?? (json['spots'] ?? 13),
       confirmedPlayers: json['confirmedPlayers'] ?? 0,
       userRsvp: json['userRsvp'] != null ? MatchRSVPSimple.fromJson(json['userRsvp']) : null,
+      team: json['team'] != null ? Team.fromJson(json['team']) : null,
+      opponentTeam: json['opponentTeam'] != null ? Team.fromJson(json['opponentTeam']) : null,
     );
   }
 
@@ -110,6 +118,8 @@ class MatchListItem {
       'availableSpots': availableSpots,
       'confirmedPlayers': confirmedPlayers,
       'userRsvp': userRsvp?.toJson(),
+      'team': team?.toJson(),
+      'opponentTeam': opponentTeam?.toJson(),
     };
   }
 }
