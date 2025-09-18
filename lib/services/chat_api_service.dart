@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import '../models/club_message.dart';
 import '../models/message_reaction.dart';
 import 'api_service.dart';
+import 'match_service.dart';
 
 /// Service class for handling all chat-related API operations
 class ChatApiService {
@@ -406,17 +407,16 @@ class ChatApiService {
     String clubId,
     String messageId,
     String matchId,
-    String status, // 'going', 'not_going', 'maybe'
+    String status, // Expected: 'YES', 'NO', 'MAYBE', 'PENDING'
   ) async {
     try {
-      await ApiService.post(
-        '/conversations/$clubId/messages/$messageId/match/rsvp',
-        {
-          'matchId': matchId,
-          'status': status,
-        },
+      final response = await MatchService.rsvpToMatch(
+        matchId: matchId,
+        status: status,
       );
-      return true;
+
+      final isSuccess = response['success'] == true || response['rsvp'] != null;
+      return isSuccess;
     } catch (e) {
       print('❌ Error RSVP to match: $e');
       return false;

@@ -157,13 +157,45 @@ class MatchService {
     }
   }
 
-  /// Get detailed match information
+  /// Get detailed match information from the matches endpoint
   static Future<Map<String, dynamic>> getMatchDetail(String matchId) async {
     try {
-      final response = await ApiService.get('/rsvp?matchId=$matchId');
-      return response['match'] ?? {};
+      final response = await ApiService.get('/matches/$matchId');
+      return response;
     } catch (e) {
       throw Exception('Failed to fetch match details: $e');
+    }
+  }
+
+  /// Fetch a single match for a specific club to access opponent/team metadata
+  static Future<Map<String, dynamic>?> getClubMatch({
+    required String clubId,
+    required String matchId,
+  }) async {
+    try {
+      final params = <String>[
+        'clubId=$clubId',
+        'includeCancelled=true',
+        'showFullyPaid=true',
+        'upcomingOnly=false',
+        'limit=100',
+      ];
+
+      final response = await ApiService.get('/matches?${params.join('&')}');
+      final matches = response['matches'];
+
+      if (matches is List) {
+        for (final match in matches) {
+          if (match is Map<String, dynamic> && match['id'] == matchId) {
+            return match;
+          }
+        }
+      }
+
+      return null;
+    } catch (e) {
+      print('❌ MatchService Error fetching club match: $e');
+      return null;
     }
   }
 

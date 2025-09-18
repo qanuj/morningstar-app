@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/club_message.dart';
-import '../../services/chat_api_service.dart';
+import '../../services/match_service.dart';
 import '../svg_avatar.dart';
 import 'base_message_bubble.dart';
 
@@ -36,21 +36,176 @@ class MatchMessageBubble extends StatefulWidget {
 class _MatchMessageBubbleState extends State<MatchMessageBubble> {
   String?
   _currentRSVPStatus; // Track current RSVP status: 'YES', 'NO', 'MAYBE', or null
+  Map<String, dynamic>? _resolvedMatchDetails;
+  bool _isLoadingMatchDetails = false;
+  String? _matchDetailsError;
 
   @override
   void initState() {
     super.initState();
     // Initialize RSVP status from message data if available
+    _resolvedMatchDetails = widget.message.matchDetails;
     _currentRSVPStatus = _extractRSVPStatus();
+
+    if (widget.message.matchId != null) {
+      _loadMatchDetails();
+    }
   }
 
   String? _extractRSVPStatus() {
     // Try to extract RSVP status from matchDetails if available
     final matchDetails = widget.message.matchDetails;
     if (matchDetails != null && matchDetails['userRsvp'] != null) {
-      return matchDetails['userRsvp']['status'];
+      final status = matchDetails['userRsvp']['status'];
+      if (status is String && status.isNotEmpty) {
+        return status.toUpperCase();
+      }
     }
     return null;
+  }
+
+  Future<void> _loadMatchDetails() async {
+    if (_isLoadingMatchDetails) return;
+
+    final matchId = widget.message.matchId;
+    if (matchId == null) {
+      return;
+    }
+
+    setState(() {
+      _isLoadingMatchDetails = true;
+      _matchDetailsError = null;
+    });
+
+    Map<String, dynamic>? detailedMatch;
+    Map<String, dynamic>? clubMatch;
+
+    try {
+      detailedMatch = await MatchService.getMatchDetail(matchId);
+      if (detailedMatch != null && detailedMatch.isEmpty) {
+        detailedMatch = null;
+      }
+    } catch (e) {
+      debugPrint('❌ MatchMessageBubble: error fetching match detail: $e');
+    }
+
+    try {
+      clubMatch = await MatchService.getClubMatch(
+        clubId: widget.message.clubId,
+        matchId: matchId,
+      );
+    } catch (e) {
+      debugPrint('❌ MatchMessageBubble: error fetching club match: $e');
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    if ((detailedMatch == null || detailedMatch.isEmpty) &&
+        (clubMatch == null || clubMatch.isEmpty)) {
+      setState(() {
+        _isLoadingMatchDetails = false;
+        _matchDetailsError = 'Unable to load match details right now.';
+      });
+      return;
+    }
+
+    final mergedDetails = _composeMatchDetails(
+      detail: detailedMatch,
+      clubMatch: clubMatch,
+    );
+
+    setState(() {
+      _resolvedMatchDetails = mergedDetails;
+      final status =
+          (mergedDetails['userRsvp'] as Map<String, dynamic>?)?['status'];
+      if (status is String && status.isNotEmpty) {
+        _currentRSVPStatus = status.toUpperCase();
+      }
+      _isLoadingMatchDetails = false;
+      _matchDetailsError = null;
+    });
+  }
+
+  Map<String, dynamic> _composeMatchDetails({
+    Map<String, dynamic>? detail,
+    Map<String, dynamic>? clubMatch,
+  }) {
+    String? asString(dynamic value) {
+      if (value == null) return null;
+      final text = value.toString().trim();
+      return text.isEmpty ? null : text;
+    }
+
+    final existing =
+        _resolvedMatchDetails ?? widget.message.matchDetails ?? <String, dynamic>{};
+    final existingHome = existing['homeTeam'] as Map<String, dynamic>? ?? {};
+    final existingOpponent =
+        existing['opponentTeam'] as Map<String, dynamic>? ?? {};
+    final existingVenue = existing['venue'] as Map<String, dynamic>? ?? {};
+
+    final homeName = asString(clubMatch?['team']?['name']) ??
+        asString(detail?['club']?['name']) ??
+        asString(existingHome['name']) ??
+        'Home Team';
+    final homeLogo = asString(clubMatch?['team']?['logo']) ??
+        asString(detail?['club']?['logo']) ??
+        asString(existingHome['logo']);
+
+    final opponentName = asString(clubMatch?['opponentTeam']?['name']) ??
+        asString(clubMatch?['opponent']) ??
+        asString(detail?['opponent']) ??
+        asString(existingOpponent['name']) ??
+        'Opponent Team';
+    final opponentLogo = asString(clubMatch?['opponentTeam']?['logo']) ??
+        asString(existingOpponent['logo']);
+
+    final matchDateIso = asString(detail?['matchDate']) ??
+        asString(clubMatch?['matchDate']) ??
+        asString(existing['dateTime']);
+
+    final venueName = asString(clubMatch?['location']) ??
+        asString(detail?['location']) ??
+        asString(existingVenue['name']) ??
+        'Venue TBD';
+
+    String? venueAddress = asString(existingVenue['address']);
+    final detailCity = asString(detail?['city']);
+    if ((venueAddress == null || venueAddress == venueName) &&
+        detailCity != null && detailCity.isNotEmpty) {
+      venueAddress = detailCity;
+    }
+
+    final userRsvp = (detail?['userRsvp'] as Map<String, dynamic>?) ??
+        (clubMatch?['userRsvp'] as Map<String, dynamic>?) ??
+        (existing['userRsvp'] as Map<String, dynamic>?);
+
+    final result = <String, dynamic>{
+      'homeTeam': {
+        'name': homeName,
+        if (homeLogo != null) 'logo': homeLogo,
+      },
+      'opponentTeam': {
+        'name': opponentName,
+        if (opponentLogo != null) 'logo': opponentLogo,
+      },
+      'venue': {
+        'name': venueName,
+        if (venueAddress != null && venueAddress.isNotEmpty)
+          'address': venueAddress,
+      },
+    };
+
+    if (matchDateIso != null) {
+      result['dateTime'] = matchDateIso;
+    }
+
+    if (userRsvp != null) {
+      result['userRsvp'] = userRsvp;
+    }
+
+    return result;
   }
 
   @override
@@ -69,7 +224,8 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
 
   Widget _buildMatchContent(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final matchDetails = widget.message.matchDetails ?? {};
+    final matchDetails =
+        _resolvedMatchDetails ?? widget.message.matchDetails ?? {};
 
     // Extract match information
     final homeTeam = matchDetails['homeTeam'] as Map<String, dynamic>? ?? {};
@@ -87,8 +243,11 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
         children: [
           // Show content if no match details, otherwise show rich match info
           if (matchDetails.isEmpty) ...[
-            // Fallback content when no match details
-            if (widget.message.content.isNotEmpty)
+            if (_isLoadingMatchDetails)
+              _buildLoadingState()
+            else if (_matchDetailsError != null)
+              _buildErrorState(context, _matchDetailsError!, isDarkMode)
+            else if (widget.message.content.isNotEmpty)
               Text(
                 widget.message.content,
                 style: TextStyle(
@@ -107,6 +266,11 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
 
             // Match details (Date, Time, Venue)
             _buildMatchDetails(context, matchDateTime, venue),
+
+            if (_isLoadingMatchDetails) ...[
+              SizedBox(height: 16),
+              _buildLoadingState(compact: true),
+            ],
           ],
 
           SizedBox(height: 16),
@@ -238,6 +402,47 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
     );
   }
 
+  Widget _buildLoadingState({bool compact = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        SizedBox(
+          width: compact ? 18 : 24,
+          height: compact ? 18 : 24,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            valueColor: AlwaysStoppedAnimation(Color(0xFF4CAF50)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildErrorState(
+    BuildContext context,
+    String message,
+    bool isDarkMode,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.info_outline, size: 16, color: Colors.redAccent),
+        SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            message,
+            style: TextStyle(
+              fontSize: 13,
+              color: isDarkMode
+                  ? Colors.redAccent.shade100
+                  : Colors.redAccent.shade400,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildTeamsSection(
     BuildContext context,
     Map<String, dynamic> homeTeam,
@@ -352,6 +557,14 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
     Map<String, dynamic> venue,
   ) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final localMatchDateTime = matchDateTime?.toLocal();
+    final venueName = venue['name']?.toString() ?? 'Venue TBD';
+    final venueAddress = venue['address']?.toString();
+    final venueDisplay = (venueAddress != null &&
+            venueAddress.isNotEmpty &&
+            venueAddress != venueName)
+        ? '$venueName • $venueAddress'
+        : venueName;
 
     return Container(
       padding: EdgeInsets.all(12),
@@ -364,14 +577,14 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
       child: Column(
         children: [
           // Date & Time
-          if (matchDateTime != null) ...[
+          if (localMatchDateTime != null) ...[
             Row(
               children: [
                 Icon(Icons.calendar_today, size: 16, color: Color(0xFF4CAF50)),
                 SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '${DateFormat('EEE, MMM d, yyyy').format(matchDateTime)} at ${DateFormat('h:mm a').format(matchDateTime)}',
+                    '${DateFormat('EEE, MMM d, yyyy').format(localMatchDateTime)} at ${DateFormat('h:mm a').format(localMatchDateTime)}',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
@@ -391,7 +604,7 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
               SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  venue['name']?.toString() ?? 'Venue TBD',
+                  venueDisplay,
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
@@ -417,35 +630,54 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
       return;
     }
 
+    final normalizedStatus = status.toUpperCase();
+
     try {
-      final success = await ChatApiService.rsvpToMatch(
-        widget.message.clubId,
-        widget.message.id,
-        widget.message.matchId!,
-        status,
+      final response = await MatchService.rsvpToMatch(
+        matchId: widget.message.matchId!,
+        status: normalizedStatus,
       );
 
-      if (success && context.mounted) {
-        // Update local RSVP status
+      if (!context.mounted) {
+        return;
+      }
+
+      final isSuccess = response['success'] == true || response['rsvp'] != null;
+
+      if (isSuccess) {
+        final updatedDetails = Map<String, dynamic>.from(
+          _resolvedMatchDetails ?? widget.message.matchDetails ?? {},
+        );
+
+        final updatedUserRsvp = Map<String, dynamic>.from(
+          (updatedDetails['userRsvp'] as Map<String, dynamic>?) ?? {},
+        );
+
+        final responseRsvp = response['rsvp'];
+        if (responseRsvp is Map<String, dynamic>) {
+          updatedUserRsvp.addAll(responseRsvp);
+        }
+        updatedUserRsvp['status'] = normalizedStatus;
+        updatedDetails['userRsvp'] = updatedUserRsvp;
+
         setState(() {
-          _currentRSVPStatus = status;
+          _currentRSVPStatus = normalizedStatus;
+          _resolvedMatchDetails = updatedDetails;
         });
 
-        // Show success message based on RSVP status
-        final statusText = status == 'YES'
-            ? 'confirmed'
-            : status == 'NO'
-            ? 'declined'
-            : 'marked as maybe';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('RSVP $statusText successfully!'),
+            content: Text(_statusSuccessMessage(normalizedStatus)),
             backgroundColor: Color(0xFF4CAF50),
             duration: Duration(seconds: 2),
           ),
         );
+
         widget.onRSVP?.call();
-      } else if (context.mounted) {
+
+        // Refresh match details to keep venue/time data current
+        _loadMatchDetails();
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to update RSVP. Please try again.'),
@@ -462,6 +694,19 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
           ),
         );
       }
+    }
+  }
+
+  String _statusSuccessMessage(String status) {
+    switch (status.toUpperCase()) {
+      case 'YES':
+        return 'RSVP confirmed successfully!';
+      case 'NO':
+        return 'RSVP declined successfully.';
+      case 'MAYBE':
+        return 'RSVP updated to maybe.';
+      default:
+        return 'RSVP updated.';
     }
   }
 }
