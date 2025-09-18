@@ -51,7 +51,7 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
     _resolvedMatchDetails = widget.message.matchDetails;
     _currentRSVPStatus = _extractRSVPStatus();
 
-    if (widget.message.matchId != null) {
+    if (_isValidMatchId(widget.message.matchId)) {
       _registerForMatchUpdates();
       _loadMatchDetails();
     }
@@ -75,11 +75,11 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
 
       if (matchIdChanged) {
         _unregisterMatchUpdates(oldMatchId);
-        if (newMatchId != null) {
+        if (_isValidMatchId(newMatchId)) {
           _registerForMatchUpdates();
           _loadMatchDetails();
         }
-      } else if (newMatchId != null) {
+      } else if (_isValidMatchId(newMatchId)) {
         // Refresh counts if match details changed
         _loadMatchDetails();
       }
@@ -102,7 +102,7 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
     if (_isLoadingMatchDetails) return;
 
     final matchId = widget.message.matchId;
-    if (matchId == null) {
+    if (!_isValidMatchId(matchId)) {
       return;
     }
 
@@ -113,9 +113,10 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
 
     Map<String, dynamic>? detailedMatch;
     Map<String, dynamic>? clubMatch;
+    final resolvedMatchId = matchId!.trim();
 
     try {
-      detailedMatch = await MatchService.getMatchDetail(matchId);
+      detailedMatch = await MatchService.getMatchDetail(resolvedMatchId);
       if (detailedMatch != null && detailedMatch.isEmpty) {
         detailedMatch = null;
       }
@@ -126,7 +127,7 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
     try {
       clubMatch = await MatchService.getClubMatch(
         clubId: widget.message.clubId,
-        matchId: matchId,
+        matchId: resolvedMatchId,
       );
     } catch (e) {
       debugPrint('❌ MatchMessageBubble: error fetching club match: $e');
@@ -180,20 +181,33 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
         existing['opponentTeam'] as Map<String, dynamic>? ?? {};
     final existingVenue = existing['venue'] as Map<String, dynamic>? ?? {};
 
-    final homeName = asString(clubMatch?['team']?['name']) ??
+    final detailTeam = detail?['team'] as Map<String, dynamic>?;
+    final detailOpponentTeam = detail?['opponentTeam'] as Map<String, dynamic>?;
+    final clubMatchTeam = clubMatch?['team'] as Map<String, dynamic>?;
+    final clubMatchOpponent = clubMatch?['opponentTeam'] as Map<String, dynamic>?;
+
+    final homeName =
+        asString(detailTeam?['name']) ??
+        asString(clubMatchTeam?['name']) ??
         asString(detail?['club']?['name']) ??
         asString(existingHome['name']) ??
         'Home Team';
-    final homeLogo = asString(clubMatch?['team']?['logo']) ??
+    final homeLogo =
+        asString(detailTeam?['logo']) ??
+        asString(clubMatchTeam?['logo']) ??
         asString(detail?['club']?['logo']) ??
         asString(existingHome['logo']);
 
-    final opponentName = asString(clubMatch?['opponentTeam']?['name']) ??
+    final opponentName =
+        asString(detailOpponentTeam?['name']) ??
+        asString(clubMatchOpponent?['name']) ??
         asString(clubMatch?['opponent']) ??
         asString(detail?['opponent']) ??
         asString(existingOpponent['name']) ??
         'Opponent Team';
-    final opponentLogo = asString(clubMatch?['opponentTeam']?['logo']) ??
+    final opponentLogo =
+        asString(detailOpponentTeam?['logo']) ??
+        asString(clubMatchOpponent?['logo']) ??
         asString(existingOpponent['logo']);
 
     final matchDateIso = asString(detail?['matchDate']) ??
@@ -268,7 +282,7 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
 
   void _registerForMatchUpdates() {
     final matchId = widget.message.matchId;
-    if (matchId == null) {
+    if (!_isValidMatchId(matchId)) {
       return;
     }
 
@@ -276,8 +290,9 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
       return;
     }
 
-    NotificationService.addMatchUpdateCallback(matchId, _handleMatchUpdatePush);
-    _registeredMatchId = matchId;
+    final resolvedMatchId = matchId!.trim();
+    NotificationService.addMatchUpdateCallback(resolvedMatchId, _handleMatchUpdatePush);
+    _registeredMatchId = resolvedMatchId;
   }
 
   void _unregisterMatchUpdates([String? matchId]) {
@@ -286,8 +301,9 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
       return;
     }
 
-    NotificationService.removeMatchUpdateCallback(targetMatchId, _handleMatchUpdatePush);
-    if (targetMatchId == _registeredMatchId) {
+    final resolvedTarget = targetMatchId.trim();
+    NotificationService.removeMatchUpdateCallback(resolvedTarget, _handleMatchUpdatePush);
+    if (resolvedTarget == _registeredMatchId) {
       _registeredMatchId = null;
     }
   }
@@ -683,12 +699,13 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
     }
 
     final matchId = widget.message.matchId;
-    if (matchId == null) {
+    if (!_isValidMatchId(matchId)) {
       return;
     }
+    final resolvedMatchId = matchId!.trim();
 
     final incomingMatchId = data['matchId']?.toString();
-    if (incomingMatchId != null && incomingMatchId != matchId) {
+    if (incomingMatchId != null && incomingMatchId.trim() != resolvedMatchId) {
       return;
     }
 
@@ -805,7 +822,8 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
   }
 
   void _handleDirectRSVP(BuildContext context, String status) async {
-    if (widget.message.matchId == null) {
+    final matchId = widget.message.matchId;
+    if (!_isValidMatchId(matchId)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Unable to RSVP: Match ID not found'),
@@ -823,8 +841,9 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
     }
 
     try {
+      final resolvedMatchId = matchId!.trim();
       final response = await MatchService.rsvpToMatch(
-        matchId: widget.message.matchId!,
+        matchId: resolvedMatchId,
         status: normalizedStatus,
       );
 
@@ -901,5 +920,19 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
   void dispose() {
     _unregisterMatchUpdates();
     super.dispose();
+  }
+
+  bool _isValidMatchId(String? matchId) {
+    if (matchId == null) {
+      return false;
+    }
+    final trimmed = matchId.trim();
+    if (trimmed.isEmpty) {
+      return false;
+    }
+    if (trimmed.toLowerCase() == 'placeholder_match_id') {
+      return false;
+    }
+    return true;
   }
 }
