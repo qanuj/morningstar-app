@@ -5,10 +5,11 @@ import 'package:intl/intl.dart';
 import '../../models/club_message.dart';
 import '../../services/match_service.dart';
 import '../../services/notification_service.dart';
+import '../../services/chat_api_service.dart';
 import '../svg_avatar.dart';
 import 'base_message_bubble.dart';
 
-/// A specialized message bubble for displaying match announcements
+/// A specialized message bubble for displaying match and practice announcements
 class MatchMessageBubble extends StatefulWidget {
   final ClubMessage message;
   final bool isOwn;
@@ -44,15 +45,50 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
   String? _matchDetailsError;
   String? _registeredMatchId;
 
+  bool get _isPracticeMessage => widget.message.messageType == 'practice';
+
+  /// Get the unified match details (works for both matches and practices)
+  Map<String, dynamic> get _getUnifiedMatchDetails {
+    return _resolvedMatchDetails ??
+        widget.message.matchDetails ??
+        widget.message.practiceDetails ??
+        {};
+  }
+
+  /// Get the unified match ID (works for both matches and practices)
+  String? get _getUnifiedMatchId {
+    return widget.message.matchId ?? widget.message.practiceId;
+  }
+
+  /// Check if this is a practice type based on the match details
+  bool _isTypePractice(Map<String, dynamic> details) {
+    final type = details['type']?.toString().toUpperCase();
+    return type == 'PRACTICE' || widget.message.messageType == 'practice';
+  }
+
+  Map<String, dynamic>? _safeMapFromData(dynamic value) {
+    if (value is Map<String, dynamic>) {
+      return value;
+    } else if (value is String && value.isNotEmpty) {
+      // For practice messages, venue might be a string
+      // Return a map with the string as name
+      return {'name': value};
+    }
+    return null;
+  }
+
   @override
   void initState() {
     super.initState();
     // Initialize RSVP status from message data if available
-    _resolvedMatchDetails = widget.message.matchDetails;
+    _resolvedMatchDetails = _getUnifiedMatchDetails;
     _currentRSVPStatus = _extractRSVPStatus();
 
-    if (_isValidMatchId(widget.message.matchId)) {
+    final messageId = _getUnifiedMatchId;
+    if (_isValidMatchId(messageId)) {
       _registerForMatchUpdates();
+      // Load match details for both matches and practices to get latest cancellation status
+      // Even practices need fresh data from the API for cancellation updates
       _loadMatchDetails();
     }
   }
@@ -61,47 +97,53 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
   void didUpdateWidget(covariant MatchMessageBubble oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    final oldMatchId = oldWidget.message.matchId;
-    final newMatchId = widget.message.matchId;
+    final oldMessageId =
+        oldWidget.message.matchId ?? oldWidget.message.practiceId;
+    final newMessageId = _getUnifiedMatchId;
 
-    final matchIdChanged = oldMatchId != newMatchId;
+    final messageIdChanged = oldMessageId != newMessageId;
     final messageChanged = oldWidget.message.id != widget.message.id;
-    final detailsChanged = oldWidget.message.matchDetails != widget.message.matchDetails;
+    final detailsChanged =
+        (oldWidget.message.matchDetails ?? oldWidget.message.practiceDetails) !=
+        _getUnifiedMatchDetails;
 
-    if (matchIdChanged || messageChanged || detailsChanged) {
-      _resolvedMatchDetails = widget.message.matchDetails;
+    if (messageIdChanged || messageChanged || detailsChanged) {
+      _resolvedMatchDetails = _getUnifiedMatchDetails;
       _currentRSVPStatus = _extractRSVPStatus();
       _matchDetailsError = null;
 
-      if (matchIdChanged) {
-        _unregisterMatchUpdates(oldMatchId);
-        if (_isValidMatchId(newMatchId)) {
+      if (messageIdChanged) {
+        _unregisterMatchUpdates(oldMessageId);
+        if (_isValidMatchId(newMessageId)) {
           _registerForMatchUpdates();
+          // Load details for both matches and practices
           _loadMatchDetails();
         }
-      } else if (_isValidMatchId(newMatchId)) {
-        // Refresh counts if match details changed
+      } else if (_isValidMatchId(newMessageId)) {
+        // Refresh details if message changed (for both matches and practices)
         _loadMatchDetails();
       }
     }
   }
 
   String? _extractRSVPStatus() {
-    // Try to extract RSVP status from matchDetails if available
-    final matchDetails = widget.message.matchDetails;
-    if (matchDetails != null && matchDetails['userRsvp'] != null) {
-      final status = matchDetails['userRsvp']['status'];
+    // Try to extract RSVP status from details if available
+    final details = _getUnifiedMatchDetails;
+    if (details.isNotEmpty && details['userRsvp'] != null) {
+      final status = details['userRsvp']['status'];
       if (status is String && status.isNotEmpty) {
         return status.toUpperCase();
       }
     }
+    // For practice messages, do not auto-join based on isJoined flag
+    // User must explicitly select their RSVP status
     return null;
   }
 
   Future<void> _loadMatchDetails() async {
     if (_isLoadingMatchDetails) return;
 
-    final matchId = widget.message.matchId;
+    final matchId = _getUnifiedMatchId;
     if (!_isValidMatchId(matchId)) {
       return;
     }
@@ -115,10 +157,25 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
     Map<String, dynamic>? clubMatch;
     final resolvedMatchId = matchId!.trim();
 
+    // Debug logging for specific match ID
+    if (resolvedMatchId == 'cmfpk03gx008q6v3mfd6c3kbj') {
+      print(
+        '🔄 DEBUG - Loading match details for cancelled match: $resolvedMatchId',
+      );
+    }
+
     try {
       detailedMatch = await MatchService.getMatchDetail(resolvedMatchId);
       if (detailedMatch != null && detailedMatch.isEmpty) {
         detailedMatch = null;
+      }
+
+      // Debug logging for specific match ID
+      if (resolvedMatchId == 'cmfpk03gx008q6v3mfd6c3kbj') {
+        print('🔄 DEBUG - getMatchDetail response: $detailedMatch');
+        print(
+          '🔄 DEBUG - isCancelled in detailed match: ${detailedMatch?['isCancelled']}',
+        );
       }
     } catch (e) {
       debugPrint('❌ MatchMessageBubble: error fetching match detail: $e');
@@ -129,6 +186,14 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
         clubId: widget.message.clubId,
         matchId: resolvedMatchId,
       );
+
+      // Debug logging for specific match ID
+      if (resolvedMatchId == 'cmfpk03gx008q6v3mfd6c3kbj') {
+        print('🔄 DEBUG - getClubMatch response: $clubMatch');
+        print(
+          '🔄 DEBUG - isCancelled in club match: ${clubMatch?['isCancelled']}',
+        );
+      }
     } catch (e) {
       debugPrint('❌ MatchMessageBubble: error fetching club match: $e');
     }
@@ -151,10 +216,18 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
       clubMatch: clubMatch,
     );
 
+    // Debug logging for specific match ID
+    if (resolvedMatchId == 'cmfpk03gx008q6v3mfd6c3kbj') {
+      print('🔄 DEBUG - About to merge details');
+      print('🔄 DEBUG - detailedMatch isCancelled: ${detailedMatch?['isCancelled']}');
+      print('🔄 DEBUG - clubMatch isCancelled: ${clubMatch?['isCancelled']}');
+      print('🔄 DEBUG - Merged isCancelled: ${mergedDetails['isCancelled']}');
+      print('🔄 DEBUG - Merged cancellationReason: ${mergedDetails['cancellationReason']}');
+    }
+
     setState(() {
       _resolvedMatchDetails = mergedDetails;
-      final status =
-          (mergedDetails['userRsvp'] as Map<String, dynamic>?)?['status'];
+      final status = _safeMapFromData(mergedDetails['userRsvp'])?['status'];
       if (status is String && status.isNotEmpty) {
         _currentRSVPStatus = status.toUpperCase();
       }
@@ -174,17 +247,18 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
     }
 
     final existing = Map<String, dynamic>.from(
-      _resolvedMatchDetails ?? widget.message.matchDetails ?? <String, dynamic>{},
+      _resolvedMatchDetails ??
+          widget.message.matchDetails ??
+          <String, dynamic>{},
     );
-    final existingHome = existing['homeTeam'] as Map<String, dynamic>? ?? {};
-    final existingOpponent =
-        existing['opponentTeam'] as Map<String, dynamic>? ?? {};
-    final existingVenue = existing['venue'] as Map<String, dynamic>? ?? {};
+    final existingHome = _safeMapFromData(existing['homeTeam']) ?? {};
+    final existingOpponent = _safeMapFromData(existing['opponentTeam']) ?? {};
+    final existingVenue = _safeMapFromData(existing['venue']) ?? {};
 
-    final detailTeam = detail?['team'] as Map<String, dynamic>?;
-    final detailOpponentTeam = detail?['opponentTeam'] as Map<String, dynamic>?;
-    final clubMatchTeam = clubMatch?['team'] as Map<String, dynamic>?;
-    final clubMatchOpponent = clubMatch?['opponentTeam'] as Map<String, dynamic>?;
+    final detailTeam = _safeMapFromData(detail?['team']);
+    final detailOpponentTeam = _safeMapFromData(detail?['opponentTeam']);
+    final clubMatchTeam = _safeMapFromData(clubMatch?['team']);
+    final clubMatchOpponent = _safeMapFromData(clubMatch?['opponentTeam']);
 
     final homeName =
         asString(detailTeam?['name']) ??
@@ -210,11 +284,13 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
         asString(clubMatchOpponent?['logo']) ??
         asString(existingOpponent['logo']);
 
-    final matchDateIso = asString(detail?['matchDate']) ??
+    final matchDateIso =
+        asString(detail?['matchDate']) ??
         asString(clubMatch?['matchDate']) ??
         asString(existing['dateTime']);
 
-    final venueName = asString(clubMatch?['location']) ??
+    final venueName =
+        asString(clubMatch?['location']) ??
         asString(detail?['location']) ??
         asString(existingVenue['name']) ??
         'Venue TBD';
@@ -222,13 +298,15 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
     String? venueAddress = asString(existingVenue['address']);
     final detailCity = asString(detail?['city']);
     if ((venueAddress == null || venueAddress == venueName) &&
-        detailCity != null && detailCity.isNotEmpty) {
+        detailCity != null &&
+        detailCity.isNotEmpty) {
       venueAddress = detailCity;
     }
 
-    final userRsvp = (detail?['userRsvp'] as Map<String, dynamic>?) ??
-        (clubMatch?['userRsvp'] as Map<String, dynamic>?) ??
-        (existing['userRsvp'] as Map<String, dynamic>?);
+    final userRsvp =
+        _safeMapFromData(detail?['userRsvp']) ??
+        _safeMapFromData(clubMatch?['userRsvp']) ??
+        _safeMapFromData(existing['userRsvp']);
 
     final result = Map<String, dynamic>.from(existing)
       ..['homeTeam'] = {
@@ -275,24 +353,41 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
       }
     }
 
+    // Preserve cancellation status from both sources (prioritize detail over clubMatch)
+    final isCancelled = detail?['isCancelled'] ?? clubMatch?['isCancelled'];
+    if (isCancelled != null) {
+      result['isCancelled'] = isCancelled;
+    }
+
+    final cancellationReason = detail?['cancellationReason'] ?? clubMatch?['cancellationReason'];
+    if (cancellationReason != null) {
+      result['cancellationReason'] = cancellationReason;
+    }
+
     result['statusCounts'] = _extractStatusCounts(result);
+
+    print('🔄 DEBUG - Final result isCancelled: ${result['isCancelled']}');
+    print('🔄 DEBUG - Final result cancellationReason: ${result['cancellationReason']}');
 
     return result;
   }
 
   void _registerForMatchUpdates() {
-    final matchId = widget.message.matchId;
-    if (!_isValidMatchId(matchId)) {
+    final messageId = _getUnifiedMatchId;
+    if (!_isValidMatchId(messageId)) {
       return;
     }
 
-    if (_registeredMatchId == matchId) {
+    if (_registeredMatchId == messageId) {
       return;
     }
 
-    final resolvedMatchId = matchId!.trim();
-    NotificationService.addMatchUpdateCallback(resolvedMatchId, _handleMatchUpdatePush);
-    _registeredMatchId = resolvedMatchId;
+    final resolvedMessageId = messageId!.trim();
+    NotificationService.addMatchUpdateCallback(
+      resolvedMessageId,
+      _handleMatchUpdatePush,
+    );
+    _registeredMatchId = resolvedMessageId;
   }
 
   void _unregisterMatchUpdates([String? matchId]) {
@@ -302,22 +397,22 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
     }
 
     final resolvedTarget = targetMatchId.trim();
-    NotificationService.removeMatchUpdateCallback(resolvedTarget, _handleMatchUpdatePush);
+    NotificationService.removeMatchUpdateCallback(
+      resolvedTarget,
+      _handleMatchUpdatePush,
+    );
     if (resolvedTarget == _registeredMatchId) {
       _registeredMatchId = null;
     }
   }
 
   Map<String, int> _extractStatusCounts(Map<String, dynamic> details) {
-    final counts = <String, int>{
-      'YES': 0,
-      'NO': 0,
-      'MAYBE': 0,
-    };
+    final counts = <String, int>{'YES': 0, 'NO': 0, 'MAYBE': 0};
 
     final aggregate = details['counts'];
     if (aggregate is Map<String, dynamic>) {
-      counts['YES'] = ((aggregate['confirmed'] as num?)?.toInt() ?? 0) +
+      counts['YES'] =
+          ((aggregate['confirmed'] as num?)?.toInt() ?? 0) +
           ((aggregate['waitlisted'] as num?)?.toInt() ?? 0);
       counts['NO'] = (aggregate['declined'] as num?)?.toInt() ?? 0;
       counts['MAYBE'] = (aggregate['maybe'] as num?)?.toInt() ?? 0;
@@ -328,8 +423,8 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
       if (rsvps is List) {
         for (final rsvp in rsvps) {
           if (rsvp is Map<String, dynamic>) {
-            final status =
-                (rsvp['status']?.toString().toUpperCase() ?? '').trim();
+            final status = (rsvp['status']?.toString().toUpperCase() ?? '')
+                .trim();
             if (counts.containsKey(status)) {
               counts[status] = (counts[status] ?? 0) + 1;
             }
@@ -359,14 +454,17 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
 
   Widget _buildMatchContent(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final matchDetails =
-        _resolvedMatchDetails ?? widget.message.matchDetails ?? {};
+    final matchDetails = _getUnifiedMatchDetails;
+
+    // Check for cancellation status
+    final isCancelled = _getCancellationStatus(matchDetails);
+    final cancellationReason = _getCancellationReason(matchDetails);
+    final isPractice = _isTypePractice(matchDetails);
 
     // Extract match information
-    final homeTeam = matchDetails['homeTeam'] as Map<String, dynamic>? ?? {};
-    final opponentTeam =
-        matchDetails['opponentTeam'] as Map<String, dynamic>? ?? {};
-    final venue = matchDetails['venue'] as Map<String, dynamic>? ?? {};
+    final homeTeam = _safeMapFromData(matchDetails['homeTeam']) ?? {};
+    final opponentTeam = _safeMapFromData(matchDetails['opponentTeam']) ?? {};
+    final venue = _safeMapFromData(matchDetails['venue']) ?? {};
     final matchDateTime = matchDetails['dateTime'] != null
         ? DateTime.tryParse(matchDetails['dateTime'].toString())
         : null;
@@ -395,16 +493,213 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: isCancelled
+          ? _buildCancelledCard(context, matchDetails, cancellationReason, isPractice)
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (!isPractice) ...[
+                  _buildTeamsSection(
+                    context,
+                    homeTeam,
+                    opponentTeam,
+                    isCancelled: isCancelled,
+                  ),
+                  SizedBox(height: 18),
+                ],
+                if (isPractice) _buildPracticeHeader(context, isCancelled),
+                _buildInfoSection(
+                  context,
+                  matchDateTime,
+                  venue,
+                  isCancelled: isCancelled,
+                ),
+                SizedBox(height: 18),
+                _buildRsvpSummarySection(
+                  context,
+                  matchDetails,
+                  isCancelled: isCancelled,
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildCancelledCard(
+    BuildContext context,
+    Map<String, dynamic> matchDetails,
+    String? cancellationReason,
+    bool isPractice,
+  ) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final venue = _safeMapFromData(matchDetails['venue']) ?? {};
+    final venueName = venue['name']?.toString() ?? 'Venue TBD';
+
+    final matchDateTime = matchDetails['dateTime'] != null
+        ? DateTime.tryParse(matchDetails['dateTime'].toString())
+        : null;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDarkMode ? Colors.grey[850] : Colors.grey[100],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.red.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildTeamsSection(context, homeTeam, opponentTeam),
-          SizedBox(height: 18),
-          _buildInfoSection(context, matchDateTime, venue),
-          SizedBox(height: 18),
-          _buildRsvpSummarySection(context, matchDetails),
+          // Cancellation header
+          Row(
+            children: [
+              Icon(
+                Icons.cancel_outlined,
+                color: Colors.red,
+                size: 20,
+              ),
+              SizedBox(width: 8),
+              Text(
+                'CANCELLED',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              Spacer(),
+              Text(
+                isPractice ? 'Practice' : 'Match',
+                style: TextStyle(
+                  color: isDarkMode ? Colors.white70 : Colors.black54,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+
+          SizedBox(height: 12),
+
+          // Basic info
+          if (!isPractice) ...[
+            // Match teams (minimal)
+            Builder(
+              builder: (context) {
+                final homeTeam = _safeMapFromData(matchDetails['homeTeam']) ?? {};
+                final opponentTeam = _safeMapFromData(matchDetails['opponentTeam']) ?? {};
+                return Text(
+                  '${homeTeam['name'] ?? 'Home Team'} vs ${opponentTeam['name'] ?? 'Opponent Team'}',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: isDarkMode ? Colors.white70 : Colors.black87,
+                    decoration: TextDecoration.lineThrough,
+                    decorationColor: Colors.red.withOpacity(0.6),
+                  ),
+                );
+              },
+            ),
+          ] else ...[
+            // Practice title
+            Text(
+              'Practice Session',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: isDarkMode ? Colors.white70 : Colors.black87,
+                decoration: TextDecoration.lineThrough,
+                decorationColor: Colors.red.withOpacity(0.6),
+              ),
+            ),
+          ],
+
+          SizedBox(height: 8),
+
+          // Date and venue (compact)
+          Row(
+            children: [
+              Icon(
+                Icons.schedule,
+                size: 14,
+                color: isDarkMode ? Colors.white54 : Colors.black54,
+              ),
+              SizedBox(width: 4),
+              Text(
+                matchDateTime != null
+                    ? _formatMatchDateLabel(matchDateTime)
+                    : 'Date TBD',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDarkMode ? Colors.white54 : Colors.black54,
+                ),
+              ),
+              SizedBox(width: 16),
+              Icon(
+                Icons.location_on,
+                size: 14,
+                color: isDarkMode ? Colors.white54 : Colors.black54,
+              ),
+              SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  venueName,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDarkMode ? Colors.white54 : Colors.black54,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+
+          // Cancellation reason
+          if (cancellationReason != null && cancellationReason.isNotEmpty) ...[
+            SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                'Reason: $cancellationReason',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.red.shade700,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
+    );
+  }
+
+  Widget _buildPracticeHeader(
+    BuildContext context, [
+    bool isCancelled = false,
+  ]) {
+    return Column(
+      children: [
+        Text(
+          "Practice Session",
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: isCancelled
+                ? Colors.grey.shade500
+                : Theme.of(context).colorScheme.primary,
+            decoration: isCancelled ? TextDecoration.lineThrough : null,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        SizedBox(height: 18),
+      ],
     );
   }
 
@@ -452,8 +747,9 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
   Widget _buildTeamsSection(
     BuildContext context,
     Map<String, dynamic> homeTeam,
-    Map<String, dynamic> opponentTeam,
-  ) {
+    Map<String, dynamic> opponentTeam, {
+    bool isCancelled = false,
+  }) {
     // Extract team names with fallbacks
     final homeTeamName =
         homeTeam['name']?.toString() ??
@@ -474,6 +770,7 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
               context,
               teamName: homeTeamName,
               logoUrl: homeTeam['logo']?.toString(),
+              isCancelled: isCancelled,
             ),
           ),
         ),
@@ -487,6 +784,7 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
               context,
               teamName: opponentTeamName,
               logoUrl: opponentTeam['logo']?.toString(),
+              isCancelled: isCancelled,
             ),
           ),
         ),
@@ -498,6 +796,7 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
     BuildContext context, {
     required String teamName,
     required String? logoUrl,
+    bool isCancelled = false,
   }) {
     final displayName = _formatTeamName(teamName);
 
@@ -514,7 +813,10 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: Theme.of(context).textTheme.titleMedium?.color,
+              color: isCancelled
+                  ? Colors.grey.shade500
+                  : Theme.of(context).textTheme.titleMedium?.color,
+              decoration: isCancelled ? TextDecoration.lineThrough : null,
             ),
             textAlign: TextAlign.center,
             maxLines: 2,
@@ -550,7 +852,9 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
 
     final condensed = trimmed.replaceAll(RegExp(r'[^A-Za-z0-9]'), '');
     if (condensed.length >= 3) {
-      return condensed.substring(0, math.min(3, condensed.length)).toUpperCase();
+      return condensed
+          .substring(0, math.min(3, condensed.length))
+          .toUpperCase();
     }
 
     return trimmed.substring(0, math.min(20, trimmed.length));
@@ -596,7 +900,8 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
     final local = dateTime.toLocal();
     final day = local.day;
     final suffix = _ordinalSuffix(day);
-    final dayPart = '${DateFormat('EEE').format(local)}, $day$suffix ${DateFormat('MMM').format(local)}';
+    final dayPart =
+        '${DateFormat('EEE').format(local)}, $day$suffix ${DateFormat('MMM').format(local)}';
     final timePart = DateFormat('h:mma').format(local).toLowerCase();
     return '$dayPart at $timePart';
   }
@@ -639,11 +944,24 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
   Widget _buildInfoSection(
     BuildContext context,
     DateTime? matchDateTime,
-    Map<String, dynamic> venue,
-  ) {
+    Map<String, dynamic> venue, {
+    bool isCancelled = false,
+  }) {
+    final details = _getUnifiedMatchDetails;
+    final isPractice = _isTypePractice(details);
+
+    if (isPractice) {
+      return _buildPracticeInfoSection(
+        context,
+        details,
+        isCancelled: isCancelled,
+      );
+    }
+
     final venueName = venue['name']?.toString() ?? 'Venue TBD';
     final venueAddress = venue['address']?.toString();
-    final venueDisplay = (venueAddress != null &&
+    final venueDisplay =
+        (venueAddress != null &&
             venueAddress.isNotEmpty &&
             venueAddress != venueName)
         ? '$venueName • $venueAddress'
@@ -656,28 +974,188 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
           context,
           icon: Icons.calendar_today,
           label: _formatMatchDateLabel(matchDateTime),
+          isCancelled: isCancelled,
         ),
         SizedBox(height: 8),
         _buildInfoRow(
           context,
           icon: Icons.location_on,
           label: venueDisplay.isNotEmpty ? venueDisplay : 'Venue to be decided',
+          isCancelled: isCancelled,
         ),
       ],
     );
+  }
+
+  Widget _buildPracticeInfoSection(
+    BuildContext context,
+    Map<String, dynamic> details, {
+    bool isCancelled = false,
+  }) {
+    final date = details['date']?.toString() ?? '';
+    final time = details['time']?.toString() ?? '';
+
+    // Extract venue name properly from venue object
+    final venueMap = _safeMapFromData(details['venue']);
+    final venue = venueMap?['name']?.toString() ??
+                  details['venue']?.toString() ?? '';
+
+    final duration = details['duration']?.toString() ?? '';
+    final maxParticipants = details['maxParticipants'] as int? ?? 0;
+    final confirmedPlayers = details['confirmedPlayers'] as int? ?? 0;
+
+    // Combine date and time for proper DateTime parsing
+    DateTime? practiceDateTime;
+    if (date.isNotEmpty && time.isNotEmpty) {
+      try {
+        practiceDateTime = DateTime.parse('${date}T$time:00');
+      } catch (e) {
+        practiceDateTime = null;
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (practiceDateTime != null)
+          _buildInfoRow(
+            context,
+            icon: Icons.calendar_today,
+            label: _formatPracticeDateLabel(practiceDateTime, duration),
+            isCancelled: isCancelled,
+          ),
+        if (practiceDateTime != null) SizedBox(height: 8),
+        if (venue.isNotEmpty)
+          _buildInfoRow(
+            context,
+            icon: Icons.location_on,
+            label: venue,
+            isCancelled: isCancelled,
+          ),
+        if (venue.isNotEmpty) SizedBox(height: 8),
+        if (maxParticipants > 0) ...[
+          _buildInfoRow(
+            context,
+            icon: Icons.group,
+            label: '$confirmedPlayers/$maxParticipants participants',
+            isCancelled: isCancelled,
+          ),
+          SizedBox(height: 8),
+          _buildProgressBar(confirmedPlayers, maxParticipants),
+          SizedBox(height: 8),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildProgressBar(int current, int max) {
+    if (max <= 0) return SizedBox.shrink();
+
+    final progress = current / max;
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Available spots',
+              style: TextStyle(
+                fontSize: 12,
+                color: theme.textTheme.bodySmall?.color,
+              ),
+            ),
+            Text(
+              '${max - current} remaining',
+              style: TextStyle(
+                fontSize: 12,
+                color: theme.textTheme.bodySmall?.color,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 4),
+        LinearProgressIndicator(
+          value: progress,
+          backgroundColor: theme.dividerColor,
+          valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+          minHeight: 6,
+        ),
+      ],
+    );
+  }
+
+  String _formatPracticeDateLabel(DateTime? dateTime, String duration) {
+    if (dateTime == null) {
+      return 'Date & time to be announced';
+    }
+
+    final local = dateTime.toLocal();
+    final day = local.day;
+    final suffix = _ordinalSuffix(day);
+    final dayPart =
+        '${DateFormat('EEE').format(local)}, $day$suffix ${DateFormat('MMM').format(local)}';
+    final timePart = DateFormat('h:mma').format(local).toLowerCase();
+
+    String result = '$dayPart at $timePart';
+
+    if (duration.isNotEmpty) {
+      // Try to calculate end time from duration
+      final endTime = _calculateEndTime(dateTime, duration);
+      if (endTime != null) {
+        result += ' to ${DateFormat('h:mma').format(endTime).toLowerCase()}';
+      } else {
+        result += ' • $duration';
+      }
+    }
+
+    return result;
+  }
+
+  DateTime? _calculateEndTime(DateTime startTime, String duration) {
+    try {
+      final durationText = duration.toLowerCase().trim();
+
+      // Handle "2 hours", "90 minutes", "1.5 hours" etc.
+      final hoursMatch = RegExp(
+        r'(\d+(?:\.\d+)?)\s*(?:hour|hr)s?',
+      ).firstMatch(durationText);
+      final minutesMatch = RegExp(
+        r'(\d+)\s*(?:minute|min)s?',
+      ).firstMatch(durationText);
+
+      if (hoursMatch != null) {
+        final hours = double.parse(hoursMatch.group(1)!);
+        return startTime.add(Duration(minutes: (hours * 60).round()));
+      } else if (minutesMatch != null) {
+        final minutes = int.parse(minutesMatch.group(1)!);
+        return startTime.add(Duration(minutes: minutes));
+      }
+    } catch (e) {
+      // If parsing fails, return null to fallback to showing duration text
+    }
+    return null;
   }
 
   Widget _buildInfoRow(
     BuildContext context, {
     required IconData icon,
     required String label,
+    bool isCancelled = false,
   }) {
     final theme = Theme.of(context);
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: theme.colorScheme.primary),
+        Icon(
+          icon,
+          size: 16,
+          color: isCancelled ? Colors.grey.shade500 : theme.colorScheme.primary,
+        ),
         SizedBox(width: 10),
         Expanded(
           child: Text(
@@ -685,7 +1163,10 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: theme.textTheme.bodyLarge?.color,
+              color: isCancelled
+                  ? Colors.grey.shade500
+                  : theme.textTheme.bodyLarge?.color,
+              decoration: isCancelled ? TextDecoration.lineThrough : null,
             ),
           ),
         ),
@@ -713,13 +1194,31 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
     _loadMatchDetails();
   }
 
-
   Widget _buildRsvpSummarySection(
     BuildContext context,
-    Map<String, dynamic> matchDetails,
-  ) {
-    final counts = _statusCountsFromRaw(matchDetails['statusCounts']) ??
+    Map<String, dynamic> matchDetails, {
+    bool isCancelled = false,
+  }) {
+    final counts =
+        _statusCountsFromRaw(matchDetails['statusCounts']) ??
         _extractStatusCounts(matchDetails);
+
+    // Show cancellation message instead of RSVP buttons if cancelled
+    if (isCancelled) {
+      return Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(vertical: 12),
+        child: Text(
+          'RSVP not available for cancelled ${_isTypePractice(_getUnifiedMatchDetails) ? 'practice' : 'match'}',
+          style: TextStyle(
+            color: Colors.grey.shade600,
+            fontSize: 14,
+            fontStyle: FontStyle.italic,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
 
     return Row(
       children: [
@@ -729,6 +1228,7 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
           status: 'YES',
           count: counts['YES'] ?? 0,
           color: Color(0xFF4CAF50),
+          isDisabled: isCancelled,
         ),
         SizedBox(width: 8),
         _buildRsvpButton(
@@ -737,6 +1237,7 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
           status: 'NO',
           count: counts['NO'] ?? 0,
           color: Color(0xFFFF5722),
+          isDisabled: isCancelled,
         ),
         SizedBox(width: 8),
         _buildRsvpButton(
@@ -745,6 +1246,7 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
           status: 'MAYBE',
           count: counts['MAYBE'] ?? 0,
           color: Color(0xFFFF9800),
+          isDisabled: isCancelled,
         ),
       ],
     );
@@ -752,11 +1254,7 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
 
   Map<String, int>? _statusCountsFromRaw(dynamic raw) {
     if (raw is Map) {
-      final normalized = <String, int>{
-        'YES': 0,
-        'NO': 0,
-        'MAYBE': 0,
-      };
+      final normalized = <String, int>{'YES': 0, 'NO': 0, 'MAYBE': 0};
 
       raw.forEach((key, value) {
         final upperKey = key.toString().toUpperCase();
@@ -785,23 +1283,31 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
     required String status,
     required int count,
     required Color color,
+    bool isDisabled = false,
   }) {
     final isSelected = _currentRSVPStatus == status;
     final theme = Theme.of(context);
-    final backgroundColor = isSelected
+    final backgroundColor = isDisabled
+        ? Colors.grey.shade300
+        : isSelected
         ? color
         : theme.colorScheme.surfaceVariant.withOpacity(
             theme.brightness == Brightness.dark ? 0.4 : 0.7,
           );
-    final foregroundColor = isSelected
+    final foregroundColor = isDisabled
+        ? Colors.grey.shade500
+        : isSelected
         ? Colors.white
-        : theme.textTheme.labelLarge?.color ?? theme.colorScheme.onSurfaceVariant;
+        : theme.textTheme.labelLarge?.color ??
+              theme.colorScheme.onSurfaceVariant;
 
     return Expanded(
       child: Stack(
         children: [
           ElevatedButton(
-            onPressed: () => _handleDirectRSVP(context, status),
+            onPressed: isDisabled
+                ? null
+                : () => _handleDirectRSVP(context, status),
             style: ElevatedButton.styleFrom(
               elevation: isSelected ? 2 : 0,
               backgroundColor: backgroundColor,
@@ -813,10 +1319,7 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
             ),
             child: Text(
               label,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.4,
-              ),
+              style: TextStyle(fontWeight: FontWeight.w600, letterSpacing: 0.4),
             ),
           ),
           if (count > 0)
@@ -836,10 +1339,7 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
                     width: 1.5,
                   ),
                 ),
-                constraints: BoxConstraints(
-                  minWidth: 20,
-                  minHeight: 20,
-                ),
+                constraints: BoxConstraints(minWidth: 20, minHeight: 20),
                 child: Text(
                   count > 99 ? '99+' : count.toString(),
                   style: TextStyle(
@@ -856,13 +1356,16 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
     );
   }
 
-
   void _handleDirectRSVP(BuildContext context, String status) async {
-    final matchId = widget.message.matchId;
-    if (!_isValidMatchId(matchId)) {
+    final messageId = _getUnifiedMatchId;
+    final isPractice = _isTypePractice(_getUnifiedMatchDetails);
+
+    if (!_isValidMatchId(messageId)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Unable to RSVP: Match ID not found'),
+          content: Text(
+            'Unable to RSVP: ${isPractice ? 'Practice' : 'Match'} ID not found',
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -877,51 +1380,91 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
     }
 
     try {
-      final resolvedMatchId = matchId!.trim();
-      final response = await MatchService.rsvpToMatch(
-        matchId: resolvedMatchId,
+      final resolvedMessageId = messageId!.trim();
+
+      bool isSuccess = false;
+      Map<String, dynamic> response = {};
+
+      // Use unified MatchService for both matches and practices
+      // since they're the same underlying model with different types
+      if (isPractice) {
+        print(
+          '🏃 Practice RSVP: matchId=$resolvedMessageId, status=$normalizedStatus',
+        );
+      }
+
+      response = await MatchService.rsvpToMatch(
+        matchId: resolvedMessageId,
         status: normalizedStatus,
       );
+      isSuccess = response['success'] == true || response['rsvp'] != null;
+
+      if (isPractice) {
+        print(
+          '🏃 Practice RSVP result: success=$isSuccess, response=$response',
+        );
+      }
 
       if (!context.mounted) {
         return;
       }
 
-      final isSuccess = response['success'] == true || response['rsvp'] != null;
-
       if (isSuccess) {
+        final currentDetails = _getUnifiedMatchDetails;
+
         final updatedDetails = Map<String, dynamic>.from(
-          _resolvedMatchDetails ?? widget.message.matchDetails ?? {},
+          _resolvedMatchDetails ?? currentDetails ?? {},
         );
 
         final updatedUserRsvp = Map<String, dynamic>.from(
-          (updatedDetails['userRsvp'] as Map<String, dynamic>?) ?? {},
+          _safeMapFromData(updatedDetails['userRsvp']) ?? {},
         );
 
-        final responseRsvp = response['rsvp'];
-        if (responseRsvp is Map<String, dynamic>) {
-          updatedUserRsvp.addAll(responseRsvp);
+        if (!isPractice) {
+          final responseRsvp = response['rsvp'];
+          if (responseRsvp is Map<String, dynamic>) {
+            updatedUserRsvp.addAll(responseRsvp);
+          }
         }
         updatedUserRsvp['status'] = normalizedStatus;
         updatedDetails['userRsvp'] = updatedUserRsvp;
 
-        final statusCounts = _statusCountsFromRaw(updatedDetails['statusCounts']) ??
-            _extractStatusCounts(updatedDetails);
-
-        if (previousStatus != null && statusCounts.containsKey(previousStatus)) {
-          statusCounts[previousStatus] =
-              (statusCounts[previousStatus] ?? 1) - 1;
-          if ((statusCounts[previousStatus] ?? 0) < 0) {
-            statusCounts[previousStatus] = 0;
+        // Update counts for practice messages
+        if (isPractice) {
+          final confirmedPlayers =
+              updatedDetails['confirmedPlayers'] as int? ?? 0;
+          if (previousStatus == null && normalizedStatus == 'YES') {
+            updatedDetails['confirmedPlayers'] = confirmedPlayers + 1;
+          } else if (previousStatus == 'YES' && normalizedStatus != 'YES') {
+            updatedDetails['confirmedPlayers'] = math.max(
+              0,
+              confirmedPlayers - 1,
+            );
+          } else if (previousStatus != 'YES' && normalizedStatus == 'YES') {
+            updatedDetails['confirmedPlayers'] = confirmedPlayers + 1;
           }
-        }
+        } else {
+          // Update status counts for match messages
+          final statusCounts =
+              _statusCountsFromRaw(updatedDetails['statusCounts']) ??
+              _extractStatusCounts(updatedDetails);
 
-        if (statusCounts.containsKey(normalizedStatus)) {
-          statusCounts[normalizedStatus] =
-              (statusCounts[normalizedStatus] ?? 0) + 1;
-        }
+          if (previousStatus != null &&
+              statusCounts.containsKey(previousStatus)) {
+            statusCounts[previousStatus] =
+                (statusCounts[previousStatus] ?? 1) - 1;
+            if ((statusCounts[previousStatus] ?? 0) < 0) {
+              statusCounts[previousStatus] = 0;
+            }
+          }
 
-        updatedDetails['statusCounts'] = statusCounts;
+          if (statusCounts.containsKey(normalizedStatus)) {
+            statusCounts[normalizedStatus] =
+                (statusCounts[normalizedStatus] ?? 0) + 1;
+          }
+
+          updatedDetails['statusCounts'] = statusCounts;
+        }
 
         setState(() {
           _currentRSVPStatus = normalizedStatus;
@@ -930,8 +1473,10 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
 
         widget.onRSVP?.call();
 
-        // Refresh match details to keep venue/time data current
-        _loadMatchDetails();
+        // Refresh match details to keep venue/time data current (matches only)
+        if (!isPractice) {
+          _loadMatchDetails();
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -970,5 +1515,115 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
       return false;
     }
     return true;
+  }
+
+  /// Check if the match/practice is cancelled
+  bool _getCancellationStatus(Map<String, dynamic> details) {
+    final matchId = _getUnifiedMatchId;
+
+    // Debug logging for specific match ID
+    if (matchId == 'cmfpk03gx008q6v3mfd6c3kbj') {
+      print('🚫 DEBUG - Checking cancellation for match ID: $matchId');
+      print('🚫 DEBUG - isCancelled value: ${details['isCancelled']}');
+      print(
+        '🚫 DEBUG - isCancelled type: ${details['isCancelled'].runtimeType}',
+      );
+    }
+
+    // Check for cancellation in practice or match details
+    if (details['isCancelled'] == true) {
+      if (matchId == 'cmfpk03gx008q6v3mfd6c3kbj') {
+        print('🚫 DEBUG - Found cancellation in main details');
+      }
+      return true;
+    }
+
+    // Also check in nested data structures
+    if (details['practice'] != null &&
+        details['practice']['isCancelled'] == true) {
+      if (matchId == 'cmfpk03gx008q6v3mfd6c3kbj') {
+        print('🚫 DEBUG - Found cancellation in practice details');
+      }
+      return true;
+    }
+
+    if (details['match'] != null && details['match']['isCancelled'] == true) {
+      if (matchId == 'cmfpk03gx008q6v3mfd6c3kbj') {
+        print('🚫 DEBUG - Found cancellation in match details');
+      }
+      return true;
+    }
+
+    if (matchId == 'cmfpk03gx008q6v3mfd6c3kbj') {
+      print('🚫 DEBUG - No cancellation found for this match');
+    }
+
+    return false;
+  }
+
+  /// Get cancellation reason if available
+  String? _getCancellationReason(Map<String, dynamic> details) {
+    // Check for cancellation reason in various locations
+    if (details['cancellationReason'] is String &&
+        details['cancellationReason'].toString().isNotEmpty) {
+      return details['cancellationReason'].toString();
+    }
+
+    if (details['practice'] != null &&
+        details['practice']['cancellationReason'] is String) {
+      return details['practice']['cancellationReason'].toString();
+    }
+
+    if (details['match'] != null &&
+        details['match']['cancellationReason'] is String) {
+      return details['match']['cancellationReason'].toString();
+    }
+
+    return null;
+  }
+
+  /// Build cancellation banner
+  Widget _buildCancellationBanner(BuildContext context, String? reason) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        border: Border.all(color: Colors.red.shade200),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.cancel, color: Colors.red.shade600, size: 20),
+          SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _isTypePractice(_getUnifiedMatchDetails)
+                      ? 'Practice Cancelled'
+                      : 'Match Cancelled',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.red.shade700,
+                    fontSize: 14,
+                  ),
+                ),
+                if (reason != null && reason.isNotEmpty) ...[
+                  SizedBox(height: 4),
+                  Text(
+                    reason,
+                    style: TextStyle(color: Colors.red.shade600, fontSize: 12),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

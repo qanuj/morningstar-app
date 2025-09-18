@@ -37,7 +37,7 @@ class ClubChatScreen extends StatefulWidget {
   final String? initialMessage;
 
   const ClubChatScreen({
-    super.key, 
+    super.key,
     required this.club,
     this.sharedContent,
     this.initialMessage,
@@ -97,7 +97,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
   bool _canActivateRecording = false; // Only true if tapped in bottom 20%
   bool _isInRecordingMode = false; // True during entire recording flow
 
-
   @override
   void initState() {
     super.initState();
@@ -113,7 +112,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
     _loadPersistentStatusFlags();
     // Remove the listener since we handle it in onChanged now
     _loadMessages();
-    
+
     // Setup push notification callback instead of polling
     _setupPushNotificationCallback();
 
@@ -158,7 +157,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
           _messageController.text = widget.initialMessage!;
         }
 
-        // TODO: Handle shared content (images, text, URLs) 
+        // TODO: Handle shared content (images, text, URLs)
         // This would involve:
         // 1. If shared content is text/URL, append it to the message controller
         // 2. If shared content is images, prepare them for attachment
@@ -166,19 +165,19 @@ class ClubChatScreenState extends State<ClubChatScreen>
 
         if (widget.sharedContent != null) {
           final sharedContent = widget.sharedContent!;
-          
+
           // Handle text/URL content
           if (sharedContent.hasText) {
             final existingText = _messageController.text;
             final sharedText = sharedContent.text!;
-            
+
             if (existingText.isNotEmpty) {
               _messageController.text = '$existingText\n\n$sharedText';
             } else {
               _messageController.text = sharedText;
             }
           }
-          
+
           // For images, we would need to modify the MessageInput widget
           // to show shared image previews. This is a more complex change
           // that would require updating the MessageInput widget.
@@ -189,14 +188,20 @@ class ClubChatScreenState extends State<ClubChatScreen>
 
   /// Setup push notification callback for real-time message updates
   void _setupPushNotificationCallback() {
-    debugPrint('🔔 Setting up push notification callback for club: ${widget.club.id}');
-    
-    NotificationService.setClubMessageCallback(widget.club.id, (Map<String, dynamic> data) {
+    debugPrint(
+      '🔔 Setting up push notification callback for club: ${widget.club.id}',
+    );
+
+    NotificationService.setClubMessageCallback(widget.club.id, (
+      Map<String, dynamic> data,
+    ) {
       debugPrint('💬 Received push notification data: $data');
-      
+
       // This callback is already club-specific, so we can directly refresh
-      debugPrint('✅ Push notification received for current club, refreshing messages');
-      
+      debugPrint(
+        '✅ Push notification received for current club, refreshing messages',
+      );
+
       // Use a slight delay to ensure the server has processed the message
       Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted) {
@@ -214,10 +219,10 @@ class ClubChatScreenState extends State<ClubChatScreen>
     _messageController.dispose();
     _scrollController.dispose();
     _textFieldFocusNode.dispose();
-    
+
     // Clear push notification callback for this club
     NotificationService.clearClubMessageCallback(widget.club.id);
-    
+
     super.dispose();
   }
 
@@ -1352,23 +1357,24 @@ class ClubChatScreenState extends State<ClubChatScreen>
   }
 
   void _navigateToCreatePractice() async {
-    // Show practice selection dialog
-    showDialog(
-      context: context,
-      builder: (context) => PracticeSelectionDialog(
-        clubId: widget.club.id,
-        onExistingPracticeSelected: (practice) {
-          // Send existing practice message to chat
-          _sendExistingPracticeMessage(practice);
-          // Unfocus text field to prevent keyboard from opening
-          _textFieldFocusNode.unfocus();
-        },
-        onCreateNewPractice: () {
-          // Navigate to create new practice
-          _navigateToCreateNewPractice();
-          // Unfocus text field to prevent keyboard from opening
-          _textFieldFocusNode.unfocus();
-        },
+    // Navigate to practice selection screen
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => PracticeSelectionScreen(
+          clubId: widget.club.id,
+          onExistingPracticeSelected: (practice) {
+            // Send existing practice message to chat
+            _sendExistingPracticeMessage(practice);
+            // Unfocus text field to prevent keyboard from opening
+            _textFieldFocusNode.unfocus();
+          },
+          onCreateNewPractice: () {
+            // Navigate to create new practice
+            _navigateToCreateNewPractice();
+            // Unfocus text field to prevent keyboard from opening
+            _textFieldFocusNode.unfocus();
+          },
+        ),
       ),
     );
   }
@@ -1412,23 +1418,34 @@ class ClubChatScreenState extends State<ClubChatScreen>
       senderName: 'You',
       senderProfilePicture: null,
       senderRole: membership?.role ?? 'ADMIN',
-      content: '⚽ Practice session: ${practice.opponent?.isNotEmpty == true ? practice.opponent! : 'Practice Session'}',
+      content:
+          '⚽ Practice session: ${practice.opponent?.isNotEmpty == true ? practice.opponent! : 'Practice Session'}',
       messageType: 'practice',
-      practiceId: practice.id,
-      practiceDetails: {
-        'title': practice.opponent?.isNotEmpty == true ? practice.opponent! : 'Practice Session',
+      matchId: practice.id, // Use unified matchId instead of practiceId
+      matchDetails: {
+        // Use unified matchDetails instead of practiceDetails
+        'title': practice.opponent?.isNotEmpty == true
+            ? practice.opponent!
+            : 'Practice Session',
         'description': 'Join our training session',
         'date': practice.matchDate.toIso8601String().split('T')[0],
-        'time': '${practice.matchDate.hour.toString().padLeft(2, '0')}:${practice.matchDate.minute.toString().padLeft(2, '0')}',
-        'venue': practice.location.isNotEmpty ? practice.location : 'Training Ground',
+        'time':
+            '${practice.matchDate.hour.toString().padLeft(2, '0')}:${practice.matchDate.minute.toString().padLeft(2, '0')}',
+        'venue': practice.location.isNotEmpty
+            ? practice.location
+            : 'Training Ground',
         'duration': '2 hours',
-        'type': 'Training',
+        'type': 'PRACTICE', // Set type to indicate this is a practice
         'maxParticipants': practice.spots,
-        'currentParticipants': practice.confirmedPlayers,
-        'isJoined': practice.userRsvp != null && practice.userRsvp!.status == 'YES',
+        'confirmedPlayers': practice.confirmedPlayers,
+        'isJoined':
+            practice.userRsvp != null && practice.userRsvp!.status == 'YES',
+        'isCancelled': practice.isCancelled,
+        'cancellationReason': practice.cancellationReason,
       },
       createdAt: DateTime.now(),
-      status: MessageStatus.sent, // Use 'sent' to prevent SelfSendingMessageBubble from sending again
+      status: MessageStatus
+          .sent, // Use 'sent' to prevent SelfSendingMessageBubble from sending again
       starred: StarredInfo(isStarred: false),
       pin: PinInfo(isPinned: false),
     );
@@ -1439,24 +1456,33 @@ class ClubChatScreenState extends State<ClubChatScreen>
     // Send practice message to backend directly
     try {
       final practiceData = {
-        'content': '⚽ Practice session: ${practice.opponent?.isNotEmpty == true ? practice.opponent! : 'Practice Session'}',
-        'practiceId': practice.id,
-        'practiceDetails': {
-          'title': practice.opponent?.isNotEmpty == true ? practice.opponent! : 'Practice Session',
+        'content':
+            '⚽ Practice session: ${practice.opponent?.isNotEmpty == true ? practice.opponent! : 'Practice Session'}',
+        'matchId': practice.id, // Use unified matchId instead of practiceId
+        'matchDetails': {
+          // Use unified matchDetails instead of practiceDetails
+          'title': practice.opponent?.isNotEmpty == true
+              ? practice.opponent!
+              : 'Practice Session',
           'description': 'Join our training session',
           'date': practice.matchDate.toIso8601String().split('T')[0],
-          'time': '${practice.matchDate.hour.toString().padLeft(2, '0')}:${practice.matchDate.minute.toString().padLeft(2, '0')}',
-          'venue': practice.location.isNotEmpty ? practice.location : 'Training Ground',
+          'time':
+              '${practice.matchDate.hour.toString().padLeft(2, '0')}:${practice.matchDate.minute.toString().padLeft(2, '0')}',
+          'venue': practice.location.isNotEmpty
+              ? practice.location
+              : 'Training Ground',
           'duration': '2 hours',
-          'type': 'Training',
+          'type': 'PRACTICE', // Set type to indicate this is a practice
           'maxParticipants': practice.spots,
-          'currentParticipants': practice.confirmedPlayers,
-          'isJoined': practice.userRsvp != null && practice.userRsvp!.status == 'YES',
+          'confirmedPlayers': practice.confirmedPlayers,
+          'isJoined':
+              practice.userRsvp != null && practice.userRsvp!.status == 'YES',
+          'isCancelled': practice.isCancelled,
+          'cancellationReason': practice.cancellationReason,
         },
       };
 
       await ChatApiService.sendPracticeMessage(widget.club.id, practiceData);
-      
     } catch (e) {
       print('❌ Error sending practice message: $e');
       // Handle error - show snackbar or retry
@@ -1490,7 +1516,8 @@ class ClubChatScreenState extends State<ClubChatScreen>
       senderName: 'You',
       senderProfilePicture: null,
       senderRole: membership?.role ?? 'ADMIN',
-      content: '📅 Match announcement: ${match.team?.name ?? match.club.name} vs ${match.opponentTeam?.name ?? match.opponent ?? "TBD"}',
+      content:
+          '📅 Match announcement: ${match.team?.name ?? match.club.name} vs ${match.opponentTeam?.name ?? match.opponent ?? "TBD"}',
       messageType: 'match',
       matchId: match.id,
       matchDetails: {
@@ -1509,7 +1536,8 @@ class ClubChatScreenState extends State<ClubChatScreen>
         },
       },
       createdAt: DateTime.now(),
-      status: MessageStatus.sent, // Use 'sent' to prevent SelfSendingMessageBubble from sending again
+      status: MessageStatus
+          .sent, // Use 'sent' to prevent SelfSendingMessageBubble from sending again
       starred: StarredInfo(isStarred: false),
       pin: PinInfo(isPinned: false),
     );
@@ -1520,7 +1548,8 @@ class ClubChatScreenState extends State<ClubChatScreen>
     // Send match message to backend directly
     try {
       final matchData = {
-        'content': '📅 Match announcement: ${match.team?.name ?? match.club.name} vs ${match.opponentTeam?.name ?? match.opponent ?? "TBD"}',
+        'content':
+            '📅 Match announcement: ${match.team?.name ?? match.club.name} vs ${match.opponentTeam?.name ?? match.opponent ?? "TBD"}',
         'matchId': match.id,
         'matchDetails': {
           'homeTeam': {
@@ -1540,7 +1569,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
       };
 
       await ChatApiService.sendMatchMessage(widget.club.id, matchData);
-      
     } catch (e) {
       print('❌ Error sending existing match message: $e');
       if (mounted) {
@@ -1557,7 +1585,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
       }
     }
   }
-
 
   void _handleNewMessage(ClubMessage tempMessage) {
     debugPrint(
@@ -1673,9 +1700,10 @@ class ClubChatScreenState extends State<ClubChatScreen>
         refreshAnimationController: _refreshAnimationController,
         onBackPressed: () => Navigator.of(context).pop(),
         onShowClubInfo: _showClubInfoDialog,
-        onManageClub: membership != null && 
-            (membership.role.toLowerCase() == 'admin' || 
-             membership.role.toLowerCase() == 'owner')
+        onManageClub:
+            membership != null &&
+                (membership.role.toLowerCase() == 'admin' ||
+                    membership.role.toLowerCase() == 'owner')
             ? () => _navigateToManageClub(membership)
             : null,
         onExitSelectionMode: _exitSelectionMode,
@@ -2260,10 +2288,8 @@ class ClubChatScreenState extends State<ClubChatScreen>
   void _navigateToManageClub(ClubMembership membership) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ManageClubScreen(
-          club: widget.club, 
-          membership: membership,
-        ),
+        builder: (_) =>
+            ManageClubScreen(club: widget.club, membership: membership),
       ),
     );
   }

@@ -171,6 +171,17 @@ class ClubMessage {
     );
   }
 
+  static Map<String, dynamic>? _safeMapFromJson(dynamic value) {
+    if (value is Map<String, dynamic>) {
+      return value;
+    } else if (value is String && value.isNotEmpty) {
+      // Try to parse as JSON string - but for now just return null
+      // since practice details are usually already structured
+      return null;
+    }
+    return null;
+  }
+
   factory ClubMessage.fromJson(Map<String, dynamic> json) {
     // Handle content - it could be a string or an object with type/body
     String messageContent = '';
@@ -313,18 +324,18 @@ class ClubMessage {
         if (messageType == 'match') {
           // Extract match-specific fields from content
           matchId = content['matchId'] as String?;
-          matchDetails = content['matchDetails'] as Map<String, dynamic>?;
+          matchDetails = _safeMapFromJson(content['matchDetails']);
         } else if (messageType == 'practice') {
           // Extract practice-specific fields from content
           practiceId = content['practiceId'] as String?;
-          practiceDetails = content['practiceDetails'] as Map<String, dynamic>?;
+          practiceDetails = _safeMapFromJson(content['practiceDetails']);
         } else if (messageType == 'location') {
           // Extract location-specific fields from content
-          locationDetails = content['locationDetails'] as Map<String, dynamic>?;
+          locationDetails = _safeMapFromJson(content['locationDetails']);
         } else if (messageType == 'poll') {
           // Extract poll-specific fields from content
           pollId = content['pollId'] as String?;
-          pollDetails = content['pollDetails'] as Map<String, dynamic>?;
+          pollDetails = _safeMapFromJson(content['pollDetails']);
         }
       }
 
@@ -575,12 +586,12 @@ class ClubMessage {
       deletedBy: deletedByName,
       starred: starredInfo,
       matchId: matchId ?? (json['matchId'] as String?),
-      matchDetails: matchDetails ?? (json['matchDetails'] as Map<String, dynamic>?),
+      matchDetails: matchDetails ?? _safeMapFromJson(json['matchDetails']),
       practiceId: practiceId ?? (json['practiceId'] as String?),
-      practiceDetails: practiceDetails ?? (json['practiceDetails'] as Map<String, dynamic>?),
-      locationDetails: locationDetails ?? (json['locationDetails'] as Map<String, dynamic>?),
+      practiceDetails: practiceDetails ?? _safeMapFromJson(json['practiceDetails']),
+      locationDetails: locationDetails ?? _safeMapFromJson(json['locationDetails']),
       pollId: pollId ?? (json['pollId'] as String?),
-      pollDetails: pollDetails ?? (json['pollDetails'] as Map<String, dynamic>?),
+      pollDetails: pollDetails ?? _safeMapFromJson(json['pollDetails']),
       pin: PinInfo(
         isPinned: isPinned,
         pinStart: pinStart,

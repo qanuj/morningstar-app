@@ -57,7 +57,9 @@ class PracticeService {
 
       if (response != null && response['practices'] != null) {
         final practiceData = response['practices'] as List;
-        return practiceData.map((data) => _transformPracticeToMatchListItem(data)).toList();
+        return practiceData
+            .map((data) => _transformPracticeToMatchListItem(data))
+            .toList();
       }
 
       return [];
@@ -68,7 +70,9 @@ class PracticeService {
   }
 
   /// Transform practice data to MatchListItem format for compatibility
-  static MatchListItem _transformPracticeToMatchListItem(Map<String, dynamic> practice) {
+  static MatchListItem _transformPracticeToMatchListItem(
+    Map<String, dynamic> practice,
+  ) {
     return MatchListItem(
       id: practice['id'] ?? '',
       clubId: practice['club']?['id'] ?? '',
@@ -77,38 +81,45 @@ class PracticeService {
       opponent: practice['title'] ?? 'Practice Session',
       notes: practice['description'] ?? '',
       spots: practice['maxParticipants'] ?? 20,
-      matchDate: DateTime.parse(practice['practiceDate'] ?? DateTime.now().toIso8601String()),
-      createdAt: practice['createdAt'] != null 
-        ? DateTime.parse(practice['createdAt']) 
-        : DateTime.now(),
-      updatedAt: practice['createdAt'] != null 
-        ? DateTime.parse(practice['createdAt']) 
-        : DateTime.now(),
+      matchDate: DateTime.parse(
+        practice['practiceDate'] ?? DateTime.now().toIso8601String(),
+      ),
+      createdAt: practice['createdAt'] != null
+          ? DateTime.parse(practice['createdAt'])
+          : DateTime.now(),
+      updatedAt: practice['createdAt'] != null
+          ? DateTime.parse(practice['createdAt'])
+          : DateTime.now(),
       hideUntilRSVP: false,
       rsvpAfterDate: null,
-      rsvpBeforeDate: practice['practiceDate'] != null 
-        ? DateTime.parse(practice['practiceDate']) 
-        : null,
+      rsvpBeforeDate: practice['practiceDate'] != null
+          ? DateTime.parse(practice['practiceDate'])
+          : null,
       notifyMembers: true,
-      isCancelled: false,
-      cancellationReason: null,
+      isCancelled: practice['isCancelled'] ?? false,
+      cancellationReason: practice['cancellationReason'],
       isSquadReleased: false,
       totalExpensed: 0.0,
       paidAmount: 0.0,
-      club: ClubModel.fromJson(practice['club'] ?? {
-        'id': '',
-        'name': 'Unknown Club',
-        'logo': null,
-        'city': null,
-        'membershipFeeCurrency': 'USD',
-      }),
+      club: ClubModel.fromJson(
+        practice['club'] ??
+            {
+              'id': '',
+              'name': 'Unknown Club',
+              'logo': null,
+              'city': null,
+              'membershipFeeCurrency': 'USD',
+            },
+      ),
       canSeeDetails: true,
       canRsvp: practice['canRsvp'] ?? true,
-      availableSpots: (practice['maxParticipants'] ?? 20) - (practice['currentParticipants'] ?? 0),
-      confirmedPlayers: practice['currentParticipants'] ?? 0,
-      userRsvp: practice['userRsvp'] != null 
-        ? MatchRSVPSimple.fromJson(practice['userRsvp']) 
-        : null,
+      availableSpots:
+          (practice['maxParticipants'] ?? 20) -
+          (practice['confirmedPlayers'] ?? 0),
+      confirmedPlayers: practice['confirmedPlayers'] ?? 0,
+      userRsvp: practice['userRsvp'] != null
+          ? MatchRSVPSimple.fromJson(practice['userRsvp'])
+          : null,
     );
   }
 }

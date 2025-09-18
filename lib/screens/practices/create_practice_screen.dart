@@ -392,17 +392,12 @@ class _CreatePracticeScreenState extends State<CreatePracticeScreen> {
       );
 
       if (result != null) {
-        // Success
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Practice session created successfully!'),
-              backgroundColor: Color(0xFF4CAF50),
-            ),
-          );
+        // Success - call the callback to send chat message
+        if (widget.onPracticeCreated != null) {
+          widget.onPracticeCreated!(result);
+        }
 
-          // Practice created successfully - server handles chat notification
-          // No need to call onPracticeCreated callback to avoid duplicate messages
+        if (mounted) {
           Navigator.of(context).pop();
         }
       } else {

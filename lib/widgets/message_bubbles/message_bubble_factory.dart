@@ -8,7 +8,6 @@ import 'link_message_bubble.dart';
 import 'gif_message_bubble.dart';
 import 'emoji_message_bubble.dart';
 import 'match_message_bubble.dart';
-import 'practice_message_bubble.dart';
 import 'location_message_bubble.dart';
 import 'poll_message_bubble.dart';
 import 'base_message_bubble.dart';
@@ -128,16 +127,17 @@ class MessageBubbleFactory extends StatelessWidget {
         },
       );
     } else if (message.messageType == 'practice') {
-      // PRACTICE MESSAGE: Practice session announcement with join buttons
-      return PracticeMessageBubble(
+      // PRACTICE MESSAGE: Practice session announcement with RSVP buttons (reuses match bubble)
+      return MatchMessageBubble(
         message: message,
         isOwn: isOwn,
         isPinned: isPinned,
         isSelected: isSelected,
         showSenderInfo: showSenderInfo,
         onReactionRemoved: onReactionRemoved,
-        onJoinPractice: () {
-          // Practice join/leave is handled internally by the PracticeMessageBubble
+        onViewMatch: null, // No match detail for practice
+        onRSVP: () {
+          // RSVP is handled internally by the MatchMessageBubble
         },
       );
     } else if (message.messageType == 'location') {

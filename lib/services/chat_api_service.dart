@@ -111,8 +111,11 @@ class ChatApiService {
         'content': {
           'type': 'practice',
           'body': practiceData['content'] ?? 'New practice session scheduled!',
-          'practiceId': practiceData['practiceId'],
-          'practiceDetails': practiceData['practiceDetails'],
+          'matchId': practiceData['matchId'],        // Use unified matchId
+          'matchDetails': practiceData['matchDetails'], // Use unified matchDetails
+          // Keep legacy fields for backward compatibility (optional)
+          'practiceId': practiceData['matchId'],
+          'practiceDetails': practiceData['matchDetails'],
         },
       };
       

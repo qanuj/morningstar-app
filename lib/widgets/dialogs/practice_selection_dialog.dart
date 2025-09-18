@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import '../../models/match.dart';
 import '../../services/practice_service.dart';
 
-/// Dialog for selecting existing practice or creating new practice
-class PracticeSelectionDialog extends StatefulWidget {
+/// Screen for selecting existing practice or creating new practice
+class PracticeSelectionScreen extends StatefulWidget {
   final String clubId;
   final Function(MatchListItem practice) onExistingPracticeSelected;
   final VoidCallback onCreateNewPractice;
 
-  const PracticeSelectionDialog({
+  const PracticeSelectionScreen({
     super.key,
     required this.clubId,
     required this.onExistingPracticeSelected,
@@ -16,10 +16,10 @@ class PracticeSelectionDialog extends StatefulWidget {
   });
 
   @override
-  State<PracticeSelectionDialog> createState() => _PracticeSelectionDialogState();
+  State<PracticeSelectionScreen> createState() => _PracticeSelectionScreenState();
 }
 
-class _PracticeSelectionDialogState extends State<PracticeSelectionDialog> {
+class _PracticeSelectionScreenState extends State<PracticeSelectionScreen> {
   List<MatchListItem> _practices = [];
   bool _isLoading = true;
   String? _error;
@@ -59,67 +59,61 @@ class _PracticeSelectionDialogState extends State<PracticeSelectionDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        width: MediaQuery.of(context).size.width * 0.9,
-        height: MediaQuery.of(context).size.height * 0.7,
-        child: Column(
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        backgroundColor: theme.colorScheme.primary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Row(
           children: [
-            // Header
-            Container(
-              padding: EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Color(0xFF4CAF50),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.fitness_center, color: Colors.white, size: 24),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Select Practice Session',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: Icon(Icons.close, color: Colors.white),
-                  ),
-                ],
+            Icon(Icons.fitness_center, color: Colors.white, size: 24),
+            SizedBox(width: 12),
+            Text(
+              'Select Practice Session',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
               ),
             ),
+          ],
+        ),
+      ),
+      body: Column(
+        children: [
 
-            // Create New Practice Button
-            Padding(
-              padding: EdgeInsets.all(16),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    widget.onCreateNewPractice();
-                  },
-                  icon: Icon(Icons.add, color: Colors.white),
-                  label: Text(
-                    'Create New Practice Session',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFF4CAF50),
-                    padding: EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+          // Create New Practice Button
+          Padding(
+            padding: EdgeInsets.all(16),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  widget.onCreateNewPractice();
+                },
+                icon: Icon(Icons.add, color: Colors.white),
+                label: Text(
+                  'Create New Practice Session',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.colorScheme.primary,
+                  padding: EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
               ),
             ),
+          ),
 
             // Divider
             Padding(
@@ -142,11 +136,11 @@ class _PracticeSelectionDialogState extends State<PracticeSelectionDialog> {
               ),
             ),
 
-            // Practice List
-            Expanded(
-              child: _isLoading
-                  ? Center(child: CircularProgressIndicator(color: Color(0xFF4CAF50)))
-                  : _error != null
+          // Practice List
+          Expanded(
+            child: _isLoading
+                ? Center(child: CircularProgressIndicator(color: theme.colorScheme.primary))
+                : _error != null
                       ? Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -204,9 +198,8 @@ class _PracticeSelectionDialogState extends State<PracticeSelectionDialog> {
                                 return _buildPracticeItem(practice);
                               },
                             ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -234,12 +227,12 @@ class _PracticeSelectionDialogState extends State<PracticeSelectionDialog> {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: Color(0xFF4CAF50).withOpacity(0.1),
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   Icons.fitness_center,
-                  color: Color(0xFF4CAF50),
+                  color: Theme.of(context).colorScheme.primary,
                   size: 24,
                 ),
               ),
@@ -293,7 +286,7 @@ class _PracticeSelectionDialogState extends State<PracticeSelectionDialog> {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF4CAF50),
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                     SizedBox(height: 2),

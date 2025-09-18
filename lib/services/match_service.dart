@@ -6,7 +6,7 @@ class MatchService {
   /// Transform match data from API to MatchListItem format
   static Map<String, dynamic> _transformUserMatch(dynamic match) {
     final matchMap = match as Map<String, dynamic>;
-    
+
     return {
       ...matchMap,
       // Ensure location is a string (API returns it as location field)
@@ -21,15 +21,20 @@ class MatchService {
       'canSeeDetails': matchMap['canSeeDetails'] ?? true,
       'canRsvp': matchMap['canRsvp'] ?? true, // Enable RSVP for matches
       'availableSpots': matchMap['availableSpots'] ?? matchMap['spots'] ?? 13,
+      'isCancelled': matchMap['isCancelled'] ?? false,
+      'cancellationReason': matchMap['cancellationReason'],
       'confirmedPlayers': matchMap['confirmedPlayers'] ?? 0,
       // Use the club field from API response, handle both user and club match formats
-      'club': matchMap['club'] ?? {
-        'id': matchMap['clubId'] ?? matchMap['club']?['id'] ?? '',
-        'name': matchMap['club']?['name'] ?? 'Unknown Club',
-        'logo': matchMap['club']?['logo'],
-        'city': matchMap['city'] ?? matchMap['club']?['city'],
-        'membershipFeeCurrency': matchMap['club']?['membershipFeeCurrency'] ?? 'USD',
-      },
+      'club':
+          matchMap['club'] ??
+          {
+            'id': matchMap['clubId'] ?? matchMap['club']?['id'] ?? '',
+            'name': matchMap['club']?['name'] ?? 'Unknown Club',
+            'logo': matchMap['club']?['logo'],
+            'city': matchMap['city'] ?? matchMap['club']?['city'],
+            'membershipFeeCurrency':
+                matchMap['club']?['membershipFeeCurrency'] ?? 'USD',
+          },
       'team': matchMap['team'] ?? matchMap['homeTeam'],
       'opponentTeam': matchMap['opponentTeam'] ?? matchMap['awayTeam'],
       // Handle opponentClub format from club-specific matches
@@ -54,18 +59,22 @@ class MatchService {
       params.add('upcomingOnly=${upcomingOnly ? 'true' : 'false'}');
 
       final endpoint = '/matches?${params.join('&')}';
-      
+
       print('🔍 MatchService Debug: Fetching user matches from: $endpoint');
-      
+
       final response = await ApiService.get(endpoint);
       final matchesData = response['matches'] ?? response['data'] ?? response;
 
       if (matchesData is List) {
-        print('🔍 MatchService Debug: Number of matches received = ${matchesData.length}');
+        print(
+          '🔍 MatchService Debug: Number of matches received = ${matchesData.length}',
+        );
         if (matchesData.isNotEmpty) {
-          print('🔍 MatchService Debug: First match structure = ${matchesData[0]}');
+          print(
+            '🔍 MatchService Debug: First match structure = ${matchesData[0]}',
+          );
         }
-        
+
         try {
           return matchesData
               .map((match) => _transformUserMatch(match))
@@ -101,7 +110,9 @@ class MatchService {
         params.add('showFullyPaid=${showFullyPaid ? 'true' : 'false'}');
         params.add('upcomingOnly=${upcomingOnly ? 'true' : 'false'}');
 
-        print('🔍 MatchService Debug: Fetching club matches for clubId = $clubId');
+        print(
+          '🔍 MatchService Debug: Fetching club matches for clubId = $clubId',
+        );
         print('🔍 MatchService Debug: upcomingOnly parameter = $upcomingOnly');
         print(
           '🔍 MatchService Debug: Final endpoint = /matches?${params.join('&')}',
@@ -114,23 +125,29 @@ class MatchService {
       }
 
       final response = await ApiService.get(endpoint);
-      
+
       // Handle different response formats based on endpoint
       List<dynamic> matchesData;
       if (clubId != null) {
         // Club-specific matches endpoint returns { matches: [...] }
         matchesData = response['matches'] ?? [];
-        print('🔍 MatchService Debug: Club matches response structure = ${response.keys.toList()}');
-        print('🔍 MatchService Debug: Number of club matches received = ${matchesData.length}');
+        print(
+          '🔍 MatchService Debug: Club matches response structure = ${response.keys.toList()}',
+        );
+        print(
+          '🔍 MatchService Debug: Number of club matches received = ${matchesData.length}',
+        );
       } else {
         // User RSVP endpoint returns { data: [...] } or direct array
         matchesData = response['data'] ?? response ?? [];
       }
 
       if (matchesData.isNotEmpty && clubId != null) {
-        print('🔍 MatchService Debug: First club match structure = ${matchesData[0]}');
+        print(
+          '🔍 MatchService Debug: First club match structure = ${matchesData[0]}',
+        );
       }
-      
+
       try {
         if (clubId != null) {
           // For club matches, transform them similar to user matches
@@ -147,7 +164,9 @@ class MatchService {
       } catch (e) {
         print('❌ MatchService Error parsing matches: $e');
         if (matchesData.isNotEmpty) {
-          print('🔍 MatchService Debug: Sample match data causing error: ${matchesData[0]}');
+          print(
+            '🔍 MatchService Debug: Sample match data causing error: ${matchesData[0]}',
+          );
         }
         return [];
       }
