@@ -177,25 +177,41 @@ class ContactPickerScreenState extends State<ContactPickerScreen> {
             padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.25),
+                color: Colors.white.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.4),
+                  color: Colors.white.withOpacity(0.3),
                   width: 1,
                 ),
               ),
               child: TextField(
                 controller: _searchController,
                 onChanged: _filterContacts,
-                style: TextStyle(color: Colors.white, fontSize: 16),
-                cursorColor: Colors.white,
+                style: TextStyle(
+                  color: Colors.black87,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+                cursorColor: Color(0xFF003f9b),
                 decoration: InputDecoration(
                   hintText: 'Search contacts...',
-                  hintStyle: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 16),
-                  prefixIcon: Icon(Icons.search, color: Colors.white.withOpacity(0.8), size: 22),
-                  suffixIcon: _searchQuery.isNotEmpty 
+                  hintStyle: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 16,
+                    fontWeight: FontWeight.w400,
+                  ),
+                  prefixIcon: Icon(
+                    Icons.search,
+                    color: Colors.grey[600],
+                    size: 22,
+                  ),
+                  suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
-                        icon: Icon(Icons.clear, color: Colors.white.withOpacity(0.8), size: 22),
+                        icon: Icon(
+                          Icons.clear,
+                          color: Colors.grey[600],
+                          size: 22,
+                        ),
                         onPressed: () {
                           _searchController.clear();
                           _filterContacts('');

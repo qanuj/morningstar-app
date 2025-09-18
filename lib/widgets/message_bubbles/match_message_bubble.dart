@@ -796,37 +796,66 @@ class _MatchMessageBubbleState extends State<MatchMessageBubble> {
     final foregroundColor = isSelected
         ? Colors.white
         : theme.textTheme.labelLarge?.color ?? theme.colorScheme.onSurfaceVariant;
-    final displayLabel = _buttonLabel(status, count, label);
 
     return Expanded(
-      child: ElevatedButton(
-        onPressed: () => _handleDirectRSVP(context, status),
-        style: ElevatedButton.styleFrom(
-          elevation: isSelected ? 2 : 0,
-          backgroundColor: backgroundColor,
-          foregroundColor: foregroundColor,
-          padding: EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+      child: Stack(
+        children: [
+          ElevatedButton(
+            onPressed: () => _handleDirectRSVP(context, status),
+            style: ElevatedButton.styleFrom(
+              elevation: isSelected ? 2 : 0,
+              backgroundColor: backgroundColor,
+              foregroundColor: foregroundColor,
+              padding: EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.4,
+              ),
+            ),
           ),
-        ),
-        child: Text(
-          displayLabel,
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.4,
-          ),
-        ),
+          if (count > 0)
+            Positioned(
+              right: 6,
+              top: 6,
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: count > 99 ? 6 : 8,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected ? Colors.white : color,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isSelected ? color : Colors.white,
+                    width: 1.5,
+                  ),
+                ),
+                constraints: BoxConstraints(
+                  minWidth: 20,
+                  minHeight: 20,
+                ),
+                child: Text(
+                  count > 99 ? '99+' : count.toString(),
+                  style: TextStyle(
+                    color: isSelected ? color : Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
 
-  String _buttonLabel(String status, int count, String fallback) {
-    if (count > 0) {
-      return '$fallback ($count)';
-    }
-    return fallback;
-  }
 
   void _handleDirectRSVP(BuildContext context, String status) async {
     final matchId = widget.message.matchId;
