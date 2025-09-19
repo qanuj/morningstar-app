@@ -67,122 +67,93 @@ class BaseMessageBubble extends StatelessWidget {
             : CrossAxisAlignment.start,
         children: [
           // Main message bubble with tail
+          // Main bubble
           Container(
-            margin: EdgeInsets.only(
-              bottom: 0, // Extra margin for last message to show shadow
-              left: isOwn ? 0 : 0, // Add space for tail on received messages
-              right: isOwn ? 0 : 0, // Add space for tail on sent messages
-            ),
-            child: Stack(
-              children: [
-                // Main bubble
-                Container(
-                  margin: EdgeInsets.only(
-                    left: 0, // Make room for the tail
-                    right: 0, // Make room for the tail
-                  ),
-                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                  decoration: isTransparent
-                      ? null
-                      : BoxDecoration(
-                          color: _getBubbleColor(context),
-                          borderRadius: _getBorderRadius(),
-                          border: message.status == MessageStatus.failed
-                              ? Border.all(color: Colors.red, width: 1)
-                              : null,
-                          boxShadow: [
-                            // WhatsApp-style shadow
-                            BoxShadow(
-                              color:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? Colors.black.withOpacity(
-                                      0.8,
-                                    ) // Very strong black shadow for dark mode
-                                  : Color(0xFF000000).withOpacity(
-                                      0.08,
-                                    ), // WhatsApp light mode shadow
-                              blurRadius:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? 2.5 // Slightly more blur for visibility in dark mode
-                                  : 1.5, // Very tight blur like WhatsApp for light mode
-                              offset:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? Offset(
-                                      0,
-                                      2,
-                                    ) // Larger offset for better visibility in dark mode
-                                  : Offset(
-                                      0,
-                                      1,
-                                    ), // Small vertical offset for light mode
-                              spreadRadius: 0,
-                            ),
-                            // Secondary shadow for depth (WhatsApp style)
-                            BoxShadow(
-                              color:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? Colors.black.withOpacity(
-                                      0.5,
-                                    ) // Strong secondary shadow for dark mode
-                                  : Color(0xFF000000).withOpacity(
-                                      0.04,
-                                    ), // Very subtle secondary shadow
-                              blurRadius:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? 4 // More blur for ambient effect in dark mode
-                                  : 3, // Standard blur for light mode
-                              offset:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? Offset(
-                                      0,
-                                      3,
-                                    ) // Larger offset for depth in dark mode
-                                  : Offset(
-                                      0,
-                                      2,
-                                    ), // Standard offset for light mode
-                              spreadRadius: 0,
-                            ),
-                          ],
-                        ),
-                  child: Stack(
-                    children: [
-                      // Message content
-                      Padding(
-                        padding: showMetaOverlay
-                            ? EdgeInsets.only(
-                                bottom: 12,
-                              ) // Reduced space for meta overlay
-                            : EdgeInsets.zero, // No extra space if no overlay
-                        child: content,
+            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            decoration: isTransparent
+                ? null
+                : BoxDecoration(
+                    color: _getBubbleColor(context),
+                    borderRadius: _getBorderRadius(),
+                    border: message.status == MessageStatus.failed
+                        ? Border.all(color: Colors.red, width: 1)
+                        : null,
+                    boxShadow: [
+                      // WhatsApp-style shadow
+                      BoxShadow(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.black.withOpacity(
+                                0.8,
+                              ) // Very strong black shadow for dark mode
+                            : Color(
+                                0xFF000000,
+                              ).withOpacity(0.08), // WhatsApp light mode shadow
+                        blurRadius:
+                            Theme.of(context).brightness == Brightness.dark
+                            ? 2.5 // Slightly more blur for visibility in dark mode
+                            : 1.5, // Very tight blur like WhatsApp for light mode
+                        offset: Theme.of(context).brightness == Brightness.dark
+                            ? Offset(
+                                0,
+                                2,
+                              ) // Larger offset for better visibility in dark mode
+                            : Offset(
+                                0,
+                                1,
+                              ), // Small vertical offset for light mode
+                        spreadRadius: 0,
                       ),
-
-                      // Meta overlay (pin, star, time, tick) at bottom right
-                      if (showMetaOverlay)
-                        _shouldUseColumnLayout()
-                            ? Positioned(
-                                bottom: overlayBottomPosition ?? 2,
-                                right: 0, // Align to right edge for small text
-                                child: _buildMetaOverlay(context),
-                              )
-                            : Positioned(
-                                bottom: overlayBottomPosition ?? 2,
-                                right: 5, // Normal inline position
-                                child: _buildMetaOverlay(context),
-                              ),
+                      // Secondary shadow for depth (WhatsApp style)
+                      BoxShadow(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.black.withOpacity(
+                                0.5,
+                              ) // Strong secondary shadow for dark mode
+                            : Color(0xFF000000).withOpacity(
+                                0.04,
+                              ), // Very subtle secondary shadow
+                        blurRadius:
+                            Theme.of(context).brightness == Brightness.dark
+                            ? 4 // More blur for ambient effect in dark mode
+                            : 3, // Standard blur for light mode
+                        offset: Theme.of(context).brightness == Brightness.dark
+                            ? Offset(
+                                0,
+                                3,
+                              ) // Larger offset for depth in dark mode
+                            : Offset(0, 2), // Standard offset for light mode
+                        spreadRadius: 0,
+                      ),
                     ],
                   ),
+            child: Stack(
+              children: [
+                // Message content
+                Padding(
+                  padding: showMetaOverlay
+                      ? EdgeInsets.only(
+                          bottom: 12,
+                        ) // Reduced space for meta overlay
+                      : EdgeInsets.zero, // No extra space if no overlay
+                  child: content,
                 ),
+
+                // Meta overlay (pin, star, time, tick) at bottom right
+                if (showMetaOverlay)
+                  _shouldUseColumnLayout()
+                      ? Positioned(
+                          bottom: overlayBottomPosition ?? 2,
+                          right: 0, // Align to right edge for small text
+                          child: _buildMetaOverlay(context),
+                        )
+                      : Positioned(
+                          bottom: overlayBottomPosition ?? 2,
+                          right: 5, // Normal inline position
+                          child: _buildMetaOverlay(context),
+                        ),
               ],
             ),
           ),
-
           // Reactions display (below the bubble with overlap using transform)
           if (message.reactions.isNotEmpty)
             Transform.translate(
@@ -390,7 +361,7 @@ class BaseMessageBubble extends StatelessWidget {
           color: Theme.of(context).brightness == Brightness.dark
               ? Color(0xFF2A2A2A) // Updated to match received message bubbles
               : Colors.white, // Same as received text bubbles
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: Theme.of(context).brightness == Brightness.dark
                 ? Color(0xFF404040) // Lighter border for dark mode
@@ -414,12 +385,6 @@ class BaseMessageBubble extends StatelessWidget {
 
               Widget emojiWidget = Container(
                 padding: EdgeInsets.symmetric(horizontal: 1, vertical: 0),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(4),
-                  color: hasCurrentUserReacted
-                      ? Color(0xFF003f9b).withOpacity(0.1)
-                      : Colors.transparent,
-                ),
                 child: Text(
                   emoji,
                   style: TextStyle(
