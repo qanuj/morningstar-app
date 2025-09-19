@@ -52,9 +52,7 @@ class ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: DuggyAppBar(
-        subtitle: 'You',
-      ),
+      appBar: DuggyAppBar(subtitle: 'You'),
       body: Consumer2<UserProvider, ThemeProvider>(
         builder: (context, userProvider, themeProvider, child) {
           final user = userProvider.user;
@@ -68,392 +66,391 @@ class ProfileScreenState extends State<ProfileScreen> {
             );
           }
 
-          return RefreshIndicator(
-            onRefresh: () => _refreshProfile(context),
-            child: SingleChildScrollView(
-              padding: EdgeInsets.zero,
-              physics: AlwaysScrollableScrollPhysics(),
-              child: Column(
-                children: [
-                  // Profile Header Section
-                  Container(
-                    margin: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Theme.of(
-                            context,
-                          ).shadowColor.withOpacity(0.06),
-                          blurRadius: 16,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Profile Picture
-                              Container(
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Theme.of(
-                                        context,
-                                      ).shadowColor.withOpacity(0.1),
-                                      blurRadius: 20,
-                                      offset: Offset(0, 8),
-                                    ),
-                                  ],
-                                ),
-                                child: SVGAvatar(
-                                  imageUrl: user.profilePicture,
-                                  size: 80,
-                                  backgroundColor: Theme.of(
-                                    context,
-                                  ).colorScheme.primary,
-                                  child: user.profilePicture == null
-                                      ? Text(
-                                          user.name.isNotEmpty
-                                              ? user.name[0].toUpperCase()
-                                              : 'U',
-                                          style: TextStyle(
-                                            fontSize: 32,
-                                            fontWeight: FontWeight.w600,
-                                            color: Theme.of(
-                                              context,
-                                            ).colorScheme.onPrimary,
-                                          ),
-                                        )
-                                      : null,
-                                ),
-                              ),
-
-                              SizedBox(width: 20),
-
-                              // User Details
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // Name and Age Row
-                                    Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.baseline,
-                                      textBaseline: TextBaseline.alphabetic,
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            user.name,
+          return Container(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Theme.of(context).colorScheme.surface
+                : Colors.grey[200],
+            child: RefreshIndicator(
+              onRefresh: () => _refreshProfile(context),
+              child: SingleChildScrollView(
+                padding: EdgeInsets.all(16),
+                physics: AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  children: [
+                    // Profile Header Section
+                    Card(
+                      elevation: 3,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      margin: EdgeInsets.zero,
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Profile Picture
+                                Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Theme.of(
+                                          context,
+                                        ).shadowColor.withOpacity(0.1),
+                                        blurRadius: 20,
+                                        offset: Offset(0, 8),
+                                      ),
+                                    ],
+                                  ),
+                                  child: SVGAvatar(
+                                    imageUrl: user.profilePicture,
+                                    size: 80,
+                                    backgroundColor: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                    child: user.profilePicture == null
+                                        ? Text(
+                                            user.name.isNotEmpty
+                                                ? user.name[0].toUpperCase()
+                                                : 'U',
                                             style: TextStyle(
-                                              fontSize: 22,
+                                              fontSize: 32,
                                               fontWeight: FontWeight.w600,
                                               color: Theme.of(
                                                 context,
-                                              ).colorScheme.onSurface,
+                                              ).colorScheme.onPrimary,
                                             ),
-                                          ),
-                                        ),
-                                        if (user.dateOfBirth != null) ...[
-                                          SizedBox(width: 8),
-                                          Container(
-                                            padding: EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .primary
-                                                  .withOpacity(0.1),
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                            ),
+                                          )
+                                        : null,
+                                  ),
+                                ),
+
+                                SizedBox(width: 20),
+
+                                // User Details
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      // Name and Age Row
+                                      Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.baseline,
+                                        textBaseline: TextBaseline.alphabetic,
+                                        children: [
+                                          Expanded(
                                             child: Text(
-                                              '${DateTime.now().year - user.dateOfBirth!.year}',
+                                              user.name,
                                               style: TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w500,
+                                                fontSize: 22,
+                                                fontWeight: FontWeight.w600,
                                                 color: Theme.of(
                                                   context,
-                                                ).colorScheme.primary,
+                                                ).colorScheme.onSurface,
                                               ),
                                             ),
                                           ),
+                                          if (user.dateOfBirth != null) ...[
+                                            SizedBox(width: 8),
+                                            Container(
+                                              padding: EdgeInsets.symmetric(
+                                                horizontal: 8,
+                                                vertical: 2,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .primary
+                                                    .withOpacity(0.1),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                              ),
+                                              child: Text(
+                                                '${DateTime.now().year - user.dateOfBirth!.year}',
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: Theme.of(
+                                                    context,
+                                                  ).colorScheme.primary,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ],
+                                      ),
+
+                                      // Email
+                                      if (user.email != null) ...[
+                                        SizedBox(height: 4),
+                                        Text(
+                                          user.email!,
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            color: Theme.of(
+                                              context,
+                                            ).textTheme.bodyMedium?.color,
+                                          ),
+                                        ),
                                       ],
-                                    ),
 
-                                    // Email
-                                    if (user.email != null) ...[
+                                      SizedBox(height: 8),
+
+                                      // Phone Number
+                                      Text(
+                                        user.phoneNumber,
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: Theme.of(
+                                            context,
+                                          ).textTheme.bodyMedium?.color,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+
                                       SizedBox(height: 4),
-                                      Text(
-                                        user.email!,
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          color: Theme.of(
-                                            context,
-                                          ).textTheme.bodyMedium?.color,
+
+                                      // Location
+                                      if (user.city != null ||
+                                          user.state != null)
+                                        Text(
+                                          [
+                                            user.city,
+                                            user.state,
+                                          ].where((e) => e != null).join(', '),
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            color: Theme.of(
+                                              context,
+                                            ).textTheme.bodyMedium?.color,
+                                          ),
                                         ),
-                                      ),
+
+                                      if (user.bio != null &&
+                                          user.bio!.isNotEmpty) ...[
+                                        SizedBox(height: 12),
+                                      ],
                                     ],
-
-                                    SizedBox(height: 8),
-
-                                    // Phone Number
-                                    Text(
-                                      user.phoneNumber,
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        color: Theme.of(
-                                          context,
-                                        ).textTheme.bodyMedium?.color,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-
-                                    SizedBox(height: 4),
-
-                                    // Location
-                                    if (user.city != null || user.state != null)
-                                      Text(
-                                        [
-                                          user.city,
-                                          user.state,
-                                        ].where((e) => e != null).join(', '),
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          color: Theme.of(
-                                            context,
-                                          ).textTheme.bodyMedium?.color,
-                                        ),
-                                      ),
-
-                                    if (user.bio != null &&
-                                        user.bio!.isNotEmpty) ...[
-                                      SizedBox(height: 12),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          // Full-width divider and bio section
-                          if (user.bio != null && user.bio!.isNotEmpty) ...[
-                            Divider(
-                              height: 24,
-                              thickness: 1,
-                              color: Theme.of(
-                                context,
-                              ).dividerColor.withOpacity(0.3),
-                            ),
-                            Container(
-                              width: double.infinity,
-                              padding: EdgeInsets.only(top: 8),
-                              child: Text(
-                                user.bio!,
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface.withOpacity(0.8),
-                                  height: 1.4,
-                                ),
-                                maxLines: 3,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  // Settings List
-                  Container(
-                    color: Theme.of(context).cardColor,
-                    child: Column(
-                      children: [
-                        // Personal Information Section
-                        _buildExpandableSection(
-                          icon: Icons.person_outline,
-                          title: 'Personal information',
-                          isExpanded: false,
-                          onTap: () async {
-                            final userProvider = Provider.of<UserProvider>(
-                              context,
-                              listen: false,
-                            );
-                            final result = await Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => EditProfileScreen(),
-                              ),
-                            );
-
-                            // Refresh profile data when returning from edit screen
-                            if (result == true && mounted) {
-                              await userProvider.loadUser(forceRefresh: true);
-                            }
-                          },
-                        ),
-
-                        Divider(
-                          height: 1,
-                          color: Theme.of(
-                            context,
-                          ).dividerColor.withOpacity(0.3),
-                        ),
-
-                        // Login and Security
-                        _buildExpandableSection(
-                          icon: Icons.security,
-                          title: 'Login and security',
-                          isExpanded: false,
-                          onTap: () {
-                            // TODO: Navigate to security settings
-                          },
-                        ),
-
-                        Divider(
-                          height: 1,
-                          color: Theme.of(
-                            context,
-                          ).dividerColor.withOpacity(0.3),
-                        ),
-
-                        // Theme Setting
-                        _buildExpandableSection(
-                          icon: Icons.palette_outlined,
-                          title: 'Theme',
-                          isExpanded: false,
-                          subtitle: _getThemeModeText(themeProvider.themeMode),
-                          onTap: () {
-                            _showThemeDialog(context, themeProvider);
-                          },
-                        ),
-
-                        Divider(
-                          height: 1,
-                          color: Theme.of(
-                            context,
-                          ).dividerColor.withOpacity(0.3),
-                        ),
-
-                        // Notifications
-                        _buildExpandableSection(
-                          icon: Icons.notifications_outlined,
-                          title: 'Notifications',
-                          isExpanded: false,
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => NotificationSettingsScreen(),
-                              ),
-                            );
-                          },
-                        ),
-
-                        Divider(
-                          height: 1,
-                          color: Theme.of(
-                            context,
-                          ).dividerColor.withOpacity(0.3),
-                        ),
-
-                        // Share the app
-                        _buildExpandableSection(
-                          icon: Icons.share,
-                          title: 'Share Duggy',
-                          isExpanded: false,
-                          onTap: () {
-                            _shareApp(context);
-                          },
-                        ),
-
-                        Divider(
-                          height: 1,
-                          color: Theme.of(
-                            context,
-                          ).dividerColor.withOpacity(0.3),
-                        ),
-
-                        // Log Out
-                        _buildExpandableSection(
-                          icon: Icons.logout,
-                          title: 'Log Out',
-                          isExpanded: false,
-                          onTap: () => _showLogoutDialog(context),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  SizedBox(height: 32),
-
-                  // Member ID and Version
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 24),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Member ID',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                            ),
-                            Row(
-                              children: [
-                                Text(
-                                  user.id,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Theme.of(
-                                      context,
-                                    ).textTheme.bodyMedium?.color,
                                   ),
-                                ),
-                                SizedBox(width: 8),
-                                Icon(
-                                  Icons.copy,
-                                  size: 16,
-                                  color: Theme.of(
-                                    context,
-                                  ).textTheme.bodyMedium?.color,
                                 ),
                               ],
                             ),
+
+                            // Full-width divider and bio section
+                            if (user.bio != null && user.bio!.isNotEmpty) ...[
+                              Divider(
+                                height: 24,
+                                thickness: 1,
+                                color: Theme.of(
+                                  context,
+                                ).dividerColor.withOpacity(0.3),
+                              ),
+                              Container(
+                                width: double.infinity,
+                                padding: EdgeInsets.only(top: 8),
+                                child: Text(
+                                  user.bio!,
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface.withOpacity(0.8),
+                                    height: 1.4,
+                                  ),
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ],
                         ),
-                        SizedBox(height: 32),
-                        Text(
-                          _appVersion.isNotEmpty
-                              ? 'Version: $_appVersion'
-                              : 'Version: Loading...',
-                          style: TextStyle(
-                            fontSize: 12,
+                      ),
+                    ),
+
+                    SizedBox(height: 16),
+
+                    // Settings List
+                    Card(
+                      elevation: 3,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      margin: EdgeInsets.zero,
+                      child: Column(
+                        children: [
+                          // Personal Information Section
+                          _buildExpandableSection(
+                            icon: Icons.person_outline,
+                            title: 'Personal information',
+                            isExpanded: false,
+                            onTap: () async {
+                              final userProvider = Provider.of<UserProvider>(
+                                context,
+                                listen: false,
+                              );
+                              final result = await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => EditProfileScreen(),
+                                ),
+                              );
+
+                              // Refresh profile data when returning from edit screen
+                              if (result == true && mounted) {
+                                await userProvider.loadUser(forceRefresh: true);
+                              }
+                            },
+                          ),
+
+                          Divider(
+                            height: 1,
                             color: Theme.of(
                               context,
-                            ).textTheme.bodySmall?.color?.withOpacity(0.7),
+                            ).dividerColor.withOpacity(0.3),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
 
-                  SizedBox(height: 32),
-                ],
+                          // Theme Setting
+                          _buildExpandableSection(
+                            icon: Icons.palette_outlined,
+                            title: 'Theme',
+                            isExpanded: false,
+                            subtitle: _getThemeModeText(
+                              themeProvider.themeMode,
+                            ),
+                            onTap: () {
+                              _showThemeDialog(context, themeProvider);
+                            },
+                          ),
+
+                          Divider(
+                            height: 1,
+                            color: Theme.of(
+                              context,
+                            ).dividerColor.withOpacity(0.3),
+                          ),
+
+                          // Notifications
+                          _buildExpandableSection(
+                            icon: Icons.notifications_outlined,
+                            title: 'Notifications',
+                            isExpanded: false,
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      NotificationSettingsScreen(),
+                                ),
+                              );
+                            },
+                          ),
+
+                          Divider(
+                            height: 1,
+                            color: Theme.of(
+                              context,
+                            ).dividerColor.withOpacity(0.3),
+                          ),
+
+                          // Share the app
+                          _buildExpandableSection(
+                            icon: Icons.share,
+                            title: 'Share Duggy',
+                            isExpanded: false,
+                            onTap: () {
+                              _shareApp(context);
+                            },
+                          ),
+
+                          Divider(
+                            height: 1,
+                            color: Theme.of(
+                              context,
+                            ).dividerColor.withOpacity(0.3),
+                          ),
+
+                          // Log Out
+                          _buildExpandableSection(
+                            icon: Icons.logout,
+                            title: 'Log Out',
+                            isExpanded: false,
+                            onTap: () => _showLogoutDialog(context),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    SizedBox(height: 32),
+
+                    // Member ID and Version
+                    Card(
+                      elevation: 3,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      margin: EdgeInsets.zero,
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Member ID',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface,
+                                  ),
+                                ),
+                                Row(
+                                  children: [
+                                    Text(
+                                      user.id,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Theme.of(
+                                          context,
+                                        ).textTheme.bodyMedium?.color,
+                                      ),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Icon(
+                                      Icons.copy,
+                                      size: 16,
+                                      color: Theme.of(
+                                        context,
+                                      ).textTheme.bodyMedium?.color,
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              _appVersion.isNotEmpty
+                                  ? 'Version: $_appVersion'
+                                  : 'Version: Loading...',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.bodySmall?.color?.withOpacity(0.7),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    SizedBox(height: 32),
+                  ],
+                ),
               ),
             ),
           );

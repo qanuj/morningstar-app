@@ -5,6 +5,7 @@ import '../../models/match.dart';
 import '../../services/match_service.dart';
 import '../../services/practice_service.dart';
 import '../../widgets/event_cards.dart';
+import '../../widgets/custom_app_bar.dart';
 import '../../screens/matches/create_match_screen.dart';
 import '../../screens/practices/create_practice_screen.dart';
 
@@ -198,26 +199,20 @@ class _UnifiedEventPickerState extends State<UnifiedEventPicker> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            Icon(_headerIcon, color: Colors.white, size: 24),
-            SizedBox(width: 12),
-            Text(_title),
-          ],
-        ),
-        backgroundColor: theme.colorScheme.primary,
-        foregroundColor: Colors.white,
+      appBar: DuggyAppBar(
+        subtitle: _title,
         actions: [
           IconButton(
-            icon: const Icon(Icons.add, color: Colors.white),
+            icon: const Icon(Icons.add),
             tooltip: widget.eventType == EventType.match ? 'Create Match' : 'Create Practice',
             onPressed: _createNewEvent,
           ),
         ],
       ),
       body: Container(
-        color: Colors.grey[100], // Light gray background
+        color: theme.brightness == Brightness.dark
+            ? theme.colorScheme.surface
+            : Colors.grey[200],
         child: SafeArea(
           child: _buildEventsContent(theme),
         ),
@@ -267,7 +262,7 @@ class _UnifiedEventPickerState extends State<UnifiedEventPicker> {
                 children: [
                   Icon(
                     _headerIcon,
-                    color: Colors.grey[400],
+                    color: theme.colorScheme.onSurface.withOpacity(0.4),
                     size: 64,
                   ),
                   SizedBox(height: 16),
@@ -283,7 +278,7 @@ class _UnifiedEventPickerState extends State<UnifiedEventPicker> {
                     label: Text(widget.eventType == EventType.match ? 'Create Match' : 'Create Practice'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: theme.colorScheme.primary,
-                      foregroundColor: Colors.white,
+                      foregroundColor: theme.colorScheme.onPrimary,
                       padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     ),
                   ),

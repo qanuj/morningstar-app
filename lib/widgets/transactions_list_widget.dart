@@ -142,7 +142,7 @@ class TransactionsListWidget extends StatelessWidget {
           ? () => onTransactionTap!(transaction)
           : null,
       child: Container(
-        margin: margin ?? EdgeInsets.only(bottom: 8, left: 12, right: 12),
+        margin: margin ?? EdgeInsets.only(bottom: 8, left: 4, right: 4),
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(8),

@@ -54,9 +54,7 @@ class MatchEventCard extends StatelessWidget {
 
     return Card(
       elevation: 3,
-      shadowColor: Colors.black.withOpacity(0.1),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: Colors.white,
       margin: EdgeInsets.zero,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -79,41 +77,45 @@ class MatchEventCard extends StatelessWidget {
                 child: Column(
                   children: [
                     // VS with team names
-                    RichText(
-                      textAlign: TextAlign.center,
-                      text: TextSpan(
-                        children: [
-                          TextSpan(
-                            text: _getTeamAbbreviation(
-                              match.team?.name ?? match.club.name,
-                            ),
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: theme.colorScheme.primary,
-                            ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _getTeamAbbreviation(
+                            match.team?.name ?? match.club.name,
                           ),
-                          TextSpan(
-                            text: ' VS ',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.error,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            'VS',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 10,
                               fontWeight: FontWeight.bold,
-                              color: Colors.red,
+                              color: theme.colorScheme.onError,
                               letterSpacing: 0.8,
                             ),
                           ),
-                          TextSpan(
-                            text: _getTeamAbbreviation(
-                              match.opponentTeam?.name ??
-                                  match.opponent ??
-                                  'TBD',
-                            ),
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: theme.colorScheme.secondary,
-                            ),
+                        ),
+                        Text(
+                          _getTeamAbbreviation(
+                            match.opponentTeam?.name ??
+                                match.opponent ??
+                                'TBD',
                           ),
-                        ],
-                      ),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
 
                     const SizedBox(height: 8),
@@ -138,7 +140,6 @@ class MatchEventCard extends StatelessWidget {
                       children: [
                         Icon(
                           Icons.location_on,
-                          color: theme.colorScheme.primary,
                           size: 16,
                         ),
                         const SizedBox(width: 4),
@@ -148,7 +149,6 @@ class MatchEventCard extends StatelessWidget {
                                 ? match.location
                                 : 'Venue TBD',
                             style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.primary,
                               fontWeight: FontWeight.w500,
                             ),
                             textAlign: TextAlign.center,
@@ -192,9 +192,7 @@ class PracticeEventCard extends StatelessWidget {
 
     return Card(
       elevation: 3,
-      shadowColor: Colors.black.withOpacity(0.1),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: Colors.white,
       margin: EdgeInsets.zero,
       child: InkWell(
         onTap: onTap,
@@ -250,7 +248,6 @@ class PracticeEventCard extends StatelessWidget {
                       children: [
                         Icon(
                           Icons.location_on,
-                          color: theme.colorScheme.primary,
                           size: 16,
                         ),
                         const SizedBox(width: 4),
@@ -260,7 +257,6 @@ class PracticeEventCard extends StatelessWidget {
                                 ? practice.location
                                 : 'Venue TBD',
                             style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.primary,
                               fontWeight: FontWeight.w500,
                             ),
                             maxLines: 1,
@@ -284,13 +280,11 @@ class PracticeEventCard extends StatelessWidget {
                     '2 Hours', // Default duration - could be made dynamic
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.primary,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Icon(
                     Icons.access_time,
-                    color: theme.colorScheme.primary,
                     size: 16,
                   ),
                 ],
@@ -325,7 +319,7 @@ class _TeamLogo extends StatelessWidget {
               child: SVGAvatar(
                 imageUrl: logoUrl!,
                 size: size,
-                backgroundColor: Colors.transparent,
+                backgroundColor: fallbackColor.withOpacity(0.12),
                 iconColor: fallbackColor,
                 fallbackIcon: Icons.sports_cricket,
                 showBorder: false,

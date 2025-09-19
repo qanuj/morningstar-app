@@ -359,69 +359,84 @@ class TransactionsScreenState extends State<TransactionsScreen> {
                       ),
                     )
                   : _transactions.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: EdgeInsets.all(32),
-                            decoration: BoxDecoration(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.primary.withOpacity(0.1),
-                              shape: BoxShape.circle,
+                  ? Container(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Theme.of(context).colorScheme.surface
+                          : Colors.grey[200],
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: EdgeInsets.all(32),
+                              decoration: BoxDecoration(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.primary.withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.receipt_long_outlined,
+                                size: 64,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
                             ),
-                            child: Icon(
-                              Icons.receipt_long_outlined,
-                              size: 64,
-                              color: Theme.of(context).colorScheme.primary,
+                            SizedBox(height: 24),
+                            Text(
+                              'No transactions found',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.titleLarge?.color,
+                              ),
                             ),
-                          ),
-                          SizedBox(height: 24),
-                          Text(
-                            'No transactions found',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w400,
-                              color: Theme.of(
-                                context,
-                              ).textTheme.titleLarge?.color,
+                            SizedBox(height: 8),
+                            Text(
+                              'Your transaction history will appear here',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.bodySmall?.color,
+                              ),
                             ),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Your transaction history will appear here',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(
-                                context,
-                              ).textTheme.bodySmall?.color,
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     )
-                  : ListView(
-                      controller: _scrollController,
-                      children: [
-                        // Scrollable Balance Card
-                        _buildBalanceCard(),
+                  : Container(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Theme.of(context).colorScheme.surface
+                          : Colors.grey[200],
+                      child: ListView(
+                        controller: _scrollController,
+                        padding: EdgeInsets.all(16),
+                        children: [
+                          // Scrollable Balance Card
+                          _buildBalanceCard(),
 
-                        // Club Filter Indicator (only shown when explicitly filtered)
-                        if (_selectedClubId != null)
-                          _buildClubFilterIndicator(),
+                          SizedBox(height: 16),
 
-                        // Transaction List
-                        ...TransactionsListWidget(
-                          transactions: _transactions,
-                          listType: TransactionListType.my,
-                          isLoadingMore: _isLoadingMore,
-                          hasMoreData: _hasMoreData,
-                          currency: _clubBalances.isNotEmpty
-                              ? _clubBalances[_currentBalanceIndex]['currency']
-                              : null,
-                        ).buildTransactionListItems(context),
-                      ],
+                          // Club Filter Indicator (only shown when explicitly filtered)
+                          if (_selectedClubId != null) ...[
+                            _buildClubFilterIndicator(),
+                            SizedBox(height: 16),
+                          ],
+
+                          // Transaction List
+                          ...TransactionsListWidget(
+                            transactions: _transactions,
+                            listType: TransactionListType.my,
+                            isLoadingMore: _isLoadingMore,
+                            hasMoreData: _hasMoreData,
+                            currency: _clubBalances.isNotEmpty
+                                ? _clubBalances[_currentBalanceIndex]['currency']
+                                : null,
+                          ).buildTransactionListItems(context),
+                        ],
+                      ),
                     ),
             ),
           ),
@@ -931,19 +946,10 @@ class TransactionsScreenState extends State<TransactionsScreen> {
       displayBalances = [_clubBalances.first]; // Fallback to total balance
     }
 
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).shadowColor.withOpacity(0.06),
-            blurRadius: 16,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      margin: EdgeInsets.zero,
       child: Column(
         children: [
           // Use flexible container instead of fixed height to avoid Android overflow

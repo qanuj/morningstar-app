@@ -162,6 +162,21 @@ class _MessageInputState extends State<MessageInput> {
     }
   }
 
+  void _pickAudioFiles() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        type: FileType.audio,
+      );
+
+      if (result != null && result.files.isNotEmpty) {
+        _sendAudioFileMessage(result.files);
+      }
+    } catch (e) {
+      _showError('Failed to pick audio files: $e');
+    }
+  }
+
   void _showImageCaptionDialog(XFile image) async {
     final platformFile = PlatformFile(
       name: image.name,
@@ -266,6 +281,16 @@ class _MessageInputState extends State<MessageInput> {
       );
 
       widget.onSendMessage(tempMessage);
+    }
+  }
+
+  void _sendAudioFileMessage(List<PlatformFile> audioFiles) {
+    for (final audioFile in audioFiles) {
+      if (audioFile.path != null) {
+        // Use existing _sendAudioMessage function with default duration
+        // Duration will be calculated by the backend or during processing
+        _sendAudioMessage(audioFile.path!, Duration.zero);
+      }
     }
   }
 
@@ -489,7 +514,7 @@ class _MessageInputState extends State<MessageInput> {
                   padding: EdgeInsets.all(20),
                   child: Column(
                     children: [
-                      // First row - Photos, Document, Location
+                      // First row - Photos, Camera, Document
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
@@ -503,6 +528,15 @@ class _MessageInputState extends State<MessageInput> {
                             },
                           ),
                           _buildGridOption(
+                            icon: Icons.camera_alt,
+                            iconColor: Color(0xFF4CAF50),
+                            title: 'Camera',
+                            onTap: () {
+                              Navigator.pop(context);
+                              _handleCameraCapture();
+                            },
+                          ),
+                          _buildGridOption(
                             icon: Icons.description,
                             iconColor: Color(0xFF2196F3),
                             title: 'Document',
@@ -511,58 +545,23 @@ class _MessageInputState extends State<MessageInput> {
                               _pickDocuments();
                             },
                           ),
-                          _buildGridOption(
-                            icon: Icons.location_on,
-                            iconColor: Color(0xFF00C853),
-                            title: 'Location',
-                            onTap: () {
-                              Navigator.pop(context);
-                              // Location sharing coming soon
-                            },
-                          ),
                         ],
                       ),
                       SizedBox(height: 30),
-                      // Second row - Contact, Poll, Event (for regular users)
+                      // Second row - Audio and Admin options (if admin)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
                           _buildGridOption(
-                            icon: Icons.person,
-                            iconColor: Colors.grey[700]!,
-                            title: 'Contact',
+                            icon: Icons.audiotrack,
+                            iconColor: Color(0xFFFF9800),
+                            title: 'Audio',
                             onTap: () {
                               Navigator.pop(context);
-                              // Contact sharing coming soon
+                              _pickAudioFiles();
                             },
                           ),
-                          _buildGridOption(
-                            icon: Icons.poll,
-                            iconColor: Color(0xFFFFB300),
-                            title: 'Poll',
-                            onTap: () {
-                              Navigator.pop(context);
-                              // Poll creation coming soon
-                            },
-                          ),
-                          // Show Event for all users (simplified)
-                          _buildGridOption(
-                            icon: Icons.event,
-                            iconColor: Color(0xFFE53935),
-                            title: 'Event',
-                            onTap: () {
-                              Navigator.pop(context);
-                              // Event creation coming soon
-                            },
-                          ),
-                        ],
-                      ),
-                      // Third row - Admin/Owner only options (Match and Practice)
-                      if (_isAdminOrOwner) ...[
-                        SizedBox(height: 30),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
+                          if (_isAdminOrOwner) ...[
                             _buildGridOption(
                               icon: Icons.sports_cricket,
                               iconColor: Color(0xFF4CAF50),
@@ -581,10 +580,12 @@ class _MessageInputState extends State<MessageInput> {
                                 _openPracticePicker();
                               },
                             ),
+                          ] else ...[
+                            SizedBox(width: 70), // Placeholder for symmetry
                             SizedBox(width: 70), // Placeholder for symmetry
                           ],
-                        ),
-                      ],
+                        ],
+                      ),
                       SizedBox(height: 50),
                     ],
                   ),

@@ -414,7 +414,9 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
 
   Widget _buildMatchesList() {
     return Container(
-      color: Colors.grey[100], // Gray background like in unified picker
+      color: Theme.of(context).brightness == Brightness.dark
+          ? Theme.of(context).colorScheme.surface
+          : Colors.grey[200],
       child: ListView.separated(
         controller: _scrollController,
         padding: EdgeInsets.all(16),

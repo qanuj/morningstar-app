@@ -59,10 +59,14 @@ class ClubsScreenState extends State<ClubsScreen> {
                     ),
                   )
                 : clubProvider.clubs.isEmpty
-                ? SingleChildScrollView(
-                    physics: AlwaysScrollableScrollPhysics(),
-                    child: Container(
-                      height: MediaQuery.of(context).size.height - 200,
+                ? Container(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Theme.of(context).colorScheme.surface
+                        : Colors.grey[200],
+                    child: SingleChildScrollView(
+                      physics: AlwaysScrollableScrollPhysics(),
+                      child: Container(
+                        height: MediaQuery.of(context).size.height - 200,
                       child: Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -114,14 +118,23 @@ class ClubsScreenState extends State<ClubsScreen> {
                         ),
                       ),
                     ),
-                  )
-                : ListView.builder(
-                    padding: EdgeInsets.zero,
-                    itemCount: clubProvider.clubs.length,
-                    itemBuilder: (context, index) {
-                      final membership = clubProvider.clubs[index];
-                      return _buildClubCard(membership, clubProvider);
-                    },
+                  ),
+                )
+                : Container(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Theme.of(context).colorScheme.surface
+                        : Colors.grey[200],
+                    child: ListView.builder(
+                      padding: EdgeInsets.all(16),
+                      itemCount: clubProvider.clubs.length,
+                      itemBuilder: (context, index) {
+                        final membership = clubProvider.clubs[index];
+                        return Padding(
+                          padding: EdgeInsets.only(bottom: 12),
+                          child: _buildClubCard(membership, clubProvider),
+                        );
+                      },
+                    ),
                   ),
           );
         },
@@ -132,20 +145,15 @@ class ClubsScreenState extends State<ClubsScreen> {
   Widget _buildClubCard(ClubMembership membership, ClubProvider clubProvider) {
     final club = membership.club;
 
-    return Material(
-      color: Colors.transparent,
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      margin: EdgeInsets.zero,
       child: InkWell(
+        borderRadius: BorderRadius.circular(16),
         onTap: () => _openClubChat(membership),
         child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: Theme.of(context).dividerColor.withOpacity(0.1),
-                width: 0.5,
-              ),
-            ),
-          ),
+          padding: EdgeInsets.all(16),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
