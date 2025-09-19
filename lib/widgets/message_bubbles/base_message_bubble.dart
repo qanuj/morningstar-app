@@ -157,12 +157,12 @@ class BaseMessageBubble extends StatelessWidget {
           // Reactions display (below the bubble with overlap using transform)
           if (message.reactions.isNotEmpty)
             Transform.translate(
-              offset: Offset(0, -12), // Move up to overlap the bubble
+              offset: Offset(0, -14), // Overlap with bubble
               child: Container(
                 margin: EdgeInsets.only(
                   right: isOwn ? 12 : 0,
                   left: isOwn ? 0 : 12,
-                  bottom: 8, // Add some space below
+                  bottom: 0, // No bottom margin
                 ),
                 alignment: isOwn ? Alignment.centerRight : Alignment.centerLeft,
                 child: _buildReactionsDisplay(context),
