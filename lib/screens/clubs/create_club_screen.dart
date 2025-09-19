@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../../widgets/custom_app_bar.dart';
+import '../../services/subscription_service.dart';
 
 class CreateClubScreen extends StatefulWidget {
   const CreateClubScreen({super.key});
@@ -10,71 +13,95 @@ class CreateClubScreen extends StatefulWidget {
 }
 
 class _CreateClubScreenState extends State<CreateClubScreen> {
-  int currentStep = 0;
-  final PageController _pageController = PageController();
-
   // Form controllers
   final TextEditingController _clubNameController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _stateController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  
-  String? selectedCity;
-  String selectedCurrency = 'Indian Rupee (₹)';
+
   String? selectedPlan;
-  
-  // Plan data
+  File? clubLogoFile;
+  final SubscriptionService _subscriptionService = SubscriptionService();
+  bool _isInitializing = true;
+
+  // Plan data with in-app purchase IDs
   final List<Map<String, dynamic>> plans = [
     {
       'name': 'Club Starter',
       'price': 2999,
       'duration': 'year',
       'members': 30,
+      'productId': 'club_starter_annual', // In-app purchase ID
       'features': [
         'Match scheduling & RSVP',
         'Member management',
         'Payment tracking',
-        '+3 more features'
-      ]
+        'Basic analytics',
+        'Chat messaging',
+        'Transaction tracking',
+      ],
     },
     {
       'name': 'Team Captain',
       'price': 4499,
       'duration': 'year',
       'members': 100,
+      'productId': 'team_captain_annual', // In-app purchase ID
       'features': [
-        'Match scheduling & RSVP',
-        'Member management',
-        'Payment tracking',
-        '+3 more features'
+        'Everything in Club Starter',
+        'Advanced analytics',
+        'Custom team management',
+        'Match statistics',
+        'Store management',
+        'Financial reports',
       ],
-      'recommended': true
+      'recommended': true,
     },
     {
       'name': 'League Master',
       'price': 5999,
       'duration': 'year',
       'members': 500,
+      'productId': 'league_master_annual', // In-app purchase ID
       'features': [
-        'Match scheduling & RSVP',
-        'Member management',
-        'Payment tracking',
-        '+8 more features'
+        'Everything in Team Captain',
+        'Multiple teams',
+        'Tournament management',
+        'Advanced reporting',
+        'Priority support',
+        'Custom branding',
       ],
-      'badge': 'Enterprise'
+      'badge': 'Enterprise',
     },
   ];
 
-  final List<String> cities = [
-    'Bangalore (Karnataka)',
-    'Delhi (Delhi)',
-    'Mumbai (Maharashtra)',
-    'Nashik (Maharashtra)',
-    'Palghar (Maharashtra)',
-    'Pune (Maharashtra)',
-    'Thanke (Maharashtra)',
-    'Valsad (Gujarat)',
-  ];
+  @override
+  void initState() {
+    super.initState();
+    // Add listener to update button state when text changes
+    _clubNameController.addListener(() {
+      setState(() {}); // Trigger rebuild to update button state
+    });
+
+    // Initialize subscription service
+    _initializeSubscriptions();
+  }
+
+  Future<void> _initializeSubscriptions() async {
+    try {
+      await _subscriptionService.initializeStore();
+      setState(() {
+        _isInitializing = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isInitializing = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to initialize store: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -84,107 +111,71 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
         pageTitle: 'Create Your Cricket Club',
         showBackButton: true,
       ),
-      body: Column(
-        children: [
-          // Header and Progress indicator
-          Container(
-            padding: EdgeInsets.all(16),
-            color: Theme.of(context).scaffoldBackgroundColor,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Get started with just the essentials - you can add more details later in club settings',
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
-                    fontSize: 14,
-                  ),
+      body: Container(
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Theme.of(context).colorScheme.surface
+            : Colors.grey[200],
+        child: _isInitializing
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(color: Theme.of(context).primaryColor),
+                    SizedBox(height: 16),
+                    Text(
+                      'Initializing store...',
+                      style: TextStyle(
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(height: 16),
-                _buildProgressIndicator(),
-              ],
-            ),
-          ),
-          // Content
-          Expanded(
-            child: PageView(
-              controller: _pageController,
-              onPageChanged: (index) {
-                setState(() {
-                  currentStep = index;
-                });
-              },
-              children: [
-                _buildClubInformationStep(),
-                _buildPlanSelectionStep(),
-                _buildReviewPaymentStep(),
-              ],
-            ),
-          ),
-          // Bottom navigation
-          _buildBottomNavigation(),
-        ],
+              )
+            : Column(
+                children: [
+                  // Content
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          // Club Basic Info
+                          _buildClubBasicInfoSection(),
+
+                          SizedBox(height: 24),
+
+                          // Plan Selection
+                          _buildPlanSelectionSection(),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Bottom navigation
+                  _buildBottomNavigation(),
+                ],
+              ),
       ),
     );
   }
 
-  Widget _buildProgressIndicator() {
-    return Row(
-      children: [
-        for (int i = 0; i < 3; i++) ...[
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: i <= currentStep ? Color(0xFF003f9b) : Colors.grey[300],
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                '${i + 1}',
-                style: TextStyle(
-                  color: i <= currentStep ? Colors.white : Colors.grey[600],
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-          if (i < 2)
-            Expanded(
-              child: Container(
-                height: 2,
-                color: i < currentStep ? Color(0xFF003f9b) : Colors.grey[300],
-                margin: EdgeInsets.symmetric(horizontal: 8),
-              ),
-            ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildClubInformationStep() {
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(16),
-      child: Container(
-        margin: EdgeInsets.symmetric(horizontal: 0),
+  Widget _buildClubBasicInfoSection() {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
         padding: EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: Theme.of(context).dividerColor.withOpacity(0.2),
-            width: 0.5,
-          ),
-        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(Icons.group, color: Theme.of(context).primaryColor),
+                Icon(
+                  Icons.sports_cricket,
+                  color: Theme.of(context).primaryColor,
+                ),
                 SizedBox(width: 8),
                 Text(
-                  'Club Information',
+                  'Club Details',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
@@ -195,137 +186,252 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
             ),
             SizedBox(height: 6),
             Text(
-              'Just the essentials to get your club started',
+              'Basic information to get your club started',
               style: TextStyle(
-                color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                color: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.color?.withOpacity(0.7),
                 fontSize: 14,
               ),
             ),
-            SizedBox(height: 20),
-            
+            SizedBox(height: 24),
+
+            // Club Logo Section
+            Center(
+              child: Column(
+                children: [
+                  GestureDetector(
+                    onTap: _pickClubLogo,
+                    child: Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Theme.of(context).primaryColor.withOpacity(0.1),
+                        border: Border.all(
+                          color: Theme.of(
+                            context,
+                          ).primaryColor.withOpacity(0.3),
+                          width: 2,
+                          style: BorderStyle.solid,
+                        ),
+                      ),
+                      child: clubLogoFile != null
+                          ? ClipOval(
+                              child: Image.file(
+                                clubLogoFile!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Icon(
+                                    Icons.add_a_photo,
+                                    size: 40,
+                                    color: Theme.of(context).primaryColor,
+                                  );
+                                },
+                              ),
+                            )
+                          : Icon(
+                              Icons.add_a_photo,
+                              size: 40,
+                              color: Theme.of(context).primaryColor,
+                            ),
+                    ),
+                  ),
+                  SizedBox(height: 12),
+                  Text(
+                    clubLogoFile != null
+                        ? 'Tap to change logo'
+                        : 'Tap to add club logo',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Theme.of(context).primaryColor,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Optional - You can add this later',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.color?.withOpacity(0.6),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            SizedBox(height: 32),
+
             // Club Name
             _buildTextField(
               controller: _clubNameController,
               label: 'Club Name *',
               hint: 'e.g., Mumbai Warriors CC',
             ),
+
             SizedBox(height: 16),
-            
-            // Description
-            _buildTextField(
-              controller: _descriptionController,
-              label: 'Description *',
-              hint: 'Briefly describe your cricket club...',
-              maxLines: 3,
-            ),
-            SizedBox(height: 16),
-            
-            // City and State
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'City *',
-                        style: TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                      SizedBox(height: 8),
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey[300]!),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: selectedCity,
-                            hint: Row(
-                              children: [
-                                Icon(Icons.location_on, color: Colors.grey),
-                                SizedBox(width: 8),
-                                Text('Select city'),
-                              ],
-                            ),
-                            isExpanded: true,
-                            items: cities.map((city) {
-                              return DropdownMenuItem(
-                                value: city,
-                                child: Text(city),
-                              );
-                            }).toList(),
-                            onChanged: (value) {
-                              setState(() {
-                                selectedCity = value;
-                              });
-                            },
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(width: 16),
-                Expanded(
-                  child: _buildTextField(
-                    controller: _stateController,
-                    label: 'State *',
-                    hint: 'e.g., Maharashtra',
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 16),
-            
-            // Contact Email
-            _buildTextField(
-              controller: _emailController,
-              label: 'Contact Email *',
-              hint: 'club@example.com',
-              keyboardType: TextInputType.emailAddress,
-            ),
-            SizedBox(height: 8),
-            Text(
-              'This email will be used for club communications and important updates',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
+
+            // Helper text
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
               ),
-            ),
-            SizedBox(height: 16),
-            
-            // Currency
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Currency *',
-                  style: TextStyle(fontWeight: FontWeight.w500),
-                ),
-                SizedBox(height: 8),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[300]!),
-                    borderRadius: BorderRadius.circular(8),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'You can add more details like location, description, and contact information later in club settings.',
+                      style: TextStyle(fontSize: 13, color: Colors.blue[700]),
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.currency_rupee, color: Colors.grey),
-                      SizedBox(width: 8),
-                      Text(selectedCurrency),
-                      Spacer(),
-                      Icon(Icons.keyboard_arrow_down, color: Colors.grey),
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  void _pickClubLogo() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).cardColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Select Club Logo',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).textTheme.titleLarge?.color,
+              ),
+            ),
+            SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildImageOption(
+                    icon: Icons.camera_alt,
+                    title: 'Camera',
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await _pickImageFromCamera();
+                    },
+                  ),
+                ),
+                SizedBox(width: 16),
+                Expanded(
+                  child: _buildImageOption(
+                    icon: Icons.photo_library,
+                    title: 'Gallery',
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await _pickImageFromGallery();
+                    },
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImageOption({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: 20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).primaryColor.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Theme.of(context).primaryColor.withOpacity(0.3),
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 32, color: Theme.of(context).primaryColor),
+            SizedBox(height: 8),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImageFromGallery() async {
+    try {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1000,
+        maxHeight: 1000,
+        imageQuality: 85,
+      );
+      if (pickedFile != null) {
+        setState(() {
+          clubLogoFile = File(pickedFile.path);
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to pick image: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _pickImageFromCamera() async {
+    try {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1000,
+        maxHeight: 1000,
+        imageQuality: 85,
+      );
+      if (pickedFile != null) {
+        setState(() {
+          clubLogoFile = File(pickedFile.path);
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to take picture: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Widget _buildTextField({
@@ -355,7 +461,9 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(
-              color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
+              color: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.color?.withOpacity(0.5),
               fontSize: 15,
             ),
             border: OutlineInputBorder(
@@ -388,52 +496,60 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
     );
   }
 
-  Widget _buildPlanSelectionStep() {
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(16),
-      child: Container(
+  Widget _buildPlanSelectionSection() {
+    bool canSelectPlan = _clubNameController.text.isNotEmpty;
+
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
         padding: EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: Theme.of(context).dividerColor.withOpacity(0.2),
-            width: 0.5,
-          ),
-        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(Icons.credit_card, color: Theme.of(context).primaryColor),
+                Icon(
+                  Icons.credit_card,
+                  color: canSelectPlan
+                      ? Theme.of(context).primaryColor
+                      : Colors.grey,
+                ),
                 SizedBox(width: 8),
                 Text(
                   'Choose Your Plan',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
-                    color: Theme.of(context).textTheme.titleLarge?.color,
+                    color: canSelectPlan
+                        ? Theme.of(context).textTheme.titleLarge?.color
+                        : Colors.grey,
                   ),
                 ),
               ],
             ),
             SizedBox(height: 6),
             Text(
-              'Select the plan that best fits your club\'s needs',
+              canSelectPlan
+                  ? 'Select the plan that best fits your club\'s needs'
+                  : 'Please fill in club details above to select a plan',
               style: TextStyle(
-                color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                color: canSelectPlan
+                    ? Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.color?.withOpacity(0.7)
+                    : Colors.grey,
                 fontSize: 14,
               ),
             ),
             SizedBox(height: 20),
-            
+
             // Plans
             for (int i = 0; i < plans.length; i++) ...[
               _buildPlanCard(plans[i], i),
               if (i < plans.length - 1) SizedBox(height: 16),
             ],
-            
+
             SizedBox(height: 24),
             Container(
               padding: EdgeInsets.all(12),
@@ -448,10 +564,7 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
                   Expanded(
                     child: Text(
                       'Have a coupon code? You can apply it during checkout on the payment page.',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.amber[700],
-                      ),
+                      style: TextStyle(fontSize: 13, color: Colors.amber[700]),
                     ),
                   ),
                 ],
@@ -466,303 +579,113 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
   Widget _buildPlanCard(Map<String, dynamic> plan, int index) {
     final isSelected = selectedPlan == plan['name'];
     final isRecommended = plan['recommended'] ?? false;
-    
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          selectedPlan = plan['name'];
-        });
-      },
-      child: Container(
-        padding: EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: isSelected ? Color(0xFF003f9b) : Colors.grey[300]!,
-            width: isSelected ? 2 : 1,
-          ),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  plan['name'],
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Spacer(),
-                if (isRecommended)
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Color(0xFF003f9b),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      'Recommended',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                if (plan['badge'] != null && !isRecommended)
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      plan['badge'],
-                      style: TextStyle(
-                        color: Colors.grey[700],
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            SizedBox(height: 8),
-            Row(
-              children: [
-                Text(
-                  '₹${plan['price']}',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  ' /${plan['duration']}',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 16,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 16),
-            Row(
-              children: [
-                Icon(Icons.people, size: 20, color: Color(0xFF003f9b)),
-                SizedBox(width: 8),
-                Text('Up to ${plan['members']} members'),
-              ],
-            ),
-            SizedBox(height: 12),
-            for (String feature in plan['features'])
-              Padding(
-                padding: EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: Colors.black,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    SizedBox(width: 12),
-                    Text(feature),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
+    final canSelectPlan = _clubNameController.text.isNotEmpty;
 
-  Widget _buildReviewPaymentStep() {
-    final selectedPlanData = plans.firstWhere(
-      (plan) => plan['name'] == selectedPlan,
-      orElse: () => plans[1], // Default to Team Captain
-    );
-    
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(24),
-      child: Container(
-        padding: EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Colors.white,
+    return GestureDetector(
+      onTap: canSelectPlan
+          ? () {
+              setState(() {
+                selectedPlan = plan['name'];
+              });
+            }
+          : null,
+      child: Card(
+        elevation: isSelected ? 4 : 2,
+        shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: Offset(0, 2),
-            ),
-          ],
+          side: BorderSide(
+            color: isSelected ? Color(0xFF003f9b) : Colors.transparent,
+            width: isSelected ? 2 : 0,
+          ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.credit_card, color: Color(0xFF003f9b)),
-                SizedBox(width: 8),
-                Text(
-                  'Review & Payment',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Review your club details and complete payment',
-              style: TextStyle(color: Colors.grey[600]),
-            ),
-            SizedBox(height: 24),
-            
-            // Club Summary
-            Text(
-              'Club Summary',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Name:', style: TextStyle(color: Colors.grey[600])),
-                      Text(
-                        _clubNameController.text.isNotEmpty ? _clubNameController.text : 'Morningstar',
-                        style: TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                      SizedBox(height: 12),
-                      Text('Email:', style: TextStyle(color: Colors.grey[600])),
-                      Text(
-                        _emailController.text.isNotEmpty ? _emailController.text : 'aomeo@ie10.com',
-                        style: TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Location:', style: TextStyle(color: Colors.grey[600])),
-                      Text(
-                        selectedCity != null ? selectedCity! : 'Delhi, Delhi',
-                        style: TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                      SizedBox(height: 12),
-                      Text('Currency:', style: TextStyle(color: Colors.grey[600])),
-                      Text(
-                        selectedCurrency,
-                        style: TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 24),
-            
-            // Selected Plan
-            Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
                   Text(
-                    'Selected Plan',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    plan['name'],
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                  SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              selectedPlan ?? 'Team Captain',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            Text(
-                              'Annual subscription',
-                              style: TextStyle(color: Colors.grey[600]),
-                            ),
-                          ],
+                  Spacer(),
+                  if (isRecommended)
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Color(0xFF003f9b),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'Recommended',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            '₹${selectedPlanData['price']}',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            'per year',
-                            style: TextStyle(color: Colors.grey[600]),
-                          ),
-                        ],
+                    ),
+                  if (plan['badge'] != null && !isRecommended)
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(4),
                       ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 24),
-            
-            // Payment Note
-            Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.info_outline, color: Colors.grey[600], size: 20),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Note: You will be redirected to Stripe for secure payment processing. You can enter coupon codes on the checkout page if you have any. Your club will be created immediately after successful payment.',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey[700],
-                        height: 1.4,
+                      child: Text(
+                        plan['badge'],
+                        style: TextStyle(
+                          color: Colors.grey[700],
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
+                ],
+              ),
+              SizedBox(height: 8),
+              Row(
+                children: [
+                  Text(
+                    '₹${plan['price']}',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    ' /${plan['duration']}',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 16),
                   ),
                 ],
               ),
-            ),
-          ],
+              SizedBox(height: 16),
+              Row(
+                children: [
+                  Icon(Icons.people, size: 20, color: Color(0xFF003f9b)),
+                  SizedBox(width: 8),
+                  Text('Up to ${plan['members']} members'),
+                ],
+              ),
+              SizedBox(height: 12),
+              for (String feature in plan['features'])
+                Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: Colors.black,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Text(feature),
+                    ],
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -772,7 +695,7 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
     return Container(
       padding: EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -781,109 +704,147 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
           ),
         ],
       ),
-      child: Row(
-        children: [
-          if (currentStep > 0)
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () {
-                  _pageController.previousPage(
-                    duration: Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                  );
-                },
-                style: OutlinedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  side: BorderSide(color: Colors.grey[300]!),
-                ),
-                child: Text('Back'),
-              ),
-            ),
-          if (currentStep > 0) SizedBox(width: 16),
-          Expanded(
-            flex: 2,
-            child: ElevatedButton(
-              onPressed: _canProceed() ? () {
-                if (currentStep < 2) {
-                  _pageController.nextPage(
-                    duration: Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                  );
-                } else {
-                  _handlePayment();
-                }
-              } : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFF003f9b),
-                padding: EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: Text(
-                currentStep == 0 ? 'Next: Choose Plan' :
-                currentStep == 1 ? 'Next: Review & Pay' :
-                'Pay ₹${plans.firstWhere((p) => p['name'] == selectedPlan, orElse: () => plans[1])['price']} & Create Club',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+      child: SizedBox(
+        width: double.infinity,
+        child: ElevatedButton(
+          onPressed: _canProceed() ? _handlePayment : null,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Color(0xFF003f9b),
+            padding: EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
             ),
           ),
-        ],
+          child: Text(
+            selectedPlan != null
+                ? 'Pay ₹${plans.firstWhere((p) => p['name'] == selectedPlan)['price']} & Create Club'
+                : 'Create Club',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          ),
+        ),
       ),
     );
   }
 
   bool _canProceed() {
-    switch (currentStep) {
-      case 0:
-        return _clubNameController.text.isNotEmpty &&
-               _descriptionController.text.isNotEmpty &&
-               selectedCity != null &&
-               _stateController.text.isNotEmpty &&
-               _emailController.text.isNotEmpty;
-      case 1:
-        return selectedPlan != null;
-      case 2:
-        return true;
-      default:
-        return false;
-    }
+    return _clubNameController.text.isNotEmpty && selectedPlan != null;
   }
 
-  void _handlePayment() {
-    // TODO: Implement in-app purchase integration
-    // This should integrate with the app store billing APIs
-    print('Processing payment for plan: $selectedPlan');
-    
-    // For now, show a dialog
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Payment Processing'),
-        content: Text('This will integrate with in-app purchases to process the payment.'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).pop(); // Close create club screen
-            },
-            child: Text('OK'),
+  Future<void> _handlePayment() async {
+    if (selectedPlan == null) return;
+
+    // Find the selected plan details
+    final planDetails = plans.firstWhere((plan) => plan['name'] == selectedPlan);
+    final productId = planDetails['productId'] as String;
+
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: Theme.of(context).primaryColor),
+              SizedBox(height: 16),
+              Text('Processing subscription...'),
+            ],
           ),
-        ],
-      ),
-    );
+        ),
+      );
+
+      // Attempt to purchase subscription
+      final success = await _subscriptionService.buySubscription(productId);
+
+      // Close loading dialog
+      Navigator.of(context).pop();
+
+      if (success) {
+        // Show success dialog
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green),
+                SizedBox(width: 8),
+                Text('Success!'),
+              ],
+            ),
+            content: Text(
+              'Your subscription has been activated. Welcome to ${planDetails['name']}!',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop(); // Close success dialog
+                  Navigator.of(context).pop(); // Close create club screen
+                },
+                child: Text('Continue'),
+              ),
+            ],
+          ),
+        );
+      } else {
+        // Show error dialog
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.red),
+                SizedBox(width: 8),
+                Text('Payment Failed'),
+              ],
+            ),
+            content: Text(
+              'Unable to process your subscription. Please try again or contact support.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog if still open
+      Navigator.of(context).pop();
+
+      // Show error dialog
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.red),
+              SizedBox(width: 8),
+              Text('Error'),
+            ],
+          ),
+          content: Text('An error occurred: $e'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   @override
   void dispose() {
     _clubNameController.dispose();
-    _descriptionController.dispose();
-    _stateController.dispose();
-    _emailController.dispose();
-    _pageController.dispose();
     super.dispose();
   }
 }

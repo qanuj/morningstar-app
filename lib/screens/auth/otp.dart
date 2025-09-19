@@ -8,6 +8,7 @@ import '../../providers/user_provider.dart';
 import '../../providers/club_provider.dart';
 import '../../widgets/duggy_logo.dart';
 import '../shared/home.dart';
+import 'collect_name_screen.dart';
 
 class OTPScreen extends StatefulWidget {
   final String phoneNumber;
@@ -143,6 +144,7 @@ class _OTPScreenState extends State<OTPScreen> {
       // Get user and clubs data from the API after successful login
       Map<String, dynamic>? userData;
       List<Map<String, dynamic>>? clubsData;
+      bool isNewUser = false;
 
       try {
         // Fetch user data from /auth/me
@@ -156,34 +158,56 @@ class _OTPScreenState extends State<OTPScreen> {
           userData = userResponse;
         }
 
-        // Fetch clubs data from /my/clubs
-        final clubsResponse = await ApiService.get('/my/clubs');
-        final data = clubsResponse['data'];
-        if (data is List) {
-          clubsData = List<Map<String, dynamic>>.from(data);
-        } else if (data is Map) {
-          clubsData = [Map<String, dynamic>.from(data)];
+        // Check if user has a name - if not, they're a new user
+        if (userData != null &&
+            (userData['name'] == null ||
+             userData['name'].toString().trim().isEmpty)) {
+          isNewUser = true;
         }
 
-        // Update ApiService with the fetched data
-        await ApiService.setToken(
-          response['token'],
-          userData: userData,
-          clubsData: clubsData,
-        );
+        if (!isNewUser) {
+          // Fetch clubs data from /my/clubs for existing users
+          final clubsResponse = await ApiService.get('/my/clubs');
+          final data = clubsResponse['data'];
+          if (data is List) {
+            clubsData = List<Map<String, dynamic>>.from(data);
+          } else if (data is Map) {
+            clubsData = [Map<String, dynamic>.from(data)];
+          }
+
+          // Update ApiService with the fetched data
+          await ApiService.setToken(
+            response['token'],
+            userData: userData,
+            clubsData: clubsData,
+          );
+        }
       } catch (e) {
         debugPrint('Error fetching user/clubs data: $e');
         // Continue with login even if additional data fetch fails
       }
 
-      // Load data from cached sources in providers
-      await Provider.of<UserProvider>(context, listen: false).loadUser();
-      await Provider.of<ClubProvider>(context, listen: false).loadClubs();
+      if (isNewUser) {
+        // Navigate to name collection screen for new users
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => CollectNameScreen(
+              phoneNumber: widget.phoneNumber,
+              token: response['token'],
+            ),
+          ),
+          (route) => false,
+        );
+      } else {
+        // Load data from cached sources in providers for existing users
+        await Provider.of<UserProvider>(context, listen: false).loadUser();
+        await Provider.of<ClubProvider>(context, listen: false).loadClubs();
 
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => HomeScreen()),
-        (route) => false,
-      );
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => HomeScreen()),
+          (route) => false,
+        );
+      }
     } catch (e) {
       String errorMessage;
       Duration snackBarDuration = Duration(seconds: 4);

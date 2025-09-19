@@ -40,6 +40,7 @@ dependencies:
   logger: ^2.6.1
   qr_flutter: ^4.1.0
   qr_code_scanner: ^1.0.1
+  in_app_purchase: ^3.1.13
 
 dev_dependencies:
   flutter_test:

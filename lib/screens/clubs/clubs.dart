@@ -89,30 +89,106 @@ class ClubsScreenState extends State<ClubsScreen> {
                             Text(
                               'No clubs found',
                               style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w400,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w600,
                                 color: Theme.of(
                                   context,
                                 ).textTheme.titleLarge?.color,
                               ),
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'You are not a member of any cricket club yet',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Theme.of(context).textTheme.bodySmall?.color,
+                            const SizedBox(height: 12),
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 32),
+                              child: Text(
+                                'You are not a member of any cricket club yet. Create your own club or ask your club admin to invite you.',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                                ),
+                                textAlign: TextAlign.center,
                               ),
-                              textAlign: TextAlign.center,
                             ),
+
                             const SizedBox(height: 16),
-                            Text(
-                              'Pull down to refresh',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Theme.of(context).primaryColor,
-                                fontStyle: FontStyle.italic,
+
+                            // Club Owner Note
+                            Container(
+                              margin: EdgeInsets.symmetric(horizontal: 24),
+                              padding: EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).primaryColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Theme.of(context).primaryColor.withOpacity(0.2),
+                                  width: 1,
+                                ),
                               ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.lightbulb_outline,
+                                    size: 20,
+                                    color: Theme.of(context).primaryColor,
+                                  ),
+                                  SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      'Club Owner? Create your club to manage members, matches, and more.',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Theme.of(context).primaryColor,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 32),
+
+                            // Create Club Button
+                            ElevatedButton.icon(
+                              onPressed: _showCreateClubDialog,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Theme.of(context).primaryColor,
+                                foregroundColor: Colors.white,
+                                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 2,
+                              ),
+                              icon: Icon(Icons.add, size: 20),
+                              label: Text(
+                                'Create New Club',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 24),
+
+                            // Pull to refresh hint
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.refresh,
+                                  size: 16,
+                                  color: Theme.of(context).primaryColor.withOpacity(0.7),
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Pull down to refresh',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Theme.of(context).primaryColor.withOpacity(0.7),
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),

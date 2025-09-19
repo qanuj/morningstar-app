@@ -81,24 +81,10 @@ class _ClubTeamsScreenState extends State<ClubTeamsScreen> {
     return GestureDetector(
       onTap: () => _showCreateTeamDialog(team),
       child: Card(
-        elevation: 2,
-        shadowColor: Colors.black.withOpacity(0.08),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Container(
+        elevation: 3,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
           padding: EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Theme.of(context).cardColor
-                : null,
-            gradient: Theme.of(context).brightness == Brightness.dark
-                ? null
-                : LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Colors.white, Colors.grey.shade50],
-                  ),
-          ),
           child: Stack(
             children: [
               // Main content
@@ -313,20 +299,25 @@ class _ClubTeamsScreenState extends State<ClubTeamsScreen> {
                 ],
               ),
             )
-          : RefreshIndicator(
-              onRefresh: _loadTeams,
-              child: GridView.builder(
-                padding: EdgeInsets.all(16),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 0.9,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
+          : Container(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Theme.of(context).colorScheme.surface
+                  : Colors.grey[200],
+              child: RefreshIndicator(
+                onRefresh: _loadTeams,
+                child: GridView.builder(
+                  padding: EdgeInsets.all(16),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 0.9,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                  ),
+                  itemCount: _teams.length,
+                  itemBuilder: (context, index) {
+                    return _buildTeamCard(_teams[index]);
+                  },
                 ),
-                itemCount: _teams.length,
-                itemBuilder: (context, index) {
-                  return _buildTeamCard(_teams[index]);
-                },
               ),
             ),
     );

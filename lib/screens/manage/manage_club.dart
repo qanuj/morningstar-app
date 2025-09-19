@@ -66,303 +66,315 @@ class ManageClubScreenState extends State<ManageClubScreen> {
               .firstOrNull;
           final club = updatedClub ?? widget.club;
 
-          return RefreshIndicator(
-            onRefresh: () => _refreshClub(context),
-            child: SingleChildScrollView(
-              padding: EdgeInsets.zero,
-              physics: AlwaysScrollableScrollPhysics(),
-              child: Column(
-                children: [
-                  // Club Header Section
-                  Container(
-                    margin: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Theme.of(
-                            context,
-                          ).shadowColor.withOpacity(0.06),
-                          blurRadius: 16,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Club Logo
-                              Container(
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Theme.of(
-                                        context,
-                                      ).shadowColor.withOpacity(0.1),
-                                      blurRadius: 20,
-                                      offset: Offset(0, 8),
-                                    ),
-                                  ],
-                                ),
-                                child: Stack(
-                                  children: [
-                                    SVGAvatar.extraLarge(
-                                      imageUrl: club.logo,
-                                      backgroundColor: Theme.of(
-                                        context,
-                                      ).colorScheme.primary.withOpacity(0.1),
-                                      fallbackIcon: Icons.groups,
-                                    ),
-                                    // Owner Badge
-                                    if (club.isVerified)
-                                      Positioned(
-                                        right: 4,
-                                        bottom: 4,
-                                        child: Container(
-                                          width: 24,
-                                          height: 24,
-                                          decoration: BoxDecoration(
-                                            color: Colors.blue,
-                                            shape: BoxShape.circle,
-                                            border: Border.all(
-                                              color: Theme.of(context).scaffoldBackgroundColor,
-                                              width: 2,
-                                            ),
-                                          ),
-                                          child: Icon(
-                                            Icons.verified,
-                                            color: Colors.white,
-                                            size: 14,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-
-                              SizedBox(width: 20),
-
-                              // Club Details
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // Club Name
-                                    Text(
-                                      club.name,
-                                      style: TextStyle(
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.w600,
+          return Container(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Theme.of(context).colorScheme.surface
+                : Colors.grey[200],
+            child: RefreshIndicator(
+              onRefresh: () => _refreshClub(context),
+              child: SingleChildScrollView(
+                padding: EdgeInsets.all(16),
+                physics: AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  children: [
+                    // Club Header Section
+                    Card(
+                      elevation: 3,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Club Logo
+                                Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
                                         color: Theme.of(
                                           context,
-                                        ).colorScheme.onSurface,
+                                        ).shadowColor.withOpacity(0.1),
+                                        blurRadius: 20,
+                                        offset: Offset(0, 8),
                                       ),
-                                    ),
-
-                                    SizedBox(height: 4),
-
-                                    // Owner Badge
-                                    Container(
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 2,
+                                    ],
+                                  ),
+                                  child: Stack(
+                                    children: [
+                                      SVGAvatar.extraLarge(
+                                        imageUrl: club.logo,
+                                        backgroundColor: Theme.of(
+                                          context,
+                                        ).colorScheme.primary.withOpacity(0.1),
+                                        fallbackIcon: Icons.groups,
                                       ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.green.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Text(
-                                        'Owner',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w500,
-                                          color: Colors.green[700],
+                                      // Owner Badge
+                                      if (club.isVerified)
+                                        Positioned(
+                                          right: 4,
+                                          bottom: 4,
+                                          child: Container(
+                                            width: 24,
+                                            height: 24,
+                                            decoration: BoxDecoration(
+                                              color: Colors.blue,
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: Theme.of(
+                                                  context,
+                                                ).scaffoldBackgroundColor,
+                                                width: 2,
+                                              ),
+                                            ),
+                                            child: Icon(
+                                              Icons.verified,
+                                              color: Colors.white,
+                                              size: 14,
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                    ),
+                                    ],
+                                  ),
+                                ),
 
-                                    SizedBox(height: 8),
+                                SizedBox(width: 20),
 
-                                    // Location
-                                    if (club.city != null || club.state != null)
+                                // Club Details
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      // Club Name
                                       Text(
-                                        [club.city, club.state, club.country]
-                                            .where((e) => e != null && e.isNotEmpty)
-                                            .join(', '),
+                                        club.name,
                                         style: TextStyle(
-                                          fontSize: 16,
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.w600,
                                           color: Theme.of(
                                             context,
-                                          ).textTheme.bodyMedium?.color,
+                                          ).colorScheme.onSurface,
                                         ),
                                       ),
 
-                                    SizedBox(height: 4),
+                                      SizedBox(height: 4),
 
-                                    // Contact Info
-                                    if (club.contactPhone != null)
-                                      Text(
-                                        club.contactPhone!,
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          color: Theme.of(
-                                            context,
-                                          ).textTheme.bodyMedium?.color,
-                                          fontWeight: FontWeight.w500,
+                                      // Owner Badge
+                                      Container(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          'Owner',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                            color: Colors.green[700],
+                                          ),
                                         ),
                                       ),
-                                  ],
+
+                                      SizedBox(height: 8),
+
+                                      // Location
+                                      if (club.city != null ||
+                                          club.state != null)
+                                        Text(
+                                          [club.city, club.state, club.country]
+                                              .where(
+                                                (e) =>
+                                                    e != null && e.isNotEmpty,
+                                              )
+                                              .join(', '),
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            color: Theme.of(
+                                              context,
+                                            ).textTheme.bodyMedium?.color,
+                                          ),
+                                        ),
+
+                                      SizedBox(height: 4),
+
+                                      // Contact Info
+                                      if (club.contactPhone != null)
+                                        Text(
+                                          club.contactPhone!,
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            color: Theme.of(
+                                              context,
+                                            ).textTheme.bodyMedium?.color,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            // Club Description
+                            if (club.description != null &&
+                                club.description!.isNotEmpty) ...[
+                              Divider(
+                                height: 24,
+                                thickness: 1,
+                                color: Theme.of(
+                                  context,
+                                ).dividerColor.withOpacity(0.3),
+                              ),
+                              Container(
+                                width: double.infinity,
+                                padding: EdgeInsets.only(top: 8),
+                                child: Text(
+                                  club.description!,
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface.withOpacity(0.8),
+                                    height: 1.4,
+                                  ),
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    SizedBox(height: 16),
+
+                    // Management Options List
+                    Card(
+                      elevation: 3,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        children: [
+                          // Members Section
+                          _buildExpandableSection(
+                            icon: Icons.people_outline,
+                            title: 'Members',
+                            subtitle: 'Manage club members, balances & points',
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      EnhancedClubMembersScreen(club: club),
+                                ),
+                              );
+                            },
                           ),
 
-                          // Club Description
-                          if (club.description != null && club.description!.isNotEmpty) ...[
-                            Divider(
-                              height: 24,
-                              thickness: 1,
-                              color: Theme.of(
-                                context,
-                              ).dividerColor.withOpacity(0.3),
-                            ),
-                            Container(
-                              width: double.infinity,
-                              padding: EdgeInsets.only(top: 8),
-                              child: Text(
-                                club.description!,
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface.withOpacity(0.8),
-                                  height: 1.4,
+                          Divider(
+                            height: 1,
+                            color: Theme.of(
+                              context,
+                            ).dividerColor.withOpacity(0.3),
+                          ),
+
+                          // Transactions Section
+                          _buildExpandableSection(
+                            icon: Icons.account_balance_wallet_outlined,
+                            title: 'Transactions',
+                            subtitle: 'View all club transactions',
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      ClubTransactionsScreen(club: club),
                                 ),
-                                maxLines: 3,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
+                              );
+                            },
+                          ),
+
+                          Divider(
+                            height: 1,
+                            color: Theme.of(
+                              context,
+                            ).dividerColor.withOpacity(0.3),
+                          ),
+
+                          // Club Settings
+                          _buildExpandableSection(
+                            icon: Icons.settings_outlined,
+                            title: 'Club Settings',
+                            subtitle: 'Manage club information & preferences',
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      ClubSettingsScreen(club: club),
+                                ),
+                              );
+                            },
+                          ),
+
+                          Divider(
+                            height: 1,
+                            color: Theme.of(
+                              context,
+                            ).dividerColor.withOpacity(0.3),
+                          ),
+
+                          // Match Management
+                          _buildExpandableSection(
+                            icon: Icons.sports_cricket_outlined,
+                            title: 'Matches',
+                            subtitle: 'Schedule & manage club matches',
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => ClubMatchesScreen(club: club),
+                                ),
+                              );
+                            },
+                          ),
+
+                          Divider(
+                            height: 1,
+                            color: Theme.of(
+                              context,
+                            ).dividerColor.withOpacity(0.3),
+                          ),
+
+                          // Team Management
+                          _buildExpandableSection(
+                            icon: Icons.sports_outlined,
+                            title: 'Teams',
+                            subtitle: 'Manage club teams & players',
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => ClubTeamsScreen(club: club),
+                                ),
+                              );
+                            },
+                          ),
                         ],
                       ),
                     ),
-                  ),
 
-                  // Management Options List
-                  Container(
-                    color: Theme.of(context).cardColor,
-                    child: Column(
-                      children: [
-                        // Members Section
-                        _buildExpandableSection(
-                          icon: Icons.people_outline,
-                          title: 'Members',
-                          subtitle: 'Manage club members, balances & points',
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => EnhancedClubMembersScreen(club: club),
-                              ),
-                            );
-                          },
-                        ),
-
-                        Divider(
-                          height: 1,
-                          color: Theme.of(
-                            context,
-                          ).dividerColor.withOpacity(0.3),
-                        ),
-
-                        // Transactions Section
-                        _buildExpandableSection(
-                          icon: Icons.account_balance_wallet_outlined,
-                          title: 'Transactions',
-                          subtitle: 'View all club transactions',
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => ClubTransactionsScreen(club: club),
-                              ),
-                            );
-                          },
-                        ),
-
-                        Divider(
-                          height: 1,
-                          color: Theme.of(
-                            context,
-                          ).dividerColor.withOpacity(0.3),
-                        ),
-
-                        // Club Settings
-                        _buildExpandableSection(
-                          icon: Icons.settings_outlined,
-                          title: 'Club Settings',
-                          subtitle: 'Manage club information & preferences',
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => ClubSettingsScreen(club: club),
-                              ),
-                            );
-                          },
-                        ),
-
-                        Divider(
-                          height: 1,
-                          color: Theme.of(
-                            context,
-                          ).dividerColor.withOpacity(0.3),
-                        ),
-
-                        // Match Management
-                        _buildExpandableSection(
-                          icon: Icons.sports_cricket_outlined,
-                          title: 'Matches',
-                          subtitle: 'Schedule & manage club matches',
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => ClubMatchesScreen(club: club),
-                              ),
-                            );
-                          },
-                        ),
-
-                        Divider(
-                          height: 1,
-                          color: Theme.of(
-                            context,
-                          ).dividerColor.withOpacity(0.3),
-                        ),
-
-                        // Team Management
-                        _buildExpandableSection(
-                          icon: Icons.sports_outlined,
-                          title: 'Teams',
-                          subtitle: 'Manage club teams & players',
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => ClubTeamsScreen(club: club),
-                              ),
-                            );
-                          },
-                        ),
-
-                      ],
-                    ),
-                  ),
-
-                  SizedBox(height: 32),
-                ],
+                    SizedBox(height: 32),
+                  ],
+                ),
               ),
             ),
           );
@@ -431,10 +443,7 @@ class ManageClubScreenState extends State<ManageClubScreen> {
   void _showClubQRCode(Club club) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => ClubInviteQRScreen(club: club),
-      ),
+      MaterialPageRoute(builder: (context) => ClubInviteQRScreen(club: club)),
     );
   }
-
 }

@@ -727,21 +727,12 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
                 ),
               ),
 
-              SizedBox(height: 20),
+              SizedBox(height: 16),
 
               // Form Fields
-              Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Theme.of(context).shadowColor.withOpacity(0.06),
-                      blurRadius: 16,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
+              Card(
+                elevation: 3,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 child: Padding(
                   padding: EdgeInsets.all(16),
                   child: Column(
@@ -858,6 +849,7 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }
