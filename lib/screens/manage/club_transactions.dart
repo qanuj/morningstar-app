@@ -259,9 +259,6 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
               ),
             ),
 
-          // Summary Card - Wallet Style
-          _buildBalanceCard(currency, totalCredit, totalDebit, netBalance),
-
           // Filter Chips - Only Period filter
           if (_selectedPeriod != 'all')
             Container(
@@ -296,88 +293,89 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
           Expanded(
             child: RefreshIndicator(
               onRefresh: () => _loadTransactions(true),
-              color: Color(0xFF003f9b),
-              backgroundColor: Colors.white,
+              color: Theme.of(context).colorScheme.primary,
               child: _isLoading && _transactions.isEmpty
-                  ? ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      children: [
-                        SizedBox(
-                          height: MediaQuery.of(context).size.height * 0.5,
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              strokeWidth: 3,
-                              color: Color(0xFF003f9b),
-                            ),
-                          ),
-                        ),
-                      ],
+                  ? Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 3,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                     )
                   : _transactions.isEmpty
-                  ? ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      children: [
-                        SizedBox(
-                          height: MediaQuery.of(context).size.height * 0.5,
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Container(
-                                  padding: EdgeInsets.all(32),
-                                  decoration: BoxDecoration(
-                                    color: Color(0xFF003f9b).withOpacity(0.1),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    Icons.receipt_long_outlined,
-                                    size: 64,
-                                    color: Color(0xFF003f9b),
-                                  ),
-                                ),
-                                const SizedBox(height: 24),
-                                Text(
-                                  'No transactions found',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w400,
-                                    color: Theme.of(
-                                      context,
-                                    ).textTheme.titleLarge?.color,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  _searchQuery.isNotEmpty ||
-                                          _selectedPeriod != 'all'
-                                      ? 'Try adjusting your filters or search query'
-                                      : 'Club transactions will appear here',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: Theme.of(
-                                      context,
-                                    ).textTheme.bodySmall?.color,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
+                  ? Container(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Theme.of(context).colorScheme.surface
+                          : Colors.grey[200],
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: EdgeInsets.all(32),
+                              decoration: BoxDecoration(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.primary.withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.receipt_long_outlined,
+                                size: 64,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
                             ),
-                          ),
+                            SizedBox(height: 24),
+                            Text(
+                              'No transactions found',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.titleLarge?.color,
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              _searchQuery.isNotEmpty ||
+                                      _selectedPeriod != 'all'
+                                  ? 'Try adjusting your filters or search query'
+                                  : 'Club transactions will appear here',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.bodySmall?.color,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     )
-                  : ListView(
-                      controller: _scrollController,
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      children: [
-                        ...TransactionsListWidget(
-                          transactions: _transactions,
-                          listType: TransactionListType.club,
-                          isLoadingMore: _isLoadingMore,
-                          hasMoreData: _pagination['hasNextPage'] ?? false,
-                          currency: widget.club.membershipFeeCurrency,
-                        ).buildTransactionListItems(context),
-                      ],
+                  : Container(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Theme.of(context).colorScheme.surface
+                          : Colors.grey[200],
+                      child: ListView(
+                        controller: _scrollController,
+                        padding: EdgeInsets.all(16),
+                        children: [
+                          // Balance Card
+                          _buildBalanceCard(currency, totalCredit, totalDebit, netBalance),
+
+                          SizedBox(height: 16),
+
+                          // Transaction List
+                          ...TransactionsListWidget(
+                            transactions: _transactions,
+                            listType: TransactionListType.club,
+                            isLoadingMore: _isLoadingMore,
+                            hasMoreData: _pagination['hasNextPage'] ?? false,
+                            currency: widget.club.membershipFeeCurrency,
+                          ).buildTransactionListItems(context),
+                        ],
+                      ),
                     ),
             ),
           ),
@@ -392,19 +390,10 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
     double totalDebits,
     double netBalance,
   ) {
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).shadowColor.withOpacity(0.06),
-            blurRadius: 16,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Padding(
         padding: EdgeInsets.all(16),
         child: Column(
@@ -453,7 +442,7 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
             Text(
               _formatCurrency(netBalance, currency),
               style: TextStyle(
-                fontSize: 24,
+                fontSize: 22,
                 fontWeight: FontWeight.w700,
                 color: netBalance >= 0 ? Colors.green : Colors.red,
               ),
@@ -461,11 +450,11 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
             Text(
               'Club Balance',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 10,
                 color: Theme.of(context).textTheme.bodyMedium?.color,
               ),
             ),
-            SizedBox(height: 12),
+            SizedBox(height: 4),
 
             // Credits and Debits Row
             Row(
@@ -476,15 +465,15 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
                       Text(
                         _formatCurrency(totalCredits, currency),
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: Colors.green,
                         ),
                       ),
                       Text(
-                        'Total Income',
+                        'Credits',
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 9,
                           color: Theme.of(context).textTheme.bodySmall?.color,
                         ),
                       ),
@@ -493,7 +482,7 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
                 ),
                 Container(
                   width: 1,
-                  height: 24,
+                  height: 20,
                   color: Theme.of(context).dividerColor.withOpacity(0.3),
                 ),
                 Expanded(
@@ -502,15 +491,15 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
                       Text(
                         _formatCurrency(totalDebits, currency),
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: Colors.red,
                         ),
                       ),
                       Text(
-                        'Total Expense',
+                        'Debits',
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 9,
                           color: Theme.of(context).textTheme.bodySmall?.color,
                         ),
                       ),

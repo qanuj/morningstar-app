@@ -1485,23 +1485,27 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
                 ),
               ],
             ),
-      body: Column(
-        children: [
-          // Active filters display
-          if (_getActiveFiltersCount() > 0) _buildActiveFiltersChips(),
+      body: Container(
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Theme.of(context).colorScheme.surface
+            : Colors.grey[200],
+        child: Column(
+          children: [
+            // Active filters display
+            if (_getActiveFiltersCount() > 0) _buildActiveFiltersChips(),
 
-          // Members list
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: () => _loadMembers(refresh: true),
-              color: Color(0xFF003f9b), // Brand blue refresh indicator
-              backgroundColor: Colors.white,
-              child: _filteredMembers.isEmpty && !_isLoading
-                  ? _buildEmptyState()
-                  : _buildMembersList(),
+            // Members list
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () => _loadMembers(refresh: true),
+                color: Theme.of(context).colorScheme.primary,
+                child: _filteredMembers.isEmpty && !_isLoading
+                    ? _buildEmptyState()
+                    : _buildMembersList(),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1649,7 +1653,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
 
     return ListView.builder(
       controller: _scrollController,
-      padding: EdgeInsets.zero,
+      padding: EdgeInsets.all(16),
       physics:
           const AlwaysScrollableScrollPhysics(), // Enable pull-to-refresh even with few items
       itemCount: _filteredMembers.length + (_isLoadingMore ? 1 : 0),
@@ -1679,229 +1683,204 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
   Widget _buildMemberCard(ClubMember member) {
     final isSelected = _selectedMembers.contains(member.id);
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => _isSelectionMode
-            ? _toggleMemberSelection(member.id)
-            : _navigateToMemberManage(member),
-        onLongPress: () => _toggleMemberSelection(member.id),
-        child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? Theme.of(context).primaryColor.withOpacity(0.1)
-                : null,
-            border: Border(
-              bottom: BorderSide(
-                color: Theme.of(context).dividerColor.withOpacity(0.1),
-                width: 0.5,
-              ),
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _isSelectionMode
+              ? _toggleMemberSelection(member.id)
+              : _navigateToMemberManage(member),
+          onLongPress: () => _toggleMemberSelection(member.id),
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? Theme.of(context).primaryColor.withOpacity(0.1)
+                  : null,
+              borderRadius: BorderRadius.circular(12),
             ),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Member Profile Image with overlaid checkbox
-              Stack(
-                children: [
-                  member.profilePicture == null ||
-                          member.profilePicture!.isEmpty
-                      ? SVGAvatar(
-                          size: 50,
-                          backgroundColor: _getMemberAvatarColor(member.name),
-                          iconColor: Colors.white,
-                          fallbackIcon: Icons.person,
-                          child: Text(
-                            member.name.isNotEmpty
-                                ? member.name[0].toUpperCase()
-                                : 'M',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        )
-                      : SVGAvatar.medium(
-                          imageUrl: member.profilePicture,
-                          backgroundColor: Theme.of(
-                            context,
-                          ).primaryColor.withOpacity(0.1),
-                          fallbackIcon: Icons.person,
-                        ),
-                  // Status indicator
-                  _buildStatusIndicator(member),
-                ],
-              ),
-
-              SizedBox(width: 12),
-
-              // Member Info (Expanded)
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Member Profile Image with overlaid checkbox
+                Stack(
                   children: [
-                    // Member Name
-                    Text(
-                      member.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                        color: Theme.of(context).textTheme.titleLarge?.color,
-                        height: 1.2,
-                      ),
-                    ),
-
-                    SizedBox(height: 4),
-
-                    // Member Details Row
-                    Row(
-                      children: [
-                        // Role Badge
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _getRoleColor(member.role).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            member.role,
-                            style: TextStyle(
-                              color: _getRoleColor(member.role),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
+                    member.profilePicture == null ||
+                            member.profilePicture!.isEmpty
+                        ? SVGAvatar(
+                            size: 50,
+                            backgroundColor: _getMemberAvatarColor(member.name),
+                            iconColor: Colors.white,
+                            fallbackIcon: Icons.person,
+                            child: Text(
+                              member.name.isNotEmpty
+                                  ? member.name[0].toUpperCase()
+                                  : 'M',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
                             ),
+                          )
+                        : SVGAvatar.medium(
+                            imageUrl: member.profilePicture,
+                            backgroundColor: Theme.of(
+                              context,
+                            ).primaryColor.withOpacity(0.1),
+                            fallbackIcon: Icons.person,
                           ),
-                        ),
+                    // Status indicator
+                    _buildStatusIndicator(member),
+                  ],
+                ),
 
-                        // Status Badge
-                        if (!member.approved || member.isBanned) ...[
-                          SizedBox(width: 6),
+                SizedBox(width: 12),
+
+                // Member Info (Expanded)
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Member Name
+                      Text(
+                        member.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                          color: Theme.of(context).textTheme.titleLarge?.color,
+                          height: 1.2,
+                        ),
+                      ),
+
+                      SizedBox(height: 4),
+
+                      // Member Details Row
+                      Row(
+                        children: [
+                          // Role Badge
                           Container(
                             padding: EdgeInsets.symmetric(
                               horizontal: 6,
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: _getStatusColor(member).withOpacity(0.1),
+                              color: _getRoleColor(
+                                member.role,
+                              ).withOpacity(0.1),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
-                              _getStatusText(member),
+                              member.role,
                               style: TextStyle(
-                                color: _getStatusColor(member),
+                                color: _getRoleColor(member.role),
                                 fontSize: 11,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
                           ),
+
+                          // Status Badge
+                          if (!member.approved || member.isBanned) ...[
+                            SizedBox(width: 6),
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _getStatusColor(member).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                _getStatusText(member),
+                                style: TextStyle(
+                                  color: _getStatusColor(member),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
+                      ),
 
-                        // Phone number
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            member.phoneNumber,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                      SizedBox(height: 4),
+
+                      // Joined date
+                      Row(
+                        children: [
+                          Expanded(child: SizedBox()),
+                          Text(
+                            _formatJoinedDate(member.joinedDate),
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: 10,
                               color: Theme.of(
                                 context,
-                              ).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                              ).textTheme.bodySmall?.color?.withOpacity(0.6),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                SizedBox(width: 12),
+
+                // Balance & Points
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '₹${member.balance.toStringAsFixed(0)}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: member.balance >= 0
+                            ? Colors.green[700]
+                            : Colors.red[700],
+                      ),
                     ),
-
-                    SizedBox(height: 4),
-
-                    // Email and joined date
+                    SizedBox(height: 2),
                     Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Expanded(
-                          child: Text(
-                            member.email,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(
-                                context,
-                              ).textTheme.bodyMedium?.color?.withOpacity(0.6),
-                            ),
-                          ),
-                        ),
+                        Icon(Icons.star, size: 12, color: Colors.amber),
+                        SizedBox(width: 2),
                         Text(
-                          _formatJoinedDate(member.joinedDate),
+                          '${member.points}',
                           style: TextStyle(
-                            fontSize: 10,
-                            color: Theme.of(
-                              context,
-                            ).textTheme.bodySmall?.color?.withOpacity(0.6),
+                            fontSize: 12,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
                           ),
                         ),
                       ],
                     ),
                   ],
                 ),
-              ),
 
-              SizedBox(width: 12),
-
-              // Balance & Points
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '₹${member.balance.toStringAsFixed(0)}',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: member.balance >= 0
-                          ? Colors.green[700]
-                          : Colors.red[700],
+                // Navigation arrow (only show when not in selection mode)
+                if (!_isSelectionMode) ...[
+                  SizedBox(width: 8),
+                  Container(
+                    padding: EdgeInsets.all(4),
+                    child: Icon(
+                      Icons.arrow_forward_ios,
+                      size: 16,
+                      color: Theme.of(context).hintColor,
                     ),
                   ),
-                  SizedBox(height: 2),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.star, size: 12, color: Colors.amber),
-                      SizedBox(width: 2),
-                      Text(
-                        '${member.points}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(context).textTheme.bodySmall?.color,
-                        ),
-                      ),
-                    ],
-                  ),
                 ],
-              ),
-
-              // Navigation arrow (only show when not in selection mode)
-              if (!_isSelectionMode) ...[
-                SizedBox(width: 8),
-                Container(
-                  padding: EdgeInsets.all(4),
-                  child: Icon(
-                    Icons.arrow_forward_ios,
-                    size: 16,
-                    color: Theme.of(context).hintColor,
-                  ),
-                ),
               ],
-            ],
+            ),
           ),
         ),
       ),

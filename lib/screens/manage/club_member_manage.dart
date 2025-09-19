@@ -579,37 +579,34 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
         clubLogo: widget.club.logo,
         subtitle: 'Member Management',
       ),
-      body: _isLoading
+      body: Container(
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Theme.of(context).colorScheme.surface
+            : Colors.grey[200],
+        child: _isLoading
             ? Center(child: CupertinoActivityIndicator())
             : RefreshIndicator(
                 color: AppTheme.primaryBlue,
                 onRefresh: _loadMemberData,
                 child: SingleChildScrollView(
                   physics: AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.all(16),
                   child: Column(
                     children: [
-                      // Fixed content at top
-                      Padding(
-                        padding: EdgeInsets.only(top: 20),
-                        child: Column(
-                          children: [
-                            // Member Info Card
-                            _buildMemberInfoCard(),
+                      // Member Info Card
+                      _buildMemberInfoCard(),
 
-                            SizedBox(height: 20),
+                      SizedBox(height: 16),
 
-                            // Quick Actions
-                            _buildQuickActionsCard(),
+                      // Quick Actions
+                      _buildQuickActionsCard(),
 
-                            SizedBox(height: 20),
+                      SizedBox(height: 16),
 
-                            // Role & Permissions (collapsible with remove/ban inside)
-                            _buildRolePermissionsCard(),
+                      // Role & Permissions (collapsible with remove/ban inside)
+                      _buildRolePermissionsCard(),
 
-                            SizedBox(height: 20),
-                          ],
-                        ),
-                      ),
+                      SizedBox(height: 16),
 
                       // Expandable transactions section
                       _buildRecentTransactionsCard(),
@@ -620,264 +617,264 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
                   ),
                 ),
               ),
+      ),
     );
   }
 
   Widget _buildMemberInfoCard() {
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: CupertinoColors.systemBackground,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      padding: EdgeInsets.all(20),
-      child: Row(
-        children: [
-          // Profile Picture
-          Stack(
-            children: [
-              _currentMember.profilePicture != null &&
-                      _currentMember.profilePicture!.isNotEmpty
-                  ? SVGAvatar.large(
-                      imageUrl: _currentMember.profilePicture,
-                      backgroundColor: AppTheme.primaryBlue.withOpacity(0.1),
-                      fallbackIcon: Icons.person,
-                    )
-                  : Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryBlue,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: Text(
-                          _currentMember.name.isNotEmpty
-                              ? _currentMember.name[0].toUpperCase()
-                              : 'M',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: EdgeInsets.all(20),
+        child: Row(
+          children: [
+            // Profile Picture
+            Stack(
+              children: [
+                _currentMember.profilePicture != null &&
+                        _currentMember.profilePicture!.isNotEmpty
+                    ? SVGAvatar.large(
+                        imageUrl: _currentMember.profilePicture,
+                        backgroundColor: AppTheme.primaryBlue.withOpacity(0.1),
+                        fallbackIcon: Icons.person,
+                      )
+                    : Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryBlue,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text(
+                            _currentMember.name.isNotEmpty
+                                ? _currentMember.name[0].toUpperCase()
+                                : 'M',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
+                // Online indicator
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    width: 18,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      color: Colors.green,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
                     ),
-              // Online indicator
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: Container(
-                  width: 18,
-                  height: 18,
-                  decoration: BoxDecoration(
-                    color: Colors.green,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          SizedBox(width: 16),
-
-          // Member Details
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _currentMember.name,
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).textTheme.titleLarge?.color,
-                        ),
-                      ),
-                    ),
-                    Container(
-                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryBlue.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        _getRoleFromUser(_currentMember).toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.primaryBlue,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                SizedBox(height: 4),
-
-                Text(
-                  _currentMember.phoneNumber,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Theme.of(context).textTheme.bodyMedium?.color,
-                  ),
-                ),
-
-                SizedBox(height: 4),
-
-                Text(
-                  'joined ${_formatJoinedDate(_currentMember.createdAt)}',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Theme.of(context).textTheme.bodySmall?.color,
                   ),
                 ),
               ],
             ),
-          ),
 
-          SizedBox(width: 16),
+            SizedBox(width: 16),
 
-          // Balance and Points
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                'Balance',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).textTheme.bodySmall?.color,
-                ),
-              ),
-              Text(
-                '₹${_currentMember.balance.toStringAsFixed(0)}',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.successGreen,
-                ),
-              ),
-
-              SizedBox(height: 8),
-
-              Text(
-                'Points',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).textTheme.bodySmall?.color,
-                ),
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
+            // Member Details
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.star, size: 16, color: Colors.amber),
-                  SizedBox(width: 4),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _currentMember.name,
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(
+                              context,
+                            ).textTheme.titleLarge?.color,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryBlue.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          _getRoleFromUser(_currentMember).toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.primaryBlue,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  SizedBox(height: 4),
+
                   Text(
-                    '0', // Points from member data
+                    _currentMember.phoneNumber,
                     style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.amber,
+                      fontSize: 16,
+                      color: Theme.of(context).textTheme.bodyMedium?.color,
+                    ),
+                  ),
+
+                  SizedBox(height: 4),
+
+                  Text(
+                    'joined ${_formatJoinedDate(_currentMember.createdAt)}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Theme.of(context).textTheme.bodySmall?.color,
                     ),
                   ),
                 ],
               ),
-            ],
-          ),
-        ],
+            ),
+
+            SizedBox(width: 16),
+
+            // Balance and Points
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  'Balance',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).textTheme.bodySmall?.color,
+                  ),
+                ),
+                Text(
+                  '₹${_currentMember.balance.toStringAsFixed(0)}',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.successGreen,
+                  ),
+                ),
+
+                SizedBox(height: 8),
+
+                Text(
+                  'Points',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).textTheme.bodySmall?.color,
+                  ),
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.star, size: 16, color: Colors.amber),
+                    SizedBox(width: 4),
+                    Text(
+                      '0', // Points from member data
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.amber,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildRolePermissionsCard() {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: CupertinoColors.systemBackground,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header with expand/collapse button
-            CupertinoButton(
-              padding: EdgeInsets.all(16),
-              onPressed: () {
-                setState(() {
-                  _isRolePermissionExpanded = !_isRolePermissionExpanded;
-                });
-              },
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Role & Permissions',
-                      style: CupertinoTheme.of(
-                        context,
-                      ).textTheme.navTitleTextStyle,
-                    ),
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with expand/collapse button
+          CupertinoButton(
+            padding: EdgeInsets.all(16),
+            onPressed: () {
+              setState(() {
+                _isRolePermissionExpanded = !_isRolePermissionExpanded;
+              });
+            },
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Role & Permissions',
+                    style: CupertinoTheme.of(
+                      context,
+                    ).textTheme.navTitleTextStyle,
                   ),
-                  Icon(
-                    _isRolePermissionExpanded
-                        ? CupertinoIcons.chevron_up
-                        : CupertinoIcons.chevron_down,
-                    color: CupertinoColors.systemGrey,
-                    size: 20,
+                ),
+                Icon(
+                  _isRolePermissionExpanded
+                      ? CupertinoIcons.chevron_up
+                      : CupertinoIcons.chevron_down,
+                  color: CupertinoColors.systemGrey,
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
+
+          // Expandable content
+          if (_isRolePermissionExpanded) ...[
+            Container(
+              padding: EdgeInsets.only(left: 16, right: 16, bottom: 16),
+              child: Column(
+                children: [
+                  // Role options
+                  ..._roles.map((role) => _buildRoleOption(role)),
+
+                  SizedBox(height: 20),
+
+                  // Remove and Ban actions
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildDangerButton(
+                          icon: CupertinoIcons.person_badge_minus,
+                          label: 'Remove from Club',
+                          color: CupertinoColors.systemRed,
+                          onPressed:
+                              _isEditingSelf || _isNonOwnerTryingToModifyOwner
+                              ? null
+                              : _handleRemoveFromClub,
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: _buildDangerButton(
+                          icon: CupertinoIcons.xmark_circle,
+                          label: 'Ban User',
+                          color: CupertinoColors.systemOrange,
+                          onPressed:
+                              _isEditingSelf || _isNonOwnerTryingToModifyOwner
+                              ? null
+                              : _banMember,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-
-            // Expandable content
-            if (_isRolePermissionExpanded) ...[
-              Container(
-                padding: EdgeInsets.only(left: 16, right: 16, bottom: 16),
-                child: Column(
-                  children: [
-                    // Role options
-                    ..._roles.map((role) => _buildRoleOption(role)),
-
-                    SizedBox(height: 20),
-
-                    // Remove and Ban actions
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildDangerButton(
-                            icon: CupertinoIcons.person_badge_minus,
-                            label: 'Remove from Club',
-                            color: CupertinoColors.systemRed,
-                            onPressed:
-                                _isEditingSelf || _isNonOwnerTryingToModifyOwner
-                                ? null
-                                : _handleRemoveFromClub,
-                          ),
-                        ),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: _buildDangerButton(
-                            icon: CupertinoIcons.xmark_circle,
-                            label: 'Ban User',
-                            color: CupertinoColors.systemOrange,
-                            onPressed:
-                                _isEditingSelf || _isNonOwnerTryingToModifyOwner
-                                ? null
-                                : _banMember,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
           ],
-        ),
+        ],
       ),
     );
   }
@@ -1010,40 +1007,44 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
   }
 
   Widget _buildQuickActionsCard() {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Quick Actions',
-            style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
-          ),
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Quick Actions',
+              style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
+            ),
 
-          SizedBox(height: 16),
+            SizedBox(height: 16),
 
-          Row(
-            children: [
-              Expanded(
-                child: _buildActionButton(
-                  icon: Icons.account_balance_wallet,
-                  label: 'Transactions',
-                  color: AppTheme.primaryBlue,
-                  onTap: _showTransactionScreen,
+            Row(
+              children: [
+                Expanded(
+                  child: _buildActionButton(
+                    icon: Icons.account_balance_wallet,
+                    label: 'Transactions',
+                    color: AppTheme.primaryBlue,
+                    onTap: _showTransactionScreen,
+                  ),
                 ),
-              ),
-              SizedBox(width: 12),
-              Expanded(
-                child: _buildActionButton(
-                  icon: Icons.star,
-                  label: 'Points',
-                  color: Colors.amber,
-                  onTap: _showPointsScreen,
+                SizedBox(width: 12),
+                Expanded(
+                  child: _buildActionButton(
+                    icon: Icons.star,
+                    label: 'Points',
+                    color: Colors.amber,
+                    onTap: _showPointsScreen,
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1077,34 +1078,39 @@ class ClubMemberManageScreenState extends State<ClubMemberManageScreen> {
   }
 
   Widget _buildRecentTransactionsCard() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            'Transactions',
-            style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
-          ),
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Transactions',
+              style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
+            ),
+            SizedBox(height: 16),
+            SizedBox(
+              height: 400, // Define a specific height for the transaction list
+              child: _recentTransactions.isEmpty && !_isLoadingTransactions
+                  ? _buildEmptyTransactionsState()
+                  : ListView(
+                      controller: _transactionScrollController,
+                      physics: AlwaysScrollableScrollPhysics(),
+                      children: TransactionsListWidget(
+                        transactions: _recentTransactions,
+                        listType: TransactionListType.member,
+                        isLoadingMore: _isLoadingTransactions,
+                        hasMoreData: _hasMoreTransactions,
+                        currency: widget.club.membershipFeeCurrency,
+                        showDateHeaders: true,
+                      ).buildTransactionListItems(context),
+                    ),
+            ),
+          ],
         ),
-        SizedBox(
-          height: 400, // Define a specific height for the transaction list
-          child: _recentTransactions.isEmpty && !_isLoadingTransactions
-              ? _buildEmptyTransactionsState()
-              : ListView(
-                  controller: _transactionScrollController,
-                  physics: AlwaysScrollableScrollPhysics(),
-                  children: TransactionsListWidget(
-                    transactions: _recentTransactions,
-                    listType: TransactionListType.member,
-                    isLoadingMore: _isLoadingTransactions,
-                    hasMoreData: _hasMoreTransactions,
-                    currency: widget.club.membershipFeeCurrency,
-                    showDateHeaders: true,
-                  ).buildTransactionListItems(context),
-                ),
-        ),
-      ],
+      ),
     );
   }
 
