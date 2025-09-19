@@ -6,9 +6,7 @@ import 'dart:async';
 import '../../providers/user_provider.dart';
 import '../../models/club.dart';
 import '../../models/club_message.dart';
-import '../../models/match.dart';
 import '../../models/message_status.dart';
-import '../../models/starred_info.dart';
 import '../../models/message_reply.dart';
 import '../../models/message_reaction.dart';
 import '../../services/chat_api_service.dart';
@@ -26,10 +24,6 @@ import '../../widgets/chat_header.dart';
 import '../manage/manage_club.dart';
 import '../../providers/club_provider.dart';
 import '../../models/shared_content.dart';
-import '../matches/match_selection_screen.dart';
-import '../../widgets/dialogs/practice_selection_dialog.dart';
-import '../matches/create_match_screen.dart';
-import '../practices/create_practice_screen.dart';
 
 class ClubChatScreen extends StatefulWidget {
   final Club club;
@@ -1348,253 +1342,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
     });
   }
 
-  void _navigateToCreateMatch() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => MatchSelectionScreen(
-          clubId: widget.club.id,
-          onExistingMatchSelected: (match) {
-            _sendExistingMatchMessage(match);
-          },
-          onCreateNewMatch: () {
-            _navigateToCreateNewMatch();
-          },
-        ),
-      ),
-    );
-    _textFieldFocusNode.unfocus();
-  }
-
-  void _navigateToCreatePractice() async {
-    // Navigate to practice selection screen
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => PracticeSelectionScreen(
-          clubId: widget.club.id,
-          onExistingPracticeSelected: (practice) {
-            // Send existing practice message to chat
-            _sendExistingPracticeMessage(practice);
-            // Unfocus text field to prevent keyboard from opening
-            _textFieldFocusNode.unfocus();
-          },
-          onCreateNewPractice: () {
-            // Navigate to create new practice
-            _navigateToCreateNewPractice();
-            // Unfocus text field to prevent keyboard from opening
-            _textFieldFocusNode.unfocus();
-          },
-        ),
-      ),
-    );
-  }
-
-  void _navigateToCreateNewPractice() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => CreatePracticeScreen(
-          clubId: widget.club.id,
-          // Server handles practice message posting automatically when notifyMembers: true
-        ),
-      ),
-    );
-  }
-
-  void _navigateToCreateNewMatch() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => CreateMatchScreen(
-          onMatchCreated: (match) {
-            // Reuse existing flow for sending match announcements
-            _sendExistingMatchMessage(match);
-          },
-        ),
-      ),
-    );
-  }
-
-  void _sendExistingPracticeMessage(MatchListItem practice) async {
-    // Get user's membership to determine role
-    final clubProvider = context.read<ClubProvider>();
-    final membership = clubProvider.clubs
-        .where((m) => m.club.id == widget.club.id)
-        .firstOrNull;
-
-    // Create temporary message for immediate UI feedback with 'sent' status to prevent duplicate sending
-    final tempMessage = ClubMessage(
-      id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
-      clubId: widget.club.id,
-      senderId: 'current_user',
-      senderName: 'You',
-      senderProfilePicture: null,
-      senderRole: membership?.role ?? 'ADMIN',
-      content:
-          '⚽ Practice session: ${practice.opponent?.isNotEmpty == true ? practice.opponent! : 'Practice Session'}',
-      messageType: 'practice',
-      matchId: practice.id, // Use unified matchId instead of practiceId
-      matchDetails: {
-        // Use unified matchDetails instead of practiceDetails
-        'title': practice.opponent?.isNotEmpty == true
-            ? practice.opponent!
-            : 'Practice Session',
-        'description': 'Join our training session',
-        'date': practice.matchDate.toIso8601String().split('T')[0],
-        'time':
-            '${practice.matchDate.hour.toString().padLeft(2, '0')}:${practice.matchDate.minute.toString().padLeft(2, '0')}',
-        'venue': practice.location.isNotEmpty
-            ? practice.location
-            : 'Training Ground',
-        'duration': '2 hours',
-        'type': 'PRACTICE', // Set type to indicate this is a practice
-        'maxParticipants': practice.spots,
-        'confirmedPlayers': practice.confirmedPlayers,
-        'isJoined':
-            practice.userRsvp != null && practice.userRsvp!.status == 'YES',
-        'isCancelled': practice.isCancelled,
-        'cancellationReason': practice.cancellationReason,
-      },
-      createdAt: DateTime.now(),
-      status: MessageStatus
-          .sent, // Use 'sent' to prevent SelfSendingMessageBubble from sending again
-      starred: StarredInfo(isStarred: false),
-      pin: PinInfo(isPinned: false),
-    );
-
-    // Add to local messages immediately for UI feedback
-    _handleNewMessage(tempMessage);
-
-    // Send practice message to backend directly
-    try {
-      final practiceData = {
-        'content':
-            '⚽ Practice session: ${practice.opponent?.isNotEmpty == true ? practice.opponent! : 'Practice Session'}',
-        'matchId': practice.id, // Use unified matchId instead of practiceId
-        'matchDetails': {
-          // Use unified matchDetails instead of practiceDetails
-          'title': practice.opponent?.isNotEmpty == true
-              ? practice.opponent!
-              : 'Practice Session',
-          'description': 'Join our training session',
-          'date': practice.matchDate.toIso8601String().split('T')[0],
-          'time':
-              '${practice.matchDate.hour.toString().padLeft(2, '0')}:${practice.matchDate.minute.toString().padLeft(2, '0')}',
-          'venue': practice.location.isNotEmpty
-              ? practice.location
-              : 'Training Ground',
-          'duration': '2 hours',
-          'type': 'PRACTICE', // Set type to indicate this is a practice
-          'maxParticipants': practice.spots,
-          'confirmedPlayers': practice.confirmedPlayers,
-          'isJoined':
-              practice.userRsvp != null && practice.userRsvp!.status == 'YES',
-          'isCancelled': practice.isCancelled,
-          'cancellationReason': practice.cancellationReason,
-        },
-      };
-
-      await ChatApiService.sendPracticeMessage(widget.club.id, practiceData);
-    } catch (e) {
-      print('❌ Error sending practice message: $e');
-      // Handle error - show snackbar or retry
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to send practice announcement'),
-            backgroundColor: Colors.red,
-            action: SnackBarAction(
-              label: 'Retry',
-              onPressed: () => _sendExistingPracticeMessage(practice),
-            ),
-          ),
-        );
-      }
-    }
-  }
-
-  void _sendExistingMatchMessage(MatchListItem match) async {
-    // Get user's membership to determine role
-    final clubProvider = context.read<ClubProvider>();
-    final membership = clubProvider.clubs
-        .where((m) => m.club.id == widget.club.id)
-        .firstOrNull;
-
-    // Create temporary message for immediate UI feedback with 'sent' status to prevent duplicate sending
-    final tempMessage = ClubMessage(
-      id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
-      clubId: widget.club.id,
-      senderId: 'current_user',
-      senderName: 'You',
-      senderProfilePicture: null,
-      senderRole: membership?.role ?? 'ADMIN',
-      content:
-          '📅 Match announcement: ${match.team?.name ?? match.club.name} vs ${match.opponentTeam?.name ?? match.opponent ?? "TBD"}',
-      messageType: 'match',
-      matchId: match.id,
-      matchDetails: {
-        'homeTeam': {
-          'name': match.team?.name ?? match.club.name,
-          'logo': match.team?.logo ?? match.club.logo,
-        },
-        'opponentTeam': {
-          'name': match.opponentTeam?.name ?? match.opponent ?? 'TBD',
-          'logo': match.opponentTeam?.logo,
-        },
-        'dateTime': match.matchDate.toIso8601String(),
-        'venue': {
-          'name': match.location.isNotEmpty ? match.location : 'Venue TBD',
-          'address': match.location,
-        },
-      },
-      createdAt: DateTime.now(),
-      status: MessageStatus
-          .sent, // Use 'sent' to prevent SelfSendingMessageBubble from sending again
-      starred: StarredInfo(isStarred: false),
-      pin: PinInfo(isPinned: false),
-    );
-
-    // Add to local messages immediately for UI feedback
-    _handleNewMessage(tempMessage);
-
-    // Send match message to backend directly
-    try {
-      final matchData = {
-        'content':
-            '📅 Match announcement: ${match.team?.name ?? match.club.name} vs ${match.opponentTeam?.name ?? match.opponent ?? "TBD"}',
-        'matchId': match.id,
-        'matchDetails': {
-          'homeTeam': {
-            'name': match.team?.name ?? match.club.name,
-            'logo': match.team?.logo ?? match.club.logo,
-          },
-          'opponentTeam': {
-            'name': match.opponentTeam?.name ?? match.opponent ?? 'TBD',
-            'logo': match.opponentTeam?.logo,
-          },
-          'dateTime': match.matchDate.toIso8601String(),
-          'venue': {
-            'name': match.location.isNotEmpty ? match.location : 'Venue TBD',
-            'address': match.location,
-          },
-        },
-      };
-
-      await ChatApiService.sendMatchMessage(widget.club.id, matchData);
-    } catch (e) {
-      print('❌ Error sending existing match message: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to send match announcement'),
-            backgroundColor: Colors.red,
-            action: SnackBarAction(
-              label: 'Retry',
-              onPressed: () => _sendExistingMatchMessage(match),
-            ),
-          ),
-        );
-      }
-    }
-  }
-
   void _handleNewMessage(ClubMessage tempMessage) {
     debugPrint(
       '🔍 ClubChat: _handleNewMessage called with tempMessage id: ${tempMessage.id}',
@@ -1744,8 +1491,12 @@ class ClubChatScreenState extends State<ClubChatScreen>
           Positioned.fill(
             child: Container(
               color: isDarkTheme
-                  ? Color(0xFF0D1117) // Dark background that complements blue sender bubbles
-                  : Color(0xFFE5DDD5), // WhatsApp's signature light yellow/cream background
+                  ? Color(
+                      0xFF0D1117,
+                    ) // Dark background that complements blue sender bubbles
+                  : Color(
+                      0xFFE5DDD5,
+                    ), // WhatsApp's signature light yellow/cream background
               child: Opacity(
                 opacity: 0.15, // Subtle opacity for the pattern
                 child: Image.asset(
@@ -1767,83 +1518,84 @@ class ClubChatScreenState extends State<ClubChatScreen>
                 children: [
                   // Messages List - Takes all available space above input
                   Expanded(
-                  child: GestureDetector(
-                    onPanStart: (details) {
-                      // Track where the pan/scroll gesture starts
-                      final startY = details.localPosition.dy;
-                      final widgetHeight = context.size?.height ?? 0;
-                      final bottom30Percent = widgetHeight * 0.7; // 70% from top = bottom 30%
+                    child: GestureDetector(
+                      onPanStart: (details) {
+                        // Track where the pan/scroll gesture starts
+                        final startY = details.localPosition.dy;
+                        final widgetHeight = context.size?.height ?? 0;
+                        final bottom30Percent =
+                            widgetHeight * 0.7; // 70% from top = bottom 30%
 
-                      setState(() {
-                        _canActivateRecording = startY > bottom30Percent;
-                      });
+                        setState(() {
+                          _canActivateRecording = startY > bottom30Percent;
+                        });
 
-                      debugPrint(
-                        '🎯 Pan gesture started at ${startY}px, bottom 30% starts at ${bottom30Percent}px, can activate: $_canActivateRecording',
-                      );
-                    },
-                    onPanEnd: (details) {
-                      // Reset recording activation when pan gesture ends
-                      setState(() {
-                        _canActivateRecording = false;
-                      });
-                      debugPrint(
-                        '🎯 Pan gesture ended, recording activation reset',
-                      );
-                    },
-                    onTap: () {
-                      // Close keyboard when tapping in messages area
-                      FocusScope.of(context).unfocus();
-                    },
-                    behavior: HitTestBehavior.opaque,
-                    child: _error != null
-                        ? _buildErrorState(_error!)
-                        : _messages.isEmpty
-                        ? _buildEmptyState()
-                        : _buildMessagesList(),
-                  ),
-                ),
-
-                // Footer with reply preview and input
-                Container(
-                  decoration: BoxDecoration(
-                    color: isDarkTheme ? Color(0xFF1e2428) : Colors.white,
-                    border: Border(
-                      top: BorderSide(
-                        color: isDarkTheme
-                            ? Colors.grey[700]!.withOpacity(0.3)
-                            : Colors.grey[300]!.withOpacity(0.5),
-                        width: 0.5,
-                      ),
+                        debugPrint(
+                          '🎯 Pan gesture started at ${startY}px, bottom 30% starts at ${bottom30Percent}px, can activate: $_canActivateRecording',
+                        );
+                      },
+                      onPanEnd: (details) {
+                        // Reset recording activation when pan gesture ends
+                        setState(() {
+                          _canActivateRecording = false;
+                        });
+                        debugPrint(
+                          '🎯 Pan gesture ended, recording activation reset',
+                        );
+                      },
+                      onTap: () {
+                        // Close keyboard when tapping in messages area
+                        FocusScope.of(context).unfocus();
+                      },
+                      behavior: HitTestBehavior.opaque,
+                      child: _error != null
+                          ? _buildErrorState(_error!)
+                          : _messages.isEmpty
+                          ? _buildEmptyState()
+                          : _buildMessagesList(),
                     ),
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Reply preview (if replying to a message)
-                      if (_replyingTo != null) _buildReplyPreview(),
 
-                      // Message Input - Fixed at bottom (hidden during recording mode)
-                      if (!_isInRecordingMode)
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                          child: MessageInput(
-                            messageController: _messageController,
-                            textFieldFocusNode: _textFieldFocusNode,
-                            clubId: widget.club.id,
-                            audioRecordingKey: _audioRecordingKey,
-                            onSendMessage: _handleNewMessage,
-                            upiId: widget.club.upiId,
-                            userRole: membership?.role,
-                            onCreateMatch: _navigateToCreateMatch,
-                            onCreatePractice: _navigateToCreatePractice,
-                          ),
+                  // Footer with reply preview and input
+                  Container(
+                    decoration: BoxDecoration(
+                      color: isDarkTheme ? Color(0xFF1e2428) : Colors.white,
+                      border: Border(
+                        top: BorderSide(
+                          color: isDarkTheme
+                              ? Colors.grey[700]!.withOpacity(0.3)
+                              : Colors.grey[300]!.withOpacity(0.5),
+                          width: 0.5,
                         ),
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Reply preview (if replying to a message)
+                        if (_replyingTo != null) _buildReplyPreview(),
 
-                    ],
+                        // Message Input - Fixed at bottom (hidden during recording mode)
+                        if (!_isInRecordingMode)
+                          Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 8,
+                            ),
+                            child: MessageInput(
+                              messageController: _messageController,
+                              textFieldFocusNode: _textFieldFocusNode,
+                              clubId: widget.club.id,
+                              audioRecordingKey: _audioRecordingKey,
+                              onSendMessage: _handleNewMessage,
+                              upiId: widget.club.upiId,
+                              userRole: membership?.role,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
               ),
             ),
           ),
@@ -1918,7 +1670,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
                 ),
               ),
             ),
-
         ],
       ),
     );

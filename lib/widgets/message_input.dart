@@ -6,11 +6,20 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:io';
 import '../widgets/audio_recording_widget.dart';
 import '../widgets/image_caption_dialog.dart';
+import '../widgets/selectors/match_picker.dart';
+import '../widgets/selectors/practice_picker.dart';
 import '../models/club_message.dart';
 import '../models/message_status.dart';
 import '../models/message_document.dart';
 import '../models/starred_info.dart';
 import '../models/message_audio.dart';
+import '../models/match.dart';
+import '../services/chat_api_service.dart';
+import 'package:provider/provider.dart';
+import '../providers/user_provider.dart';
+import '../providers/club_provider.dart';
+import '../screens/matches/create_match_screen.dart';
+import '../screens/practices/create_practice_screen.dart';
 
 /// A comprehensive self-contained message input widget for chat functionality
 /// Handles text input, file attachments, camera capture, and audio recording
@@ -24,8 +33,6 @@ class MessageInput extends StatefulWidget {
 
   // Simplified callbacks - only what's needed
   final Function(ClubMessage) onSendMessage;
-  final VoidCallback? onCreateMatch;
-  final VoidCallback? onCreatePractice;
 
   const MessageInput({
     super.key,
@@ -36,8 +43,6 @@ class MessageInput extends StatefulWidget {
     required this.onSendMessage,
     this.upiId,
     this.userRole,
-    this.onCreateMatch,
-    this.onCreatePractice,
   });
 
   @override
@@ -306,6 +311,252 @@ class _MessageInputState extends State<MessageInput> {
     widget.onSendMessage(tempMessage);
   }
 
+  void _openMatchPicker() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MatchPicker(
+          clubId: widget.clubId,
+          onExistingMatchSelected: (match) {
+            _sendExistingMatchMessage(match);
+          },
+          onCreateNewMatch: () {
+            _navigateToCreateNewMatch();
+          },
+        ),
+      ),
+    );
+    widget.textFieldFocusNode.unfocus();
+  }
+
+  void _openPracticePicker() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => PracticePicker(
+          clubId: widget.clubId,
+          onExistingPracticeSelected: (practice) {
+            // Send existing practice message to chat
+            _sendExistingPracticeMessage(practice);
+            // Unfocus text field to prevent keyboard from opening
+            widget.textFieldFocusNode.unfocus();
+          },
+          onCreateNewPractice: () {
+            // Navigate to create new practice
+            _navigateToCreateNewPractice();
+            // Unfocus text field to prevent keyboard from opening
+            widget.textFieldFocusNode.unfocus();
+          },
+        ),
+      ),
+    );
+  }
+
+  void _navigateToCreateNewPractice() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CreatePracticeScreen(
+          clubId: widget.clubId,
+          // Server handles practice message posting automatically when notifyMembers: true
+        ),
+      ),
+    );
+  }
+
+  void _navigateToCreateNewMatch() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CreateMatchScreen(
+          onMatchCreated: (match) {
+            // Reuse existing flow for sending match announcements
+            _sendExistingMatchMessage(match);
+          },
+        ),
+      ),
+    );
+  }
+
+  void _sendExistingPracticeMessage(MatchListItem practice) async {
+    // Get user's membership to determine role
+    final clubProvider = context.read<ClubProvider>();
+    final membership = clubProvider.clubs
+        .where((m) => m.club.id == widget.clubId)
+        .firstOrNull;
+
+    // Create temporary message for immediate UI feedback with 'sent' status to prevent duplicate sending
+    final tempMessage = ClubMessage(
+      id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+      clubId: widget.clubId,
+      senderId: 'current_user',
+      senderName: 'You',
+      senderProfilePicture: null,
+      senderRole: membership?.role ?? 'ADMIN',
+      content:
+          '⚽ Practice session: ${practice.opponent?.isNotEmpty == true ? practice.opponent! : 'Practice Session'}',
+      messageType: 'practice',
+      matchId: practice.id, // Use unified matchId instead of practiceId
+      matchDetails: {
+        // Use unified matchDetails instead of practiceDetails
+        'title': practice.opponent?.isNotEmpty == true
+            ? practice.opponent!
+            : 'Practice Session',
+        'description': 'Join our training session',
+        'date': practice.matchDate.toIso8601String().split('T')[0],
+        'time':
+            '${practice.matchDate.hour.toString().padLeft(2, '0')}:${practice.matchDate.minute.toString().padLeft(2, '0')}',
+        'venue': practice.location.isNotEmpty
+            ? practice.location
+            : 'Training Ground',
+        'duration': '2 hours',
+        'type': 'PRACTICE', // Set type to indicate this is a practice
+        'maxParticipants': practice.spots,
+        'confirmedPlayers': practice.confirmedPlayers,
+        'isJoined':
+            practice.userRsvp != null && practice.userRsvp!.status == 'YES',
+        'isCancelled': practice.isCancelled,
+        'cancellationReason': practice.cancellationReason,
+      },
+      createdAt: DateTime.now(),
+      status: MessageStatus
+          .sent, // Use 'sent' to prevent SelfSendingMessageBubble from sending again
+      starred: StarredInfo(isStarred: false),
+      pin: PinInfo(isPinned: false),
+    );
+
+    // Add to local messages immediately for UI feedback
+    widget.onSendMessage(tempMessage);
+
+    // Send practice message to backend directly
+    try {
+      final practiceData = {
+        'content':
+            '⚽ Practice session: ${practice.opponent?.isNotEmpty == true ? practice.opponent! : 'Practice Session'}',
+        'matchId': practice.id, // Use unified matchId instead of practiceId
+        'matchDetails': {
+          // Use unified matchDetails instead of practiceDetails
+          'title': practice.opponent?.isNotEmpty == true
+              ? practice.opponent!
+              : 'Practice Session',
+          'description': 'Join our training session',
+          'date': practice.matchDate.toIso8601String().split('T')[0],
+          'time':
+              '${practice.matchDate.hour.toString().padLeft(2, '0')}:${practice.matchDate.minute.toString().padLeft(2, '0')}',
+          'venue': practice.location.isNotEmpty
+              ? practice.location
+              : 'Training Ground',
+          'duration': '2 hours',
+          'type': 'PRACTICE', // Set type to indicate this is a practice
+          'maxParticipants': practice.spots,
+          'confirmedPlayers': practice.confirmedPlayers,
+          'isJoined':
+              practice.userRsvp != null && practice.userRsvp!.status == 'YES',
+          'isCancelled': practice.isCancelled,
+          'cancellationReason': practice.cancellationReason,
+        },
+      };
+
+      await ChatApiService.sendPracticeMessage(widget.clubId, practiceData);
+    } catch (e) {
+      print('❌ Error sending practice message: $e');
+      // Handle error - show snackbar or retry
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send practice announcement'),
+            backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => _sendExistingPracticeMessage(practice),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  void _sendExistingMatchMessage(MatchListItem match) async {
+    // Get user's membership to determine role
+    final clubProvider = context.read<ClubProvider>();
+    final membership = clubProvider.clubs
+        .where((m) => m.club.id == widget.clubId)
+        .firstOrNull;
+
+    // Create temporary message for immediate UI feedback with 'sent' status to prevent duplicate sending
+    final tempMessage = ClubMessage(
+      id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+      clubId: widget.clubId,
+      senderId: 'current_user',
+      senderName: 'You',
+      senderProfilePicture: null,
+      senderRole: membership?.role ?? 'ADMIN',
+      content:
+          '📅 Match announcement: ${match.team?.name ?? match.club.name} vs ${match.opponentTeam?.name ?? match.opponent ?? "TBD"}',
+      messageType: 'match',
+      matchId: match.id,
+      matchDetails: {
+        'homeTeam': {
+          'name': match.team?.name ?? match.club.name,
+          'logo': match.team?.logo ?? match.club.logo,
+        },
+        'opponentTeam': {
+          'name': match.opponentTeam?.name ?? match.opponent ?? 'TBD',
+          'logo': match.opponentTeam?.logo,
+        },
+        'dateTime': match.matchDate.toIso8601String(),
+        'venue': {
+          'name': match.location.isNotEmpty ? match.location : 'Venue TBD',
+          'address': match.location,
+        },
+      },
+      createdAt: DateTime.now(),
+      status: MessageStatus
+          .sent, // Use 'sent' to prevent SelfSendingMessageBubble from sending again
+      starred: StarredInfo(isStarred: false),
+      pin: PinInfo(isPinned: false),
+    );
+
+    // Add to local messages immediately for UI feedback
+    widget.onSendMessage(tempMessage);
+
+    // Send match message to backend directly
+    try {
+      final matchData = {
+        'content':
+            '📅 Match announcement: ${match.team?.name ?? match.club.name} vs ${match.opponentTeam?.name ?? match.opponent ?? "TBD"}',
+        'matchId': match.id,
+        'matchDetails': {
+          'homeTeam': {
+            'name': match.team?.name ?? match.club.name,
+            'logo': match.team?.logo ?? match.club.logo,
+          },
+          'opponentTeam': {
+            'name': match.opponentTeam?.name ?? match.opponent ?? 'TBD',
+            'logo': match.opponentTeam?.logo,
+          },
+          'dateTime': match.matchDate.toIso8601String(),
+          'venue': {
+            'name': match.location.isNotEmpty ? match.location : 'Venue TBD',
+            'address': match.location,
+          },
+        },
+      };
+
+      await ChatApiService.sendMatchMessage(widget.clubId, matchData);
+    } catch (e) {
+      print('❌ Error sending existing match message: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send match announcement'),
+            backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => _sendExistingMatchMessage(match),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
   void _showUploadOptions() {
     showModalBottomSheet(
       context: context,
@@ -416,30 +667,24 @@ class _MessageInputState extends State<MessageInput> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            if (widget.onCreateMatch != null)
-                              _buildGridOption(
-                                icon: Icons.sports_cricket,
-                                iconColor: Color(0xFF4CAF50),
-                                title: 'Match',
-                                onTap: () {
-                                  Navigator.pop(context);
-                                  widget.onCreateMatch!();
-                                },
-                              )
-                            else
-                              SizedBox(width: 70), // Placeholder
-                            if (widget.onCreatePractice != null)
-                              _buildGridOption(
-                                icon: Icons.fitness_center,
-                                iconColor: Color(0xFF00BCD4),
-                                title: 'Practice',
-                                onTap: () {
-                                  Navigator.pop(context);
-                                  widget.onCreatePractice!();
-                                },
-                              )
-                            else
-                              SizedBox(width: 70), // Placeholder
+                            _buildGridOption(
+                              icon: Icons.sports_cricket,
+                              iconColor: Color(0xFF4CAF50),
+                              title: 'Match',
+                              onTap: () {
+                                Navigator.pop(context);
+                                _openMatchPicker();
+                              },
+                            ),
+                            _buildGridOption(
+                              icon: Icons.fitness_center,
+                              iconColor: Color(0xFF00BCD4),
+                              title: 'Practice',
+                              onTap: () {
+                                Navigator.pop(context);
+                                _openPracticePicker();
+                              },
+                            ),
                             SizedBox(width: 70), // Placeholder for symmetry
                           ],
                         ),
