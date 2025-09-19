@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/club_message.dart';
 import '../../screens/matches/match_detail.dart';
+import '../../screens/practices/practice_match_detail.dart';
 import 'text_message_bubble.dart';
 import 'audio_message_bubble.dart';
 import 'document_message_bubble.dart';
@@ -217,11 +218,21 @@ class MessageBubbleFactory extends StatelessWidget {
   void _navigateToMatchDetail(BuildContext context, ClubMessage message) {
     if (message.matchId == null) return;
 
+    final matchData = message.matchDetails ?? message.practiceDetails ?? {};
+    final rawType = matchData['type'] ?? matchData['matchType'];
+    final initialType = rawType?.toString();
+    final matchType = initialType?.toLowerCase();
+    final isPractice =
+        matchType == 'practice' || message.practiceDetails != null;
+
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => MatchDetailScreen(
-          matchId: message.matchId!,
-        ),
+        builder: (context) => isPractice
+            ? PracticeMatchDetailScreen(matchId: message.matchId!)
+            : MatchDetailScreen(
+                matchId: message.matchId!,
+                initialType: initialType,
+              ),
       ),
     );
   }

@@ -10,7 +10,6 @@ import '../clubs/clubs.dart';
 import '../matches/matches.dart';
 import '../wallet/transactions.dart';
 import '../settings/profile.dart';
-import '../social/social_feed_screen.dart';
 import '../../debug/share_test_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -34,7 +33,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   List<Widget> get _screens => [
-    SocialFeedScreen(), // Home (social feed)
     ClubsScreen(), // Clubs
     MatchesScreen(isFromHome: true), // Matches
     TransactionsScreen(), // Wallet (transactions)
@@ -94,11 +92,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             elevation: 10,
             items: [
-              BottomNavigationBarItem(
-                icon: Icon(LucideIcons.home, size: 24),
-                activeIcon: Icon(LucideIcons.home, size: 24),
-                label: 'Home',
-              ),
               BottomNavigationBarItem(
                 icon: Icon(LucideIcons.users, size: 24),
                 activeIcon: Icon(LucideIcons.users, size: 24),

@@ -5,10 +5,11 @@ import '../../services/api_service.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/svg_avatar.dart';
 import 'match_detail.dart';
+import '../practices/practice_match_detail.dart';
 
 class MatchesSearchScreen extends StatefulWidget {
   const MatchesSearchScreen({Key? key}) : super(key: key);
-  
+
   @override
   State<MatchesSearchScreen> createState() => _MatchesSearchScreenState();
 }
@@ -17,7 +18,7 @@ class _MatchesSearchScreenState extends State<MatchesSearchScreen> {
   List<MatchListItem> _matches = [];
   List<MatchListItem> _filteredMatches = [];
   bool _isLoading = false;
-  
+
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -38,14 +39,16 @@ class _MatchesSearchScreenState extends State<MatchesSearchScreen> {
     try {
       final response = await ApiService.get('/rsvp');
       setState(() {
-        _matches = (response['data'] as List).map((match) => MatchListItem.fromJson(match)).toList();
+        _matches = (response['data'] as List)
+            .map((match) => MatchListItem.fromJson(match))
+            .toList();
         _filteredMatches = _matches;
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load matches: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to load matches: $e')));
       }
     }
 
@@ -62,18 +65,20 @@ class _MatchesSearchScreenState extends State<MatchesSearchScreen> {
           final location = match.location.toLowerCase();
           final type = match.type.toLowerCase();
           final queryLower = query.toLowerCase();
-          
+
           return opponent.contains(queryLower) ||
-                 location.contains(queryLower) ||
-                 type.contains(queryLower);
+              location.contains(queryLower) ||
+              type.contains(queryLower);
         }).toList();
       }
     });
   }
 
-  Map<String, List<MatchListItem>> _groupMatchesByDate(List<MatchListItem> matches) {
+  Map<String, List<MatchListItem>> _groupMatchesByDate(
+    List<MatchListItem> matches,
+  ) {
     final Map<String, List<MatchListItem>> groupedMatches = {};
-    
+
     for (final match in matches) {
       final dateKey = DateFormat('yyyy-MM-dd').format(match.matchDate);
       if (!groupedMatches.containsKey(dateKey)) {
@@ -81,10 +86,10 @@ class _MatchesSearchScreenState extends State<MatchesSearchScreen> {
       }
       groupedMatches[dateKey]!.add(match);
     }
-    
+
     return groupedMatches;
   }
-  
+
   String _formatDateHeader(String dateKey) {
     final date = DateTime.parse(dateKey);
     final now = DateTime.now();
@@ -92,7 +97,7 @@ class _MatchesSearchScreenState extends State<MatchesSearchScreen> {
     final tomorrow = today.add(Duration(days: 1));
     final yesterday = today.subtract(Duration(days: 1));
     final matchDate = DateTime(date.year, date.month, date.day);
-    
+
     if (matchDate == today) {
       return 'Today';
     } else if (matchDate == tomorrow) {
@@ -103,7 +108,7 @@ class _MatchesSearchScreenState extends State<MatchesSearchScreen> {
       return DateFormat('MMM dd, yyyy').format(date);
     }
   }
-  
+
   Widget _buildDateHeader(String dateKey) {
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -126,27 +131,24 @@ class _MatchesSearchScreenState extends State<MatchesSearchScreen> {
       ),
     );
   }
-  
+
   int _getChildCount() {
     final groupedMatches = _groupMatchesByDate(_filteredMatches);
     int count = 0;
-    
+
     // Date headers + matches count
     for (final entry in groupedMatches.entries) {
       count += 1; // Date header
       count += entry.value.length; // Matches
     }
-    
+
     return count;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: DetailAppBar(
-        pageTitle: 'Search Matches',
-        customActions: [],
-      ),
+      appBar: DetailAppBar(pageTitle: 'Search Matches', customActions: []),
       body: Column(
         children: [
           // Search header
@@ -233,84 +235,87 @@ class _MatchesSearchScreenState extends State<MatchesSearchScreen> {
                     ),
                   )
                 : _filteredMatches.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              padding: EdgeInsets.all(32),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).primaryColor.withOpacity(0.1),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                _searchController.text.isEmpty
-                                    ? Icons.search_outlined
-                                    : Icons.search_off_outlined,
-                                size: 64,
-                                color: Theme.of(context).primaryColor,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            Text(
-                              _searchController.text.isEmpty
-                                  ? 'Start typing to search'
-                                  : 'No matches found',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w500,
-                                color: Theme.of(context).textTheme.titleLarge?.color,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              _searchController.text.isEmpty
-                                  ? 'Search by opponent, location, or match type'
-                                  : 'Try different search terms',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Theme.of(context).textTheme.bodySmall?.color,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : CustomScrollView(
-                        slivers: [
-                          SliverList(
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) {
-                                final groupedMatches = _groupMatchesByDate(_filteredMatches);
-                                final sortedDateKeys = groupedMatches.keys.toList()
-                                  ..sort((a, b) => b.compareTo(a)); // Latest first
-                                
-                                int currentIndex = 0;
-                                
-                                for (final dateKey in sortedDateKeys) {
-                                  final matches = groupedMatches[dateKey]!;
-                                  
-                                  // Date header
-                                  if (index == currentIndex) {
-                                    return _buildDateHeader(dateKey);
-                                  }
-                                  currentIndex++;
-                                  
-                                  // Match cards for this date
-                                  for (int i = 0; i < matches.length; i++) {
-                                    if (index == currentIndex) {
-                                      return _buildMatchCard(matches[i]);
-                                    }
-                                    currentIndex++;
-                                  }
-                                }
-                                
-                                return SizedBox.shrink(); // Should never reach here
-                              },
-                              childCount: _getChildCount(),
-                            ),
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: EdgeInsets.all(32),
+                          decoration: BoxDecoration(
+                            color: Theme.of(
+                              context,
+                            ).primaryColor.withOpacity(0.1),
+                            shape: BoxShape.circle,
                           ),
-                        ],
+                          child: Icon(
+                            _searchController.text.isEmpty
+                                ? Icons.search_outlined
+                                : Icons.search_off_outlined,
+                            size: 64,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          _searchController.text.isEmpty
+                              ? 'Start typing to search'
+                              : 'No matches found',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                            color: Theme.of(
+                              context,
+                            ).textTheme.titleLarge?.color,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _searchController.text.isEmpty
+                              ? 'Search by opponent, location, or match type'
+                              : 'Try different search terms',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : CustomScrollView(
+                    slivers: [
+                      SliverList(
+                        delegate: SliverChildBuilderDelegate((context, index) {
+                          final groupedMatches = _groupMatchesByDate(
+                            _filteredMatches,
+                          );
+                          final sortedDateKeys = groupedMatches.keys.toList()
+                            ..sort((a, b) => b.compareTo(a)); // Latest first
+
+                          int currentIndex = 0;
+
+                          for (final dateKey in sortedDateKeys) {
+                            final matches = groupedMatches[dateKey]!;
+
+                            // Date header
+                            if (index == currentIndex) {
+                              return _buildDateHeader(dateKey);
+                            }
+                            currentIndex++;
+
+                            // Match cards for this date
+                            for (int i = 0; i < matches.length; i++) {
+                              if (index == currentIndex) {
+                                return _buildMatchCard(matches[i]);
+                              }
+                              currentIndex++;
+                            }
+                          }
+
+                          return SizedBox.shrink(); // Should never reach here
+                        }, childCount: _getChildCount()),
                       ),
+                    ],
+                  ),
           ),
         ],
       ),
@@ -339,9 +344,15 @@ class _MatchesSearchScreenState extends State<MatchesSearchScreen> {
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
+            final isPractice = match.type.toLowerCase() == 'practice';
             Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => MatchDetailScreen(matchId: match.id),
+                builder: (_) => isPractice
+                    ? PracticeMatchDetailScreen(matchId: match.id)
+                    : MatchDetailScreen(
+                        matchId: match.id,
+                        initialType: match.type,
+                      ),
               ),
             );
           },
@@ -367,7 +378,8 @@ class _MatchesSearchScreenState extends State<MatchesSearchScreen> {
                           color: _getMatchTypeColor(match.type),
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: Theme.of(context).brightness == Brightness.dark
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
                                 ? Color(0xFF1e1e1e)
                                 : Theme.of(context).cardColor,
                             width: 2,
@@ -383,7 +395,7 @@ class _MatchesSearchScreenState extends State<MatchesSearchScreen> {
                   ],
                 ),
                 SizedBox(width: 12),
-                
+
                 // Match Info (Center)
                 Expanded(
                   child: Column(
@@ -391,7 +403,7 @@ class _MatchesSearchScreenState extends State<MatchesSearchScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        match.canSeeDetails 
+                        match.canSeeDetails
                             ? (match.opponent ?? 'Practice Match')
                             : 'Match Details TBD',
                         maxLines: 1,
@@ -421,17 +433,26 @@ class _MatchesSearchScreenState extends State<MatchesSearchScreen> {
                       Row(
                         children: [
                           Container(
-                            padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).brightness == Brightness.dark
+                              color:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
                                   ? Colors.white.withOpacity(0.15)
-                                  : Theme.of(context).primaryColor.withOpacity(0.1),
+                                  : Theme.of(
+                                      context,
+                                    ).primaryColor.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
                               match.type.toUpperCase(),
                               style: TextStyle(
-                                color: Theme.of(context).brightness == Brightness.dark
+                                color:
+                                    Theme.of(context).brightness ==
+                                        Brightness.dark
                                     ? Colors.white.withOpacity(0.9)
                                     : Theme.of(context).primaryColor,
                                 fontSize: 12,
@@ -442,7 +463,10 @@ class _MatchesSearchScreenState extends State<MatchesSearchScreen> {
                           if (match.isCancelled) ...[
                             const SizedBox(width: 6),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.red.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(6),
@@ -473,7 +497,7 @@ class _MatchesSearchScreenState extends State<MatchesSearchScreen> {
                     ],
                   ),
                 ),
-                
+
                 // Match Details (Right)
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -522,32 +546,34 @@ class _MatchesSearchScreenState extends State<MatchesSearchScreen> {
       );
     } else {
       if (match.opponent != null && match.canSeeDetails) {
-        final opponentInitial = match.opponent!.isNotEmpty 
+        final opponentInitial = match.opponent!.isNotEmpty
             ? match.opponent!.substring(0, 1).toUpperCase()
             : 'O';
-        
+
         return SVGAvatar(
           imageUrl: match.club.logo,
           size: 40,
           backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
           fallbackIcon: Icons.sports_cricket,
           iconSize: 24,
-          child: match.club.logo == null ? Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).primaryColor.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                opponentInitial,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).primaryColor,
-                ),
-              ),
-            ),
-          ) : null,
+          child: match.club.logo == null
+              ? Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).primaryColor.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      opponentInitial,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).primaryColor,
+                      ),
+                    ),
+                  ),
+                )
+              : null,
         );
       } else {
         return SVGAvatar(
@@ -624,11 +650,7 @@ class _MatchesSearchScreenState extends State<MatchesSearchScreen> {
             ),
             if (canChangeRSVP) ...[
               const SizedBox(width: 4),
-              Icon(
-                Icons.edit,
-                size: 10,
-                color: _getRSVPColor(rsvp.status),
-              ),
+              Icon(Icons.edit, size: 10, color: _getRSVPColor(rsvp.status)),
             ],
           ],
         ),
@@ -713,7 +735,9 @@ class _MatchesSearchScreenState extends State<MatchesSearchScreen> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w400,
-                            color: Theme.of(context).textTheme.headlineSmall?.color,
+                            color: Theme.of(
+                              context,
+                            ).textTheme.headlineSmall?.color,
                           ),
                         ),
                         Text(
@@ -729,10 +753,10 @@ class _MatchesSearchScreenState extends State<MatchesSearchScreen> {
                 ],
               ),
               const SizedBox(height: 24),
-              
+
               // RSVP Options
               ..._buildRSVPOptions(match),
-              
+
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
@@ -768,7 +792,8 @@ class _MatchesSearchScreenState extends State<MatchesSearchScreen> {
     ];
 
     return options.map((option) {
-      final isSelected = match.userRsvp?.status.toUpperCase() == option['status'];
+      final isSelected =
+          match.userRsvp?.status.toUpperCase() == option['status'];
       return Container(
         margin: const EdgeInsets.only(bottom: 8),
         child: ListTile(
@@ -784,7 +809,7 @@ class _MatchesSearchScreenState extends State<MatchesSearchScreen> {
           },
           leading: Icon(
             option['icon'] as IconData,
-            color: isSelected 
+            color: isSelected
                 ? _getRSVPColor(option['status'] as String)
                 : Theme.of(context).textTheme.bodySmall?.color,
           ),
@@ -792,12 +817,12 @@ class _MatchesSearchScreenState extends State<MatchesSearchScreen> {
             option['text'] as String,
             style: TextStyle(
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-              color: isSelected 
+              color: isSelected
                   ? _getRSVPColor(option['status'] as String)
                   : Theme.of(context).textTheme.titleLarge?.color,
             ),
           ),
-          trailing: isSelected 
+          trailing: isSelected
               ? Icon(
                   Icons.radio_button_checked,
                   color: _getRSVPColor(option['status'] as String),
@@ -809,7 +834,7 @@ class _MatchesSearchScreenState extends State<MatchesSearchScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          tileColor: isSelected 
+          tileColor: isSelected
               ? _getRSVPColor(option['status'] as String).withOpacity(0.1)
               : null,
         ),

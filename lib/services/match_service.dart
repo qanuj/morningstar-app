@@ -121,7 +121,7 @@ class MatchService {
         endpoint = '/matches?${params.join('&')}';
       } else {
         // For user matches, use the RSVP endpoint
-        endpoint = '/rsvp';
+        endpoint = '/matches?me=true';
       }
 
       final response = await ApiService.get(endpoint);

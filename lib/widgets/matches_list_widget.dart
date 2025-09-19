@@ -6,6 +6,7 @@ import '../services/api_service.dart';
 import '../services/match_service.dart';
 import '../widgets/svg_avatar.dart';
 import '../screens/matches/match_detail.dart';
+import '../screens/practices/practice_match_detail.dart';
 
 class MatchesListWidget extends StatefulWidget {
   final Club? clubFilter;
@@ -80,7 +81,9 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
       Map<String, dynamic>? paginationInfo;
 
       // Debug logging
-      print('🔍 MatchesListWidget Debug: clubFilter = ${widget.clubFilter?.id}');
+      print(
+        '🔍 MatchesListWidget Debug: clubFilter = ${widget.clubFilter?.id}',
+      );
       print('🔍 MatchesListWidget Debug: isFromHome = ${widget.isFromHome}');
 
       // Use MatchService to get matches - it will use the appropriate endpoint
@@ -288,7 +291,9 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
                       ),
                       decoration: BoxDecoration(
                         color: Theme.of(context).brightness == Brightness.dark
-                            ? Theme.of(context).colorScheme.onSurface.withOpacity(0.1)
+                            ? Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withOpacity(0.1)
                             : Colors.grey.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -486,8 +491,8 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
                 decoration: BoxDecoration(
                   color: isUpcomingDate
                       ? (Theme.of(context).brightness == Brightness.dark
-                          ? Theme.of(context).primaryColor.withOpacity(0.3)
-                          : Theme.of(context).primaryColor.withOpacity(0.1))
+                            ? Theme.of(context).primaryColor.withOpacity(0.3)
+                            : Theme.of(context).primaryColor.withOpacity(0.1))
                       : Theme.of(context).brightness == Brightness.dark
                       ? Theme.of(context).colorScheme.onSurface.withOpacity(0.2)
                       : Colors.grey.shade100,
@@ -498,8 +503,8 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
                   style: TextStyle(
                     color: isUpcomingDate
                         ? (Theme.of(context).brightness == Brightness.dark
-                            ? Colors.white
-                            : Theme.of(context).primaryColor)
+                              ? Colors.white
+                              : Theme.of(context).primaryColor)
                         : Theme.of(context).brightness == Brightness.dark
                         ? Colors.white.withOpacity(0.9)
                         : Colors.grey.shade600,
@@ -571,7 +576,7 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
     final now = DateTime.now();
     final localMatchDate = match.matchDate.toLocal();
     final isUpcoming = localMatchDate.isAfter(now);
-    
+
     // Enable swipe for upcoming matches, regardless of current canRsvp status
     // This allows users to change their RSVP even if they've already responded
     if (isUpcoming) {
@@ -580,6 +585,16 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
 
     // For past matches, show normal item
     return _buildRegularMatchItem(match, isUpcoming);
+  }
+
+  void _openMatchDetails(MatchListItem match) {
+    final isPractice = match.type.toLowerCase() == 'practice';
+    final route = MaterialPageRoute(
+      builder: (context) => isPractice
+          ? PracticeMatchDetailScreen(matchId: match.id)
+          : MatchDetailScreen(matchId: match.id, initialType: match.type),
+    );
+    Navigator.of(context).push(route);
   }
 
   Widget _buildSwipeableMatchItem(MatchListItem match, bool isUpcoming) {
@@ -598,7 +613,7 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
           // Swipe right = YES
           await _handleRsvp(match, 'YES');
         } else if (direction == DismissDirection.endToStart) {
-          // Swipe left = NO  
+          // Swipe left = NO
           await _handleRsvp(match, 'NO');
         }
         // Always return false to keep the card in the list after RSVP
@@ -652,13 +667,7 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
         ),
       ),
       child: GestureDetector(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => MatchDetailScreen(matchId: match.id),
-            ),
-          );
-        },
+        onTap: () => _openMatchDetails(match),
         onLongPress: () => _showRoleSelectionModal(match),
         child: _buildMatchCard(match, isUpcoming),
       ),
@@ -667,42 +676,36 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
 
   Widget _buildRegularMatchItem(MatchListItem match, bool isUpcoming) {
     return GestureDetector(
-      onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => MatchDetailScreen(matchId: match.id),
-          ),
-        );
-      },
+      onTap: () => _openMatchDetails(match),
       child: _buildMatchCard(match, isUpcoming),
     );
   }
 
   Widget _buildMatchCard(MatchListItem match, bool isUpcoming) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Container(
       margin: EdgeInsets.only(bottom: 8, left: 12, right: 12),
       decoration: BoxDecoration(
         color: isDark
-            ? (isUpcoming 
-                ? Theme.of(context).cardColor
-                : Theme.of(context).cardColor.withOpacity(0.7))
+            ? (isUpcoming
+                  ? Theme.of(context).cardColor
+                  : Theme.of(context).cardColor.withOpacity(0.7))
             : (isUpcoming ? Colors.white : Colors.grey.shade100),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: isDark
               ? Theme.of(context).dividerColor.withOpacity(0.3)
               : (isUpcoming
-                  ? Theme.of(context).dividerColor.withOpacity(0.3)
-                  : Colors.grey.shade300),
+                    ? Theme.of(context).dividerColor.withOpacity(0.3)
+                    : Colors.grey.shade300),
           width: 0.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: Theme.of(context).shadowColor.withOpacity(
-              isUpcoming ? 0.08 : 0.02
-            ),
+            color: Theme.of(
+              context,
+            ).shadowColor.withOpacity(isUpcoming ? 0.08 : 0.02),
             blurRadius: isUpcoming ? 12 : 4,
             offset: Offset(0, isUpcoming ? 3 : 1),
           ),
@@ -719,6 +722,42 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
   }
 
   Widget _buildMatchCardRowContent(MatchListItem match, bool isUpcoming) {
+    final theme = Theme.of(context);
+    final isCancelled = match.isCancelled;
+    final cancellationReason = match.cancellationReason?.trim();
+    final typeLabel = _getReadableMatchType(match.type);
+    final displayTypeLabel = typeLabel ?? '';
+    final opponent = match.opponent?.trim();
+    final teamName = match.team?.name.trim();
+    final opponentTeamName = match.opponentTeam?.name.trim();
+    final hasTeam = (teamName ?? '').isNotEmpty;
+    final hasOpponentTeam = (opponentTeamName ?? '').isNotEmpty;
+    final hasOpponentText = (opponent ?? '').isNotEmpty;
+    final isPractice = match.type.toLowerCase() == 'practice';
+    final showTypeLabel =
+        !isCancelled && typeLabel != null && typeLabel.isNotEmpty;
+
+    String? titleText;
+    if (hasTeam && hasOpponentTeam) {
+      titleText = '$teamName vs $opponentTeamName';
+    } else if (hasTeam && hasOpponentText) {
+      titleText = '$teamName vs $opponent';
+    } else if (hasTeam) {
+      titleText = hasOpponentText
+          ? '${teamName ?? ''} vs ${opponent ?? ''}'
+          : teamName;
+    } else if (hasOpponentTeam) {
+      titleText = hasOpponentText
+          ? '${opponentTeamName ?? ''} vs ${opponent ?? ''}'
+          : opponentTeamName;
+    } else if (hasOpponentText) {
+      titleText = opponent;
+    } else if (isPractice) {
+      titleText = 'Practice Session';
+    } else {
+      titleText = typeLabel;
+    }
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -733,25 +772,79 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                match.opponent ?? 'Practice Session',
+                titleText ?? 'Match',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontWeight: FontWeight.w400,
                   fontSize: 12,
-                  color: Theme.of(context).textTheme.titleLarge?.color,
+                  color: theme.textTheme.titleLarge?.color,
                   height: 1.2,
                 ),
               ),
-              SizedBox(height: 4),
-              if (match.location.isNotEmpty) ...[
+              if (isCancelled) ...[
                 SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.cancel_outlined,
+                      size: 12,
+                      color: theme.colorScheme.error,
+                    ),
+                    SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        'Cancelled',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: theme.colorScheme.error,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (cancellationReason != null && cancellationReason.isNotEmpty)
+                  Padding(
+                    padding: EdgeInsets.only(top: 2),
+                    child: Text(
+                      cancellationReason,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: theme.colorScheme.error.withOpacity(0.9),
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
+              if (showTypeLabel) ...[
+                SizedBox(height: 4),
+                Text(
+                  displayTypeLabel,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                    color: theme.textTheme.bodySmall?.color,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+              if (match.location.isNotEmpty) ...[
+                SizedBox(
+                  height: isCancelled
+                      ? 6
+                      : showTypeLabel
+                      ? 6
+                      : 8,
+                ),
                 Row(
                   children: [
                     Icon(
                       Icons.location_on_outlined,
                       size: 10,
-                      color: Theme.of(context).textTheme.bodySmall?.color,
+                      color: theme.textTheme.bodySmall?.color,
                     ),
                     SizedBox(width: 2),
                     Expanded(
@@ -759,7 +852,7 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
                         match.location,
                         style: TextStyle(
                           fontSize: 10,
-                          color: Theme.of(context).textTheme.bodySmall?.color,
+                          color: theme.textTheme.bodySmall?.color,
                         ),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
@@ -772,7 +865,7 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
           ),
         ),
 
-        // Time and Type Badge (Right)
+        // Time and Status (Right)
         Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           mainAxisAlignment: MainAxisAlignment.center,
@@ -783,32 +876,38 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
                 fontSize: 12,
                 fontWeight: FontWeight.w400,
                 color: isUpcoming
-                    ? (Theme.of(context).brightness == Brightness.dark
-                        ? Colors.white
-                        : Theme.of(context).primaryColor)
-                    : Theme.of(context).textTheme.bodySmall?.color,
+                    ? (theme.brightness == Brightness.dark
+                          ? Colors.white
+                          : theme.primaryColor)
+                    : theme.textTheme.bodySmall?.color,
               ),
             ),
-            SizedBox(height: 2),
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Theme.of(context).colorScheme.onSurface.withOpacity(0.15)
-                    : Theme.of(context).primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                match.type,
-                style: TextStyle(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Theme.of(context).colorScheme.onSurface.withOpacity(0.9)
-                      : Theme.of(context).primaryColor,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w400,
+            if (isCancelled || !widget.isFromHome) ...[
+              SizedBox(height: 2),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isCancelled
+                      ? theme.colorScheme.error.withOpacity(0.1)
+                      : (theme.brightness == Brightness.dark
+                            ? theme.colorScheme.onSurface.withOpacity(0.15)
+                            : theme.primaryColor.withOpacity(0.1)),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  isCancelled ? 'Cancelled' : (typeLabel ?? match.type),
+                  style: TextStyle(
+                    color: isCancelled
+                        ? theme.colorScheme.error
+                        : (theme.brightness == Brightness.dark
+                              ? theme.colorScheme.onSurface.withOpacity(0.9)
+                              : theme.primaryColor),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ],
@@ -886,6 +985,25 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
     );
   }
 
+  String? _getReadableMatchType(String type) {
+    final normalized = type.toLowerCase();
+    switch (normalized) {
+      case 'game':
+        return 'Game';
+      case 'practice':
+        return 'Practice';
+      case 'tournament':
+        return 'Tournament';
+      case 'friendly':
+        return 'Friendly';
+      case 'league':
+        return 'League';
+      default:
+        if (type.isEmpty) return null;
+        return '${type[0].toUpperCase()}${type.substring(1).toLowerCase()}';
+    }
+  }
+
   Color _getRsvpStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'yes':
@@ -912,21 +1030,23 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
     }
   }
 
-  Future<bool?> _showRsvpChangeConfirmation(MatchListItem match, String newStatus) async {
+  Future<bool?> _showRsvpChangeConfirmation(
+    MatchListItem match,
+    String newStatus,
+  ) async {
     final currentStatus = match.userRsvp?.status ?? 'NONE';
     final statusText = newStatus == 'YES' ? 'attend' : 'decline';
-    final currentStatusText = currentStatus.toLowerCase() == 'yes' ? 'attending' : 'not attending';
-    
+    final currentStatusText = currentStatus.toLowerCase() == 'yes'
+        ? 'attending'
+        : 'not attending';
+
     return showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text(
             'Change RSVP?',
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 18,
-            ),
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -934,10 +1054,7 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
             children: [
               Text(
                 match.opponent ?? 'Practice Session',
-                style: TextStyle(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 16,
-                ),
+                style: TextStyle(fontWeight: FontWeight.w500, fontSize: 16),
               ),
               SizedBox(height: 8),
               Text(
@@ -983,8 +1100,12 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
     String? selectedRole,
   ]) async {
     // Check if user already has an RSVP and is changing it
-    if (match.userRsvp != null && match.userRsvp!.status.toUpperCase() != status.toUpperCase()) {
-      final bool? shouldChange = await _showRsvpChangeConfirmation(match, status);
+    if (match.userRsvp != null &&
+        match.userRsvp!.status.toUpperCase() != status.toUpperCase()) {
+      final bool? shouldChange = await _showRsvpChangeConfirmation(
+        match,
+        status,
+      );
       if (shouldChange != true) {
         return; // User cancelled the change
       }
