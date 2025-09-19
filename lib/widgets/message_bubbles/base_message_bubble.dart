@@ -69,17 +69,17 @@ class BaseMessageBubble extends StatelessWidget {
           // Main message bubble with tail
           Container(
             margin: EdgeInsets.only(
-              bottom: isLastFromSender ? 6.0 : 2.0, // Extra margin for last message to show shadow
-              left: isOwn ? 0 : 8, // Add space for tail on received messages
-              right: isOwn ? 8 : 0, // Add space for tail on sent messages
+              bottom: 0, // Extra margin for last message to show shadow
+              left: isOwn ? 0 : 0, // Add space for tail on received messages
+              right: isOwn ? 0 : 0, // Add space for tail on sent messages
             ),
             child: Stack(
               children: [
                 // Main bubble
                 Container(
                   margin: EdgeInsets.only(
-                    left: isOwn ? 0 : 8, // Make room for the tail
-                    right: isOwn ? 8 : 0, // Make room for the tail
+                    left: 0, // Make room for the tail
+                    right: 0, // Make room for the tail
                   ),
                   padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                   decoration: isTransparent
@@ -93,28 +93,60 @@ class BaseMessageBubble extends StatelessWidget {
                           boxShadow: [
                             // WhatsApp-style shadow
                             BoxShadow(
-                              color: Theme.of(context).brightness == Brightness.dark
-                                  ? Colors.black.withOpacity(0.8) // Very strong black shadow for dark mode
-                                  : Color(0xFF000000).withOpacity(0.08), // WhatsApp light mode shadow
-                              blurRadius: Theme.of(context).brightness == Brightness.dark
+                              color:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.black.withOpacity(
+                                      0.8,
+                                    ) // Very strong black shadow for dark mode
+                                  : Color(0xFF000000).withOpacity(
+                                      0.08,
+                                    ), // WhatsApp light mode shadow
+                              blurRadius:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
                                   ? 2.5 // Slightly more blur for visibility in dark mode
                                   : 1.5, // Very tight blur like WhatsApp for light mode
-                              offset: Theme.of(context).brightness == Brightness.dark
-                                  ? Offset(0, 2) // Larger offset for better visibility in dark mode
-                                  : Offset(0, 1), // Small vertical offset for light mode
+                              offset:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Offset(
+                                      0,
+                                      2,
+                                    ) // Larger offset for better visibility in dark mode
+                                  : Offset(
+                                      0,
+                                      1,
+                                    ), // Small vertical offset for light mode
                               spreadRadius: 0,
                             ),
                             // Secondary shadow for depth (WhatsApp style)
                             BoxShadow(
-                              color: Theme.of(context).brightness == Brightness.dark
-                                  ? Colors.black.withOpacity(0.5) // Strong secondary shadow for dark mode
-                                  : Color(0xFF000000).withOpacity(0.04), // Very subtle secondary shadow
-                              blurRadius: Theme.of(context).brightness == Brightness.dark
+                              color:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.black.withOpacity(
+                                      0.5,
+                                    ) // Strong secondary shadow for dark mode
+                                  : Color(0xFF000000).withOpacity(
+                                      0.04,
+                                    ), // Very subtle secondary shadow
+                              blurRadius:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
                                   ? 4 // More blur for ambient effect in dark mode
                                   : 3, // Standard blur for light mode
-                              offset: Theme.of(context).brightness == Brightness.dark
-                                  ? Offset(0, 3) // Larger offset for depth in dark mode
-                                  : Offset(0, 2), // Standard offset for light mode
+                              offset:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Offset(
+                                      0,
+                                      3,
+                                    ) // Larger offset for depth in dark mode
+                                  : Offset(
+                                      0,
+                                      2,
+                                    ), // Standard offset for light mode
                               spreadRadius: 0,
                             ),
                           ],
@@ -147,28 +179,8 @@ class BaseMessageBubble extends StatelessWidget {
                     ],
                   ),
                 ),
-
-                // Chat bubble tail - only show for last message from sender
-                if (isLastFromSender && !isTransparent)
-                  Positioned(
-                    bottom: 12, // Position near bottom of bubble
-                    left: isOwn ? null : 0,
-                    right: isOwn ? 0 : null,
-                    child: CustomPaint(
-                      painter: BubbleTailPainter(
-                        color: _getBubbleColor(context),
-                        isOwn: isOwn,
-                        isDarkMode: Theme.of(context).brightness == Brightness.dark,
-                      ),
-                      size: Size(8, 12),
-                    ),
-                  ),
               ],
             ),
-          ),
-
-        ],
-      ),
           ),
 
           // Reactions display (below the bubble with overlap using transform)
@@ -217,7 +229,9 @@ class BaseMessageBubble extends StatelessWidget {
               ? Color(0xFF0066CC) // Brighter blue for sender in dark mode
               : Color(0xFFd3f6fd)) // Light cyan background for sender
         : (Theme.of(context).brightness == Brightness.dark
-              ? Color(0xFF2A2A2A) // Lighter grey for received messages in dark mode
+              ? Color(
+                  0xFF2A2A2A,
+                ) // Lighter grey for received messages in dark mode
               : Colors.white);
   }
 
@@ -380,7 +394,7 @@ class BaseMessageBubble extends StatelessWidget {
           border: Border.all(
             color: Theme.of(context).brightness == Brightness.dark
                 ? Color(0xFF404040) // Lighter border for dark mode
-                : Colors.grey[300]!, 
+                : Colors.grey[300]!,
             width: 1,
           ),
         ),
@@ -409,7 +423,8 @@ class BaseMessageBubble extends StatelessWidget {
                 child: Text(
                   emoji,
                   style: TextStyle(
-                    fontSize: 22, // Increased from 18 to 22 for better visibility
+                    fontSize:
+                        22, // Increased from 18 to 22 for better visibility
                     // Highlight emoji if current user has reacted
                     color: hasCurrentUserReacted ? Color(0xFF003f9b) : null,
                   ),
@@ -586,13 +601,15 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
     try {
       // Update UI immediately by calling the callback first (optimistic update)
       if (widget.onReactionRemoved != null) {
-        debugPrint('🔄 Calling onReactionRemoved callback for immediate UI update');
+        debugPrint(
+          '🔄 Calling onReactionRemoved callback for immediate UI update',
+        );
         widget.onReactionRemoved!(widget.message.id, emoji, userId);
-        
+
         // Add a small delay to ensure the callback is processed before API call
         await Future.delayed(Duration(milliseconds: 10));
       }
-      
+
       // Make API call to remove the reaction
       final success = await ChatApiService.removeReaction(
         widget.message.clubId,
@@ -602,7 +619,7 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
       if (!success) {
         throw Exception('Failed to remove reaction');
       }
-      
+
       // Success - no snackbar needed, UI already updated via callback
       debugPrint('✅ Reaction removed successfully from details drawer');
     } catch (e) {
@@ -647,7 +664,8 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
             labelColor: Theme.of(context).brightness == Brightness.dark
                 ? Colors.lightBlueAccent
                 : Color(0xFF003f9b),
-            unselectedLabelColor: Theme.of(context).brightness == Brightness.dark
+            unselectedLabelColor:
+                Theme.of(context).brightness == Brightness.dark
                 ? Colors.grey[400]
                 : Colors.grey[600],
             indicatorColor: Theme.of(context).brightness == Brightness.dark
@@ -724,7 +742,7 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
                         style: TextStyle(
                           color: Theme.of(context).brightness == Brightness.dark
                               ? Colors.grey[400]
-                              : Colors.grey[600], 
+                              : Colors.grey[600],
                           fontSize: 16,
                         ),
                       ),
@@ -757,10 +775,10 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
                               final emojiToRemove = tab == 'All'
                                   ? userEmoji
                                   : tab;
-                              
+
                               // Close the drawer first for immediate feedback
                               Navigator.pop(context);
-                              
+
                               // Then remove the reaction
                               _removeReactionAndUpdateUI(
                                 context,
@@ -816,7 +834,9 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w500,
-                                      color: Theme.of(context).brightness == Brightness.dark
+                                      color:
+                                          Theme.of(context).brightness ==
+                                              Brightness.dark
                                           ? Colors.white.withOpacity(0.9)
                                           : Colors.black87,
                                     ),
@@ -826,7 +846,9 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
                                       'Click to remove',
                                       style: TextStyle(
                                         fontSize: 14,
-                                        color: Theme.of(context).brightness == Brightness.dark
+                                        color:
+                                            Theme.of(context).brightness ==
+                                                Brightness.dark
                                             ? Colors.grey[400]
                                             : Colors.grey[600],
                                       ),
@@ -836,7 +858,9 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
                                       'Member',
                                       style: TextStyle(
                                         fontSize: 14,
-                                        color: Theme.of(context).brightness == Brightness.dark
+                                        color:
+                                            Theme.of(context).brightness ==
+                                                Brightness.dark
                                             ? Colors.grey[400]
                                             : Colors.grey[600],
                                       ),
@@ -865,3 +889,80 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
   }
 }
 
+class BubbleTailPainter extends CustomPainter {
+  final bool isOwn;
+  final bool isDarkMode;
+
+  const BubbleTailPainter({required this.isOwn, required this.isDarkMode});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+
+    // isolate for BlendMode.clear
+    canvas.saveLayer(rect, Paint());
+
+    // outside fill (invert mode)
+    final outside = isDarkMode ? const Color(0xFF0E0E0E) : Colors.white;
+    canvas.drawRect(rect, Paint()..color = outside);
+
+    final path = _bubblePathInside(size, isOwn);
+
+    // punch transparent hole for bubble+tail
+    canvas.drawPath(
+      path,
+      Paint()
+        ..blendMode = BlendMode.clear
+        ..isAntiAlias = true,
+    );
+
+    canvas.restore();
+  }
+
+  Path _bubblePathInside(Size size, bool isOwn) {
+    // Draw a rounded bubble and a small curved tail INSIDE the rect.
+    const r = 16.0;
+    const tailW = 10.0;
+    const tailH = 10.0;
+    final bodyLeft = isOwn ? 0.0 : 8.0; // leave 8px for left tail curve
+    final bodyRight = isOwn ? size.width - 8.0 : size.width;
+
+    final body = RRect.fromLTRBR(
+      bodyLeft,
+      0,
+      bodyRight,
+      size.height,
+      const Radius.circular(r),
+    );
+
+    final p = Path()..addRRect(body);
+
+    if (isOwn) {
+      // right tail drawn INSIDE
+      final bx = bodyRight; // bubble right edge
+      final by = size.height - 8; // tail vertical position
+      p.moveTo(bx - 12, by - tailH);
+      p.quadraticBezierTo(
+        bx - 2,
+        by - 2, // control
+        bx - 2,
+        by, // tip (inside bounds)
+      );
+      p.quadraticBezierTo(bx - 2, by + 2, bx - 12, by + tailH);
+      p.close();
+    } else {
+      // left tail drawn INSIDE
+      final bx = bodyLeft; // bubble left edge
+      final by = size.height - 8;
+      p.moveTo(bx + 12, by - tailH);
+      p.quadraticBezierTo(bx + 2, by - 2, bx + 2, by);
+      p.quadraticBezierTo(bx + 2, by + 2, bx + 12, by + tailH);
+      p.close();
+    }
+    return p;
+  }
+
+  @override
+  bool shouldRepaint(covariant BubbleTailPainter old) =>
+      old.isOwn != isOwn || old.isDarkMode != isDarkMode;
+}
