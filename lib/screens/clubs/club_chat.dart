@@ -1962,6 +1962,14 @@ class ClubChatScreenState extends State<ClubChatScreen>
                       nextMessage.senderId != message.senderId ||
                       !_isSameDate(message.createdAt, nextMessage.createdAt);
 
+                  final isFirstFromSender =
+                      previousMessage == null ||
+                      previousMessage.senderId != message.senderId ||
+                      !_isSameDate(
+                        message.createdAt,
+                        previousMessage.createdAt,
+                      );
+
                   return Container(
                     key: ValueKey('message_${message.id}'),
                     child: MessageVisibilityDetector(
@@ -1974,6 +1982,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
                         message: message,
                         showSenderInfo: showSenderInfo,
                         isLastFromSender: isLastFromSender,
+                        isFirstFromSender: isFirstFromSender,
                         clubId: widget.club.id,
                         isSelectionMode: _isSelectionMode,
                         selectedMessageIds: _selectedMessageIds,
