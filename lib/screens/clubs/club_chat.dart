@@ -1742,12 +1742,20 @@ class ClubChatScreenState extends State<ClubChatScreen>
         children: [
           // Fixed background that never moves
           Positioned.fill(
-            child: Image.asset(
-              isDarkTheme
-                  ? 'assets/images/chat-bg-dark.png'
-                  : 'assets/images/chat-bg-light.png',
-              fit: BoxFit.cover,
-              alignment: Alignment.center,
+            child: Container(
+              color: isDarkTheme
+                  ? Color(0xFF0D1117) // Dark background that complements blue sender bubbles
+                  : Color(0xFFE5DDD5), // WhatsApp's signature light yellow/cream background
+              child: Opacity(
+                opacity: 0.15, // Subtle opacity for the pattern
+                child: Image.asset(
+                  isDarkTheme
+                      ? 'assets/images/chat-bg-dark.png'
+                      : 'assets/images/chat-bg-light.png',
+                  fit: BoxFit.cover,
+                  alignment: Alignment.center,
+                ),
+              ),
             ),
           ),
 

@@ -50,7 +50,9 @@ class LinkMessageBubble extends StatelessWidget {
               color: isOwn
                   ? (Theme.of(context).brightness == Brightness.dark
                         ? Colors.white
-                        : Color(0xFF003f9b)) // Dark blue for light backgrounds
+                        : (Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white // White text on blue background in dark mode
+                              : Colors.black87)) // Black text on light cyan background in light mode
                   : (Theme.of(context).brightness == Brightness.dark
                         ? Colors.white
                         : Colors.black87),

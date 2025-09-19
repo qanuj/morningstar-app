@@ -70,63 +70,99 @@ class BaseMessageBubble extends StatelessWidget {
           Container(
             margin: EdgeInsets.only(
               bottom: isLastFromSender ? 6.0 : 2.0, // Extra margin for last message to show shadow
+              left: isOwn ? 0 : 8, // Add space for tail on received messages
+              right: isOwn ? 8 : 0, // Add space for tail on sent messages
             ),
             child: Stack(
-            children: [
-              // Main bubble
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                decoration: isTransparent
-                    ? null
-                    : BoxDecoration(
-                        color: _getBubbleColor(context),
-                        borderRadius: _getBorderRadius(),
-                        border: message.status == MessageStatus.failed
-                            ? Border.all(color: Colors.red, width: 1)
-                            : null,
-                        boxShadow: [
-                          // Subtle bottom shadow for all bubbles
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 3,
-                            offset: Offset(0, 1),
-                            spreadRadius: 0,
-                          ),
-                          // Additional shadow for specific cases
-                          if (showShadow)
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.08),
-                              blurRadius: 6,
-                              offset: Offset(0, 3),
-                              spreadRadius: 1,
-                            ),
-                        ],
-                      ),
-            child: Stack(
               children: [
-                // Message content
-                Padding(
-                  padding: showMetaOverlay
-                      ? EdgeInsets.only(
-                          bottom: 12,
-                        ) // Reduced space for meta overlay
-                      : EdgeInsets.zero, // No extra space if no overlay
-                  child: content,
+                // Main bubble
+                Container(
+                  margin: EdgeInsets.only(
+                    left: isOwn ? 0 : 8, // Make room for the tail
+                    right: isOwn ? 8 : 0, // Make room for the tail
+                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  decoration: isTransparent
+                      ? null
+                      : BoxDecoration(
+                          color: _getBubbleColor(context),
+                          borderRadius: _getBorderRadius(),
+                          border: message.status == MessageStatus.failed
+                              ? Border.all(color: Colors.red, width: 1)
+                              : null,
+                          boxShadow: [
+                            // WhatsApp-style shadow
+                            BoxShadow(
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.black.withOpacity(0.8) // Very strong black shadow for dark mode
+                                  : Color(0xFF000000).withOpacity(0.08), // WhatsApp light mode shadow
+                              blurRadius: Theme.of(context).brightness == Brightness.dark
+                                  ? 2.5 // Slightly more blur for visibility in dark mode
+                                  : 1.5, // Very tight blur like WhatsApp for light mode
+                              offset: Theme.of(context).brightness == Brightness.dark
+                                  ? Offset(0, 2) // Larger offset for better visibility in dark mode
+                                  : Offset(0, 1), // Small vertical offset for light mode
+                              spreadRadius: 0,
+                            ),
+                            // Secondary shadow for depth (WhatsApp style)
+                            BoxShadow(
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.black.withOpacity(0.5) // Strong secondary shadow for dark mode
+                                  : Color(0xFF000000).withOpacity(0.04), // Very subtle secondary shadow
+                              blurRadius: Theme.of(context).brightness == Brightness.dark
+                                  ? 4 // More blur for ambient effect in dark mode
+                                  : 3, // Standard blur for light mode
+                              offset: Theme.of(context).brightness == Brightness.dark
+                                  ? Offset(0, 3) // Larger offset for depth in dark mode
+                                  : Offset(0, 2), // Standard offset for light mode
+                              spreadRadius: 0,
+                            ),
+                          ],
+                        ),
+                  child: Stack(
+                    children: [
+                      // Message content
+                      Padding(
+                        padding: showMetaOverlay
+                            ? EdgeInsets.only(
+                                bottom: 12,
+                              ) // Reduced space for meta overlay
+                            : EdgeInsets.zero, // No extra space if no overlay
+                        child: content,
+                      ),
+
+                      // Meta overlay (pin, star, time, tick) at bottom right
+                      if (showMetaOverlay)
+                        _shouldUseColumnLayout()
+                            ? Positioned(
+                                bottom: overlayBottomPosition ?? 2,
+                                right: 0, // Align to right edge for small text
+                                child: _buildMetaOverlay(context),
+                              )
+                            : Positioned(
+                                bottom: overlayBottomPosition ?? 2,
+                                right: 5, // Normal inline position
+                                child: _buildMetaOverlay(context),
+                              ),
+                    ],
+                  ),
                 ),
 
-                // Meta overlay (pin, star, time, tick) at bottom right
-                if (showMetaOverlay)
-                  _shouldUseColumnLayout()
-                      ? Positioned(
-                          bottom: overlayBottomPosition ?? 2,
-                          right: 0, // Align to right edge for small text
-                          child: _buildMetaOverlay(context),
-                        )
-                      : Positioned(
-                          bottom: overlayBottomPosition ?? 2,
-                          right: 5, // Normal inline position
-                          child: _buildMetaOverlay(context),
-                        ),
+                // Chat bubble tail - only show for last message from sender
+                if (isLastFromSender && !isTransparent)
+                  Positioned(
+                    bottom: 12, // Position near bottom of bubble
+                    left: isOwn ? null : 0,
+                    right: isOwn ? 0 : null,
+                    child: CustomPaint(
+                      painter: BubbleTailPainter(
+                        color: _getBubbleColor(context),
+                        isOwn: isOwn,
+                        isDarkMode: Theme.of(context).brightness == Brightness.dark,
+                      ),
+                      size: Size(8, 12),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -178,10 +214,10 @@ class BaseMessageBubble extends StatelessWidget {
 
     return isOwn
         ? (Theme.of(context).brightness == Brightness.dark
-              ? Color(0xFF1E3A8A)
-              : Color(0xFFE3F2FD))
+              ? Color(0xFF0066CC) // Brighter blue for sender in dark mode
+              : Color(0xFFd3f6fd)) // Light cyan background for sender
         : (Theme.of(context).brightness == Brightness.dark
-              ? Colors.grey[800]!
+              ? Color(0xFF2A2A2A) // Lighter grey for received messages in dark mode
               : Colors.white);
   }
 
@@ -338,12 +374,12 @@ class BaseMessageBubble extends StatelessWidget {
         padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
         decoration: BoxDecoration(
           color: Theme.of(context).brightness == Brightness.dark
-              ? Colors.grey[800]! // Same as received text bubbles
+              ? Color(0xFF2A2A2A) // Updated to match received message bubbles
               : Colors.white, // Same as received text bubbles
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.grey[600]!
+                ? Color(0xFF404040) // Lighter border for dark mode
                 : Colors.grey[300]!, 
             width: 1,
           ),
@@ -469,7 +505,7 @@ class BaseMessageBubble extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).brightness == Brightness.dark
-          ? Color(0xFF2a2f32)
+          ? Color(0xFF1C1C1C) // Updated dark background for reaction sheet
           : Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),

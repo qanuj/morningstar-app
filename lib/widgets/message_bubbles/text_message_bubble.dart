@@ -313,7 +313,9 @@ class TextMessageBubble extends StatelessWidget {
       padding: EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: isOwn
-            ? Colors.white.withOpacity(0.1)
+            ? (Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white.withOpacity(0.1) // Light overlay on blue background in dark mode
+                  : Colors.black.withOpacity(0.05)) // Subtle dark overlay on light cyan in light mode
             : Colors.grey.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
       ),
@@ -322,7 +324,9 @@ class TextMessageBubble extends StatelessWidget {
           Icon(
             _getDocumentIcon(doc.filename),
             color: isOwn
-                ? Colors.white
+                ? (Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white // White icons on blue background in dark mode
+                      : Colors.black87) // Dark icons on light cyan background in light mode
                 : Theme.of(context).primaryColor,
             size: 20,
           ),
@@ -336,7 +340,11 @@ class TextMessageBubble extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: isOwn ? Colors.white : Colors.black87,
+                    color: isOwn
+                        ? (Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white // White text on blue background in dark mode
+                              : Colors.black87) // Black text on light cyan background in light mode
+                        : Colors.black87,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -347,10 +355,9 @@ class TextMessageBubble extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       color: isOwn
-                          ? (Theme.of(context).brightness ==
-                                    Brightness.dark
-                                ? Colors.white70
-                                : Color(0xFF003f9b).withOpacity(0.7))
+                          ? (Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white70 // Light white text on blue background in dark mode
+                                : Colors.black54) // Dark text on light cyan background in light mode
                           : Colors.grey[600],
                     ),
                   ),
@@ -360,7 +367,9 @@ class TextMessageBubble extends StatelessWidget {
           Icon(
             Icons.download,
             color: isOwn
-                ? Colors.white
+                ? (Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white // White icons on blue background in dark mode
+                      : Colors.black87) // Dark icons on light cyan background in light mode
                 : Theme.of(context).primaryColor,
             size: 16,
           ),
@@ -417,8 +426,8 @@ class TextMessageBubble extends StatelessWidget {
           fontSize: 14,
           color: isOwn
               ? (Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white
-                    : Color(0xFF003f9b)) // Dark blue for light backgrounds
+                    ? Colors.white // White text on blue background in dark mode
+                    : Colors.black87) // Black text on light cyan background in light mode
               : (Theme.of(context).brightness == Brightness.dark
                     ? Colors.white
                     : Colors.black87),
