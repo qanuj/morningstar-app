@@ -11,6 +11,7 @@ class TextMessageBubble extends StatelessWidget {
   final bool isPinned;
   final bool isSelected;
   final bool showSenderInfo;
+  final bool isLastFromSender;
   final Function(String messageId, String emoji, String userId)?
   onReactionRemoved;
 
@@ -21,6 +22,7 @@ class TextMessageBubble extends StatelessWidget {
     required this.isPinned,
     this.isSelected = false,
     this.showSenderInfo = false,
+    this.isLastFromSender = false,
     this.onReactionRemoved,
   });
 
@@ -32,6 +34,7 @@ class TextMessageBubble extends StatelessWidget {
       isPinned: isPinned,
       isSelected: isSelected,
       showShadow: true,
+      isLastFromSender: isLastFromSender,
       content: _buildContent(context),
       onReactionRemoved: onReactionRemoved,
     );
@@ -402,7 +405,12 @@ class TextMessageBubble extends StatelessWidget {
   Widget _buildTextContent(BuildContext context) {
     return Container(
       constraints: BoxConstraints(minWidth: 170),
-      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      padding: EdgeInsets.only(
+        left: 4,
+        right: 4,
+        top: 4,
+        bottom: isLastFromSender ? 0 : 4, // Remove bottom padding for last message to allow shadow space
+      ),
       child: Text(
         message.content,
         style: TextStyle(

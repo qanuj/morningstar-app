@@ -14,6 +14,7 @@ import 'message_bubbles/interactive_message_bubble.dart';
 class MessageBubbleWrapper extends StatelessWidget {
   final ClubMessage message;
   final bool showSenderInfo;
+  final bool isFirstFromSender;
   final bool isLastFromSender;
   final String clubId;
 
@@ -61,6 +62,7 @@ class MessageBubbleWrapper extends StatelessWidget {
     super.key,
     required this.message,
     required this.showSenderInfo,
+    required this.isFirstFromSender,
     required this.isLastFromSender,
     required this.clubId,
     required this.isSelectionMode,
@@ -109,8 +111,8 @@ class MessageBubbleWrapper extends StatelessWidget {
                 : MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              if (!isOwn && showSenderInfo) _buildSenderAvatar(context),
-              if (!isOwn && !showSenderInfo) const SizedBox(width: 34),
+              if (!isOwn && isLastFromSender) _buildSenderAvatar(context),
+              if (!isOwn && !isLastFromSender) const SizedBox(width: 34),
 
               Flexible(
                 child: Container(
@@ -189,7 +191,7 @@ class MessageBubbleWrapper extends StatelessWidget {
                                       isSelected: selectedMessageIds.contains(
                                         message.id,
                                       ),
-                                      showSenderInfo: showSenderInfo,
+                                      showSenderInfo: isFirstFromSender || isLastFromSender,
                                       clubId: clubId,
                                       pendingUploads: pendingUploads,
                                       onMessageUpdated: onMessageUpdated,
@@ -254,7 +256,8 @@ class MessageBubbleWrapper extends StatelessWidget {
       canPinMessages: canPinMessages,
       canDeleteMessages: canDeleteMessages,
       isSelectionMode: isSelectionMode,
-      showSenderInfo: showSenderInfo,
+      showSenderInfo: isFirstFromSender || isLastFromSender,
+      isLastFromSender: isLastFromSender,
       clubMembers: clubMembers,
       onReactionRemoved: onReactionRemoved,
       onToggleSelection: (messageId) {

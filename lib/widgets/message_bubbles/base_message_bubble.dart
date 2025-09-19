@@ -18,6 +18,7 @@ class BaseMessageBubble extends StatelessWidget {
   final bool showMetaOverlay;
   final bool showShadow;
   final double? overlayBottomPosition;
+  final bool isLastFromSender;
   final Function(String messageId, String emoji, String userId)?
   onReactionRemoved;
 
@@ -43,6 +44,7 @@ class BaseMessageBubble extends StatelessWidget {
     this.showMetaOverlay = true,
     this.showShadow = false,
     this.overlayBottomPosition,
+    this.isLastFromSender = false,
     this.onReactionRemoved,
     this.onReactionAdded,
     this.onReplyToMessage,
@@ -64,27 +66,42 @@ class BaseMessageBubble extends StatelessWidget {
             ? CrossAxisAlignment.end
             : CrossAxisAlignment.start,
         children: [
-          // Main message bubble
+          // Main message bubble with tail
           Container(
-            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-            decoration: isTransparent
-                ? null
-                : BoxDecoration(
-                    color: _getBubbleColor(context),
-                    borderRadius: BorderRadius.circular(12),
-                    border: message.status == MessageStatus.failed
-                        ? Border.all(color: Colors.red, width: 1)
-                        : null,
-                    boxShadow: showShadow
-                        ? [
+            margin: EdgeInsets.only(
+              bottom: isLastFromSender ? 6.0 : 2.0, // Extra margin for last message to show shadow
+            ),
+            child: Stack(
+            children: [
+              // Main bubble
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                decoration: isTransparent
+                    ? null
+                    : BoxDecoration(
+                        color: _getBubbleColor(context),
+                        borderRadius: _getBorderRadius(),
+                        border: message.status == MessageStatus.failed
+                            ? Border.all(color: Colors.red, width: 1)
+                            : null,
+                        boxShadow: [
+                          // Subtle bottom shadow for all bubbles
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 3,
+                            offset: Offset(0, 1),
+                            spreadRadius: 0,
+                          ),
+                          // Additional shadow for specific cases
+                          if (showShadow)
                             BoxShadow(
                               color: Colors.black.withOpacity(0.08),
-                              blurRadius: 4,
-                              offset: Offset(0, 2),
+                              blurRadius: 6,
+                              offset: Offset(0, 3),
+                              spreadRadius: 1,
                             ),
-                          ]
-                        : null,
-                  ),
+                        ],
+                      ),
             child: Stack(
               children: [
                 // Message content
@@ -112,6 +129,10 @@ class BaseMessageBubble extends StatelessWidget {
                         ),
               ],
             ),
+          ),
+
+        ],
+      ),
           ),
 
           // Reactions display (below the bubble with overlap using transform)
@@ -162,6 +183,12 @@ class BaseMessageBubble extends StatelessWidget {
         : (Theme.of(context).brightness == Brightness.dark
               ? Colors.grey[800]!
               : Colors.white);
+  }
+
+  BorderRadius _getBorderRadius() {
+    // Use standard border radius for all messages
+    // The tail is now handled by CustomPaint overlay
+    return BorderRadius.circular(12);
   }
 
   Widget _buildMetaOverlay(BuildContext context) {
@@ -801,3 +828,4 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
     );
   }
 }
+

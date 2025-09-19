@@ -21,6 +21,7 @@ class MessageBubbleFactory extends StatelessWidget {
   final bool isDeleted;
   final bool isSelected;
   final bool showSenderInfo;
+  final bool isLastFromSender;
   final VoidCallback? onRetryUpload;
   final Function(String messageId, String emoji, String userId)?
   onReactionRemoved;
@@ -46,6 +47,7 @@ class MessageBubbleFactory extends StatelessWidget {
     required this.isDeleted,
     this.isSelected = false,
     this.showSenderInfo = false,
+    this.isLastFromSender = false,
     this.onRetryUpload,
     this.onReactionRemoved,
     this.onMessageTap,
@@ -175,6 +177,7 @@ class MessageBubbleFactory extends StatelessWidget {
         isPinned: isPinned,
         isSelected: isSelected,
         showSenderInfo: showSenderInfo,
+        isLastFromSender: isLastFromSender,
         onReactionRemoved: onReactionRemoved,
       );
     }
@@ -189,6 +192,7 @@ class MessageBubbleFactory extends StatelessWidget {
       customColor: Colors.grey[300],
       showMetaOverlay: false,
       showShadow: false,
+      isLastFromSender: isLastFromSender,
       onReactionRemoved: onReactionRemoved,
       content: Container(
         padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),

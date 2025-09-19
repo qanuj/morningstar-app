@@ -18,6 +18,7 @@ class InteractiveMessageBubble extends StatefulWidget {
   final bool isPinned;
   final bool isSelected;
   final bool showSenderInfo;
+  final bool isLastFromSender;
   final bool isTransparent;
   final Color? customColor;
   final bool showMetaOverlay;
@@ -48,6 +49,7 @@ class InteractiveMessageBubble extends StatefulWidget {
     required this.isOwn,
     required this.isPinned,
     required this.showSenderInfo,
+    this.isLastFromSender = false,
     this.clubMembers = const [],
     this.isSelected = false,
     this.isTransparent = false,
@@ -112,6 +114,7 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
         isPinned: widget.isPinned,
         isSelected: widget.isSelected,
         showSenderInfo: widget.showSenderInfo,
+        isLastFromSender: widget.isLastFromSender,
         onReactionRemoved: _handleReactionRemoved,
         onReactionAdded: _handleReactionAdded,
         onReplyToMessage: _handleReplyToMessage,
