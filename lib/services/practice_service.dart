@@ -49,10 +49,21 @@ class PracticeService {
     bool upcomingOnly = true,
     int limit = 50,
     int offset = 0,
+    String? type, // 'practice' or 'match'
   }) async {
     try {
+      final params = [
+        'clubId=$clubId',
+        'upcomingOnly=$upcomingOnly',
+        'limit=$limit',
+        'offset=$offset',
+      ];
+      if (type != null) {
+        params.add('type=$type');
+      }
+
       final response = await ApiService.get(
-        '/practice?clubId=$clubId&upcomingOnly=$upcomingOnly&limit=$limit&offset=$offset',
+        '/practice?${params.join('&')}',
       );
 
       if (response != null && response['practices'] != null) {

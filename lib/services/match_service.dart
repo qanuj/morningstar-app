@@ -98,6 +98,9 @@ class MatchService {
     bool includeCancelled = false,
     bool showFullyPaid = false,
     bool upcomingOnly = false,
+    int limit = 50,
+    int offset = 0,
+    String? type, // 'match' or 'practice'
   }) async {
     try {
       String endpoint;
@@ -109,6 +112,11 @@ class MatchService {
         params.add('includeCancelled=${includeCancelled ? 'true' : 'false'}');
         params.add('showFullyPaid=${showFullyPaid ? 'true' : 'false'}');
         params.add('upcomingOnly=${upcomingOnly ? 'true' : 'false'}');
+        params.add('limit=$limit');
+        params.add('offset=$offset');
+        if (type != null) {
+          params.add('type=$type');
+        }
 
         print(
           '🔍 MatchService Debug: Fetching club matches for clubId = $clubId',
@@ -121,7 +129,11 @@ class MatchService {
         endpoint = '/matches?${params.join('&')}';
       } else {
         // For user matches, use the RSVP endpoint
-        endpoint = '/matches?me=true';
+        final userParams = ['me=true', 'limit=$limit', 'offset=$offset'];
+        if (type != null) {
+          userParams.add('type=$type');
+        }
+        endpoint = '/matches?${userParams.join('&')}';
       }
 
       final response = await ApiService.get(endpoint);

@@ -5,6 +5,7 @@ import '../models/club.dart';
 import '../services/api_service.dart';
 import '../services/match_service.dart';
 import '../widgets/svg_avatar.dart';
+import '../widgets/event_cards.dart';
 import '../screens/matches/match_detail.dart';
 import '../screens/practices/practice_match_detail.dart';
 
@@ -316,41 +317,6 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
     );
   }
 
-  Map<String, List<MatchListItem>> _groupMatchesByDate(
-    List<MatchListItem> matches,
-  ) {
-    final Map<String, List<MatchListItem>> groupedMatches = {};
-
-    for (final match in matches) {
-      // Convert to local timezone before formatting
-      final localDate = match.matchDate.toLocal();
-      final dateKey = DateFormat('yyyy-MM-dd').format(localDate);
-      if (!groupedMatches.containsKey(dateKey)) {
-        groupedMatches[dateKey] = [];
-      }
-      groupedMatches[dateKey]!.add(match);
-    }
-
-    // API returns matches in correct order, preserve that order in groups
-    return groupedMatches;
-  }
-
-  String _formatDateHeader(String dateKey) {
-    final date = DateTime.parse(dateKey);
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final yesterday = today.subtract(Duration(days: 1));
-    final matchDate = DateTime(date.year, date.month, date.day);
-
-    if (matchDate == today) {
-      return 'Today';
-    } else if (matchDate == yesterday) {
-      return 'Yesterday';
-    } else {
-      return DateFormat('MMM dd, yyyy').format(date);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -447,80 +413,37 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
   }
 
   Widget _buildMatchesList() {
-    final groupedMatches = _groupMatchesByDate(_matches);
-    final totalGroups = groupedMatches.length;
+    return Container(
+      color: Colors.grey[100], // Gray background like in unified picker
+      child: ListView.separated(
+        controller: _scrollController,
+        padding: EdgeInsets.all(16),
+        itemCount:
+            _matches.length +
+            (_isLoadingMore ? 1 : 0) +
+            (_hasNextPage && !_isLoadingMore ? 1 : 0),
+        separatorBuilder: (_, index) {
+          if (index == _matches.length - 1 &&
+              (_hasNextPage || _isLoadingMore)) {
+            return const SizedBox.shrink(); // No separator before loading indicator
+          }
+          return const SizedBox(height: 12);
+        },
+        itemBuilder: (context, index) {
+          // Show loading indicator at the bottom when loading more
+          if (index >= _matches.length && _isLoadingMore) {
+            return _buildLoadingMoreIndicator();
+          }
 
-    // Check if we have multiple matches on any single date
-    final hasMultipleMatchesOnSameDate = groupedMatches.values.any(
-      (matches) => matches.length > 1,
-    );
+          // Show "Load more" button when there are more pages but not currently loading
+          if (index >= _matches.length && _hasNextPage && !_isLoadingMore) {
+            return _buildLoadMoreButton();
+          }
 
-    return ListView.builder(
-      controller: _scrollController,
-      padding: EdgeInsets.symmetric(horizontal: 4),
-      itemCount:
-          totalGroups +
-          (_isLoadingMore ? 1 : 0) +
-          (_hasNextPage && !_isLoadingMore ? 1 : 0),
-      itemBuilder: (context, index) {
-        // Show loading indicator at the bottom when loading more
-        if (index >= totalGroups && _isLoadingMore) {
-          return _buildLoadingMoreIndicator();
-        }
-
-        // Show "Load more" button when there are more pages but not currently loading
-        if (index >= totalGroups && _hasNextPage && !_isLoadingMore) {
-          return _buildLoadMoreButton();
-        }
-
-        final dateKey = groupedMatches.keys.elementAt(index);
-        final dayMatches = groupedMatches[dateKey]!;
-        final now = DateTime.now();
-        final isUpcomingDate = DateTime.parse(
-          dateKey,
-        ).isAfter(now.subtract(Duration(days: 1)));
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Date header - show for upcoming matches or when multiple matches exist on the same date
-            if (isUpcomingDate || hasMultipleMatchesOnSameDate)
-              Container(
-                margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: isUpcomingDate
-                      ? (Theme.of(context).brightness == Brightness.dark
-                            ? Theme.of(context).primaryColor.withOpacity(0.3)
-                            : Theme.of(context).primaryColor.withOpacity(0.1))
-                      : Theme.of(context).brightness == Brightness.dark
-                      ? Theme.of(context).colorScheme.onSurface.withOpacity(0.2)
-                      : Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  _formatDateHeader(dateKey),
-                  style: TextStyle(
-                    color: isUpcomingDate
-                        ? (Theme.of(context).brightness == Brightness.dark
-                              ? Colors.white
-                              : Theme.of(context).primaryColor)
-                        : Theme.of(context).brightness == Brightness.dark
-                        ? Colors.white.withOpacity(0.9)
-                        : Colors.grey.shade600,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-
-            // Matches for this date
-            ...dayMatches.map((match) => _buildMatchItem(match)),
-
-            if (index < totalGroups - 1) SizedBox(height: 8),
-          ],
-        );
-      },
+          final match = _matches[index];
+          return _buildMatchItem(match);
+        },
+      ),
     );
   }
 
@@ -577,14 +500,20 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
     final localMatchDate = match.matchDate.toLocal();
     final isUpcoming = localMatchDate.isAfter(now);
 
+    // Determine if this is a practice or match based on type
+    final isPractice = match.type.toLowerCase() == 'practice';
+    final isMatch =
+        match.type.toLowerCase() == 'game' ||
+        match.type.toLowerCase() == 'tournament';
+
     // Enable swipe for upcoming matches, regardless of current canRsvp status
     // This allows users to change their RSVP even if they've already responded
     if (isUpcoming) {
-      return _buildSwipeableMatchItem(match, isUpcoming);
+      return _buildSwipeableEventItem(match, isUpcoming, isPractice);
     }
 
     // For past matches, show normal item
-    return _buildRegularMatchItem(match, isUpcoming);
+    return _buildRegularEventItem(match, isUpcoming, isPractice);
   }
 
   void _openMatchDetails(MatchListItem match) {
@@ -597,7 +526,11 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
     Navigator.of(context).push(route);
   }
 
-  Widget _buildSwipeableMatchItem(MatchListItem match, bool isUpcoming) {
+  Widget _buildSwipeableEventItem(
+    MatchListItem match,
+    bool isUpcoming,
+    bool isPractice,
+  ) {
     // Always allow swipe for upcoming matches - users can change their RSVP
     return Dismissible(
       key: Key('match_${match.id}'),
@@ -620,10 +553,10 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
         return false;
       },
       background: Container(
-        margin: EdgeInsets.only(bottom: 8, left: 12, right: 12),
+        margin: EdgeInsets.zero,
         decoration: BoxDecoration(
           color: Colors.green,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(16),
         ),
         alignment: Alignment.centerLeft,
         padding: EdgeInsets.symmetric(horizontal: 20),
@@ -643,10 +576,10 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
         ),
       ),
       secondaryBackground: Container(
-        margin: EdgeInsets.only(bottom: 8, left: 12, right: 12),
+        margin: EdgeInsets.zero,
         decoration: BoxDecoration(
           color: Colors.red,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(16),
         ),
         alignment: Alignment.centerRight,
         padding: EdgeInsets.symmetric(horizontal: 20),
@@ -669,320 +602,46 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
       child: GestureDetector(
         onTap: () => _openMatchDetails(match),
         onLongPress: () => _showRoleSelectionModal(match),
-        child: _buildMatchCard(match, isUpcoming),
+        child: _buildEventCard(match, isUpcoming, isPractice),
       ),
     );
   }
 
-  Widget _buildRegularMatchItem(MatchListItem match, bool isUpcoming) {
+  Widget _buildRegularEventItem(
+    MatchListItem match,
+    bool isUpcoming,
+    bool isPractice,
+  ) {
     return GestureDetector(
       onTap: () => _openMatchDetails(match),
-      child: _buildMatchCard(match, isUpcoming),
+      child: _buildEventCard(match, isUpcoming, isPractice),
     );
   }
 
-  Widget _buildMatchCard(MatchListItem match, bool isUpcoming) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      margin: EdgeInsets.only(bottom: 8, left: 12, right: 12),
-      decoration: BoxDecoration(
-        color: isDark
-            ? (isUpcoming
-                  ? Theme.of(context).cardColor
-                  : Theme.of(context).cardColor.withOpacity(0.7))
-            : (isUpcoming ? Colors.white : Colors.grey.shade100),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isDark
-              ? Theme.of(context).dividerColor.withOpacity(0.3)
-              : (isUpcoming
-                    ? Theme.of(context).dividerColor.withOpacity(0.3)
-                    : Colors.grey.shade300),
-          width: 0.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(
-              context,
-            ).shadowColor.withOpacity(isUpcoming ? 0.08 : 0.02),
-            blurRadius: isUpcoming ? 12 : 4,
-            offset: Offset(0, isUpcoming ? 3 : 1),
-          ),
-        ],
-      ),
-      child: Opacity(
+  Widget _buildEventCard(
+    MatchListItem match,
+    bool isUpcoming,
+    bool isPractice,
+  ) {
+    // Use appropriate card based on type
+    if (isPractice) {
+      return Opacity(
         opacity: isUpcoming ? 1.0 : 0.6,
-        child: Padding(
-          padding: EdgeInsets.all(8),
-          child: _buildMatchCardRowContent(match, isUpcoming),
+        child: PracticeEventCard(
+          practice: match,
+          onTap: null, // onTap handled by parent GestureDetector
         ),
-      ),
-    );
-  }
-
-  Widget _buildMatchCardRowContent(MatchListItem match, bool isUpcoming) {
-    final theme = Theme.of(context);
-    final isCancelled = match.isCancelled;
-    final cancellationReason = match.cancellationReason?.trim();
-    final typeLabel = _getReadableMatchType(match.type);
-    final displayTypeLabel = typeLabel ?? '';
-    final opponent = match.opponent?.trim();
-    final teamName = match.team?.name.trim();
-    final opponentTeamName = match.opponentTeam?.name.trim();
-    final hasTeam = (teamName ?? '').isNotEmpty;
-    final hasOpponentTeam = (opponentTeamName ?? '').isNotEmpty;
-    final hasOpponentText = (opponent ?? '').isNotEmpty;
-    final isPractice = match.type.toLowerCase() == 'practice';
-    final showTypeLabel =
-        !isCancelled && typeLabel != null && typeLabel.isNotEmpty;
-
-    String? titleText;
-    if (hasTeam && hasOpponentTeam) {
-      titleText = '$teamName vs $opponentTeamName';
-    } else if (hasTeam && hasOpponentText) {
-      titleText = '$teamName vs $opponent';
-    } else if (hasTeam) {
-      titleText = hasOpponentText
-          ? '${teamName ?? ''} vs ${opponent ?? ''}'
-          : teamName;
-    } else if (hasOpponentTeam) {
-      titleText = hasOpponentText
-          ? '${opponentTeamName ?? ''} vs ${opponent ?? ''}'
-          : opponentTeamName;
-    } else if (hasOpponentText) {
-      titleText = opponent;
-    } else if (isPractice) {
-      titleText = 'Practice Session';
+      );
     } else {
-      titleText = typeLabel;
+      return Opacity(
+        opacity: isUpcoming ? 1.0 : 0.6,
+        child: MatchEventCard(
+          match: match,
+          isUpcoming: isUpcoming,
+          onTap: null, // onTap handled by parent GestureDetector
+        ),
+      );
     }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        // Club Avatar with RSVP Badge
-        _buildTeamAvatar(match),
-        SizedBox(width: 12),
-
-        // Match Info (Center)
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                titleText ?? 'Match',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontWeight: FontWeight.w400,
-                  fontSize: 12,
-                  color: theme.textTheme.titleLarge?.color,
-                  height: 1.2,
-                ),
-              ),
-              if (isCancelled) ...[
-                SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.cancel_outlined,
-                      size: 12,
-                      color: theme.colorScheme.error,
-                    ),
-                    SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        'Cancelled',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: theme.colorScheme.error,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                if (cancellationReason != null && cancellationReason.isNotEmpty)
-                  Padding(
-                    padding: EdgeInsets.only(top: 2),
-                    child: Text(
-                      cancellationReason,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: theme.colorScheme.error.withOpacity(0.9),
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-              ],
-              if (showTypeLabel) ...[
-                SizedBox(height: 4),
-                Text(
-                  displayTypeLabel,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                    color: theme.textTheme.bodySmall?.color,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-              if (match.location.isNotEmpty) ...[
-                SizedBox(
-                  height: isCancelled
-                      ? 6
-                      : showTypeLabel
-                      ? 6
-                      : 8,
-                ),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.location_on_outlined,
-                      size: 10,
-                      color: theme.textTheme.bodySmall?.color,
-                    ),
-                    SizedBox(width: 2),
-                    Expanded(
-                      child: Text(
-                        match.location,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: theme.textTheme.bodySmall?.color,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        ),
-
-        // Time and Status (Right)
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              DateFormat('HH:mm').format(match.matchDate.toLocal()),
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w400,
-                color: isUpcoming
-                    ? (theme.brightness == Brightness.dark
-                          ? Colors.white
-                          : theme.primaryColor)
-                    : theme.textTheme.bodySmall?.color,
-              ),
-            ),
-            if (isCancelled || !widget.isFromHome) ...[
-              SizedBox(height: 2),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: isCancelled
-                      ? theme.colorScheme.error.withOpacity(0.1)
-                      : (theme.brightness == Brightness.dark
-                            ? theme.colorScheme.onSurface.withOpacity(0.15)
-                            : theme.primaryColor.withOpacity(0.1)),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  isCancelled ? 'Cancelled' : (typeLabel ?? match.type),
-                  style: TextStyle(
-                    color: isCancelled
-                        ? theme.colorScheme.error
-                        : (theme.brightness == Brightness.dark
-                              ? theme.colorScheme.onSurface.withOpacity(0.9)
-                              : theme.primaryColor),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTeamAvatar(MatchListItem match) {
-    final now = DateTime.now();
-    final localMatchDate = match.matchDate.toLocal();
-    final isUpcoming = localMatchDate.isAfter(now);
-
-    return Stack(
-      children: [
-        // Club Avatar
-        SVGAvatar(
-          imageUrl: match.club.logo,
-          size: 40,
-          backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
-          fallbackIcon: Icons.sports_cricket,
-          iconSize: 24,
-        ),
-        // RSVP Status Badge (if applicable)
-        if (match.userRsvp != null)
-          Positioned(
-            right: 0,
-            bottom: 0,
-            child: Container(
-              width: 18,
-              height: 18,
-              decoration: BoxDecoration(
-                color: _getRsvpStatusColor(match.userRsvp!.status),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Theme.of(context).colorScheme.surface
-                      : Theme.of(context).cardColor,
-                  width: 2,
-                ),
-              ),
-              child: Icon(
-                _getRsvpStatusIcon(match.userRsvp!.status),
-                color: Theme.of(context).colorScheme.onPrimary,
-                size: 10,
-              ),
-            ),
-          )
-        else
-          // Match Type Badge for non-RSVP matches
-          Positioned(
-            right: 0,
-            bottom: 0,
-            child: Container(
-              width: 18,
-              height: 18,
-              decoration: BoxDecoration(
-                color: isUpcoming
-                    ? Theme.of(context).primaryColor
-                    : Colors.grey,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Theme.of(context).colorScheme.surface
-                      : Theme.of(context).cardColor,
-                  width: 2,
-                ),
-              ),
-              child: Icon(
-                isUpcoming ? Icons.schedule : Icons.check,
-                color: Theme.of(context).colorScheme.onPrimary,
-                size: 10,
-              ),
-            ),
-          ),
-      ],
-    );
   }
 
   String? _getReadableMatchType(String type) {
