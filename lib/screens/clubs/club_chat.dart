@@ -116,9 +116,16 @@ class ClubChatScreenState extends State<ClubChatScreen>
     // Setup push notification callback instead of polling
     _setupPushNotificationCallback();
 
-    // Add focus listener to trigger UI updates
+    // Add focus listener to trigger UI updates and scroll to bottom when keyboard opens
     _textFieldFocusNode.addListener(() {
       setState(() {});
+
+      // Scroll to bottom when text field gains focus (keyboard opens)
+      if (_textFieldFocusNode.hasFocus && _messages.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToBottom();
+        });
+      }
     });
 
     // Handle shared content if provided
@@ -681,9 +688,11 @@ class ClubChatScreenState extends State<ClubChatScreen>
       _refreshAnimationController.reset();
 
       // Auto-scroll to newest message if new messages were added
-      // if (newMessages.isNotEmpty) {
-      //   _scrollToBottom();
-      // }
+      if (newMessages.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToBottom();
+        });
+      }
 
       debugPrint('✅ Applied incremental changes successfully');
 
@@ -1652,9 +1661,25 @@ class ClubChatScreenState extends State<ClubChatScreen>
       _messages.add(message);
     });
 
+    // Auto-scroll to bottom after new message is added
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToBottom();
+    });
+
     debugPrint(
       '🔍 ClubChat: Added message to _messages list. Total messages: ${_messages.length}',
     );
+  }
+
+  /// Scroll to the bottom of the messages list with animation
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   Future<void> _triggerAudioRecordingFromPull() async {
@@ -1681,7 +1706,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
   Widget build(BuildContext context) {
     final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
     final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
-    final footerHeight = 80.0; // Approximate height of message input footer
 
     // Get user's membership to determine role
     final clubProvider = Provider.of<ClubProvider>(context);
@@ -1727,63 +1751,103 @@ class ClubChatScreenState extends State<ClubChatScreen>
             ),
           ),
 
-          // Messages area that adjusts for keyboard
+          // Main content using Column layout
           SafeArea(
-            child: Column(
-              children: [
-                // Messages List - Takes all available space above input
-                Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      bottom: keyboardHeight + footerHeight,
-                    ),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: GestureDetector(
-                        onPanStart: (details) {
-                          // Track where the pan/scroll gesture starts
-                          final messagesHeight =
-                              MediaQuery.of(context).size.height -
-                              MediaQuery.of(context).padding.top -
-                              MediaQuery.of(context).padding.bottom -
-                              keyboardHeight -
-                              footerHeight;
-                          final startY = details.localPosition.dy;
-                          final bottom30Percent =
-                              messagesHeight * 0.7; // 70% from top = bottom 30%
+            child: Padding(
+              padding: EdgeInsets.only(bottom: keyboardHeight),
+              child: Column(
+                children: [
+                  // Messages List - Takes all available space above input
+                  Expanded(
+                  child: GestureDetector(
+                    onPanStart: (details) {
+                      // Track where the pan/scroll gesture starts
+                      final startY = details.localPosition.dy;
+                      final widgetHeight = context.size?.height ?? 0;
+                      final bottom30Percent = widgetHeight * 0.7; // 70% from top = bottom 30%
 
-                          setState(() {
-                            _canActivateRecording = startY > bottom30Percent;
-                          });
+                      setState(() {
+                        _canActivateRecording = startY > bottom30Percent;
+                      });
 
-                          debugPrint(
-                            '🎯 Pan gesture started at ${startY}px, bottom 30% starts at ${bottom30Percent}px, can activate: $_canActivateRecording',
-                          );
-                        },
-                        onPanEnd: (details) {
-                          // Reset recording activation when pan gesture ends
-                          setState(() {
-                            _canActivateRecording = false;
-                          });
-                          debugPrint(
-                            '🎯 Pan gesture ended, recording activation reset',
-                          );
-                        },
-                        onTap: () {
-                          // Close keyboard when tapping in messages area
-                          FocusScope.of(context).unfocus();
-                        },
-                        behavior: HitTestBehavior.opaque,
-                        child: _error != null
-                            ? _buildErrorState(_error!)
-                            : _messages.isEmpty
-                            ? _buildEmptyState()
-                            : _buildMessagesList(),
+                      debugPrint(
+                        '🎯 Pan gesture started at ${startY}px, bottom 30% starts at ${bottom30Percent}px, can activate: $_canActivateRecording',
+                      );
+                    },
+                    onPanEnd: (details) {
+                      // Reset recording activation when pan gesture ends
+                      setState(() {
+                        _canActivateRecording = false;
+                      });
+                      debugPrint(
+                        '🎯 Pan gesture ended, recording activation reset',
+                      );
+                    },
+                    onTap: () {
+                      // Close keyboard when tapping in messages area
+                      FocusScope.of(context).unfocus();
+                    },
+                    behavior: HitTestBehavior.opaque,
+                    child: _error != null
+                        ? _buildErrorState(_error!)
+                        : _messages.isEmpty
+                        ? _buildEmptyState()
+                        : _buildMessagesList(),
+                  ),
+                ),
+
+                // Footer with reply preview and input
+                Container(
+                  decoration: BoxDecoration(
+                    color: isDarkTheme ? Color(0xFF1e2428) : Colors.white,
+                    border: Border(
+                      top: BorderSide(
+                        color: isDarkTheme
+                            ? Colors.grey[700]!.withOpacity(0.3)
+                            : Colors.grey[300]!.withOpacity(0.5),
+                        width: 0.5,
                       ),
                     ),
                   ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Reply preview (if replying to a message)
+                      if (_replyingTo != null) _buildReplyPreview(),
+
+                      // Message Input - Fixed at bottom (hidden during recording mode)
+                      if (!_isInRecordingMode)
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                          child: MessageInput(
+                            messageController: _messageController,
+                            textFieldFocusNode: _textFieldFocusNode,
+                            clubId: widget.club.id,
+                            audioRecordingKey: _audioRecordingKey,
+                            onSendMessage: _handleNewMessage,
+                            upiId: widget.club.upiId,
+                            userRole: membership?.role,
+                            onCreateMatch: _navigateToCreateMatch,
+                            onCreatePractice: _navigateToCreatePractice,
+                          ),
+                        ),
+
+                    ],
+                  ),
                 ),
               ],
+              ),
+            ),
+          ),
+
+          // Bottom safe area background extension (iOS only)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: MediaQuery.of(context).padding.bottom,
+            child: Container(
+              color: isDarkTheme ? Color(0xFF1e2428) : Colors.white,
             ),
           ),
 
@@ -1792,7 +1856,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
           if (_isPullingForAudio &&
               !(_audioRecordingKey.currentState?.isRecording ?? false))
             Positioned(
-              bottom: keyboardHeight + 100,
+              bottom: keyboardHeight + 150,
               left: 0,
               right: 0,
               child: Center(
@@ -1847,49 +1911,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
               ),
             ),
 
-          // Footer with reply preview and input - always at bottom
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: keyboardHeight,
-            child: Container(
-              decoration: BoxDecoration(
-                color: isDarkTheme ? Color(0xFF1e2428) : Colors.white,
-                border: Border(
-                  top: BorderSide(
-                    color: isDarkTheme
-                        ? Colors.grey[700]!.withOpacity(0.3)
-                        : Colors.grey[300]!.withOpacity(0.5),
-                    width: 0.5,
-                  ),
-                ),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Reply preview (if replying to a message)
-                  if (_replyingTo != null) _buildReplyPreview(),
-
-                  // Message Input - Fixed at bottom (hidden during recording mode)
-                  if (!_isInRecordingMode)
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                      child: MessageInput(
-                        messageController: _messageController,
-                        textFieldFocusNode: _textFieldFocusNode,
-                        clubId: widget.club.id,
-                        audioRecordingKey: _audioRecordingKey,
-                        onSendMessage: _handleNewMessage,
-                        upiId: widget.club.upiId,
-                        userRole: membership?.role,
-                        onCreateMatch: _navigateToCreateMatch,
-                        onCreatePractice: _navigateToCreatePractice,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
         ],
       ),
     );

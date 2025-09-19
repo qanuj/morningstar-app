@@ -811,6 +811,9 @@ class _MessageInputState extends State<MessageInput> {
                 textCapitalization: TextCapitalization.sentences,
                 keyboardType: TextInputType.multiline,
                 textInputAction: TextInputAction.newline,
+                keyboardAppearance: Theme.of(context).brightness == Brightness.dark
+                    ? Brightness.dark
+                    : Brightness.light,
                 onChanged: _handleTextChanged,
               ),
             ),
