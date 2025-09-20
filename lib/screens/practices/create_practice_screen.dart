@@ -357,19 +357,17 @@ class _CreatePracticeScreenState extends State<CreatePracticeScreen> {
     );
   }
 
-  void _showLocationPicker() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => VenuePickerScreen(
-          title: 'Select Location',
-          onVenueSelected: (venue) {
-            setState(() {
-              _selectedVenue = venue;
-            });
-          },
-        ),
-      ),
+  void _showLocationPicker() async {
+    final selectedVenue = await VenuePickerScreen.showVenuePicker(
+      context: context,
+      title: 'Select Location',
     );
+
+    if (selectedVenue != null) {
+      setState(() {
+        _selectedVenue = selectedVenue;
+      });
+    }
   }
 
   void _showDurationPicker() {

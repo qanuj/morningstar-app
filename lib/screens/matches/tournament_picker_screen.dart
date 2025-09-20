@@ -256,7 +256,8 @@ class _TournamentPickerScreenState extends State<TournamentPickerScreen> {
 
     return Card(
       margin: EdgeInsets.only(bottom: 12),
-      elevation: 2,
+      elevation: 8,
+      shadowColor: Theme.of(context).shadowColor.withOpacity(0.1),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
@@ -537,7 +538,8 @@ class _TournamentPickerModalState extends State<TournamentPickerModal> {
 
     return Card(
       margin: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      elevation: 2,
+      elevation: 8,
+      shadowColor: Theme.of(context).shadowColor.withOpacity(0.1),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),

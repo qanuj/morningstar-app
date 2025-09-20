@@ -215,8 +215,8 @@ class _VenuePickerScreenState extends State<VenuePickerScreen> {
   Widget _buildVenueTile(Venue venue) {
     return Card(
       margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      elevation: 4,
-      shadowColor: Colors.black.withOpacity(0.1),
+      elevation: 8,
+      shadowColor: Theme.of(context).shadowColor.withOpacity(0.15),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         onTap: () {
@@ -702,8 +702,8 @@ class _VenuePickerModalState extends State<VenuePickerModal> {
   Widget _buildVenueTile(Venue venue) {
     return Card(
       margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      elevation: 4,
-      shadowColor: Colors.black.withOpacity(0.1),
+      elevation: 8,
+      shadowColor: Theme.of(context).shadowColor.withOpacity(0.15),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         onTap: () {
@@ -950,10 +950,16 @@ class _VenuePickerModalState extends State<VenuePickerModal> {
     return Container(
       height: MediaQuery.of(context).size.height * 0.9,
       decoration: BoxDecoration(
-        color: Theme.of(context).brightness == Brightness.dark
-            ? Colors.black87
-            : Color(0xFFF5F5F5),
+        color: Theme.of(context).scaffoldBackgroundColor,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 20,
+            offset: Offset(0, -8),
+            spreadRadius: 2,
+          ),
+        ],
       ),
       child: Column(
         children: [
