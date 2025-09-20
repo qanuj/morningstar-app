@@ -99,6 +99,7 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
   void initState() {
     super.initState();
     _updateDescriptionFromPurpose(_purpose);
+    _purposeSelected = true; // Initialize with default purpose selected
   }
 
   @override
@@ -126,6 +127,93 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
 
   void _onDescriptionChanged(String value) {
     _userEditedDescription = true;
+  }
+
+  String _getSelectedPurposeLabel() {
+    if (!_purposeSelected && _purpose == 'MATCH_FEE') {
+      return 'Select expense purpose';
+    }
+    final selectedPurpose = _purposeOptions.firstWhere(
+      (option) => option['value'] == _purpose,
+      orElse: () => {'label': 'Select expense purpose'},
+    );
+    return selectedPurpose['label'] ?? 'Select expense purpose';
+  }
+
+  void _showPurposePicker() {
+    showModalBottomSheet(
+      context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (BuildContext context) {
+        return Container(
+          padding: EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                margin: EdgeInsets.only(bottom: 16),
+                child: Text(
+                  'Select Expense Purpose',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _purposeOptions.length,
+                  itemBuilder: (context, index) {
+                    final option = _purposeOptions[index];
+                    final isSelected = _purpose == option['value'];
+
+                    return ListTile(
+                      leading: Icon(
+                        option['icon'],
+                        color: isSelected ? Theme.of(context).primaryColor : Colors.grey[600],
+                      ),
+                      title: Text(
+                        option['label'],
+                        style: TextStyle(
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                          color: isSelected ? Theme.of(context).primaryColor : Colors.black,
+                        ),
+                      ),
+                      subtitle: option['description'].isNotEmpty
+                          ? Text(
+                              option['description'],
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 12,
+                              ),
+                            )
+                          : null,
+                      trailing: isSelected
+                          ? Icon(
+                              Icons.check_circle,
+                              color: Theme.of(context).primaryColor,
+                            )
+                          : null,
+                      onTap: () {
+                        setState(() {
+                          _purpose = option['value'];
+                          _purposeSelected = true;
+                          _updateDescriptionFromPurpose(_purpose);
+                        });
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   String get _currentTitle {
@@ -755,6 +843,17 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
   }
 
   void _submitTransaction() async {
+    // Validate purpose selection for expenses
+    if (_transactionType == 'DEBIT' && !_purposeSelected) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please select expense purpose'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isSubmitting = true;
