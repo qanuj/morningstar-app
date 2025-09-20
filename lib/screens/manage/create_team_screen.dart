@@ -36,6 +36,7 @@ class _CreateTeamScreenState extends State<CreateTeamScreen> {
   bool _isUploading = false;
   File? _selectedImage;
   String? _logoUrl;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -287,21 +288,10 @@ class _CreateTeamScreenState extends State<CreateTeamScreen> {
       if (mounted) {
         Navigator.pop(context);
         widget.onTeamSaved();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Team deleted successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to delete team: ${e.toString().replaceAll('Exception: ', '')}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        setState(() => _errorMessage = 'Failed to delete team: ${e.toString().replaceAll('Exception: ', '')}');
       }
     } finally {
       if (mounted) {
@@ -311,7 +301,16 @@ class _CreateTeamScreenState extends State<CreateTeamScreen> {
   }
 
   Future<void> _saveTeam() async {
+    // Clear previous error messages
+    setState(() => _errorMessage = null);
+
     if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    // Validate that a logo is provided for new teams
+    if (widget.teamToEdit == null && _selectedImage == null && (_logoUrl == null || _logoUrl!.isEmpty)) {
+      setState(() => _errorMessage = 'Please upload a team logo before saving');
       return;
     }
 
@@ -323,7 +322,7 @@ class _CreateTeamScreenState extends State<CreateTeamScreen> {
       // Upload image if a new one was selected
       if (_selectedImage != null) {
         setState(() => _isUploading = true);
-        
+
         try {
           // Convert File to PlatformFile for upload
           final platformFile = PlatformFile(
@@ -332,24 +331,25 @@ class _CreateTeamScreenState extends State<CreateTeamScreen> {
             path: _selectedImage!.path,
             bytes: await _selectedImage!.readAsBytes(),
           );
-          
+
           logoUrl = await ApiService.uploadFile(platformFile);
           if (logoUrl == null || logoUrl.isEmpty) {
             throw Exception('Failed to upload logo to server - no URL returned');
           }
         } catch (e) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Failed to upload team logo: ${e.toString()}'),
-                backgroundColor: Colors.red,
-              ),
-            );
+            setState(() => _errorMessage = 'Failed to upload team logo: ${e.toString()}');
           }
           return;
         } finally {
           setState(() => _isUploading = false);
         }
+      }
+
+      // For editing, ensure we have a logo URL after potential upload
+      if (logoUrl == null || logoUrl.isEmpty) {
+        setState(() => _errorMessage = 'Team logo is required');
+        return;
       }
 
       // Save team data
@@ -376,12 +376,7 @@ class _CreateTeamScreenState extends State<CreateTeamScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to ${widget.teamToEdit == null ? 'create' : 'update'} team: ${e.toString().replaceAll('Exception: ', '')}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        setState(() => _errorMessage = 'Failed to ${widget.teamToEdit == null ? 'create' : 'update'} team: ${e.toString().replaceAll('Exception: ', '')}');
       }
     } finally {
       if (mounted) {
@@ -457,7 +452,9 @@ class _CreateTeamScreenState extends State<CreateTeamScreen> {
         subtitle: widget.teamToEdit == null ? 'Create Team' : 'Edit Team',
         actions: [
           IconButton(
-            onPressed: (_isLoading || _isUploading) ? null : _saveTeam,
+            onPressed: (_isLoading || _isUploading) ? null :
+              (widget.teamToEdit == null && _selectedImage == null && (_logoUrl == null || _logoUrl!.isEmpty)) ? null :
+              _saveTeam,
             icon: Icon(_isLoading || _isUploading ? Icons.hourglass_empty : Icons.check),
             tooltip: widget.teamToEdit == null ? 'Create Team' : 'Update Team',
           ),
@@ -477,6 +474,12 @@ class _CreateTeamScreenState extends State<CreateTeamScreen> {
               // Team Name Field
               TextFormField(
                 controller: _nameController,
+                onChanged: (value) {
+                  // Clear error when user starts typing
+                  if (_errorMessage != null) {
+                    setState(() => _errorMessage = null);
+                  }
+                },
                 decoration: InputDecoration(
                   hintText: 'Team Name',
                   border: OutlineInputBorder(
@@ -509,6 +512,41 @@ class _CreateTeamScreenState extends State<CreateTeamScreen> {
                 },
               ),
 
+              // Error message display
+              if (_errorMessage != null) ...[
+                SizedBox(height: 8),
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Colors.red.shade200,
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        color: Colors.red.shade600,
+                        size: 20,
+                      ),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.red.shade700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
               SizedBox(height: 24),
 
               // Info text
@@ -528,7 +566,9 @@ class _CreateTeamScreenState extends State<CreateTeamScreen> {
                     SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Upload a team logo and enter the team name to create your team.',
+                        widget.teamToEdit == null
+                          ? 'A team logo is required. Upload a logo and enter the team name to create your team.'
+                          : 'Upload a team logo and enter the team name to update your team.',
                         style: TextStyle(
                           fontSize: 14,
                           color: Theme.of(context).colorScheme.primary,

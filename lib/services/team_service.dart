@@ -140,17 +140,28 @@ class TeamService {
         throw Exception('Authentication required');
       }
 
+      final requestBody = {
+        'name': name,
+        'sport': 'cricket', // Default sport for the app
+        'provider': 'DUGGY', // Default provider as per backend validation
+        'providerId': DateTime.now().millisecondsSinceEpoch.toString(), // Generate unique ID
+        if (logo != null && logo.isNotEmpty) 'logo': logo,
+      };
+
+      print('🚀 Creating team with data: ${jsonEncode(requestBody)}');
+      print('🔗 URL: $baseUrl/clubs/$clubId/teams');
+
       final response = await http.post(
         Uri.parse('$baseUrl/clubs/$clubId/teams'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({
-          'name': name,
-          if (logo != null && logo.isNotEmpty) 'logo': logo,
-        }),
+        body: jsonEncode(requestBody),
       );
+
+      print('📡 Create team response status: ${response.statusCode}');
+      print('📡 Create team response body: ${response.body}');
 
       if (response.statusCode == 201) {
         final Map<String, dynamic> responseBody = jsonDecode(response.body);
@@ -158,14 +169,32 @@ class TeamService {
       } else if (response.statusCode == 401) {
         throw Exception('Unauthorized access');
       } else if (response.statusCode == 400) {
-        final Map<String, dynamic> errorBody = jsonDecode(response.body);
-        throw Exception(errorBody['error'] ?? 'Invalid team data');
+        try {
+          final Map<String, dynamic> errorBody = jsonDecode(response.body);
+          String errorMessage = errorBody['error'] ?? 'Invalid team data';
+
+          // If there are validation details, include them
+          if (errorBody['details'] != null && errorBody['details'] is List) {
+            final List details = errorBody['details'];
+            if (details.isNotEmpty) {
+              final validationErrors = details
+                  .map((detail) => detail['message'] ?? detail.toString())
+                  .join(', ');
+              errorMessage = '$errorMessage: $validationErrors';
+            }
+          }
+
+          throw Exception(errorMessage);
+        } catch (jsonError) {
+          print('Error parsing error response: $jsonError');
+          throw Exception('Invalid team data - server returned 400');
+        }
       } else {
         throw Exception('Failed to create team: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error creating team: $e');
-      throw Exception('Failed to create team: $e');
+      print('❌ Error creating team: $e');
+      rethrow;
     }
   }
 
