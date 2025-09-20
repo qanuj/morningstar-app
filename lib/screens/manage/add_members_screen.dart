@@ -7,6 +7,7 @@ import 'dart:async';
 import '../../models/club.dart';
 import '../../models/user.dart';
 import '../../services/api_service.dart';
+import '../../widgets/svg_avatar.dart';
 import '../club_invite_qr_screen.dart';
 
 // Lightweight contact model for caching
@@ -42,7 +43,7 @@ class CachedContact {
 
 // Synced contact from contact-sync API
 class SyncedContact {
-  final String? userId; // null if not a Duggy user
+  final String? userId; // id field from API (null if not a Duggy user)
   final String name;
   final String phoneNumber;
   final String? memberId;
@@ -63,7 +64,7 @@ class SyncedContact {
   });
 
   factory SyncedContact.fromJson(Map<String, dynamic> json) => SyncedContact(
-    userId: json['userId'],
+    userId: json['id'], // API returns 'id' field, not 'userId'
     name: json['name'],
     phoneNumber: json['phoneNumber'],
     memberId: json['memberId'],
@@ -124,9 +125,13 @@ class AddMembersScreenState extends State<AddMembersScreen> {
 
   final Set<String> _selectedContactIds = {};
   final Set<String> _selectedSyncedContactIds = {};
+  final Set<String> _selectedDuggyUserIds = {};
   String _searchQuery = '';
   bool _isLoadingFromCache = true;
   final TextEditingController _searchController = TextEditingController();
+
+  // Duggy users from synced contacts
+  List<User> _duggyUsers = [];
 
   static const String _cacheKey = 'cached_contacts_v1';
   static const String _cacheTimestampKey = 'contacts_cache_timestamp';
@@ -333,7 +338,7 @@ class AddMembersScreenState extends State<AddMembersScreen> {
         _allCachedContacts = cachedContacts;
         _filteredCachedContacts = List.from(cachedContacts);
         _contactsMap = contactsMap;
-        _isLoading = false;
+        // Contacts loaded from fresh source
         _isLoadingFromCache = false;
       });
 
@@ -342,7 +347,7 @@ class AddMembersScreenState extends State<AddMembersScreen> {
       // Update contacts map for selection without UI update
       _contactsMap = contactsMap;
       setState(() {
-        _isLoading = false;
+        // Contacts loaded from fresh source
       });
       print('📱 Updated ${contacts.length} contacts in background');
     }
@@ -446,9 +451,24 @@ class AddMembersScreenState extends State<AddMembersScreen> {
         syncedContactsMap[cleanPhone] = contact;
       }
 
+      // Extract Duggy users from synced contacts
+      final duggyUsers = syncedContacts
+          .where((contact) => contact.isDuggyUser)
+          .map((contact) => User(
+                id: contact.userId!,
+                name: contact.name,
+                phoneNumber: contact.phoneNumber,
+                profilePicture: contact.profilePicture,
+                role: 'USER',
+                isProfileComplete: true,
+                createdAt: DateTime.now(),
+              ))
+          .toList();
+
       setState(() {
         _syncedContacts = syncedContacts;
         _syncedContactsMap = syncedContactsMap;
+        _duggyUsers = duggyUsers;
         _isSyncingContacts = false;
       });
 
@@ -540,9 +560,6 @@ class AddMembersScreenState extends State<AddMembersScreen> {
     return syncedContact?.isClubMember ?? false;
   }
 
-  bool _isSyncedContactAlreadyMember(SyncedContact syncedContact) {
-    return syncedContact.isClubMember;
-  }
 
   List<Contact> _getSelectedContacts() {
     return _selectedContactIds
@@ -557,9 +574,74 @@ class AddMembersScreenState extends State<AddMembersScreen> {
         .toList();
   }
 
+  List<User> _getSelectedDuggyUsers() {
+    return _selectedDuggyUserIds
+        .map((id) => _duggyUsers.firstWhere((user) => user.id == id))
+        .toList();
+  }
+
+  void _toggleDuggyUserSelection(String userId) {
+    setState(() {
+      if (_selectedDuggyUserIds.contains(userId)) {
+        _selectedDuggyUserIds.remove(userId);
+      } else {
+        _selectedDuggyUserIds.add(userId);
+      }
+    });
+    HapticFeedback.lightImpact();
+  }
+
+  bool _isDuggyUserAlreadyMember(User user) {
+    final cleanPhone = user.phoneNumber.replaceAll(RegExp(r'[^\d]'), '');
+    final syncedContact = _syncedContactsMap[cleanPhone];
+    return syncedContact?.isClubMember ?? false;
+  }
+
+  String _getContactStatusText(CachedContact contact) {
+    if (contact.primaryPhone.isEmpty) return '';
+    final cleanPhone = contact.primaryPhone.replaceAll(RegExp(r'[^\d]'), '');
+    final syncedContact = _syncedContactsMap[cleanPhone];
+
+    if (syncedContact?.isClubMember == true) {
+      final role = syncedContact?.clubRole ?? 'MEMBER';
+      switch (role.toLowerCase()) {
+        case 'admin':
+          return 'Admin';
+        case 'moderator':
+          return 'Moderator';
+        case 'member':
+          return 'Member';
+        default:
+          return 'Member';
+      }
+    }
+    return '';
+  }
+
+  String _getDuggyUserStatusText(User user) {
+    final cleanPhone = user.phoneNumber.replaceAll(RegExp(r'[^\d]'), '');
+    final syncedContact = _syncedContactsMap[cleanPhone];
+
+    if (syncedContact?.isClubMember == true) {
+      final role = syncedContact?.clubRole ?? 'MEMBER';
+      switch (role.toLowerCase()) {
+        case 'admin':
+          return 'Admin';
+        case 'moderator':
+          return 'Moderator';
+        case 'member':
+          return 'Member';
+        default:
+          return 'Member';
+      }
+    }
+    return 'Duggy User';
+  }
+
   void _confirmSelection() {
     final selectedContacts = _getSelectedContacts();
     final selectedSyncedContacts = _getSelectedSyncedContacts();
+    final selectedDuggyUsers = _getSelectedDuggyUsers();
 
     if (widget.onContactsSelected != null && selectedContacts.isNotEmpty) {
       widget.onContactsSelected!(selectedContacts);
@@ -567,6 +649,18 @@ class AddMembersScreenState extends State<AddMembersScreen> {
 
     if (widget.onSyncedContactsSelected != null && selectedSyncedContacts.isNotEmpty) {
       widget.onSyncedContactsSelected!(selectedSyncedContacts);
+    }
+
+    // Convert Duggy users to synced contacts format if needed
+    if (selectedDuggyUsers.isNotEmpty && widget.onSyncedContactsSelected != null) {
+      final duggyAsSynced = selectedDuggyUsers.map((user) => SyncedContact(
+        userId: user.id,
+        name: user.name,
+        phoneNumber: user.phoneNumber,
+        profilePicture: user.profilePicture,
+        isClubMember: false,
+      )).toList();
+      widget.onSyncedContactsSelected!(duggyAsSynced);
     }
 
     Navigator.pop(context);
@@ -779,7 +873,7 @@ class AddMembersScreenState extends State<AddMembersScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Synced Contacts Section (Duggy Users)
-                        if (_searchQuery.isNotEmpty && _syncedContacts.where((c) => c.isDuggyUser).isNotEmpty) ...[
+                        if (_searchQuery.isNotEmpty && _duggyUsers.isNotEmpty) ...[
                           Padding(
                             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                             child: Row(
@@ -808,7 +902,7 @@ class AddMembersScreenState extends State<AddMembersScreen> {
                               ],
                             ),
                           ),
-                          if (_syncedContacts.where((c) => c.isDuggyUser).isNotEmpty)
+                          if (_duggyUsers.isNotEmpty)
                             Container(
                               margin: EdgeInsets.symmetric(horizontal: 16),
                               decoration: BoxDecoration(
@@ -945,7 +1039,7 @@ class AddMembersScreenState extends State<AddMembersScreen> {
                               SizedBox(height: 12),
                             ],
                           );
-                        }).toList(),
+                        }),
 
                         SizedBox(
                           height: 100,
@@ -961,6 +1055,15 @@ class AddMembersScreenState extends State<AddMembersScreen> {
 
   Widget _buildCachedContactTile(CachedContact contact, bool isSelected, bool isDisabled) {
     final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
+    final statusText = _getContactStatusText(contact);
+
+    // Get profile picture from synced contact data if available
+    String? profilePicture;
+    if (contact.primaryPhone.isNotEmpty) {
+      final cleanPhone = contact.primaryPhone.replaceAll(RegExp(r'[^\d]'), '');
+      final syncedContact = _syncedContactsMap[cleanPhone];
+      profilePicture = syncedContact?.profilePicture;
+    }
 
     return Material(
       color: Colors.transparent,
@@ -971,26 +1074,13 @@ class AddMembersScreenState extends State<AddMembersScreen> {
           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
-              // Avatar
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Color(0xFF06aeef).withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Text(
-                    contact.displayName.isNotEmpty
-                        ? contact.displayName[0].toUpperCase()
-                        : 'C',
-                    style: TextStyle(
-                      color: Color(0xFF06aeef),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
+              // Avatar using SVGAvatar
+              SVGAvatar(
+                imageUrl: profilePicture,
+                size: 40,
+                backgroundColor: Color(0xFF06aeef).withOpacity(0.1),
+                iconColor: Color(0xFF06aeef),
+                fallbackText: contact.displayName,
               ),
 
               SizedBox(width: 12),
@@ -1016,19 +1106,19 @@ class AddMembersScreenState extends State<AddMembersScreen> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (isDisabled)
+                        if (statusText.isNotEmpty)
                           Container(
                             padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: Colors.grey[300],
+                              color: isDisabled ? Colors.grey[300] : Color(0xFF06aeef).withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              'Already Member',
+                              statusText,
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w500,
-                                color: Colors.grey[600],
+                                color: isDisabled ? Colors.grey[600] : Color(0xFF06aeef),
                               ),
                             ),
                           ),
@@ -1081,6 +1171,7 @@ class AddMembersScreenState extends State<AddMembersScreen> {
 
   Widget _buildDuggyUserTile(User user, bool isSelected, bool isDisabled) {
     final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
+    final statusText = _getDuggyUserStatusText(user);
 
     return Material(
       color: Colors.transparent,
@@ -1091,45 +1182,13 @@ class AddMembersScreenState extends State<AddMembersScreen> {
           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
-              // Avatar
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Color(0xFF06aeef).withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: user.profilePicture != null
-                    ? ClipOval(
-                        child: Image.network(
-                          user.profilePicture!,
-                          width: 40,
-                          height: 40,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Center(
-                              child: Text(
-                                user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
-                                style: TextStyle(
-                                  color: Color(0xFF06aeef),
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      )
-                    : Center(
-                        child: Text(
-                          user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
-                          style: TextStyle(
-                            color: Color(0xFF06aeef),
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
+              // Avatar using SVGAvatar
+              SVGAvatar(
+                imageUrl: user.profilePicture,
+                size: 40,
+                backgroundColor: Color(0xFF06aeef).withOpacity(0.1),
+                iconColor: Color(0xFF06aeef),
+                fallbackText: user.name,
               ),
 
               SizedBox(width: 12),
@@ -1164,7 +1223,7 @@ class AddMembersScreenState extends State<AddMembersScreen> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            isDisabled ? 'Already Member' : 'Duggy User',
+                            statusText,
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w500,

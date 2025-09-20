@@ -43,10 +43,14 @@ class ManageClubScreenState extends State<ManageClubScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Check if user is admin or owner
+    final isAdminOrOwner = widget.membership.role.toLowerCase() == 'admin' ||
+                          widget.membership.role.toLowerCase() == 'owner';
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: DetailAppBar(
-        pageTitle: 'Manage Club',
+        pageTitle: isAdminOrOwner ? 'Manage Club' : 'Club Information',
         customActions: [
           IconButton(
             onPressed: () => _showClubQRCode(widget.club),
@@ -164,24 +168,28 @@ class ManageClubScreenState extends State<ManageClubScreen> {
 
                                       SizedBox(height: 4),
 
-                                      // Owner Badge
+                                      // User Role Badge
                                       Container(
                                         padding: EdgeInsets.symmetric(
                                           horizontal: 8,
                                           vertical: 2,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: Colors.green.withOpacity(0.1),
+                                          color: isAdminOrOwner
+                                              ? Colors.green.withOpacity(0.1)
+                                              : Colors.blue.withOpacity(0.1),
                                           borderRadius: BorderRadius.circular(
                                             12,
                                           ),
                                         ),
                                         child: Text(
-                                          'Owner',
+                                          widget.membership.role.toUpperCase(),
                                           style: TextStyle(
                                             fontSize: 12,
                                             fontWeight: FontWeight.w500,
-                                            color: Colors.green[700],
+                                            color: isAdminOrOwner
+                                                ? Colors.green[700]
+                                                : Colors.blue[700],
                                           ),
                                         ),
                                       ),
@@ -268,33 +276,36 @@ class ManageClubScreenState extends State<ManageClubScreen> {
                       ),
                       child: Column(
                         children: [
-                          // Members Section
-                          _buildExpandableSection(
-                            icon: Icons.people_outline,
-                            title: 'Members',
-                            subtitle: 'Manage club members, balances & points',
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      EnhancedClubMembersScreen(club: club),
-                                ),
-                              );
-                            },
-                          ),
-
-                          Divider(
-                            height: 1,
-                            color: Theme.of(
-                              context,
-                            ).dividerColor.withOpacity(0.3),
-                          ),
+                          // Members Section - Only for admin/owner
+                          if (isAdminOrOwner) ...[
+                            _buildExpandableSection(
+                              icon: Icons.people_outline,
+                              title: 'Members',
+                              subtitle: 'Manage club members, balances & points',
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        EnhancedClubMembersScreen(club: club),
+                                  ),
+                                );
+                              },
+                            ),
+                            Divider(
+                              height: 1,
+                              color: Theme.of(
+                                context,
+                              ).dividerColor.withOpacity(0.3),
+                            ),
+                          ],
 
                           // Transactions Section
                           _buildExpandableSection(
                             icon: Icons.account_balance_wallet_outlined,
                             title: 'Transactions',
-                            subtitle: 'View all club transactions',
+                            subtitle: isAdminOrOwner
+                                ? 'View all club transactions'
+                                : 'View my club transactions',
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
@@ -312,33 +323,36 @@ class ManageClubScreenState extends State<ManageClubScreen> {
                             ).dividerColor.withOpacity(0.3),
                           ),
 
-                          // Club Settings
-                          _buildExpandableSection(
-                            icon: Icons.settings_outlined,
-                            title: 'Club Settings',
-                            subtitle: 'Manage club information & preferences',
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      ClubSettingsScreen(club: club),
-                                ),
-                              );
-                            },
-                          ),
-
-                          Divider(
-                            height: 1,
-                            color: Theme.of(
-                              context,
-                            ).dividerColor.withOpacity(0.3),
-                          ),
+                          // Club Settings - Only for admin/owner
+                          if (isAdminOrOwner) ...[
+                            _buildExpandableSection(
+                              icon: Icons.settings_outlined,
+                              title: 'Club Settings',
+                              subtitle: 'Manage club information & preferences',
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        ClubSettingsScreen(club: club),
+                                  ),
+                                );
+                              },
+                            ),
+                            Divider(
+                              height: 1,
+                              color: Theme.of(
+                                context,
+                              ).dividerColor.withOpacity(0.3),
+                            ),
+                          ],
 
                           // Match Management
                           _buildExpandableSection(
                             icon: Icons.sports_cricket_outlined,
                             title: 'Matches',
-                            subtitle: 'Schedule & manage club matches',
+                            subtitle: isAdminOrOwner
+                                ? 'Schedule & manage club matches'
+                                : 'View club matches',
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
@@ -359,11 +373,16 @@ class ManageClubScreenState extends State<ManageClubScreen> {
                           _buildExpandableSection(
                             icon: Icons.sports_outlined,
                             title: 'Teams',
-                            subtitle: 'Manage club teams & players',
+                            subtitle: isAdminOrOwner
+                                ? 'Manage club teams & players'
+                                : 'View club teams',
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
-                                  builder: (_) => ClubTeamsScreen(club: club),
+                                  builder: (_) => ClubTeamsScreen(
+                                    club: club,
+                                    isReadOnly: !isAdminOrOwner,
+                                  ),
                                 ),
                               );
                             },

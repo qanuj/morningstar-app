@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../../widgets/svg_avatar.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../services/api_service.dart';
 import '../../widgets/transactions_list_widget.dart';
 import '../../models/transaction.dart';
+import '../../providers/user_provider.dart';
 
 class ClubTransactionsScreen extends StatefulWidget {
   final dynamic club; // Using dynamic to avoid dependency issues for now
@@ -71,12 +73,23 @@ class ClubTransactionsScreenState extends State<ClubTransactionsScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // Check user role to determine if they should see all transactions
+      final userProvider = context.read<UserProvider>();
+      final userRole = await userProvider.getRoleForClub(widget.club.id);
+      final isAdminOrOwner = userRole?.toLowerCase() == 'admin' ||
+                            userRole?.toLowerCase() == 'owner';
+
       // Build API endpoint with query parameters for club transactions
       final params = {
         'page': _currentPage.toString(),
         'limit': _itemsPerPage.toString(),
-        'all': 'true', // Get all club transactions for admin view
       };
+
+      // Only add 'all' parameter for admins/owners to see all club transactions
+      if (isAdminOrOwner) {
+        params['all'] = 'true'; // Get all club transactions for admin view
+      }
+      // For regular members, API will return only their transactions for this club
 
       if (_selectedPeriod != 'all') {
         params['period'] = _selectedPeriod;

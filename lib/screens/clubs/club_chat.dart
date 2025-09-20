@@ -831,6 +831,16 @@ class ClubChatScreenState extends State<ClubChatScreen>
 
   void _showMoreOptions() async {
     if (mounted) {
+      // Get user's membership to determine role
+      final clubProvider = Provider.of<ClubProvider>(context, listen: false);
+      final membership = clubProvider.clubs
+          .where((m) => m.club.id == widget.club.id)
+          .firstOrNull;
+
+      // Check if user is admin or owner
+      final isAdminOrOwner = membership?.role.toLowerCase() == 'admin' ||
+                             membership?.role.toLowerCase() == 'owner';
+
       showModalBottomSheet(
         context: context,
         shape: RoundedRectangleBorder(
@@ -845,7 +855,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
               Container(
                 padding: EdgeInsets.only(bottom: 16),
                 child: Text(
-                  'Club Management',
+                  isAdminOrOwner ? 'Club Management' : 'Club Features',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
@@ -854,45 +864,40 @@ class ClubChatScreenState extends State<ClubChatScreen>
                 ),
               ),
 
-              // Add Members
-              ListTile(
-                leading: Icon(
-                  Icons.person_add,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                title: Text('Add Members'),
-                subtitle: Text('Invite new members to the club'),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => AddMembersScreen(
-                        club: widget.club,
-                        onContactsSelected: _processSelectedContacts,
-                        onSyncedContactsSelected: _processSelectedSyncedContacts,
+              // Add Members - Only for admin/owner
+              if (isAdminOrOwner)
+                ListTile(
+                  leading: Icon(
+                    Icons.person_add,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  title: Text('Add Members'),
+                  subtitle: Text('Invite new members to the club'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AddMembersScreen(
+                          club: widget.club,
+                          onContactsSelected: _processSelectedContacts,
+                          onSyncedContactsSelected: _processSelectedSyncedContacts,
+                        ),
                       ),
-                    ),
-                  );
-                },
-              ),
+                    );
+                  },
+                ),
 
-              // Manage Club
+              // Manage Club - Available to all members, but content is role-based
               ListTile(
                 leading: Icon(
                   Icons.settings,
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 title: Text('Manage Club'),
-                subtitle: Text('Club settings and configuration'),
+                subtitle: Text(isAdminOrOwner ? 'Club settings and configuration' : 'View club information and features'),
                 onTap: () {
                   Navigator.pop(context);
-                  // Get membership for navigation
-                  final clubProvider = Provider.of<ClubProvider>(context, listen: false);
-                  final membership = clubProvider.clubs
-                      .where((m) => m.club.id == widget.club.id)
-                      .firstOrNull;
-
                   if (membership != null) {
                     Navigator.push(
                       context,
@@ -914,7 +919,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 title: Text('Matches'),
-                subtitle: Text('View and manage club matches'),
+                subtitle: Text(isAdminOrOwner ? 'View and manage club matches' : 'View club matches'),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.push(
@@ -934,7 +939,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 title: Text('Transactions'),
-                subtitle: Text('Club financial transactions'),
+                subtitle: Text(isAdminOrOwner ? 'Club financial transactions' : 'My club transactions'),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.push(
@@ -947,20 +952,23 @@ class ClubChatScreenState extends State<ClubChatScreen>
                 },
               ),
 
-              // Teams
+              // Teams - Only for admin/owner (with full management), read-only for members
               ListTile(
                 leading: Icon(
                   Icons.groups,
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 title: Text('Teams'),
-                subtitle: Text('Manage club teams'),
+                subtitle: Text(isAdminOrOwner ? 'Manage club teams' : 'View club teams'),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => ClubTeamsScreen(club: widget.club),
+                      builder: (context) => ClubTeamsScreen(
+                        club: widget.club,
+                        isReadOnly: !isAdminOrOwner,
+                      ),
                     ),
                   );
                 },

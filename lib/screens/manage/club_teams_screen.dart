@@ -9,8 +9,13 @@ import 'create_team_screen.dart';
 
 class ClubTeamsScreen extends StatefulWidget {
   final Club club;
+  final bool isReadOnly;
 
-  const ClubTeamsScreen({super.key, required this.club});
+  const ClubTeamsScreen({
+    super.key,
+    required this.club,
+    this.isReadOnly = false,
+  });
 
   @override
   State<ClubTeamsScreen> createState() => _ClubTeamsScreenState();
@@ -79,7 +84,7 @@ class _ClubTeamsScreenState extends State<ClubTeamsScreen> {
 
   Widget _buildTeamCard(Team team) {
     return GestureDetector(
-      onTap: () => _showCreateTeamDialog(team),
+      onTap: widget.isReadOnly ? null : () => _showCreateTeamDialog(team),
       child: Card(
         elevation: 3,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -230,7 +235,7 @@ class _ClubTeamsScreenState extends State<ClubTeamsScreen> {
         clubName: widget.club.name,
         clubLogo: widget.club.logo,
         subtitle: 'Teams',
-        actions: [
+        actions: widget.isReadOnly ? [] : [
           IconButton(
             onPressed: () => _showCreateTeamDialog(),
             icon: Icon(Icons.add),
@@ -283,19 +288,23 @@ class _ClubTeamsScreenState extends State<ClubTeamsScreen> {
                   ),
                   SizedBox(height: 8),
                   Text(
-                    'Create your first team to get started',
+                    widget.isReadOnly
+                        ? 'No teams have been created yet'
+                        : 'Create your first team to get started',
                     style: TextStyle(fontSize: 14, color: Colors.grey[500]),
                   ),
-                  SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: () => _showCreateTeamDialog(),
-                    icon: Icon(Icons.add),
-                    label: Text('Create Team'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).primaryColor,
-                      foregroundColor: Colors.white,
+                  if (!widget.isReadOnly) ...[
+                    SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: () => _showCreateTeamDialog(),
+                      icon: Icon(Icons.add),
+                      label: Text('Create Team'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).primaryColor,
+                        foregroundColor: Colors.white,
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             )

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import 'dart:io';
 import '../../services/practice_service.dart';
 import '../../models/venue.dart';
 import '../matches/venue_picker_screen.dart';
+import '../../utils/theme.dart';
 
 /// Screen for creating a new practice session
 class CreatePracticeScreen extends StatefulWidget {
@@ -24,22 +27,49 @@ class _CreatePracticeScreenState extends State<CreatePracticeScreen> {
   DateTime _selectedDate = DateTime.now().add(Duration(days: 1));
   TimeOfDay _selectedTime = TimeOfDay(hour: 18, minute: 0);
   int _maxParticipants = 20;
+  String _selectedDuration = '2 hours'; // Default duration
 
   // Location picker variables
   Venue? _selectedVenue;
   bool _isCreatingPractice = false;
 
+  // Duration options in 15-minute intervals
+  final List<String> _durationOptions = [
+    '30 minutes',
+    '45 minutes',
+    '1 hour',
+    '1 hour 15 minutes',
+    '1 hour 30 minutes',
+    '1 hour 45 minutes',
+    '2 hours',
+    '2 hours 15 minutes',
+    '2 hours 30 minutes',
+    '2 hours 45 minutes',
+    '3 hours',
+    '3 hours 15 minutes',
+    '3 hours 30 minutes',
+    '3 hours 45 minutes',
+    '4 hours',
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? Theme.of(context).colorScheme.background
+          : const Color(0xFFF2F2F2),
       appBar: AppBar(
         title: Text('Create Practice Session'),
-        backgroundColor: Color(0xFF003f9b),
-        foregroundColor: Colors.white,
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? Theme.of(context).appBarTheme.backgroundColor
+            : AppTheme.cricketGreen,
+        foregroundColor: Theme.of(context).brightness == Brightness.dark
+            ? Theme.of(context).appBarTheme.foregroundColor
+            : Colors.white,
         actions: [
-          TextButton(
+          IconButton(
             onPressed: _isCreatingPractice ? null : _createPractice,
-            child: _isCreatingPractice
+            icon: _isCreatingPractice
                 ? SizedBox(
                     width: 20,
                     height: 20,
@@ -48,107 +78,48 @@ class _CreatePracticeScreenState extends State<CreatePracticeScreen> {
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   )
-                : Text(
-                    'Create',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                : const Icon(Icons.check),
+            tooltip: 'Create Practice Session',
           ),
         ],
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Location Picker
-            _buildLocationField(),
-            SizedBox(height: 16),
-
-            // Date & Time
-            _buildDateTimeField(),
-            SizedBox(height: 16),
-
-            // Duration
-            TextFormField(
-              controller: _durationController,
-              decoration: InputDecoration(
-                hintText: 'Duration (e.g., 2 hours, 90 minutes)',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Color(0xFF4CAF50), width: 2),
-                ),
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 16,
-                ),
+        child: Container(
+          padding: EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Theme.of(context).colorScheme.surface
+                : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
               ),
-            ),
-            SizedBox(height: 16),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Location Picker
+              _buildLocationField(),
+              SizedBox(height: 16),
 
-            // Max Participants
-            _buildParticipantsField(),
-            SizedBox(height: 32),
+              // Date & Time
+              _buildDateTimeField(),
+              SizedBox(height: 16),
 
-            // Create Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isCreatingPractice ? null : _createPractice,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFF4CAF50),
-                  disabledBackgroundColor: Colors.grey[400],
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: _isCreatingPractice
-                    ? Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
-                              ),
-                            ),
-                          ),
-                          SizedBox(width: 12),
-                          Text(
-                            'Creating Practice...',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      )
-                    : Text(
-                        'Create Practice Session',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-              ),
-            ),
-          ],
+              // Duration
+              _buildDurationField(),
+              SizedBox(height: 16),
+
+              // Max Participants
+              _buildParticipantsField(),
+              SizedBox(height: 24),
+            ],
+          ),
         ),
       ),
     );
@@ -161,12 +132,25 @@ class _CreatePracticeScreenState extends State<CreatePracticeScreen> {
         width: double.infinity,
         padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey[300]!),
-          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: _selectedVenue == null
+                ? Theme.of(context).dividerColor.withOpacity(0.5)
+                : Theme.of(context).primaryColor,
+            width: _selectedVenue == null ? 1 : 2,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          color: _selectedVenue == null
+              ? Theme.of(context).inputDecorationTheme.fillColor
+              : Theme.of(context).primaryColor.withOpacity(0.05),
         ),
         child: Row(
           children: [
-            Icon(Icons.location_on, color: Color(0xFF4CAF50)),
+            Icon(
+              Icons.location_on,
+              color: _selectedVenue == null
+                  ? Theme.of(context).textTheme.bodyMedium?.color
+                  : Theme.of(context).primaryColor,
+            ),
             SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -174,12 +158,19 @@ class _CreatePracticeScreenState extends State<CreatePracticeScreen> {
                 style: TextStyle(
                   fontSize: 16,
                   color: _selectedVenue == null
-                      ? Colors.grey[600]
-                      : Colors.black87,
+                      ? Theme.of(context).textTheme.bodySmall?.color
+                      : Theme.of(context).textTheme.bodyLarge?.color,
+                  fontWeight: _selectedVenue == null
+                      ? FontWeight.normal
+                      : FontWeight.w500,
                 ),
               ),
             ),
-            Icon(Icons.arrow_drop_down, color: Colors.grey[600]),
+            Icon(
+              Icons.arrow_forward_ios,
+              color: Theme.of(context).textTheme.bodySmall?.color,
+              size: 16,
+            ),
           ],
         ),
       ),
@@ -191,52 +182,64 @@ class _CreatePracticeScreenState extends State<CreatePracticeScreen> {
       children: [
         // Date Field
         Expanded(
-          child: InkWell(
-            onTap: _selectDate,
-            child: Container(
+          child: ElevatedButton.icon(
+            onPressed: _selectDate,
+            icon: Icon(
+              Icons.calendar_today,
+              size: 20,
+              color: Theme.of(context).primaryColor,
+            ),
+            label: Text(
+              '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+              style: TextStyle(
+                fontSize: 16,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).inputDecorationTheme.fillColor,
+              foregroundColor: Theme.of(context).textTheme.bodyLarge?.color,
+              elevation: 0,
+              side: BorderSide(
+                color: Theme.of(context).dividerColor.withOpacity(0.5),
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey[300]!),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.calendar_today, color: Color(0xFF4CAF50)),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-                      style: TextStyle(fontSize: 16, color: Colors.black87),
-                    ),
-                  ),
-                ],
-              ),
             ),
           ),
         ),
         SizedBox(width: 12),
         // Time Field
         Expanded(
-          child: InkWell(
-            onTap: _selectTime,
-            child: Container(
+          child: ElevatedButton.icon(
+            onPressed: _selectTime,
+            icon: Icon(
+              Icons.access_time,
+              size: 20,
+              color: Theme.of(context).primaryColor,
+            ),
+            label: Text(
+              _selectedTime.format(context),
+              style: TextStyle(
+                fontSize: 16,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).inputDecorationTheme.fillColor,
+              foregroundColor: Theme.of(context).textTheme.bodyLarge?.color,
+              elevation: 0,
+              side: BorderSide(
+                color: Theme.of(context).dividerColor.withOpacity(0.5),
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey[300]!),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.access_time, color: Color(0xFF4CAF50)),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      _selectedTime.format(context),
-                      style: TextStyle(fontSize: 16, color: Colors.black87),
-                    ),
-                  ),
-                ],
-              ),
             ),
           ),
         ),
@@ -244,21 +247,70 @@ class _CreatePracticeScreenState extends State<CreatePracticeScreen> {
     );
   }
 
+  Widget _buildDurationField() {
+    return InkWell(
+      onTap: _showDurationPicker,
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: Theme.of(context).dividerColor.withOpacity(0.5),
+          ),
+          borderRadius: BorderRadius.circular(12),
+          color: Theme.of(context).inputDecorationTheme.fillColor,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.schedule,
+              color: Theme.of(context).primaryColor,
+              size: 22,
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                _selectedDuration,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios,
+              color: Theme.of(context).textTheme.bodySmall?.color,
+              size: 16,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildParticipantsField() {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey[300]!),
-        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withOpacity(0.5),
+        ),
+        borderRadius: BorderRadius.circular(12),
+        color: Theme.of(context).inputDecorationTheme.fillColor,
       ),
       child: Row(
         children: [
-          Icon(Icons.group, color: Color(0xFF4CAF50)),
+          Icon(Icons.group, color: Theme.of(context).primaryColor, size: 22),
           SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Max participants: ${_maxParticipants == 1 ? '$_maxParticipants participant' : '$_maxParticipants participants'}',
-              style: TextStyle(fontSize: 16, color: Colors.black87),
+              'Max Players',
+              style: TextStyle(
+                fontSize: 16,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
           IconButton(
@@ -266,19 +318,28 @@ class _CreatePracticeScreenState extends State<CreatePracticeScreen> {
                 ? () => setState(() => _maxParticipants--)
                 : null,
             icon: Icon(Icons.remove_circle_outline),
-            color: Color(0xFF4CAF50),
+            color: _maxParticipants > 1
+                ? Theme.of(context).primaryColor
+                : Theme.of(context).textTheme.bodySmall?.color,
           ),
           Container(
             width: 50,
             height: 40,
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey[300]!),
-              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: Theme.of(context).dividerColor.withOpacity(0.5),
+              ),
+              borderRadius: BorderRadius.circular(8),
+              color: Theme.of(context).cardColor,
             ),
             child: Center(
               child: Text(
                 _maxParticipants.toString(),
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                ),
               ),
             ),
           ),
@@ -287,7 +348,9 @@ class _CreatePracticeScreenState extends State<CreatePracticeScreen> {
                 ? () => setState(() => _maxParticipants++)
                 : null,
             icon: Icon(Icons.add_circle_outline),
-            color: Color(0xFF4CAF50),
+            color: _maxParticipants < 50
+                ? Theme.of(context).primaryColor
+                : Theme.of(context).textTheme.bodySmall?.color,
           ),
         ],
       ),
@@ -309,54 +372,284 @@ class _CreatePracticeScreenState extends State<CreatePracticeScreen> {
     );
   }
 
-  Future<void> _selectDate() async {
-    final picked = await showDatePicker(
+  void _showDurationPicker() {
+    showModalBottomSheet(
       context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(Duration(days: 365)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: Color(0xFF4CAF50),
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: Colors.black,
-            ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (BuildContext context) {
+        return Container(
+          padding: EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
           ),
-          child: child!,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).dividerColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Select Duration',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).textTheme.titleLarge?.color,
+                ),
+              ),
+              SizedBox(height: 16),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _durationOptions.length,
+                  itemBuilder: (context, index) {
+                    final duration = _durationOptions[index];
+                    final isSelected = _selectedDuration == duration;
+
+                    return ListTile(
+                      title: Text(
+                        duration,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                          color: isSelected
+                              ? Theme.of(context).primaryColor
+                              : Theme.of(context).textTheme.bodyLarge?.color,
+                        ),
+                      ),
+                      trailing: isSelected
+                          ? Icon(
+                              Icons.check,
+                              color: Theme.of(context).primaryColor,
+                            )
+                          : null,
+                      onTap: () {
+                        setState(() {
+                          _selectedDuration = duration;
+                        });
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                ),
+              ),
+              SizedBox(height: 16),
+            ],
+          ),
         );
       },
     );
+  }
 
-    if (picked != null) {
-      setState(() => _selectedDate = picked);
+  Future<void> _selectDate() async {
+    if (Platform.isIOS) {
+      await _showCupertinoDatePicker();
+    } else {
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: _selectedDate,
+        firstDate: DateTime.now(),
+        lastDate: DateTime.now().add(Duration(days: 365)),
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: Theme.of(
+                context,
+              ).colorScheme.copyWith(primary: Theme.of(context).primaryColor),
+            ),
+            child: child!,
+          );
+        },
+      );
+
+      if (picked != null) {
+        setState(() => _selectedDate = picked);
+      }
     }
   }
 
-  Future<void> _selectTime() async {
-    final picked = await showTimePicker(
+  Future<void> _showCupertinoDatePicker() async {
+    await showModalBottomSheet(
       context: context,
-      initialTime: _selectedTime,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: Color(0xFF4CAF50),
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: Colors.black,
-            ),
+      builder: (BuildContext context) {
+        DateTime tempPickedDate = _selectedDate;
+
+        return Container(
+          height: 300,
+          padding: EdgeInsets.only(top: 16),
+          child: Column(
+            children: [
+              // Header with buttons
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    CupertinoButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: CupertinoColors.systemBlue,
+                          fontSize: 17,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      'Select Date',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    CupertinoButton(
+                      onPressed: () {
+                        setState(() => _selectedDate = tempPickedDate);
+                        Navigator.of(context).pop();
+                      },
+                      child: Text(
+                        'Done',
+                        style: TextStyle(
+                          color: CupertinoColors.systemBlue,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Date picker
+              Expanded(
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.date,
+                  initialDateTime: _selectedDate,
+                  minimumDate: DateTime.now(),
+                  maximumDate: DateTime.now().add(Duration(days: 365)),
+                  onDateTimeChanged: (DateTime newDate) {
+                    tempPickedDate = newDate;
+                  },
+                ),
+              ),
+            ],
           ),
-          child: child!,
         );
       },
     );
+  }
 
-    if (picked != null) {
-      setState(() => _selectedTime = picked);
+  Future<void> _selectTime() async {
+    if (Platform.isIOS) {
+      await _showCupertinoTimePicker();
+    } else {
+      final picked = await showTimePicker(
+        context: context,
+        initialTime: _selectedTime,
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: Theme.of(
+                context,
+              ).colorScheme.copyWith(primary: Theme.of(context).primaryColor),
+            ),
+            child: child!,
+          );
+        },
+      );
+
+      if (picked != null) {
+        setState(() => _selectedTime = picked);
+      }
     }
+  }
+
+  Future<void> _showCupertinoTimePicker() async {
+    await showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        DateTime tempPickedTime = DateTime(
+          2025,
+          1,
+          1,
+          _selectedTime.hour,
+          _selectedTime.minute,
+        );
+
+        return Container(
+          height: 300,
+          padding: EdgeInsets.only(top: 16),
+          child: Column(
+            children: [
+              // Header with buttons
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    CupertinoButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: CupertinoColors.systemBlue,
+                          fontSize: 17,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      'Select Time',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    CupertinoButton(
+                      onPressed: () {
+                        setState(() {
+                          _selectedTime = TimeOfDay(
+                            hour: tempPickedTime.hour,
+                            minute: tempPickedTime.minute,
+                          );
+                        });
+                        Navigator.of(context).pop();
+                      },
+                      child: Text(
+                        'Done',
+                        style: TextStyle(
+                          color: CupertinoColors.systemBlue,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Time picker
+              Expanded(
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.time,
+                  initialDateTime: tempPickedTime,
+                  use24hFormat: false,
+                  onDateTimeChanged: (DateTime newTime) {
+                    tempPickedTime = newTime;
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _createPractice() async {
@@ -366,8 +659,8 @@ class _CreatePracticeScreenState extends State<CreatePracticeScreen> {
       return;
     }
 
-    if (_durationController.text.trim().isEmpty) {
-      _showErrorSnackBar('Please enter duration');
+    if (_selectedDuration.isEmpty) {
+      _showErrorSnackBar('Please select duration');
       return;
     }
 
@@ -386,7 +679,7 @@ class _CreatePracticeScreenState extends State<CreatePracticeScreen> {
         venue: _selectedVenue!.name,
         locationId: _selectedVenue!.id,
         city: _selectedVenue!.city,
-        duration: _durationController.text.trim(),
+        duration: _selectedDuration,
         maxParticipants: _maxParticipants,
         notifyMembers: true, // Server handles chat notification automatically
       );

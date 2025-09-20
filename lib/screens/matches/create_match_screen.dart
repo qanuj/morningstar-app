@@ -1,5 +1,7 @@
 import 'package:duggy/services/ground_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import 'dart:io';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import '../../models/club.dart';
@@ -181,7 +183,9 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       print('🔍 Debug: Home Team ID: ${_selectedHomeTeam!.id}');
       print('🔍 Debug: Opponent Team ID: ${_selectedOpponentTeam!.id}');
       print('🔍 Debug: Home Team Club ID: ${_selectedHomeTeam!.club?.id}');
-      print('🔍 Debug: Opponent Team Club ID: ${_selectedOpponentTeam!.club?.id}');
+      print(
+        '🔍 Debug: Opponent Team Club ID: ${_selectedOpponentTeam!.club?.id}',
+      );
 
       final response = await MatchService.createMatch(
         clubId: _selectedHomeTeam!.clubId ?? '',
@@ -206,9 +210,12 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       if (mounted) {
         Navigator.of(context).pop();
 
-        final matchId = (response['id'] ?? response['match']?['id'])?.toString() ?? '';
+        final matchId =
+            (response['id'] ?? response['match']?['id'])?.toString() ?? '';
         if (matchId.isEmpty) {
-          print('❌ CreateMatchScreen: match ID missing from response - $response');
+          print(
+            '❌ CreateMatchScreen: match ID missing from response - $response',
+          );
           return;
         }
 
@@ -234,8 +241,16 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
           totalExpensed: 0,
           paidAmount: 0,
           club: homeTeamClub != null
-              ? ClubModel(id: homeTeamClub.id, name: homeTeamClub.name, logo: homeTeamClub.logo)
-              : ClubModel(id: _selectedHomeTeam!.clubId ?? '', name: _selectedHomeTeam!.name, logo: _selectedHomeTeam!.logo),
+              ? ClubModel(
+                  id: homeTeamClub.id,
+                  name: homeTeamClub.name,
+                  logo: homeTeamClub.logo,
+                )
+              : ClubModel(
+                  id: _selectedHomeTeam!.clubId ?? '',
+                  name: _selectedHomeTeam!.name,
+                  logo: _selectedHomeTeam!.logo,
+                ),
           canSeeDetails: true,
           canRsvp: true,
           availableSpots: 13,
@@ -342,299 +357,329 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
   }
 
   Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _matchDate,
-      firstDate: DateTime.now().add(Duration(hours: 1)),
-      lastDate: DateTime.now().add(Duration(days: 365)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(
-              context,
-            ).colorScheme.copyWith(primary: Theme.of(context).primaryColor),
-          ),
-          child: child!,
-        );
-      },
-    );
+    if (Platform.isIOS) {
+      await _showCupertinoDatePicker();
+    } else {
+      final DateTime? picked = await showDatePicker(
+        context: context,
+        initialDate: _matchDate,
+        firstDate: DateTime.now().add(Duration(hours: 1)),
+        lastDate: DateTime.now().add(Duration(days: 365)),
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: Theme.of(
+                context,
+              ).colorScheme.copyWith(primary: Theme.of(context).primaryColor),
+            ),
+            child: child!,
+          );
+        },
+      );
 
-    if (picked != null) {
-      setState(() {
-        _matchDate = picked;
-      });
+      if (picked != null) {
+        setState(() {
+          _matchDate = picked;
+        });
+      }
     }
   }
 
-  Future<void> _selectTime(BuildContext context) async {
-    final TimeOfDay? picked = await showTimePicker(
+  Future<void> _showCupertinoDatePicker() async {
+    await showModalBottomSheet(
       context: context,
-      initialTime: _matchTime,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(
-              context,
-            ).colorScheme.copyWith(primary: Theme.of(context).primaryColor),
+      builder: (BuildContext context) {
+        DateTime tempPickedDate = _matchDate;
+
+        return Container(
+          height: 300,
+          padding: EdgeInsets.only(top: 16),
+          child: Column(
+            children: [
+              // Header with buttons
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    CupertinoButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: CupertinoColors.systemBlue,
+                          fontSize: 17,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      'Select Date',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    CupertinoButton(
+                      onPressed: () {
+                        setState(() => _matchDate = tempPickedDate);
+                        Navigator.of(context).pop();
+                      },
+                      child: Text(
+                        'Done',
+                        style: TextStyle(
+                          color: CupertinoColors.systemBlue,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Date picker
+              Expanded(
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.date,
+                  initialDateTime: _matchDate,
+                  minimumDate: DateTime.now().add(Duration(hours: 1)),
+                  maximumDate: DateTime.now().add(Duration(days: 365)),
+                  onDateTimeChanged: (DateTime newDate) {
+                    tempPickedDate = newDate;
+                  },
+                ),
+              ),
+            ],
           ),
-          child: child!,
         );
       },
     );
+  }
 
-    if (picked != null) {
-      setState(() {
-        _matchTime = picked;
-      });
+  Future<void> _selectTime(BuildContext context) async {
+    if (Platform.isIOS) {
+      await _showCupertinoTimePicker();
+    } else {
+      final TimeOfDay? picked = await showTimePicker(
+        context: context,
+        initialTime: _matchTime,
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: Theme.of(
+                context,
+              ).colorScheme.copyWith(primary: Theme.of(context).primaryColor),
+            ),
+            child: child!,
+          );
+        },
+      );
+
+      if (picked != null) {
+        setState(() {
+          _matchTime = picked;
+        });
+      }
     }
+  }
+
+  Future<void> _showCupertinoTimePicker() async {
+    await showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        DateTime tempPickedTime = DateTime(
+          2025,
+          1,
+          1,
+          _matchTime.hour,
+          _matchTime.minute,
+        );
+
+        return Container(
+          height: 300,
+          padding: EdgeInsets.only(top: 16),
+          child: Column(
+            children: [
+              // Header with buttons
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    CupertinoButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: CupertinoColors.systemBlue,
+                          fontSize: 17,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      'Select Time',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    CupertinoButton(
+                      onPressed: () {
+                        setState(() {
+                          _matchTime = TimeOfDay(
+                            hour: tempPickedTime.hour,
+                            minute: tempPickedTime.minute,
+                          );
+                        });
+                        Navigator.of(context).pop();
+                      },
+                      child: Text(
+                        'Done',
+                        style: TextStyle(
+                          color: CupertinoColors.systemBlue,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Time picker
+              Expanded(
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.time,
+                  initialDateTime: tempPickedTime,
+                  use24hFormat: false,
+                  onDateTimeChanged: (DateTime newTime) {
+                    tempPickedTime = newTime;
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: DetailAppBar(pageTitle: 'Create Match', showBackButton: true),
-      body: Column(
-        children: [
-          // Content
-          Expanded(
-            child: Form(key: _formKey, child: _buildCreateMatchForm()),
-          ),
-
-          // Bottom Action Bar
-          Container(
-            padding: EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              border: Border(
-                top: BorderSide(
-                  color: Theme.of(context).dividerColor.withOpacity(0.3),
-                ),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  offset: Offset(0, -2),
-                  blurRadius: 8,
-                ),
-              ],
-            ),
-            child: SafeArea(
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _canCreateMatch ? _createMatch : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).primaryColor,
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? Theme.of(context).colorScheme.background
+          : const Color(0xFFF2F2F2),
+      appBar: DetailAppBar(
+        pageTitle: 'Create Match',
+        showBackButton: true,
+        customActions: [
+          IconButton(
+            onPressed: _canCreateMatch ? _createMatch : null,
+            icon: _isLoading
+                ? SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : Colors.white,
+                      ),
                     ),
-                    elevation: 0,
-                  ),
-                  child: _isLoading
-                      ? SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
-                          ),
-                        )
-                      : Text(
-                          'Create',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                ),
-              ),
-            ),
+                  )
+                : const Icon(Icons.check),
+            tooltip: 'Create Match',
           ),
         ],
       ),
+      body: Form(key: _formKey, child: _buildCreateMatchForm()),
     );
   }
 
   Widget _buildCreateMatchForm() {
     return SingleChildScrollView(
-      padding: EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Match Type Selection (no label)
-          Row(
-            children: [
-              _buildTypeButton('GAME', Icons.sports_cricket),
-              SizedBox(width: 16),
-              _buildTypeButton('TOURNAMENT', Icons.emoji_events),
-            ],
-          ),
-          SizedBox(height: 20),
-
-          // Team Circles
-          Row(
-            children: [
-              Expanded(
-                child: _buildTeamCircle(
-                  title: 'Home Team',
-                  team: _selectedHomeTeam,
-                  onTap: () => _selectHomeTeam(),
-                ),
-              ),
-              SizedBox(width: 16),
-              Text(
-                'VS',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Theme.of(context).textTheme.titleLarge?.color,
-                ),
-              ),
-              SizedBox(width: 16),
-              Expanded(
-                child: _buildTeamCircle(
-                  title: 'Opponent Team',
-                  team: _selectedOpponentTeam,
-                  onTap: () => _selectOpponentTeam(),
-                ),
-              ),
-            ],
-          ),
-          // Warning message for same team selection
-          if (_isSameTeamSelected) ...[
-            Container(
-              margin: EdgeInsets.only(bottom: 16),
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: Colors.red.withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.warning, color: Colors.red, size: 20),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Home team and opponent team cannot be the same. Please select different teams.',
-                      style: TextStyle(
-                        color: Colors.red,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+      padding: EdgeInsets.all(16),
+      child: Container(
+        padding: EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Theme.of(context).colorScheme.surface
+              : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
             ),
           ],
-          SizedBox(height: 24),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Match Type Selection (no label)
+            Row(
+              children: [
+                _buildTypeButton('GAME', Icons.sports_cricket),
+                SizedBox(width: 16),
+                _buildTypeButton('TOURNAMENT', Icons.emoji_events),
+              ],
+            ),
+            SizedBox(height: 20),
 
-          // Match Date & Time
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    InkWell(
-                      onTap: () => _selectDate(context),
-                      child: Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 14,
-                        ),
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: Theme.of(
-                              context,
-                            ).dividerColor.withOpacity(0.5),
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          color: Theme.of(
-                            context,
-                          ).inputDecorationTheme.fillColor,
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.calendar_today,
-                              size: 22,
-                              color: Theme.of(context).primaryColor,
-                            ),
-                            SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                DateFormat('dd/MM/yyyy').format(_matchDate),
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                  color: Theme.of(
-                                    context,
-                                  ).textTheme.bodyLarge?.color,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+            // Team Circles
+            Row(
+              children: [
+                Expanded(
+                  child: _buildTeamCircle(
+                    title: 'Home Team',
+                    team: _selectedHomeTeam,
+                    onTap: () => _selectHomeTeam(),
+                  ),
                 ),
-              ),
-              SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                SizedBox(width: 16),
+                Text(
+                  'VS',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Theme.of(context).textTheme.titleLarge?.color,
+                  ),
+                ),
+                SizedBox(width: 16),
+                Expanded(
+                  child: _buildTeamCircle(
+                    title: 'Opponent Team',
+                    team: _selectedOpponentTeam,
+                    onTap: () => _selectOpponentTeam(),
+                  ),
+                ),
+              ],
+            ),
+            // Warning message for same team selection
+            if (_isSameTeamSelected) ...[
+              Container(
+                margin: EdgeInsets.only(bottom: 16),
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Colors.red.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
                   children: [
-                    InkWell(
-                      onTap: () => _selectTime(context),
-                      child: Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 14,
-                        ),
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: Theme.of(
-                              context,
-                            ).dividerColor.withOpacity(0.5),
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          color: Theme.of(
-                            context,
-                          ).inputDecorationTheme.fillColor,
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.access_time,
-                              size: 22,
-                              color: Theme.of(context).primaryColor,
-                            ),
-                            SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                _matchTime.format(context),
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                  color: Theme.of(
-                                    context,
-                                  ).textTheme.bodyLarge?.color,
-                                ),
-                              ),
-                            ),
-                          ],
+                    Icon(Icons.warning, color: Colors.red, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Home team and opponent team cannot be the same. Please select different teams.',
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
@@ -642,102 +687,137 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                 ),
               ),
             ],
-          ),
-          SizedBox(height: 20),
+            SizedBox(height: 24),
 
-          // Venue Selection
-          InkWell(
-            onTap: () => _selectVenue(),
-            child: Container(
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: _selectedVenue == null
-                      ? Theme.of(context).dividerColor.withOpacity(0.5)
-                      : Theme.of(context).primaryColor,
-                  width: _selectedVenue == null ? 1 : 2,
-                ),
-                color: _selectedVenue == null
-                    ? Theme.of(context).inputDecorationTheme.fillColor
-                    : Theme.of(context).primaryColor.withOpacity(0.05),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.location_on,
-                    color: _selectedVenue == null
-                        ? Theme.of(context).textTheme.bodyMedium?.color
-                        : (Theme.of(context).brightness == Brightness.dark
-                              ? Theme.of(context).colorScheme.primary
-                              : Theme.of(context).primaryColor),
-                  ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _selectedVenue?.name ?? 'Select venue',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: _selectedVenue == null
-                                ? Theme.of(context).textTheme.bodySmall?.color
-                                : Theme.of(context).textTheme.bodyLarge?.color,
-                            fontWeight: _selectedVenue == null
-                                ? FontWeight.normal
-                                : FontWeight.w500,
+            // Match Date & Time
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      InkWell(
+                        onTap: () => _selectDate(context),
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 14,
                           ),
-                        ),
-                        if (_selectedVenue?.fullAddress.isNotEmpty ?? false)
-                          Text(
-                            _selectedVenue!.fullAddress,
-                            style: TextStyle(
-                              fontSize: 14,
+                          decoration: BoxDecoration(
+                            border: Border.all(
                               color: Theme.of(
                                 context,
-                              ).textTheme.bodySmall?.color,
+                              ).dividerColor.withOpacity(0.5),
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            borderRadius: BorderRadius.circular(12),
+                            color: Theme.of(
+                              context,
+                            ).inputDecorationTheme.fillColor,
                           ),
-                      ],
-                    ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.calendar_today,
+                                size: 22,
+                                color: Theme.of(context).primaryColor,
+                              ),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  DateFormat('dd/MM/yyyy').format(_matchDate),
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                    color: Theme.of(
+                                      context,
+                                    ).textTheme.bodyLarge?.color,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  Icon(
-                    Icons.arrow_forward_ios,
-                    size: 16,
-                    color: Theme.of(context).textTheme.bodySmall?.color,
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      InkWell(
+                        onTap: () => _selectTime(context),
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 14,
+                          ),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: Theme.of(
+                                context,
+                              ).dividerColor.withOpacity(0.5),
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            color: Theme.of(
+                              context,
+                            ).inputDecorationTheme.fillColor,
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.access_time,
+                                size: 22,
+                                color: Theme.of(context).primaryColor,
+                              ),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  _matchTime.format(context),
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                    color: Theme.of(
+                                      context,
+                                    ).textTheme.bodyLarge?.color,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ),
-          SizedBox(height: 20),
+            SizedBox(height: 20),
 
-          // Tournament Selection (only for Tournament type)
-          if (_selectedType == 'TOURNAMENT') ...[
+            // Venue Selection
             InkWell(
-              onTap: () => _selectTournament(),
+              onTap: () => _selectVenue(),
               child: Container(
                 padding: EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: _selectedTournament == null
+                    color: _selectedVenue == null
                         ? Theme.of(context).dividerColor.withOpacity(0.5)
                         : Theme.of(context).primaryColor,
-                    width: _selectedTournament == null ? 1 : 2,
+                    width: _selectedVenue == null ? 1 : 2,
                   ),
-                  color: _selectedTournament == null
+                  color: _selectedVenue == null
                       ? Theme.of(context).inputDecorationTheme.fillColor
                       : Theme.of(context).primaryColor.withOpacity(0.05),
                 ),
                 child: Row(
                   children: [
                     Icon(
-                      Icons.emoji_events,
-                      color: _selectedTournament == null
+                      Icons.location_on,
+                      color: _selectedVenue == null
                           ? Theme.of(context).textTheme.bodyMedium?.color
                           : (Theme.of(context).brightness == Brightness.dark
                                 ? Theme.of(context).colorScheme.primary
@@ -749,23 +829,22 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            _selectedTournament?.name ?? 'Select tournament',
+                            _selectedVenue?.name ?? 'Select venue',
                             style: TextStyle(
                               fontSize: 16,
-                              color: _selectedTournament == null
+                              color: _selectedVenue == null
                                   ? Theme.of(context).textTheme.bodySmall?.color
                                   : Theme.of(
                                       context,
                                     ).textTheme.bodyLarge?.color,
-                              fontWeight: _selectedTournament == null
+                              fontWeight: _selectedVenue == null
                                   ? FontWeight.normal
                                   : FontWeight.w500,
                             ),
                           ),
-                          if (_selectedTournament != null) ...[
-                            SizedBox(height: 4),
+                          if (_selectedVenue?.fullAddress.isNotEmpty ?? false)
                             Text(
-                              '${_selectedTournament!.location}, ${_selectedTournament!.city}',
+                              _selectedVenue!.fullAddress,
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Theme.of(
@@ -775,16 +854,6 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            Text(
-                              '${DateFormat('MMM dd').format(_selectedTournament!.startDate)} - ${DateFormat('MMM dd, yyyy').format(_selectedTournament!.endDate)}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Theme.of(
-                                  context,
-                                ).textTheme.bodySmall?.color?.withOpacity(0.7),
-                              ),
-                            ),
-                          ],
                         ],
                       ),
                     ),
@@ -798,50 +867,139 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
               ),
             ),
             SizedBox(height: 20),
-          ],
 
-          // Ball Selection
-          Container(
-            height: 70,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                _buildBallOption('Pink', Color(0xFFFF1493), useSvg: true),
-                SizedBox(width: 12),
-                _buildBallOption('White', Color(0xFFF5F5F5), useSvg: true),
-                SizedBox(width: 12),
-                _buildBallOption(
-                  'Red',
-                  Color.fromARGB(255, 88, 0, 25),
-                  useSvg: true,
+            // Tournament Selection (only for Tournament type)
+            if (_selectedType == 'TOURNAMENT') ...[
+              InkWell(
+                onTap: () => _selectTournament(),
+                child: Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _selectedTournament == null
+                          ? Theme.of(context).dividerColor.withOpacity(0.5)
+                          : Theme.of(context).primaryColor,
+                      width: _selectedTournament == null ? 1 : 2,
+                    ),
+                    color: _selectedTournament == null
+                        ? Theme.of(context).inputDecorationTheme.fillColor
+                        : Theme.of(context).primaryColor.withOpacity(0.05),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.emoji_events,
+                        color: _selectedTournament == null
+                            ? Theme.of(context).textTheme.bodyMedium?.color
+                            : (Theme.of(context).brightness == Brightness.dark
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Theme.of(context).primaryColor),
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _selectedTournament?.name ?? 'Select tournament',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: _selectedTournament == null
+                                    ? Theme.of(
+                                        context,
+                                      ).textTheme.bodySmall?.color
+                                    : Theme.of(
+                                        context,
+                                      ).textTheme.bodyLarge?.color,
+                                fontWeight: _selectedTournament == null
+                                    ? FontWeight.normal
+                                    : FontWeight.w500,
+                              ),
+                            ),
+                            if (_selectedTournament != null) ...[
+                              SizedBox(height: 4),
+                              Text(
+                                '${_selectedTournament!.location}, ${_selectedTournament!.city}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Theme.of(
+                                    context,
+                                  ).textTheme.bodySmall?.color,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                '${DateFormat('MMM dd').format(_selectedTournament!.startDate)} - ${DateFormat('MMM dd, yyyy').format(_selectedTournament!.endDate)}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.color
+                                      ?.withOpacity(0.7),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        Icons.arrow_forward_ios,
+                        size: 16,
+                        color: Theme.of(context).textTheme.bodySmall?.color,
+                      ),
+                    ],
+                  ),
                 ),
-                SizedBox(width: 12),
-                _buildBallOption(
-                  'Tennis',
-                  Color(0xFFC7D32B),
-                  useSvg: true,
-                  svgAsset: 'assets/images/tennis.svg',
-                ),
-                SizedBox(width: 12),
-                _buildBallOption('Other', Colors.orange),
-              ],
-            ),
-          ),
+              ),
+              SizedBox(height: 20),
+            ],
 
-          // Selected ball name
-          SizedBox(height: 6),
-          Center(
-            child: Text(
-              _selectedBall,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: Theme.of(context).primaryColor,
+            // Ball Selection
+            Container(
+              height: 70,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  _buildBallOption('Pink', Color(0xFFFF1493), useSvg: true),
+                  SizedBox(width: 12),
+                  _buildBallOption('White', Color(0xFFF5F5F5), useSvg: true),
+                  SizedBox(width: 12),
+                  _buildBallOption(
+                    'Red',
+                    Color.fromARGB(255, 88, 0, 25),
+                    useSvg: true,
+                  ),
+                  SizedBox(width: 12),
+                  _buildBallOption(
+                    'Tennis',
+                    Color(0xFFC7D32B),
+                    useSvg: true,
+                    svgAsset: 'assets/images/tennis.svg',
+                  ),
+                  SizedBox(width: 12),
+                  _buildBallOption('Other', Colors.orange),
+                ],
               ),
             ),
-          ),
-          SizedBox(height: 20),
-        ],
+
+            // Selected ball name
+            SizedBox(height: 6),
+            Center(
+              child: Text(
+                _selectedBall,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Theme.of(context).primaryColor,
+                ),
+              ),
+            ),
+            SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }
