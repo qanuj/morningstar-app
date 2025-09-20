@@ -25,7 +25,7 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
   final List<Map<String, dynamic>> plans = [
     {
       'name': 'Club Starter',
-      'price': 2999,
+      'price': 3999,
       'duration': 'year',
       'members': 30,
       'productId': 'club_starter_annual', // In-app purchase ID
@@ -40,7 +40,7 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
     },
     {
       'name': 'Team Captain',
-      'price': 4499,
+      'price': 5999,
       'duration': 'year',
       'members': 100,
       'productId': 'team_captain_annual', // In-app purchase ID
@@ -56,7 +56,7 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
     },
     {
       'name': 'League Master',
-      'price': 5999,
+      'price': 7999,
       'duration': 'year',
       'members': 500,
       'productId': 'league_master_annual', // In-app purchase ID
@@ -120,7 +120,9 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    CircularProgressIndicator(color: Theme.of(context).primaryColor),
+                    CircularProgressIndicator(
+                      color: Theme.of(context).primaryColor,
+                    ),
                     SizedBox(height: 16),
                     Text(
                       'Initializing store...',
@@ -734,7 +736,9 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
     if (selectedPlan == null) return;
 
     // Find the selected plan details
-    final planDetails = plans.firstWhere((plan) => plan['name'] == selectedPlan);
+    final planDetails = plans.firstWhere(
+      (plan) => plan['name'] == selectedPlan,
+    );
     final productId = planDetails['productId'] as String;
 
     try {
