@@ -593,7 +593,11 @@ class _MessageInputState extends State<MessageInput> {
           ),
         ),
       ),
-    );
+    ).then((_) {
+      // Unfocus the text field when the modal is dismissed
+      // This prevents the keyboard from opening when user dismisses modal without selecting anything
+      widget.textFieldFocusNode.unfocus();
+    });
   }
 
 
