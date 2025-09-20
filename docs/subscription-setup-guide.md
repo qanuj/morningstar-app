@@ -6,9 +6,9 @@ This guide covers setting up subscription products for the Duggy cricket club ma
 
 The app has three subscription tiers:
 
-1. **Club Starter** - `club_starter_annual` - ₹2,999/year - Up to 30 members
-2. **Team Captain** - `team_captain_annual` - ₹4,499/year - Up to 100 members (Recommended)
-3. **League Master** - `league_master_annual` - ₹5,999/year - Up to 500 members (Enterprise)
+1. **Club Starter** - `club_starter_annual` - ₹3,999/year - Up to 30 members
+2. **Team Captain** - `team_captain_annual` - ₹5,999/year - Up to 100 members (Recommended)
+3. **League Master** - `league_master_annual` - ₹7,999/year - Up to 500 members (Enterprise)
 
 ---
 
@@ -36,7 +36,7 @@ For each subscription tier, create a new auto-renewable subscription:
 - **Product ID**: `club_starter_annual`
 - **Reference Name**: `Club Starter Annual`
 - **Subscription Duration**: 1 Year
-- **Price**: Select price tier equivalent to ₹2,999 (approximately $35.99 USD)
+- **Price**: Select price tier equivalent to ₹3,999
 - **Subscription Group**: `club_subscriptions`
 
 **Localized Information (English - US):**
@@ -51,7 +51,7 @@ For each subscription tier, create a new auto-renewable subscription:
 - **Product ID**: `team_captain_annual`
 - **Reference Name**: `Team Captain Annual`
 - **Subscription Duration**: 1 Year
-- **Price**: Select price tier equivalent to ₹4,499 (approximately $53.99 USD)
+- **Price**: Select price tier equivalent to ₹5,999
 - **Subscription Group**: `club_subscriptions`
 
 **Localized Information (English - US):**
@@ -66,7 +66,7 @@ For each subscription tier, create a new auto-renewable subscription:
 - **Product ID**: `league_master_annual`
 - **Reference Name**: `League Master Annual`
 - **Subscription Duration**: 1 Year
-- **Price**: Select price tier equivalent to ₹5,999 (approximately $71.99 USD)
+- **Price**: Select price tier equivalent to ₹7,999
 - **Subscription Group**: `club_subscriptions`
 
 **Localized Information (English - US):**
@@ -123,7 +123,7 @@ For each subscription tier, create a new subscription:
 **Base Plan:**
 - **Base plan ID**: `annual`
 - **Billing period**: Yearly
-- **Price**: ₹2,999.00 INR
+- **Price**: ₹3,999.00 INR
 - **Free trial**: 7 days (optional)
 
 #### Team Captain Subscription
@@ -135,7 +135,7 @@ For each subscription tier, create a new subscription:
 **Base Plan:**
 - **Base plan ID**: `annual`
 - **Billing period**: Yearly
-- **Price**: ₹4,499.00 INR
+- **Price**: ₹5,999.00 INR
 - **Free trial**: 7 days (optional)
 
 #### League Master Subscription
@@ -147,7 +147,7 @@ For each subscription tier, create a new subscription:
 **Base Plan:**
 - **Base plan ID**: `annual`
 - **Billing period**: Yearly
-- **Price**: ₹5,999.00 INR
+- **Price**: ₹7,999.00 INR
 - **Free trial**: 7 days (optional)
 
 ### Step 3: Configure Additional Settings
