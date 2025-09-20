@@ -1290,52 +1290,46 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
     );
   }
 
-  void _selectHomeTeam() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => TeamSelectorScreen(
-          title: 'Select Home Team',
-          onTeamSelected: (team) {
-            setState(() {
-              _selectedHomeTeam = team;
-            });
-          },
-        ),
-      ),
+  void _selectHomeTeam() async {
+    final selectedTeam = await TeamSelectorScreen.showTeamPicker(
+      context: context,
+      title: 'Select Home Team',
     );
+
+    if (selectedTeam != null) {
+      setState(() {
+        _selectedHomeTeam = selectedTeam;
+      });
+    }
   }
 
-  void _selectOpponentTeam() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => TeamSelectorScreen(
-          title: 'Select Opponent Team',
-          onTeamSelected: (team) {
-            setState(() {
-              _selectedOpponentTeam = team;
-            });
-          },
-        ),
-      ),
+  void _selectOpponentTeam() async {
+    final selectedTeam = await TeamSelectorScreen.showTeamPicker(
+      context: context,
+      title: 'Select Opponent Team',
     );
+
+    if (selectedTeam != null) {
+      setState(() {
+        _selectedOpponentTeam = selectedTeam;
+      });
+    }
   }
 
-  void _selectVenue() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => VenuePickerScreen(
-          title: 'Select Venue',
-          onVenueSelected: (venue) {
-            setState(() {
-              _selectedVenue = venue;
-            });
-          },
-        ),
-      ),
+  void _selectVenue() async {
+    final selectedVenue = await VenuePickerScreen.showVenuePicker(
+      context: context,
+      title: 'Select Venue',
     );
+
+    if (selectedVenue != null) {
+      setState(() {
+        _selectedVenue = selectedVenue;
+      });
+    }
   }
 
-  void _selectTournament() {
+  void _selectTournament() async {
     if (_selectedHomeTeam == null || _selectedHomeTeam!.club == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1346,18 +1340,16 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       return;
     }
 
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => TournamentPickerScreen(
-          clubId: _selectedHomeTeam!.club!.id,
-          title: 'Select Tournament',
-          onTournamentSelected: (tournament) {
-            setState(() {
-              _selectedTournament = tournament;
-            });
-          },
-        ),
-      ),
+    final selectedTournament = await TournamentPickerScreen.showTournamentPicker(
+      context: context,
+      clubId: _selectedHomeTeam!.club!.id,
+      title: 'Select Tournament',
     );
+
+    if (selectedTournament != null) {
+      setState(() {
+        _selectedTournament = selectedTournament;
+      });
+    }
   }
 }

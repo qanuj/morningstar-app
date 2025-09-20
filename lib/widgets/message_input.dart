@@ -334,32 +334,30 @@ class _MessageInputState extends State<MessageInput> {
   }
 
   void _openMatchPicker() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => UnifiedEventPicker(
-          clubId: widget.clubId,
-          eventType: EventType.match,
-          onEventSelected: (match) {
-            _sendExistingMatchMessage(match);
-          },
-        ),
-      ),
+    final selectedMatch = await UnifiedEventPicker.showEventPicker(
+      context: context,
+      clubId: widget.clubId,
+      eventType: EventType.match,
     );
+
+    if (selectedMatch != null) {
+      _sendExistingMatchMessage(selectedMatch);
+    }
+
     widget.textFieldFocusNode.unfocus();
   }
 
   void _openPracticePicker() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => UnifiedEventPicker(
-          clubId: widget.clubId,
-          eventType: EventType.practice,
-          onEventSelected: (practice) {
-            _sendExistingPracticeMessage(practice);
-          },
-        ),
-      ),
+    final selectedPractice = await UnifiedEventPicker.showEventPicker(
+      context: context,
+      clubId: widget.clubId,
+      eventType: EventType.practice,
     );
+
+    if (selectedPractice != null) {
+      _sendExistingPracticeMessage(selectedPractice);
+    }
+
     widget.textFieldFocusNode.unfocus();
   }
 
@@ -598,6 +596,7 @@ class _MessageInputState extends State<MessageInput> {
     );
   }
 
+
   Widget _buildGridOption({
     required IconData icon,
     required Color iconColor,
@@ -638,6 +637,7 @@ class _MessageInputState extends State<MessageInput> {
       ),
     );
   }
+
 
   void _showError(String message) {
     if (mounted) {
