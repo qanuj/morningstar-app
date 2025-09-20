@@ -22,6 +22,7 @@ class BulkPointsScreenState extends State<BulkPointsScreen> {
   String _action = 'add'; // add or remove
   String _category = 'OUTSTANDING_PERFORMANCE';
   bool _isSubmitting = false;
+  bool _categorySelected = false;
 
   // Categories for adding points
   final List<Map<String, dynamic>> _addCategoryOptions = [
@@ -129,6 +130,86 @@ class BulkPointsScreenState extends State<BulkPointsScreen> {
     return points * widget.selectedMembers.length;
   }
 
+  String _getSelectedCategoryLabel() {
+    if (!_categorySelected) {
+      return 'Select category';
+    }
+    final selectedCategory = _currentCategoryOptions.firstWhere(
+      (option) => option['value'] == _category,
+      orElse: () => {'label': 'Select category'},
+    );
+    return selectedCategory['label'] ?? 'Select category';
+  }
+
+  void _showCategoryPicker() {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return Container(
+          height: 300,
+          child: Column(
+            children: [
+              Container(
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text('Cancel'),
+                    ),
+                    Text(
+                      'Select Category',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text('Done'),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _currentCategoryOptions.length,
+                  itemBuilder: (context, index) {
+                    final option = _currentCategoryOptions[index];
+                    final isSelected = _category == option['value'];
+                    return ListTile(
+                      leading: Icon(option['icon']),
+                      title: Text(option['label']),
+                      subtitle: option['description'].isNotEmpty
+                          ? Text(option['description'])
+                          : null,
+                      trailing: isSelected
+                          ? Icon(Icons.check, color: Theme.of(context).primaryColor)
+                          : null,
+                      onTap: () {
+                        setState(() {
+                          _category = option['value'];
+                          _categorySelected = true;
+                          _updateDescriptionFromCategory();
+                        });
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -142,6 +223,27 @@ class BulkPointsScreenState extends State<BulkPointsScreen> {
           icon: Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          TextButton(
+            onPressed: _isSubmitting ? null : _submitPoints,
+            child: _isSubmitting
+                ? SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : Text(
+                    'Save',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+          ),
+        ],
       ),
       body: GestureDetector(
         onTap: () {
@@ -230,8 +332,8 @@ class BulkPointsScreenState extends State<BulkPointsScreen> {
                             onTap: () {
                               setState(() {
                                 _action = 'add';
-                                _category =
-                                    'OUTSTANDING_PERFORMANCE'; // Set valid category for add
+                                _category = 'OUTSTANDING_PERFORMANCE';
+                                _categorySelected = false;
                                 _updateDescriptionFromCategory();
                               });
                             },
@@ -275,6 +377,7 @@ class BulkPointsScreenState extends State<BulkPointsScreen> {
                               setState(() {
                                 _action = 'remove';
                                 _category = 'MISCONDUCT';
+                                _categorySelected = false;
                                 _updateDescriptionFromCategory();
                               });
                             },
@@ -327,103 +430,131 @@ class BulkPointsScreenState extends State<BulkPointsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Points field
-                      TextFormField(
-                        controller: _pointsController,
-                        decoration: const InputDecoration(
-                          labelText: 'Points per Member',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.emoji_events),
-                          helperText:
-                              'Enter the points to add/deduct per member',
+                      // Points field card
+                      Card(
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        keyboardType: TextInputType.number,
-                        textInputAction: TextInputAction.next,
-                        onChanged: (value) =>
-                            setState(() {}), // Update calculations
-                        onFieldSubmitted: (value) {
-                          FocusScope.of(context).nextFocus();
-                        },
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Points is required';
-                          }
-                          final points = int.tryParse(value);
-                          if (points == null || points <= 0) {
-                            return 'Enter a valid number greater than 0';
-                          }
-                          return null;
-                        },
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // Category selection
-                      DropdownButtonFormField<String>(
-                        value: _category,
-                        decoration: const InputDecoration(
-                          labelText: 'Category',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.category),
-                          helperText: 'Select the reason for these points',
-                        ),
-                        items: _currentCategoryOptions.map((option) {
-                          return DropdownMenuItem<String>(
-                            value: option['value'],
-                            child: Row(
-                              children: [
-                                Icon(
-                                  option['icon'],
-                                  size: 18,
-                                  color: Colors.grey[600],
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              TextFormField(
+                                controller: _pointsController,
+                                decoration: const InputDecoration(
+                                  hintText: 'Enter points per member',
+                                  border: OutlineInputBorder(),
+                                  prefixIcon: Icon(Icons.emoji_events),
                                 ),
-                                const SizedBox(width: 8),
-                                Text(option['label']),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          if (value != null) {
-                            setState(() {
-                              _category = value;
-                              _updateDescriptionFromCategory();
-                            });
-                          }
-                        },
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please select a category';
-                          }
-                          return null;
-                        },
+                                keyboardType: TextInputType.number,
+                                textInputAction: TextInputAction.next,
+                                onChanged: (value) =>
+                                    setState(() {}), // Update calculations
+                                onFieldSubmitted: (value) {
+                                  FocusScope.of(context).nextFocus();
+                                },
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Points is required';
+                                  }
+                                  final points = int.tryParse(value);
+                                  if (points == null || points <= 0) {
+                                    return 'Enter a valid number greater than 0';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
 
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 12),
 
-                      // Description field
-                      TextFormField(
-                        controller: _descriptionController,
-                        decoration: const InputDecoration(
-                          labelText: 'Description',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.description),
-                          helperText: 'Describe the reason for these points',
+                      // Category selection card
+                      Card(
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        maxLines: 2,
-                        textInputAction: TextInputAction.done,
-                        onFieldSubmitted: (value) {
-                          FocusScope.of(context).unfocus();
-                        },
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Description is required';
-                          }
-                          if (value.length < 3) {
-                            return 'Description must be at least 3 characters';
-                          }
-                          return null;
-                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              GestureDetector(
+                                onTap: _showCategoryPicker,
+                                child: Container(
+                                  padding: EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.grey[400]!),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.category, color: Colors.grey[600]),
+                                      SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          _getSelectedCategoryLabel(),
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            color: _category == 'OUTSTANDING_PERFORMANCE' && !_categorySelected
+                                                ? Colors.grey[600]
+                                                : Colors.black,
+                                          ),
+                                        ),
+                                      ),
+                                      Icon(Icons.arrow_drop_down, color: Colors.grey[600]),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Description field card
+                      Card(
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              TextFormField(
+                                controller: _descriptionController,
+                                decoration: const InputDecoration(
+                                  hintText: 'Enter description',
+                                  border: OutlineInputBorder(),
+                                  prefixIcon: Icon(Icons.description),
+                                ),
+                                maxLines: 2,
+                                textInputAction: TextInputAction.done,
+                                onFieldSubmitted: (value) {
+                                  FocusScope.of(context).unfocus();
+                                },
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Description is required';
+                                  }
+                                  if (value.length < 3) {
+                                    return 'Description must be at least 3 characters';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
 
                       const SizedBox(height: 32),
@@ -432,7 +563,7 @@ class BulkPointsScreenState extends State<BulkPointsScreen> {
                       Card(
                         color: Theme.of(context).primaryColor.withOpacity(0.05),
                         child: Padding(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(12),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -466,7 +597,7 @@ class BulkPointsScreenState extends State<BulkPointsScreen> {
                         ),
                       ),
 
-                      const SizedBox(height: 100), // Space for bottom buttons
+                      const SizedBox(height: 24), // Bottom spacing
                     ],
                   ),
                 ),
@@ -475,77 +606,21 @@ class BulkPointsScreenState extends State<BulkPointsScreen> {
           ],
         ),
       ),
-
-      // Bottom button bar
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Colors.grey[200]!)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: Offset(0, -2),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _isSubmitting
-                      ? null
-                      : () => Navigator.pop(context),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text('Cancel'),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                flex: 2,
-                child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submitPoints,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _currentColor,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: _isSubmitting
-                      ? SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
-                          ),
-                        )
-                      : Text(
-                          _action == 'add' ? 'Add Points' : 'Deduct Points',
-                          style: TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
   void _submitPoints() async {
     if (_formKey.currentState!.validate()) {
+      if (!_categorySelected) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Please select a category'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
       setState(() {
         _isSubmitting = true;
       });

@@ -145,6 +145,27 @@ class TransactionCreateScreenState extends State<TransactionCreateScreen> {
           icon: Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          TextButton(
+            onPressed: _isSubmitting ? null : _submitTransaction,
+            child: _isSubmitting
+                ? SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : Text(
+                    'Save',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+          ),
+        ],
       ),
       body: GestureDetector(
         onTap: () {
@@ -188,158 +209,184 @@ class TransactionCreateScreenState extends State<TransactionCreateScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Amount field
-                      TextFormField(
-                        controller: _amountController,
-                        decoration: const InputDecoration(
-                          labelText: 'Amount (₹)',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.currency_rupee),
-                          helperText: 'Enter the transaction amount',
+                      // Amount field card
+                      Card(
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        textInputAction: TextInputAction.next,
-                        onFieldSubmitted: (value) {
-                          FocusScope.of(context).nextFocus();
-                        },
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Amount is required';
-                          }
-                          final amount = double.tryParse(value);
-                          if (amount == null || amount <= 0) {
-                            return 'Enter a valid amount greater than 0';
-                          }
-                          return null;
-                        },
-                      ),
-                      
-                      const SizedBox(height: 24),
-                      
-                      // Purpose selection
-                      Text(
-                        'Purpose',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Select the category that best describes this transaction',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: _purposeOptions.map((option) {
-                          final isSelected = _purpose == option['value'];
-                          return FilterChip(
-                            label: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  option['icon'],
-                                  size: 16,
-                                  color: isSelected 
-                                      ? Theme.of(context).primaryColor 
-                                      : Colors.grey[600],
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              TextFormField(
+                                controller: _amountController,
+                                decoration: const InputDecoration(
+                                  hintText: 'Enter amount (₹)',
+                                  border: OutlineInputBorder(),
+                                  prefixIcon: Icon(Icons.currency_rupee),
                                 ),
-                                const SizedBox(width: 6),
-                                Text(option['label']),
-                              ],
-                            ),
-                            selected: isSelected,
-                            onSelected: (selected) {
-                              setState(() {
-                                _purpose = option['value'];
-                                _updateDescriptionFromPurpose(_purpose);
-                              });
-                            },
-                            selectedColor: Theme.of(context).primaryColor.withOpacity(0.2),
-                            checkmarkColor: Theme.of(context).primaryColor,
-                          );
-                        }).toList(),
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                textInputAction: TextInputAction.next,
+                                onFieldSubmitted: (value) {
+                                  FocusScope.of(context).nextFocus();
+                                },
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Amount is required';
+                                  }
+                                  final amount = double.tryParse(value);
+                                  if (amount == null || amount <= 0) {
+                                    return 'Enter a valid amount greater than 0';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 12),
+
+                      // Purpose selection card
+                      Card(
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: _purposeOptions.map((option) {
+                                  final isSelected = _purpose == option['value'];
+                                  return FilterChip(
+                                    label: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          option['icon'],
+                                          size: 16,
+                                          color: isSelected
+                                              ? Theme.of(context).primaryColor
+                                              : Colors.grey[600],
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(option['label']),
+                                      ],
+                                    ),
+                                    selected: isSelected,
+                                    onSelected: (selected) {
+                                      setState(() {
+                                        _purpose = option['value'];
+                                        _updateDescriptionFromPurpose(_purpose);
+                                      });
+                                    },
+                                    selectedColor: Theme.of(context).primaryColor.withOpacity(0.2),
+                                    checkmarkColor: Theme.of(context).primaryColor,
+                                  );
+                                }).toList(),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                       
                       // Payment method selection (only for CREDIT transactions)
                       if (widget.type == 'CREDIT') ...[
-                        const SizedBox(height: 24),
-                        Text(
-                          'Payment Method',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'How was this payment received?',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.grey[600],
-                          ),
-                        ),
                         const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: _paymentMethodOptions.map((option) {
-                            final isSelected = _paymentMethod == option['value'];
-                            return FilterChip(
-                              label: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    option['icon'],
-                                    size: 16,
-                                    color: isSelected 
-                                        ? Theme.of(context).primaryColor 
-                                        : Colors.grey[600],
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(option['label']),
-                                ],
-                              ),
-                              selected: isSelected,
-                              onSelected: (selected) {
-                                setState(() {
-                                  _paymentMethod = option['value'];
-                                });
-                              },
-                              selectedColor: Theme.of(context).primaryColor.withOpacity(0.2),
-                              checkmarkColor: Theme.of(context).primaryColor,
-                            );
-                          }).toList(),
+                        Card(
+                          elevation: 4,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: _paymentMethodOptions.map((option) {
+                                    final isSelected = _paymentMethod == option['value'];
+                                    return FilterChip(
+                                      label: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            option['icon'],
+                                            size: 16,
+                                            color: isSelected
+                                                ? Theme.of(context).primaryColor
+                                                : Colors.grey[600],
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(option['label']),
+                                        ],
+                                      ),
+                                      selected: isSelected,
+                                      onSelected: (selected) {
+                                        setState(() {
+                                          _paymentMethod = option['value'];
+                                        });
+                                      },
+                                      selectedColor: Theme.of(context).primaryColor.withOpacity(0.2),
+                                      checkmarkColor: Theme.of(context).primaryColor,
+                                    );
+                                  }).toList(),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
                       
-                      const SizedBox(height: 24),
-                      
-                      // Description field (last field)
-                      TextFormField(
-                        controller: _descriptionController,
-                        decoration: const InputDecoration(
-                          labelText: 'Description',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.description),
-                          helperText: 'Describe the transaction purpose (auto-filled based on purpose)',
+                      const SizedBox(height: 12),
+
+                      // Description field card
+                      Card(
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        maxLines: 1,
-                        textInputAction: TextInputAction.done,
-                        onChanged: _onDescriptionChanged,
-                        onFieldSubmitted: (value) {
-                          FocusScope.of(context).unfocus();
-                        },
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Description is required';
-                          }
-                          if (value.length < 3) {
-                            return 'Description must be at least 3 characters';
-                          }
-                          return null;
-                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              TextFormField(
+                                controller: _descriptionController,
+                                decoration: const InputDecoration(
+                                  hintText: 'Enter transaction description',
+                                  border: OutlineInputBorder(),
+                                  prefixIcon: Icon(Icons.description),
+                                ),
+                                maxLines: 1,
+                                textInputAction: TextInputAction.done,
+                                onChanged: _onDescriptionChanged,
+                                onFieldSubmitted: (value) {
+                                  FocusScope.of(context).unfocus();
+                                },
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Description is required';
+                                  }
+                                  if (value.length < 3) {
+                                    return 'Description must be at least 3 characters';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                       
                       const SizedBox(height: 32),
@@ -380,75 +427,13 @@ class TransactionCreateScreenState extends State<TransactionCreateScreen> {
                           ),
                         ),
                       
-                      const SizedBox(height: 100), // Space for bottom buttons
+                      const SizedBox(height: 24), // Bottom spacing
                     ],
                   ),
                 ),
               ),
             ),
           ],
-        ),
-      ),
-      
-      // Bottom button bar
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Colors.grey[200]!)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: Offset(0, -2),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _isSubmitting ? null : () => Navigator.pop(context),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text('Cancel'),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                flex: 2,
-                child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submitTransaction,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFF003f9b),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: _isSubmitting
-                      ? SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : Text(
-                          widget.type == 'CREDIT' ? 'Add Funds' : 'Record Expense',
-                          style: TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );

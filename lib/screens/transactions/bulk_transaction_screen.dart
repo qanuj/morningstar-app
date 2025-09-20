@@ -31,6 +31,7 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
 
   bool _isSubmitting = false;
   bool _userEditedDescription = false;
+  bool _purposeSelected = false;
 
   final List<Map<String, dynamic>> _purposeOptions = [
     {
@@ -168,6 +169,27 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
           icon: Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          TextButton(
+            onPressed: _isSubmitting ? null : _submitTransaction,
+            child: _isSubmitting
+                ? SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : Text(
+                    'Save',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+          ),
+        ],
       ),
       body: GestureDetector(
         onTap: () {
@@ -354,281 +376,330 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
                     children: [
                       // Charge type for expenses only
                       if (_transactionType == 'DEBIT') ...[
-                        Text(
-                          'Charge Type',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w600),
+                        Card(
+                          elevation: 4,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Row(
+                                        children: [
+                                          Radio<String>(
+                                            value: 'SPLIT',
+                                            groupValue: _chargeType,
+                                            onChanged: (value) {
+                                              setState(() {
+                                                _chargeType = value!;
+                                              });
+                                            },
+                                          ),
+                                          Expanded(
+                                            child: GestureDetector(
+                                              onTap: () {
+                                                setState(() {
+                                                  _chargeType = 'SPLIT';
+                                                });
+                                              },
+                                              child: Text('Split total equally'),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Row(
+                                        children: [
+                                          Radio<String>(
+                                            value: 'EXACT',
+                                            groupValue: _chargeType,
+                                            onChanged: (value) {
+                                              setState(() {
+                                                _chargeType = value!;
+                                              });
+                                            },
+                                          ),
+                                          Expanded(
+                                            child: GestureDetector(
+                                              onTap: () {
+                                                setState(() {
+                                                  _chargeType = 'EXACT';
+                                                });
+                                              },
+                                              child: Text('Exact per member'),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                         const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: RadioListTile<String>(
-                                title: Text('Split total amount equally'),
-                                subtitle: Text(
-                                  'Divide total among all members',
-                                ),
-                                value: 'SPLIT',
-                                groupValue: _chargeType,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _chargeType = value!;
-                                  });
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: RadioListTile<String>(
-                                title: Text('Charge exact amount per member'),
-                                subtitle: Text('Same amount for each member'),
-                                value: 'EXACT',
-                                groupValue: _chargeType,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _chargeType = value!;
-                                  });
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
                       ],
 
-                      // Amount field
-                      TextFormField(
-                        controller: _amountController,
-                        decoration: InputDecoration(
-                          labelText:
-                              _transactionType == 'DEBIT' &&
-                                  _chargeType == 'SPLIT'
-                              ? 'Total Amount (₹)'
-                              : 'Amount per Member (₹)',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.currency_rupee),
-                          helperText:
-                              _transactionType == 'DEBIT' &&
-                                  _chargeType == 'SPLIT'
-                              ? 'Enter the total amount to be split equally'
-                              : 'Enter the amount per member',
+                      // Amount field card
+                      Card(
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              TextFormField(
+                                controller: _amountController,
+                                decoration: InputDecoration(
+                                  hintText:
+                                      _transactionType == 'DEBIT' &&
+                                          _chargeType == 'SPLIT'
+                                      ? 'Enter total amount (₹)'
+                                      : 'Enter amount per member (₹)',
+                                  border: OutlineInputBorder(),
+                                  prefixIcon: Icon(Icons.currency_rupee),
+                                ),
+                                keyboardType: const TextInputType.numberWithOptions(
+                                  decimal: true,
+                                ),
+                                textInputAction: TextInputAction.next,
+                                onChanged: (value) =>
+                                    setState(() {}), // Update calculations
+                                onFieldSubmitted: (value) {
+                                  FocusScope.of(context).nextFocus();
+                                },
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Amount is required';
+                                  }
+                                  final amount = double.tryParse(value);
+                                  if (amount == null || amount <= 0) {
+                                    return 'Enter a valid amount greater than 0';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ],
+                          ),
                         ),
-                        textInputAction: TextInputAction.next,
-                        onChanged: (value) =>
-                            setState(() {}), // Update calculations
-                        onFieldSubmitted: (value) {
-                          FocusScope.of(context).nextFocus();
-                        },
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Amount is required';
-                          }
-                          final amount = double.tryParse(value);
-                          if (amount == null || amount <= 0) {
-                            return 'Enter a valid amount greater than 0';
-                          }
-                          return null;
-                        },
                       ),
 
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 12),
 
                       // Purpose selection for expenses only
                       if (_transactionType == 'DEBIT') ...[
-                        DropdownButtonFormField<String>(
-                          value: _purpose,
-                          decoration: const InputDecoration(
-                            labelText: 'Purpose',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.category),
-                            helperText: 'Select the category for this expense',
+                        Card(
+                          elevation: 4,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          items: _purposeOptions.map((option) {
-                            return DropdownMenuItem<String>(
-                              value: option['value'],
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    option['icon'],
-                                    size: 18,
-                                    color: Colors.grey[600],
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                GestureDetector(
+                                  onTap: _showPurposePicker,
+                                  child: Container(
+                                    padding: EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: Colors.grey[400]!),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.category, color: Colors.grey[600]),
+                                        SizedBox(width: 12),
+                                        Expanded(
+                                          child: Text(
+                                            _getSelectedPurposeLabel(),
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              color: _purpose == 'MATCH_FEE' && !_purposeSelected
+                                                  ? Colors.grey[600]
+                                                  : Colors.black,
+                                            ),
+                                          ),
+                                        ),
+                                        Icon(Icons.arrow_drop_down, color: Colors.grey[600]),
+                                      ],
+                                    ),
                                   ),
-                                  const SizedBox(width: 8),
-                                  Text(option['label']),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (value) {
-                            if (value != null) {
-                              setState(() {
-                                _purpose = value;
-                                _updateDescriptionFromPurpose(_purpose);
-                              });
-                            }
-                          },
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please select a purpose';
-                            }
-                            return null;
-                          },
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 12),
                       ],
 
                       // Payment method selection for funds only
                       if (_transactionType == 'CREDIT') ...[
-                        Text(
-                          'Payment Method',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'How was this payment received?',
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: Colors.grey[600]),
+                        Card(
+                          elevation: 4,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          setState(() {
+                                            _paymentMethod = 'CASH';
+                                          });
+                                        },
+                                        child: Container(
+                                          padding: EdgeInsets.symmetric(
+                                            vertical: 16,
+                                            horizontal: 12,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: _paymentMethod == 'CASH'
+                                                ? Theme.of(context).primaryColor.withOpacity(0.1)
+                                                : Colors.grey[50],
+                                            border: Border.all(
+                                              color: _paymentMethod == 'CASH'
+                                                  ? Theme.of(context).primaryColor
+                                                  : Colors.grey[300]!,
+                                              width: _paymentMethod == 'CASH' ? 2 : 1,
+                                            ),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Column(
+                                            children: [
+                                              Icon(
+                                                Icons.money,
+                                                size: 32,
+                                                color: _paymentMethod == 'CASH'
+                                                    ? Theme.of(context).primaryColor
+                                                    : Colors.grey[600],
+                                              ),
+                                              SizedBox(height: 8),
+                                              Text(
+                                                'Cash',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w600,
+                                                  color: _paymentMethod == 'CASH'
+                                                      ? Theme.of(context).primaryColor
+                                                      : Colors.grey[700],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(width: 16),
+                                    Expanded(
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          setState(() {
+                                            _paymentMethod = 'UPI';
+                                          });
+                                        },
+                                        child: Container(
+                                          padding: EdgeInsets.symmetric(
+                                            vertical: 16,
+                                            horizontal: 12,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: _paymentMethod == 'UPI'
+                                                ? Theme.of(context).primaryColor.withOpacity(0.1)
+                                                : Colors.grey[50],
+                                            border: Border.all(
+                                              color: _paymentMethod == 'UPI'
+                                                  ? Theme.of(context).primaryColor
+                                                  : Colors.grey[300]!,
+                                              width: _paymentMethod == 'UPI' ? 2 : 1,
+                                            ),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Column(
+                                            children: [
+                                              Icon(
+                                                Icons.qr_code,
+                                                size: 32,
+                                                color: _paymentMethod == 'UPI'
+                                                    ? Theme.of(context).primaryColor
+                                                    : Colors.grey[600],
+                                              ),
+                                              SizedBox(height: 8),
+                                              Text(
+                                                'UPI',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w600,
+                                                  color: _paymentMethod == 'UPI'
+                                                      ? Theme.of(context).primaryColor
+                                                      : Colors.grey[700],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                         const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    _paymentMethod = 'CASH';
-                                  });
-                                },
-                                child: Container(
-                                  padding: EdgeInsets.symmetric(
-                                    vertical: 16,
-                                    horizontal: 12,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: _paymentMethod == 'CASH'
-                                        ? Theme.of(
-                                            context,
-                                          ).primaryColor.withOpacity(0.1)
-                                        : Colors.grey[50],
-                                    border: Border.all(
-                                      color: _paymentMethod == 'CASH'
-                                          ? Theme.of(context).primaryColor
-                                          : Colors.grey[300]!,
-                                      width: _paymentMethod == 'CASH' ? 2 : 1,
-                                    ),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Icon(
-                                        Icons.money,
-                                        size: 32,
-                                        color: _paymentMethod == 'CASH'
-                                            ? Theme.of(context).primaryColor
-                                            : Colors.grey[600],
-                                      ),
-                                      SizedBox(height: 8),
-                                      Text(
-                                        'Cash',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: _paymentMethod == 'CASH'
-                                              ? Theme.of(context).primaryColor
-                                              : Colors.grey[700],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: 16),
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    _paymentMethod = 'UPI';
-                                  });
-                                },
-                                child: Container(
-                                  padding: EdgeInsets.symmetric(
-                                    vertical: 16,
-                                    horizontal: 12,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: _paymentMethod == 'UPI'
-                                        ? Theme.of(
-                                            context,
-                                          ).primaryColor.withOpacity(0.1)
-                                        : Colors.grey[50],
-                                    border: Border.all(
-                                      color: _paymentMethod == 'UPI'
-                                          ? Theme.of(context).primaryColor
-                                          : Colors.grey[300]!,
-                                      width: _paymentMethod == 'UPI' ? 2 : 1,
-                                    ),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Icon(
-                                        Icons.qr_code,
-                                        size: 32,
-                                        color: _paymentMethod == 'UPI'
-                                            ? Theme.of(context).primaryColor
-                                            : Colors.grey[600],
-                                      ),
-                                      SizedBox(height: 8),
-                                      Text(
-                                        'UPI',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: _paymentMethod == 'UPI'
-                                              ? Theme.of(context).primaryColor
-                                              : Colors.grey[700],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
                       ],
 
-                      // Description field
-                      TextFormField(
-                        controller: _descriptionController,
-                        decoration: const InputDecoration(
-                          labelText: 'Description',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.description),
-                          helperText: 'Describe the transaction purpose',
+                      // Description field card
+                      Card(
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        maxLines: 1,
-                        textInputAction: TextInputAction.done,
-                        onChanged: _onDescriptionChanged,
-                        onFieldSubmitted: (value) {
-                          FocusScope.of(context).unfocus();
-                        },
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Description is required';
-                          }
-                          if (value.length < 3) {
-                            return 'Description must be at least 3 characters';
-                          }
-                          return null;
-                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              TextFormField(
+                                controller: _descriptionController,
+                                decoration: const InputDecoration(
+                                  hintText: 'Enter description',
+                                  border: OutlineInputBorder(),
+                                  prefixIcon: Icon(Icons.description),
+                                ),
+                                maxLines: 1,
+                                textInputAction: TextInputAction.done,
+                                onChanged: _onDescriptionChanged,
+                                onFieldSubmitted: (value) {
+                                  FocusScope.of(context).unfocus();
+                                },
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Description is required';
+                                  }
+                                  if (value.length < 3) {
+                                    return 'Description must be at least 3 characters';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
 
                       const SizedBox(height: 32),
@@ -637,7 +708,7 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
                       Card(
                         color: Theme.of(context).primaryColor.withOpacity(0.05),
                         child: Padding(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(12),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -671,81 +742,13 @@ class BulkTransactionScreenState extends State<BulkTransactionScreen> {
                         ),
                       ),
 
-                      const SizedBox(height: 100), // Space for bottom buttons
+                      const SizedBox(height: 24), // Bottom spacing
                     ],
                   ),
                 ),
               ),
             ),
           ],
-        ),
-      ),
-
-      // Bottom button bar
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Colors.grey[200]!)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: Offset(0, -2),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _isSubmitting
-                      ? null
-                      : () => Navigator.pop(context),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text('Cancel'),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                flex: 2,
-                child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submitTransaction,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _currentColor,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: _isSubmitting
-                      ? SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
-                          ),
-                        )
-                      : Text(
-                          _transactionType == 'CREDIT'
-                              ? 'Add Funds'
-                              : 'Record Expense',
-                          style: TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
