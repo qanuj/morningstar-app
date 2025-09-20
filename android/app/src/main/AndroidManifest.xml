@@ -24,6 +24,13 @@
     
     <!-- Contacts permission -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
+
+    <!-- Location permissions for geolocator -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- QR code scanner camera permission -->
+    <uses-permission android:name="android.permission.FLASHLIGHT" />
     
     <!-- Push notification permissions -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />

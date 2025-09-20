@@ -135,6 +135,12 @@
 		<string>NSUserActivityTypeBrowsingWeb</string>
 		<string>com.duggy.share</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app needs access to your location to help you find nearby cricket clubs and set match venues.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>This app needs access to your location to help you find nearby cricket clubs and set match venues.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>This app uses Face ID for secure authentication to protect your account.</string>
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>This app needs access to send notifications to keep you updated about club activities, matches, and important announcements.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
