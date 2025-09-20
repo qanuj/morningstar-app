@@ -22,11 +22,21 @@ class AppConfig {
   static const String _productionBaseUrl = 'https://duggy.app/api';
 
   static String get apiBaseUrl =>
-      isProduction ? _productionBaseUrl : _developmentBaseUrl;
+      isProduction ? _productionBaseUrl : _productionBaseUrl;
 
   // Other environment-specific configurations
   static bool get enableLogging => !isProduction;
   static bool get enableDebugPrints => !isProduction;
+
+  // Mobile network optimizations
+  static const Duration requestTimeout = Duration(seconds: 15);
+  static const Duration connectionTimeout = Duration(seconds: 30);
+  static const int maxRetries = 3;
+  static const bool enableRequestCompression = true;
+
+  // Image optimization for mobile
+  static const int maxImageCacheSize = 100;
+  static const int maxImageCacheSizeBytes = 50 * 1024 * 1024; // 50MB
 
   // App information
   static const String appName = 'Duggy';

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'firebase_options.dart';
 import 'providers/user_provider.dart';
 import 'providers/club_provider.dart';
@@ -10,36 +11,55 @@ import 'screens/auth/splash.dart';
 import 'screens/shared/share_target_screen.dart';
 import 'services/notification_service.dart';
 import 'services/share_handler_service.dart';
+import 'services/api_service.dart';
 import 'utils/theme.dart';
 import 'config/app_config.dart';
 import 'dart:async';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   try {
+    // Initialize API Service with optimized settings
+    await ApiService.init();
+    print('✅ ApiService initialized successfully');
+
+    // Configure image caching for mobile networks
+    await _configureImageCache();
+    print('✅ Image cache configured successfully');
+
     // Initialize Firebase with options
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
     print('✅ Firebase initialized successfully');
-    
+
     // Initialize Push Notifications
     await NotificationService.initialize();
     print('✅ NotificationService initialized successfully');
-    
+
     // Initialize Share Handler Service
     ShareHandlerService().initialize();
     print('✅ ShareHandlerService initialized successfully');
-    
+
   } catch (e) {
-    print('❌ Failed to initialize Firebase or NotificationService: $e');
+    print('❌ Failed to initialize services: $e');
   }
 
   // Log current configuration
   AppConfig.logConfig();
 
   runApp(MyApp());
+}
+
+// Configure optimized image caching for mobile networks
+Future<void> _configureImageCache() async {
+  // Configure CachedNetworkImage for mobile optimization
+  await CachedNetworkImage.evictFromCache('dummy'); // Initialize cache manager
+
+  // Set global image cache configuration
+  PaintingBinding.instance.imageCache.maximumSize = 100; // Reduce from default 1000
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 50 << 20; // 50MB instead of 100MB
 }
 
 class MyApp extends StatefulWidget {

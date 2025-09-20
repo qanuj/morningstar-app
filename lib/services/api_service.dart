@@ -25,7 +25,22 @@ class ApiService {
   static Map<String, dynamic>? _userData;
   static List<Map<String, dynamic>>? _clubsData;
 
+  // HTTP client with optimized settings for mobile networks
+  static late http.Client _httpClient;
+
+  // Timeout configurations optimized for mobile networks
+  static const Duration _connectionTimeout = Duration(seconds: 15);
+  static const Duration _receiveTimeout = Duration(seconds: 30);
+  static const Duration _sendTimeout = Duration(seconds: 15);
+
+  static void _initializeHttpClient() {
+    _httpClient = http.Client();
+  }
+
   static Future<void> init() async {
+    // Initialize HTTP client
+    _initializeHttpClient();
+
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString('token');
 
@@ -91,12 +106,52 @@ class ApiService {
 
   static Map<String, String> get headers => {
     'Content-Type': 'application/json',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Connection': 'keep-alive',
+    'Cache-Control': 'no-cache',
     if (_token != null) 'Authorization': 'Bearer $_token',
   };
 
   static Map<String, String> get fileHeaders => {
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Connection': 'keep-alive',
     if (_token != null) 'Authorization': 'Bearer $_token',
   };
+
+  // Retry logic for mobile network reliability
+  static Future<T> _retryRequest<T>(
+    Future<T> Function() request, {
+    int maxRetries = 3,
+    Duration delay = const Duration(seconds: 2),
+  }) async {
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await request().timeout(_receiveTimeout);
+      } catch (e) {
+        if (attempt == maxRetries) rethrow;
+
+        // Only retry on network errors, not on HTTP errors like 400, 401, etc
+        if (e is SocketException ||
+            e is HttpException ||
+            e is FormatException ||
+            e.toString().contains('timeout') ||
+            e.toString().contains('connection')) {
+
+          if (AppConfig.enableDebugPrints) {
+            debugPrint('🔄 Request failed (attempt $attempt/$maxRetries): $e');
+            debugPrint('⏳ Retrying in ${delay.inSeconds}s...');
+          }
+
+          await Future.delayed(delay * attempt); // Exponential backoff
+          continue;
+        }
+
+        rethrow; // Don't retry on non-network errors
+      }
+    }
+
+    throw Exception('Max retries exceeded');
+  }
 
   // Getters for cached data
   static Map<String, dynamic>? get cachedUserData => _userData;
@@ -105,85 +160,93 @@ class ApiService {
   static bool get hasClubsData => _clubsData != null;
 
   static Future<Map<String, dynamic>> get(String endpoint, {Map<String, String>? queryParams}) async {
-    String url = '$baseUrl$endpoint';
-    if (queryParams != null && queryParams.isNotEmpty) {
-      final query = queryParams.entries
-          .map((e) => '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
-          .join('&');
-      url += '?$query';
-    }
-    
-    if (AppConfig.enableDebugPrints) {
-      debugPrint('🔵 Making GET request to: $url');
-    }
-    final response = await http.get(
-      Uri.parse(url),
-      headers: headers,
-    );
-    return _handleResponse(response);
+    return await _retryRequest(() async {
+      String url = '$baseUrl$endpoint';
+      if (queryParams != null && queryParams.isNotEmpty) {
+        final query = queryParams.entries
+            .map((e) => '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
+            .join('&');
+        url += '?$query';
+      }
+
+      if (AppConfig.enableDebugPrints) {
+        debugPrint('🔵 Making GET request to: $url');
+      }
+
+      final response = await _httpClient.get(
+        Uri.parse(url),
+        headers: headers,
+      );
+      return _handleResponse(response);
+    });
   }
 
   static Future<Map<String, dynamic>> post(
     String endpoint,
     Map<String, dynamic> data,
   ) async {
-    if (AppConfig.enableDebugPrints) {
-      print('🔵 Making POST request to: $baseUrl$endpoint');
-    }
+    return await _retryRequest(() async {
+      if (AppConfig.enableDebugPrints) {
+        print('🔵 Making POST request to: $baseUrl$endpoint');
+        print('🔵 Request data: $data');
+        print('🔵 Request headers: $headers');
+      }
 
-    if (AppConfig.enableDebugPrints) {
-      print('🔵 Request data: $data');
-      print('🔵 Request headers: $headers');
-    }
+      final response = await _httpClient.post(
+        Uri.parse('$baseUrl$endpoint'),
+        headers: headers,
+        body: json.encode(data),
+      );
 
-    final response = await http.post(
-      Uri.parse('$baseUrl$endpoint'),
-      headers: headers,
-      body: json.encode(data),
-    );
+      if (AppConfig.enableDebugPrints) {
+        print('🔵 Response status: ${response.statusCode}');
+        print('🔵 Response body: ${response.body}');
+      }
 
-    if (AppConfig.enableDebugPrints) {
-      print('🔵 Response status: ${response.statusCode}');
-      print('🔵 Response body: ${response.body}');
-    }
-
-    return _handleResponse(response);
+      return _handleResponse(response);
+    });
   }
 
   static Future<Map<String, dynamic>> put(
     String endpoint,
     Map<String, dynamic> data,
   ) async {
-    final response = await http.put(
-      Uri.parse('$baseUrl$endpoint'),
-      headers: headers,
-      body: json.encode(data),
-    );
-    return _handleResponse(response);
+    return await _retryRequest(() async {
+      final response = await _httpClient.put(
+        Uri.parse('$baseUrl$endpoint'),
+        headers: headers,
+        body: json.encode(data),
+      );
+      return _handleResponse(response);
+    });
   }
 
   static Future<Map<String, dynamic>> patch(
     String endpoint,
     Map<String, dynamic> data,
   ) async {
-    final response = await http.patch(
-      Uri.parse('$baseUrl$endpoint'),
-      headers: headers,
-      body: json.encode(data),
-    );
-    return _handleResponse(response);
+    return await _retryRequest(() async {
+      final response = await _httpClient.patch(
+        Uri.parse('$baseUrl$endpoint'),
+        headers: headers,
+        body: json.encode(data),
+      );
+      return _handleResponse(response);
+    });
   }
 
   static Future<Map<String, dynamic>> delete(
     String endpoint, [
     dynamic data,
   ]) async {
-    final response = await http.delete(
-      Uri.parse('$baseUrl$endpoint'),
-      headers: headers,
-      body: data != null ? json.encode(data) : null,
-    );
-    return _handleResponse(response);
+    return await _retryRequest(() async {
+      final response = await _httpClient.delete(
+        Uri.parse('$baseUrl$endpoint'),
+        headers: headers,
+        body: data != null ? json.encode(data) : null,
+      );
+      return _handleResponse(response);
+    });
   }
 
   static Map<String, dynamic> _handleResponse(http.Response response) {
