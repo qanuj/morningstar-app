@@ -72,6 +72,7 @@ class VenueService {
     String? country,
     double? latitude,
     double? longitude,
+    String? googleMapsLink,
     String? description,
     String? contactPhone,
     String? contactEmail,
@@ -81,6 +82,11 @@ class VenueService {
         'name': name,
         if (address != null) 'address': address,
         if (city != null) 'city': city,
+        if (state != null) 'state': state,
+        if (country != null) 'country': country,
+        if (latitude != null) 'latitude': latitude.toString(),
+        if (longitude != null) 'longitude': longitude.toString(),
+        if (googleMapsLink != null) 'googleMapsLink': googleMapsLink,
         'isActive': true,
       };
 

@@ -296,9 +296,10 @@ class _TeamSelectorScreenState extends State<TeamSelectorScreen>
     final isSelected = _selectedTeamIds.contains(team.id);
     
     return Card(
-      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      elevation: 4,
+      shadowColor: Colors.black.withOpacity(0.1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         onTap: () {
           if (widget.multiSelect) {
@@ -314,7 +315,7 @@ class _TeamSelectorScreenState extends State<TeamSelectorScreen>
             Navigator.of(context).pop();
           }
         },
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: EdgeInsets.all(16),
           child: Row(
@@ -1106,9 +1107,10 @@ class _TeamSelectorModalState extends State<TeamSelectorModal>
     final isSelected = _selectedTeamIds.contains(team.id);
 
     return Card(
-      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      elevation: 4,
+      shadowColor: Colors.black.withOpacity(0.1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         onTap: () {
           if (widget.multiSelect) {
@@ -1123,7 +1125,7 @@ class _TeamSelectorModalState extends State<TeamSelectorModal>
             Navigator.of(context).pop(team);
           }
         },
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: EdgeInsets.all(16),
           child: Row(
@@ -1587,7 +1589,9 @@ class _TeamSelectorModalState extends State<TeamSelectorModal>
     return Container(
       height: MediaQuery.of(context).size.height * 0.9,
       decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Colors.black87
+            : Color(0xFFF5F5F5),
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(

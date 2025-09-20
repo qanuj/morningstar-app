@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/venue.dart';
 import '../../services/venue_service.dart';
 import '../../widgets/custom_app_bar.dart';
+import '../venues/add_venue_screen.dart';
 
 class VenuePickerScreen extends StatefulWidget {
   final String title;
@@ -193,144 +194,36 @@ class _VenuePickerScreenState extends State<VenuePickerScreen> {
     }
   }
 
-  void _showAddVenueDialog() {
-    final nameController = TextEditingController();
-    final addressController = TextEditingController();
-    final cityController = TextEditingController();
-    final stateController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Add New Venue'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: InputDecoration(
-                  labelText: 'Venue Name',
-                  hintText: 'Enter venue name',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              SizedBox(height: 16),
-              TextField(
-                controller: addressController,
-                decoration: InputDecoration(
-                  labelText: 'Address',
-                  hintText: 'Enter venue address',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: cityController,
-                      decoration: InputDecoration(
-                        labelText: 'City',
-                        hintText: 'City',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: stateController,
-                      decoration: InputDecoration(
-                        labelText: 'State',
-                        hintText: 'State',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+  void _showAddVenueDialog() async {
+    final result = await Navigator.of(context).push<Venue>(
+      MaterialPageRoute(
+        builder: (context) => AddVenueScreen(
+          onVenueAdded: (venue) {
+            // Refresh venues list
+            _loadVenues(refresh: true);
+          },
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameController.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Venue name is required'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-                return;
-              }
-
-              try {
-                final venue = await VenueService.createVenue(
-                  name: nameController.text.trim(),
-                  address: addressController.text.trim().isNotEmpty
-                      ? addressController.text.trim()
-                      : null,
-                  city: cityController.text.trim().isNotEmpty
-                      ? cityController.text.trim()
-                      : null,
-                  state: stateController.text.trim().isNotEmpty
-                      ? stateController.text.trim()
-                      : null,
-                );
-
-                if (venue != null && mounted) {
-                  Navigator.of(context).pop(); // Close dialog
-                  widget.onVenueSelected(venue);
-                  Navigator.of(context).pop(); // Close venue picker
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Failed to create venue'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Error creating venue: $e'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            },
-            child: Text('Add Venue'),
-          ),
-        ],
       ),
     );
+
+    if (result != null) {
+      widget.onVenueSelected(result);
+      Navigator.of(context).pop(); // Close venue picker
+    }
   }
 
   Widget _buildVenueTile(Venue venue) {
     return Card(
-      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      elevation: 4,
+      shadowColor: Colors.black.withOpacity(0.1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         onTap: () {
           widget.onVenueSelected(venue);
           Navigator.of(context).pop();
         },
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: EdgeInsets.all(16),
           child: Row(
@@ -789,142 +682,34 @@ class _VenuePickerModalState extends State<VenuePickerModal> {
     }
   }
 
-  void _showAddVenueDialog() {
-    final nameController = TextEditingController();
-    final addressController = TextEditingController();
-    final cityController = TextEditingController();
-    final stateController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Add New Venue'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: InputDecoration(
-                  labelText: 'Venue Name',
-                  hintText: 'Enter venue name',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              SizedBox(height: 16),
-              TextField(
-                controller: addressController,
-                decoration: InputDecoration(
-                  labelText: 'Address',
-                  hintText: 'Enter venue address',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: cityController,
-                      decoration: InputDecoration(
-                        labelText: 'City',
-                        hintText: 'City',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: stateController,
-                      decoration: InputDecoration(
-                        labelText: 'State',
-                        hintText: 'State',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+  void _showAddVenueDialog() async {
+    final result = await Navigator.of(context).push<Venue>(
+      MaterialPageRoute(
+        builder: (context) => AddVenueScreen(
+          onVenueAdded: (venue) {
+            // Refresh venues list
+            _refreshVenues();
+          },
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameController.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Venue name is required'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-                return;
-              }
-
-              try {
-                final venue = await VenueService.createVenue(
-                  name: nameController.text.trim(),
-                  address: addressController.text.trim().isNotEmpty
-                      ? addressController.text.trim()
-                      : null,
-                  city: cityController.text.trim().isNotEmpty
-                      ? cityController.text.trim()
-                      : null,
-                  state: stateController.text.trim().isNotEmpty
-                      ? stateController.text.trim()
-                      : null,
-                );
-
-                if (venue != null && mounted) {
-                  Navigator.of(context).pop(); // Close dialog
-                  Navigator.of(context).pop(venue); // Close modal with venue
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Failed to create venue'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Error creating venue: $e'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            },
-            child: Text('Add Venue'),
-          ),
-        ],
       ),
     );
+
+    if (result != null) {
+      Navigator.of(context).pop(result); // Close modal with venue
+    }
   }
 
   Widget _buildVenueTile(Venue venue) {
     return Card(
-      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      elevation: 4,
+      shadowColor: Colors.black.withOpacity(0.1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         onTap: () {
           Navigator.of(context).pop(venue);
         },
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: EdgeInsets.all(16),
           child: Row(
@@ -1165,7 +950,9 @@ class _VenuePickerModalState extends State<VenuePickerModal> {
     return Container(
       height: MediaQuery.of(context).size.height * 0.9,
       decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Colors.black87
+            : Color(0xFFF5F5F5),
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(

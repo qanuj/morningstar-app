@@ -666,7 +666,9 @@ class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal> {
     return Container(
       height: MediaQuery.of(context).size.height * 0.9,
       decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Colors.black87
+            : Color(0xFFF5F5F5),
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
