@@ -1,7 +1,7 @@
 // lib/models/transaction.dart
 class Transaction {
   final String id;
-  final String userId;
+  final String? userId;
   final String clubId;
   final double amount;
   final String type; // CREDIT or DEBIT
@@ -14,7 +14,7 @@ class Transaction {
 
   Transaction({
     required this.id,
-    required this.userId,
+    this.userId,
     required this.clubId,
     required this.amount,
     required this.type,

@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
 import 'dart:async';
 import '../../providers/user_provider.dart';
 import '../../models/club.dart';
+import '../../models/user.dart';
 import '../../models/club_message.dart';
 import '../../models/message_status.dart';
 import '../../models/message_reply.dart';
@@ -22,6 +24,11 @@ import '../../widgets/message_bubble_wrapper.dart';
 import '../../widgets/message_input.dart';
 import '../../widgets/chat_header.dart';
 import '../manage/manage_club.dart';
+import '../manage/club_matches.dart';
+import '../manage/club_transactions.dart';
+import '../manage/club_teams_screen.dart';
+import '../manage/contact_picker_screen.dart';
+import '../manage/add_members_screen.dart';
 import '../../providers/club_provider.dart';
 import '../../models/shared_content.dart';
 
@@ -823,62 +830,139 @@ class ClubChatScreenState extends State<ClubChatScreen>
   // Removed duplicate _mergeMessagesWithLocalData function - now using MessageStorageService.mergeMessagesWithLocalData
 
   void _showMoreOptions() async {
-    final isOfflineMode = await MessageStorageService.isOfflineMode(
-      widget.club.id,
-    );
-
     if (mounted) {
       showModalBottomSheet(
         context: context,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
         builder: (context) => Container(
           padding: EdgeInsets.all(16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Header
+              Container(
+                padding: EdgeInsets.only(bottom: 16),
+                child: Text(
+                  'Club Management',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).textTheme.titleLarge?.color,
+                  ),
+                ),
+              ),
+
+              // Add Members
               ListTile(
                 leading: Icon(
-                  isOfflineMode ? Icons.wifi_off : Icons.wifi,
-                  color: isOfflineMode ? Colors.orange : Colors.green,
+                  Icons.person_add,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
-                title: Text(
-                  isOfflineMode ? 'Offline Mode: ON' : 'Offline Mode: OFF',
-                ),
-                subtitle: Text(
-                  isOfflineMode
-                      ? 'No background sync, tap refresh to update'
-                      : 'Background sync enabled',
-                ),
+                title: Text('Add Members'),
+                subtitle: Text('Invite new members to the club'),
                 onTap: () {
                   Navigator.pop(context);
-                  _toggleOfflineMode(!isOfflineMode);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AddMembersScreen(
+                        club: widget.club,
+                        onContactsSelected: _processSelectedContacts,
+                        onSyncedContactsSelected: _processSelectedSyncedContacts,
+                      ),
+                    ),
+                  );
                 },
               ),
+
+              // Manage Club
               ListTile(
-                leading: Icon(Icons.info_outline),
-                title: Text('Storage Info'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showStorageInfo();
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.download),
-                title: Text('Download All Media'),
-                subtitle: Text(
-                  'Download images, audio, and documents for offline use',
+                leading: Icon(
+                  Icons.settings,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
+                title: Text('Manage Club'),
+                subtitle: Text('Club settings and configuration'),
                 onTap: () {
                   Navigator.pop(context);
-                  _downloadAllMedia();
+                  // Get membership for navigation
+                  final clubProvider = Provider.of<ClubProvider>(context, listen: false);
+                  final membership = clubProvider.clubs
+                      .where((m) => m.club.id == widget.club.id)
+                      .firstOrNull;
+
+                  if (membership != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ManageClubScreen(
+                          club: widget.club,
+                          membership: membership,
+                        ),
+                      ),
+                    );
+                  }
                 },
               ),
+
+              // Matches
               ListTile(
-                leading: Icon(Icons.clear_all),
-                title: Text('Clear Local Data'),
-                subtitle: Text('Clear messages and downloaded media'),
+                leading: Icon(
+                  Icons.sports_cricket,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                title: Text('Matches'),
+                subtitle: Text('View and manage club matches'),
                 onTap: () {
                   Navigator.pop(context);
-                  _clearLocalData();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          ClubMatchesScreen(club: widget.club),
+                    ),
+                  );
+                },
+              ),
+
+              // Transactions
+              ListTile(
+                leading: Icon(
+                  Icons.account_balance_wallet,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                title: Text('Transactions'),
+                subtitle: Text('Club financial transactions'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          ClubTransactionsScreen(club: widget.club),
+                    ),
+                  );
+                },
+              ),
+
+              // Teams
+              ListTile(
+                leading: Icon(
+                  Icons.groups,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                title: Text('Teams'),
+                subtitle: Text('Manage club teams'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ClubTeamsScreen(club: widget.club),
+                    ),
+                  );
                 },
               ),
             ],
@@ -886,6 +970,157 @@ class ClubChatScreenState extends State<ClubChatScreen>
         ),
       );
     }
+  }
+
+  void _showAddMemberOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Container(
+              padding: EdgeInsets.only(bottom: 16),
+              child: Text(
+                'Add Members',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).textTheme.titleLarge?.color,
+                ),
+              ),
+            ),
+
+            // From Contacts
+            ListTile(
+              leading: Icon(
+                Icons.contacts,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              title: Text('From Contacts'),
+              subtitle: Text('Select from your phone contacts'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ContactPickerScreen(
+                      onContactsSelected: (contacts) {
+                        // Handle selected contacts
+                        Navigator.pop(context);
+                        // Process the selected contacts for club invitation
+                        _processSelectedContacts(contacts);
+                      },
+                    ),
+                  ),
+                );
+              },
+            ),
+
+            // Enter Manually
+            ListTile(
+              leading: Icon(
+                Icons.edit,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              title: Text('Enter Manually'),
+              subtitle: Text('Create new contact and add to club'),
+              onTap: () {
+                Navigator.pop(context);
+                _showManualEntryDialog();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _processSelectedContacts(List<Contact> contacts) {
+    // TODO: Implement contact processing logic
+    // This would typically send invitations to the selected contacts
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Selected ${contacts.length} contact(s) for invitation'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+      ),
+    );
+  }
+
+  void _processSelectedSyncedContacts(List<SyncedContact> syncedContacts) {
+    // TODO: Implement synced contact processing logic
+    // This would typically add the selected Duggy users to the club
+    final duggyUsers = syncedContacts.where((c) => c.isDuggyUser).length;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Selected $duggyUsers Duggy user(s) to add to club'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+      ),
+    );
+  }
+
+  void _showManualEntryDialog() {
+    final nameController = TextEditingController();
+    final phoneController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Add Member Manually'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: InputDecoration(
+                labelText: 'Full Name',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            SizedBox(height: 16),
+            TextField(
+              controller: phoneController,
+              keyboardType: TextInputType.phone,
+              decoration: InputDecoration(
+                labelText: 'Phone Number',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (nameController.text.isNotEmpty &&
+                  phoneController.text.isNotEmpty) {
+                Navigator.pop(context);
+                _addMemberManually(nameController.text, phoneController.text);
+              }
+            },
+            child: Text('Add Member'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _addMemberManually(String name, String phone) {
+    // TODO: Implement manual member addition logic
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Added $name ($phone) to club'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+      ),
+    );
   }
 
   Future<void> _toggleOfflineMode(bool enabled) async {
@@ -2077,8 +2312,10 @@ class ClubChatScreenState extends State<ClubChatScreen>
   void _navigateToManageClub(ClubMembership membership) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) =>
-            ManageClubScreen(club: widget.club, membership: membership),
+        builder: (_) => ManageClubScreen(
+          club: widget.club,
+          membership: membership,
+        ),
       ),
     );
   }

@@ -13,6 +13,7 @@ import '../transactions/bulk_transaction_screen.dart';
 import '../points/bulk_points_screen.dart';
 import 'club_member_manage.dart';
 import 'contact_picker_screen.dart';
+import 'add_members_screen.dart';
 import 'manual_add_member_screen.dart';
 
 class EnhancedClubMembersScreen extends StatefulWidget {
@@ -345,73 +346,14 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
   }
 
   Future<void> _showAddMemberOptions() async {
-    showModalBottomSheet(
-      context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Container(
-        padding: EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Handle bar
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            SizedBox(height: 20),
-
-            Text(
-              'Add New Member',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-            ),
-            SizedBox(height: 24),
-
-            // From Contacts Option
-            ListTile(
-              leading: Container(
-                padding: EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Color(0xFF003f9b).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(Icons.contacts, color: Color(0xFF003f9b)),
-              ),
-              title: Text('From Contacts'),
-              subtitle: Text('Select from your phone contacts'),
-              onTap: () {
-                Navigator.pop(context);
-                _showAddMemberFromContacts();
-              },
-            ),
-
-            SizedBox(height: 8),
-
-            // Manual Entry Option
-            ListTile(
-              leading: Container(
-                padding: EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(Icons.person_add, color: Colors.green),
-              ),
-              title: Text('Enter Manually'),
-              subtitle: Text('Add member details manually'),
-              onTap: () {
-                Navigator.pop(context);
-                _showManualAddMember();
-              },
-            ),
-
-            SizedBox(height: 16),
-          ],
+    // Directly navigate to the new AddMembersScreen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddMembersScreen(
+          club: widget.club,
+          onContactsSelected: _addMembersFromContacts,
+          onSyncedContactsSelected: _addSyncedContacts,
         ),
       ),
     );
@@ -557,8 +499,11 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-            ContactPickerScreen(onContactsSelected: _addMembersFromContacts),
+        builder: (context) => AddMembersScreen(
+          club: widget.club,
+          onContactsSelected: _addMembersFromContacts,
+          onSyncedContactsSelected: _addSyncedContacts,
+        ),
       ),
     );
   }
@@ -716,6 +661,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
               '',
             ), // Clean phone number
             'clubId': widget.club.id,
+            'role': 'member', // Set default role as member
           };
 
           final response = await ApiService.post('/members', memberData);
@@ -760,6 +706,141 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     } catch (e) {
       Navigator.pop(context); // Close progress dialog
       _showErrorSnackBar('Failed to add members: $e');
+    }
+  }
+
+  Future<void> _addSyncedContacts(List<SyncedContact> selectedSyncedContacts) async {
+    // Filter to only Duggy users who can be added
+    final selectedUsers = selectedSyncedContacts
+        .where((contact) => contact.isDuggyUser && contact.canBeAdded)
+        .toList();
+    if (selectedUsers.isEmpty) return;
+
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Add ${selectedUsers.length} Duggy Users'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Add the following Duggy users as club members:'),
+                SizedBox(height: 12),
+                ...selectedUsers
+                    .take(5)
+                    .map(
+                      (contact) => Text(
+                        '• ${contact.name}',
+                        style: TextStyle(fontSize: 14),
+                      ),
+                    ),
+                if (selectedUsers.length > 5)
+                  Text('... and ${selectedUsers.length - 5} more'),
+                SizedBox(height: 12),
+                Text(
+                  'All users will be added with "Member" role.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xFF003f9b),
+                  foregroundColor: Colors.white,
+                ),
+                child: Text('Add Members'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!confirmed) return;
+
+    // Show progress dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(color: Color(0xFF003f9b)),
+            SizedBox(height: 16),
+            Text('Adding ${selectedUsers.length} Duggy users...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      // For multiple users, make individual API calls
+      List<Map<String, dynamic>> results = [];
+      List<String> errors = [];
+
+      for (final contact in selectedUsers) {
+        try {
+          final memberData = {
+            'userId': contact.userId, // Use userId for existing Duggy users
+            'clubId': widget.club.id,
+            'role': 'member', // Set default role as member
+          };
+          final response = await ApiService.post('/members', memberData);
+          results.add(response);
+        } catch (e) {
+          errors.add('Failed to add ${contact.name}: $e');
+        }
+      }
+
+      // Create a response structure
+      final response = {'success': true, 'added': results, 'errors': errors};
+      Navigator.pop(context); // Close progress dialog
+
+      // Handle the response
+      if (response['success'] == true) {
+        final List<dynamic> addedList = (response['added'] as List<dynamic>?) ?? [];
+        final List<dynamic> errorsList = (response['errors'] as List<dynamic>?) ?? [];
+        final addedCount = addedList.length;
+
+        if (errorsList.isNotEmpty) {
+          // Show both success and error message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Added $addedCount of ${selectedUsers.length} users. ${errorsList.length} failed.',
+              ),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        } else {
+          // All successful
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Successfully added $addedCount Duggy users!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+        // Refresh the members list
+        _loadMembers(refresh: true);
+      } else {
+        throw Exception('Failed to add Duggy users');
+      }
+    } catch (e) {
+      Navigator.pop(context); // Close progress dialog
+      _showErrorSnackBar('Failed to add Duggy users: $e');
     }
   }
 

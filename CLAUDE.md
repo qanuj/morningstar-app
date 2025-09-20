@@ -597,3 +597,4 @@ enum OwnerTabs {
 ---
 
 This comprehensive guide ensures the Flutter app achieves 100% feature parity with the web application while providing a superior mobile experience. Each phase builds upon the previous, ensuring stable and progressive development.
+- do not dun flutter on device. I'll run myself.

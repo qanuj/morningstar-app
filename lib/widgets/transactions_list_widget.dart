@@ -22,7 +22,7 @@ class TransactionsListWidget extends StatelessWidget {
   final Function(Transaction)? onTransactionTap;
 
   const TransactionsListWidget({
-    Key? key,
+    super.key,
     required this.transactions,
     required this.listType,
     this.isLoadingMore = false,
@@ -32,7 +32,7 @@ class TransactionsListWidget extends StatelessWidget {
     this.padding,
     this.showDateHeaders = true,
     this.onTransactionTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
