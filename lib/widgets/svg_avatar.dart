@@ -229,7 +229,18 @@ class SVGAvatar extends StatelessWidget {
       future: MediaStorageService.getCachedMediaPath(imageUrl!),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return _buildFallback(context);
+          // Show a loading placeholder with consistent dimensions
+          return Container(
+            width: size,
+            height: size,
+            color: Colors.grey[300],
+            child: Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.grey[600],
+              ),
+            ),
+          );
         }
 
         if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
@@ -283,7 +294,21 @@ class SVGAvatar extends StatelessWidget {
                   _buildFallback(context),
               loadingBuilder: (context, child, loadingProgress) {
                 if (loadingProgress == null) return child;
-                return _buildFallback(context);
+                return Container(
+                  width: size,
+                  height: size,
+                  color: Colors.grey[300],
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.grey[600],
+                      value: loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!
+                          : null,
+                    ),
+                  ),
+                );
               },
             );
           }
