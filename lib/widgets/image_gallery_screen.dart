@@ -97,23 +97,30 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
 
       try {
         // Try to get cached local file first
-        final localPath = await MediaStorageService.getCachedMediaPath(imageUrl);
+        final localPath = await MediaStorageService.getCachedMediaPath(
+          imageUrl,
+        );
 
         if (localPath != null) {
-          // Share the local cached file
+          // Share the local cached file with proper positioning for iOS
           await Share.shareXFiles(
             [XFile(localPath)],
             subject: 'Shared image from Duggy',
+            sharePositionOrigin: Rect.fromLTWH(0, 0, 100, 100),
           );
         } else {
           // Fallback to sharing URL if no local file
-          await Share.shareUri(Uri.parse(imageUrl));
+          await Share.shareUri(
+            Uri.parse(imageUrl),
+            sharePositionOrigin: Rect.fromLTWH(0, 0, 100, 100),
+          );
         }
       } catch (e) {
         // Final fallback to sharing as text URL
         await Share.share(
           imageUrl,
           subject: 'Shared image from Duggy',
+          sharePositionOrigin: Rect.fromLTWH(0, 0, 100, 100),
         );
       }
     }
@@ -175,47 +182,46 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                   icon: Icon(Icons.share, color: Colors.white),
                   onPressed: () => _shareCurrentImage(),
                 ),
-                IconButton(
-                  icon: Icon(Icons.more_vert, color: Colors.white),
-                  onPressed: () {
-                    // TODO: Show more options
-                  },
-                ),
               ],
             )
           : null,
       body: Stack(
         children: [
-          // Image PageView
-          PageView.builder(
-            controller: _pageController,
-            itemCount: _allImages.length,
-            onPageChanged: (index) {
-              setState(() {
-                _currentIndex = index;
-              });
-            },
-            itemBuilder: (context, index) {
-              final imageWithMessage = _allImages[index];
-              return GestureDetector(
-                onTap: _toggleAppBarVisibility,
-                child: Center(
-                  child: Hero(
-                    tag: 'image_${imageWithMessage.image}',
-                    child: InteractiveViewer(
-                      minScale: 0.8,
-                      maxScale: 4.0,
-                      child: SVGAvatar.image(
-                        imageUrl: imageWithMessage.image,
-                        width: MediaQuery.of(context).size.width,
-                        height: MediaQuery.of(context).size.height,
-                        fit: BoxFit.contain,
+          // Image PageView - positioned to give more height
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0, // Reduce bottom space to give more height to image
+            child: PageView.builder(
+              controller: _pageController,
+              itemCount: _allImages.length,
+              onPageChanged: (index) {
+                setState(() {
+                  _currentIndex = index;
+                });
+              },
+              itemBuilder: (context, index) {
+                final imageWithMessage = _allImages[index];
+                return GestureDetector(
+                  onTap: _toggleAppBarVisibility,
+                  child: Center(
+                    child: Hero(
+                      tag: 'image_${imageWithMessage.image}',
+                      child: InteractiveViewer(
+                        minScale: 0.8,
+                        maxScale: 5.0,
+                        child: SVGAvatar.image(
+                          imageUrl: imageWithMessage.image,
+                          width: MediaQuery.of(context).size.width,
+                          height: MediaQuery.of(context).size.height,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
 
           // Bottom caption overlay
