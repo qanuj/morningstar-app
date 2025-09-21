@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 import 'dart:async';
 import 'package:logger/logger.dart' show Level;
@@ -43,6 +44,22 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
   void initState() {
     super.initState();
     _initializeRecorder();
+    _checkInitialPermissions();
+  }
+
+  Future<void> _checkInitialPermissions() async {
+    try {
+      final status = await Permission.microphone.status;
+      if (status.isPermanentlyDenied) {
+        print('⚠️ Microphone permission is permanently denied');
+      } else if (status.isDenied) {
+        print('⚠️ Microphone permission is not granted');
+      } else {
+        print('✅ Microphone permission is granted');
+      }
+    } catch (e) {
+      print('❌ Error checking microphone permission: $e');
+    }
   }
 
   Future<void> _initializeRecorder() async {
@@ -51,6 +68,59 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
     } catch (e) {
       print('Error initializing recorder: $e');
     }
+  }
+
+  Future<bool> _requestMicrophonePermission() async {
+    try {
+      PermissionStatus permission = await Permission.microphone.status;
+
+      if (permission.isDenied) {
+        permission = await Permission.microphone.request();
+      }
+
+      if (permission.isPermanentlyDenied) {
+        // Show dialog to open settings
+        await _showPermissionDialog();
+        return false;
+      }
+
+      return permission.isGranted;
+    } catch (e) {
+      print('Error requesting microphone permission: $e');
+      return false;
+    }
+  }
+
+  Future<void> _showPermissionDialog() async {
+    if (!mounted) return;
+
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Microphone Permission Required'),
+          content: Text(
+            'This app needs microphone access to record audio messages. Please grant microphone permission in your device settings.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: Text('Open Settings'),
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await openAppSettings();
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -62,6 +132,13 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
 
   Future<void> _startVoiceRecording() async {
     if (_isRecording || _hasRecording) return;
+
+    // Check microphone permission first
+    bool hasPermission = await _requestMicrophonePermission();
+    if (!hasPermission) {
+      print('❌ Microphone permission denied. Cannot start recording.');
+      return;
+    }
 
     // Reset time tracking immediately at the start
     _recordingDuration = Duration.zero;
@@ -117,13 +194,24 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
       });
 
       HapticFeedback.mediumImpact();
-      print('Recording started successfully to: $_audioPath');
+      print('✅ Recording started successfully to: $_audioPath');
     } catch (e) {
-      print('Error starting recording: $e');
+      print('❌ Error starting recording: $e');
       setState(() {
         _isRecording = false;
       });
-      _showErrorDialog('Failed to start recording: ${e.toString()}');
+
+      // Provide specific error messages for common issues
+      String errorMessage = 'Failed to start recording.';
+      if (e.toString().contains('permission')) {
+        errorMessage = 'Microphone permission is required to record audio.';
+      } else if (e.toString().contains('busy') || e.toString().contains('occupied')) {
+        errorMessage = 'Microphone is being used by another app. Please close other apps and try again.';
+      } else if (e.toString().contains('audio session')) {
+        errorMessage = 'Audio recording is not available. Please restart the app and try again.';
+      }
+
+      _showErrorDialog(errorMessage);
     }
   }
 

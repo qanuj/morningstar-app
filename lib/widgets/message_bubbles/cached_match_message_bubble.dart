@@ -875,31 +875,40 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
 
     return Row(
       children: [
-        _buildRsvpButton(
-          context,
-          label: 'In',
-          status: 'YES',
-          count: counts['YES'] ?? 0,
-          color: Color(0xFF4CAF50),
-          isDisabled: isCancelled,
+        Expanded(
+          flex: 5, // 50% of the width
+          child: _buildRsvpButton(
+            context,
+            label: 'In',
+            status: 'YES',
+            count: counts['YES'] ?? 0,
+            color: Color(0xFF4CAF50),
+            isDisabled: isCancelled,
+          ),
         ),
         SizedBox(width: 8),
-        _buildRsvpButton(
-          context,
-          label: 'Out',
-          status: 'NO',
-          count: counts['NO'] ?? 0,
-          color: Color(0xFFFF5722),
-          isDisabled: isCancelled,
+        Expanded(
+          flex: 3, // 30% of the width
+          child: _buildRsvpButton(
+            context,
+            label: 'Out',
+            status: 'NO',
+            count: counts['NO'] ?? 0,
+            color: Color(0xFFFF5722),
+            isDisabled: isCancelled,
+          ),
         ),
         SizedBox(width: 8),
-        _buildRsvpButton(
-          context,
-          label: 'Maybe',
-          status: 'MAYBE',
-          count: counts['MAYBE'] ?? 0,
-          color: Color(0xFFFF9800),
-          isDisabled: isCancelled,
+        Expanded(
+          flex: 2, // 20% of the width
+          child: _buildRsvpButton(
+            context,
+            label: 'Maybe',
+            status: 'MAYBE',
+            count: counts['MAYBE'] ?? 0,
+            color: Color(0xFFFF9800),
+            isDisabled: isCancelled,
+          ),
         ),
       ],
     );
@@ -953,10 +962,11 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
             ? Colors.white
             : theme.textTheme.labelLarge?.color ?? theme.colorScheme.onSurfaceVariant;
 
-    return Expanded(
-      child: Stack(
-        children: [
-          ElevatedButton(
+    return Stack(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
             onPressed: isDisabled ? null : () => _handleDirectRSVP(context, status),
             style: ElevatedButton.styleFrom(
               elevation: isSelected ? 2 : 0,
@@ -970,37 +980,37 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
               style: TextStyle(fontWeight: FontWeight.w600, letterSpacing: 0.4),
             ),
           ),
-          if (count > 0)
-            Positioned(
-              right: 6,
-              top: 6,
-              child: Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: count > 99 ? 6 : 8,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: isSelected ? Colors.white : color,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isSelected ? color : Colors.white,
-                    width: 1.5,
-                  ),
-                ),
-                constraints: BoxConstraints(minWidth: 20, minHeight: 20),
-                child: Text(
-                  count > 99 ? '99+' : count.toString(),
-                  style: TextStyle(
-                    color: isSelected ? color : Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  textAlign: TextAlign.center,
+        ),
+        if (count > 0)
+          Positioned(
+            right: 6,
+            top: 6,
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: count > 99 ? 6 : 8,
+                vertical: 4,
+              ),
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.white : color,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isSelected ? color : Colors.white,
+                  width: 1.5,
                 ),
               ),
+              constraints: BoxConstraints(minWidth: 20, minHeight: 20),
+              child: Text(
+                count > 99 ? '99+' : count.toString(),
+                style: TextStyle(
+                  color: isSelected ? color : Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 
