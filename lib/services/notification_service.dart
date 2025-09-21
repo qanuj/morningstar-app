@@ -8,46 +8,50 @@ import '../services/auth_service.dart';
 import '../providers/club_provider.dart';
 
 class NotificationService {
-  static final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
-  static final FlutterLocalNotificationsPlugin _localNotifications = 
+  static final FirebaseMessaging _firebaseMessaging =
+      FirebaseMessaging.instance;
+  static final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
-  
+
   static String? _fcmToken;
-  
+
   // Callbacks for real-time message updates by club
-  static final Map<String, Function(Map<String, dynamic>)> _clubMessageCallbacks = {};
+  static final Map<String, Function(Map<String, dynamic>)>
+  _clubMessageCallbacks = {};
 
   // Callbacks for match-specific updates (e.g., RSVP changes)
-  static final Map<String, List<Function(Map<String, dynamic>)>> _matchUpdateCallbacks = {};
-  
+  static final Map<String, List<Function(Map<String, dynamic>)>>
+  _matchUpdateCallbacks = {};
+
   // Global club provider reference for updating clubs list
   static ClubProvider? _clubProvider;
-  
+
   // Notification channel details
   static const String _channelId = 'duggy_notifications';
   static const String _channelName = 'Duggy Notifications';
-  static const String _channelDescription = 'Notifications from Duggy cricket club app';
+  static const String _channelDescription =
+      'Notifications from Duggy cricket club app';
 
   /// Initialize push notifications
   static Future<void> initialize() async {
     print('🔔 Initializing NotificationService...');
-    
+
     try {
       // Initialize local notifications
       await _initializeLocalNotifications();
-      
+
       // Request notification permissions
       await _requestPermissions();
-      
+
       // Initialize Firebase messaging
       await _initializeFirebaseMessaging();
-      
+
       // Get and save FCM token
       await _getFCMToken();
-      
+
       // Setup message handlers
       _setupMessageHandlers();
-      
+
       print('✅ NotificationService initialized successfully');
     } catch (e) {
       print('❌ Failed to initialize NotificationService: $e');
@@ -58,19 +62,19 @@ class NotificationService {
   static Future<void> _initializeLocalNotifications() async {
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@drawable/ic_notification');
-    
+
     const DarwinInitializationSettings initializationSettingsIOS =
         DarwinInitializationSettings(
-      requestSoundPermission: true,
-      requestBadgePermission: true,
-      requestAlertPermission: true,
-    );
-    
+          requestSoundPermission: true,
+          requestBadgePermission: true,
+          requestAlertPermission: true,
+        );
+
     const InitializationSettings initializationSettings =
         InitializationSettings(
-      android: initializationSettingsAndroid,
-      iOS: initializationSettingsIOS,
-    );
+          android: initializationSettingsAndroid,
+          iOS: initializationSettingsIOS,
+        );
 
     await _localNotifications.initialize(
       initializationSettings,
@@ -80,7 +84,9 @@ class NotificationService {
     // Create notification channel for Android
     if (Platform.isAndroid) {
       await _localNotifications
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >()
           ?.createNotificationChannel(
             const AndroidNotificationChannel(
               _channelId,
@@ -98,22 +104,23 @@ class NotificationService {
   static Future<void> _requestPermissions() async {
     if (Platform.isIOS) {
       // Request iOS notification permissions
-      NotificationSettings settings = await _firebaseMessaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-        carPlay: false,
-        criticalAlert: false,
-        provisional: false,
-        announcement: false,
-      );
-      
+      NotificationSettings settings = await _firebaseMessaging
+          .requestPermission(
+            alert: true,
+            badge: true,
+            sound: true,
+            carPlay: false,
+            criticalAlert: false,
+            provisional: false,
+            announcement: false,
+          );
+
       if (settings.authorizationStatus == AuthorizationStatus.denied) {
         print('⚠️ iOS notification permission denied');
         return;
       }
     }
-    
+
     if (Platform.isAndroid) {
       // Request Android notification permission (API 33+)
       final status = await Permission.notification.request();
@@ -127,7 +134,7 @@ class NotificationService {
   static Future<void> _initializeFirebaseMessaging() async {
     // Enable auto initialization
     await _firebaseMessaging.setAutoInitEnabled(true);
-    
+
     // Set foreground notification presentation options for iOS
     await _firebaseMessaging.setForegroundNotificationPresentationOptions(
       alert: true,
@@ -151,7 +158,9 @@ class NotificationService {
             await Future.delayed(const Duration(seconds: 2));
             apnsToken = await _firebaseMessaging.getAPNSToken();
             if (apnsToken != null) {
-              print('🍎 APNS Token received after delay: ${apnsToken.substring(0, 20)}...');
+              print(
+                '🍎 APNS Token received after delay: ${apnsToken.substring(0, 20)}...',
+              );
             } else {
               print('❌ APNS Token still not available after delay');
             }
@@ -160,13 +169,13 @@ class NotificationService {
           print('⚠️ Failed to get APNS token: $e');
         }
       }
-      
+
       _fcmToken = await _firebaseMessaging.getToken();
       if (_fcmToken != null) {
         print('📱 FCM Token: $_fcmToken');
         // Don't send token to server during initialization - will be sent after login
       }
-      
+
       // Listen for token refresh
       _firebaseMessaging.onTokenRefresh.listen((newToken) {
         print('🔄 FCM Token refreshed: $newToken');
@@ -215,7 +224,10 @@ class NotificationService {
   }
 
   /// Send FCM token to server with provided user data (avoids additional API call)
-  static Future<void> _sendTokenToServerWithUserData(String token, Map<String, dynamic>? userData) async {
+  static Future<void> _sendTokenToServerWithUserData(
+    String token,
+    Map<String, dynamic>? userData,
+  ) async {
     try {
       if (userData != null && userData['id'] != null) {
         await ApiService.post('/notifications/register-token', {
@@ -235,7 +247,9 @@ class NotificationService {
   }
 
   /// Register FCM token after user authentication with user data
-  static Future<void> registerTokenAfterAuth({Map<String, dynamic>? userData}) async {
+  static Future<void> registerTokenAfterAuth({
+    Map<String, dynamic>? userData,
+  }) async {
     try {
       if (_fcmToken != null) {
         await _sendTokenToServerWithUserData(_fcmToken!, userData);
@@ -255,7 +269,7 @@ class NotificationService {
   static void _setupMessageHandlers() {
     // Handle background messages
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-    
+
     // Handle foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       print('📨 Received foreground message: ${message.messageId}');
@@ -342,7 +356,10 @@ class NotificationService {
   }
 
   /// Handle club message notifications
-  static Future<void> _handleClubMessageNotification(RemoteMessage message, {required bool inForeground}) async {
+  static Future<void> _handleClubMessageNotification(
+    RemoteMessage message, {
+    required bool inForeground,
+  }) async {
     final data = message.data;
     print('💬 Handling club message notification: $data');
 
@@ -354,12 +371,12 @@ class NotificationService {
     final createdAt = data['createdAt'] as String?;
 
     // Update club provider with latest message if available
-    if (_clubProvider != null && 
-        clubId != null && 
-        messageId != null && 
-        messageContent != null && 
-        senderName != null && 
-        senderId != null && 
+    if (_clubProvider != null &&
+        clubId != null &&
+        messageId != null &&
+        messageContent != null &&
+        senderName != null &&
+        senderId != null &&
         createdAt != null) {
       try {
         final messageDateTime = DateTime.parse(createdAt);
@@ -380,7 +397,9 @@ class NotificationService {
 
     // Always trigger the callback if registered, regardless of foreground/background state
     if (clubId != null && _clubMessageCallbacks.containsKey(clubId)) {
-      print('🔄 Triggering real-time chat update via callback for club: $clubId');
+      print(
+        '🔄 Triggering real-time chat update via callback for club: $clubId',
+      );
       _clubMessageCallbacks[clubId]!(data);
     } else {
       print('ℹ️ No club message callback registered for club: $clubId');
@@ -419,7 +438,10 @@ class NotificationService {
   }
 
   /// Handle match RSVP notifications
-  static Future<void> _handleMatchRsvpNotification(RemoteMessage message, {required bool inForeground}) async {
+  static Future<void> _handleMatchRsvpNotification(
+    RemoteMessage message, {
+    required bool inForeground,
+  }) async {
     final data = message.data;
     print('🏏 Handling match RSVP notification: $data');
 
@@ -460,12 +482,12 @@ class NotificationService {
   /// Handle notification tapped - navigate to appropriate screen
   static void _handleNotificationTapped(Map<String, dynamic> data) {
     print('📱 Handling notification tap with data: $data');
-    
+
     final type = data['type'] as String?;
     final clubId = data['clubId'] as String?;
     final matchId = data['matchId'] as String?;
     final orderId = data['orderId'] as String?;
-    
+
     // TODO: Implement navigation based on notification type
     switch (type) {
       case 'club_message':
@@ -509,7 +531,8 @@ class NotificationService {
   /// Show permission request dialog
   static Future<bool> requestNotificationPermission() async {
     if (Platform.isIOS) {
-      NotificationSettings settings = await _firebaseMessaging.requestPermission();
+      NotificationSettings settings = await _firebaseMessaging
+          .requestPermission();
       return settings.authorizationStatus == AuthorizationStatus.authorized;
     } else {
       final status = await Permission.notification.request();
@@ -540,21 +563,18 @@ class NotificationService {
   /// Subscribe to club-specific topics
   static Future<void> subscribeToClubTopics(String clubId) async {
     await subscribeToTopic('club_$clubId');
-    await subscribeToTopic('club_${clubId}_matches');
-    await subscribeToTopic('club_${clubId}_orders');
-    await subscribeToTopic('club_${clubId}_announcements');
   }
 
   /// Unsubscribe from club-specific topics
   static Future<void> unsubscribeFromClubTopics(String clubId) async {
     await unsubscribeFromTopic('club_$clubId');
-    await unsubscribeFromTopic('club_${clubId}_matches');
-    await unsubscribeFromTopic('club_${clubId}_orders');
-    await unsubscribeFromTopic('club_${clubId}_announcements');
   }
 
   /// Set callback for real-time club message updates
-  static void setClubMessageCallback(String clubId, Function(Map<String, dynamic>) callback) {
+  static void setClubMessageCallback(
+    String clubId,
+    Function(Map<String, dynamic>) callback,
+  ) {
     _clubMessageCallbacks[clubId] = callback;
     print('✅ Club message callback registered for club: $clubId');
   }
@@ -572,7 +592,9 @@ class NotificationService {
       return;
     }
 
-    print('🔄 Dispatching match update to ${callbacks.length} listener(s) for match: $matchId');
+    print(
+      '🔄 Dispatching match update to ${callbacks.length} listener(s) for match: $matchId',
+    );
     final snapshot = List<Function(Map<String, dynamic>)>.from(callbacks);
     for (final callback in snapshot) {
       try {
@@ -590,7 +612,9 @@ class NotificationService {
   ) {
     final callbacks = _matchUpdateCallbacks.putIfAbsent(matchId, () => []);
     callbacks.add(callback);
-    print('✅ Match update callback registered for match: $matchId (total: ${callbacks.length})');
+    print(
+      '✅ Match update callback registered for match: $matchId (total: ${callbacks.length})',
+    );
   }
 
   /// Remove a previously registered match update callback
@@ -608,7 +632,9 @@ class NotificationService {
       _matchUpdateCallbacks.remove(matchId);
     }
 
-    print('🗑️ Match update callback removed for match: $matchId (remaining: ${_matchUpdateCallbacks[matchId]?.length ?? 0})');
+    print(
+      '🗑️ Match update callback removed for match: $matchId (remaining: ${_matchUpdateCallbacks[matchId]?.length ?? 0})',
+    );
   }
 
   /// Clear all callbacks
@@ -637,13 +663,14 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   print('📨 Title: ${message.notification?.title}');
   print('📨 Body: ${message.notification?.body}');
   print('📨 Data: ${message.data}');
-  
+
   // Handle club message notifications in background
   if (message.data['type'] == 'club_message') {
     print('💬 Background club message notification received');
     // Trigger callback if registered (though it usually won't be in background)
     final clubId = message.data['clubId'] as String?;
-    if (clubId != null && NotificationService._clubMessageCallbacks.containsKey(clubId)) {
+    if (clubId != null &&
+        NotificationService._clubMessageCallbacks.containsKey(clubId)) {
       print('🔄 Triggering callback from background for club: $clubId');
       NotificationService._clubMessageCallbacks[clubId]!(message.data);
     }
