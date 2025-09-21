@@ -3,6 +3,7 @@ import '../../models/club_message.dart';
 import '../../models/message_status.dart';
 import 'base_message_bubble.dart';
 import '../image_gallery_screen.dart';
+import '../svg_avatar.dart';
 
 /// Text message bubble - renders images/videos first, then text body below
 class TextMessageBubble extends StatelessWidget {
@@ -128,6 +129,7 @@ class TextMessageBubble extends StatelessWidget {
   Widget _buildSingleImage(BuildContext context, String imageUrl) {
     return GestureDetector(
       onTap: () => _openImageGallery(context, 0),
+      behavior: HitTestBehavior.opaque,
       child: Container(
         constraints: BoxConstraints(
           maxHeight: 300,
@@ -135,28 +137,10 @@ class TextMessageBubble extends StatelessWidget {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          child: Image.network(
-            imageUrl,
-            fit: BoxFit.cover,
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) return child;
-              return Container(
-                height: 200,
-                child: Center(
-                  child: CircularProgressIndicator(
-                    value: loadingProgress.expectedTotalBytes != null
-                        ? loadingProgress.cumulativeBytesLoaded /
-                              loadingProgress.expectedTotalBytes!
-                        : null,
-                  ),
-                ),
-              );
-            },
-            errorBuilder: (context, error, stackTrace) => Container(
-              height: 200,
-              color: Colors.grey[300],
-              child: Icon(Icons.broken_image, size: 48),
-            ),
+          child: SVGAvatar.image(
+            imageUrl: imageUrl,
+            width: 200,
+            height: 200,
           ),
         ),
       ),
@@ -173,7 +157,11 @@ class TextMessageBubble extends StatelessWidget {
               onTap: () => _openImageGallery(context, 0),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.network(images[0], fit: BoxFit.cover),
+                child: SVGAvatar.image(
+                  imageUrl: images[0],
+                  width: 200,
+                  height: 200,
+                ),
               ),
             ),
           ),
@@ -183,7 +171,11 @@ class TextMessageBubble extends StatelessWidget {
               onTap: () => _openImageGallery(context, 1),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.network(images[1], fit: BoxFit.cover),
+                child: SVGAvatar.image(
+                  imageUrl: images[1],
+                  width: 200,
+                  height: 200,
+                ),
               ),
             ),
           ),
@@ -203,7 +195,11 @@ class TextMessageBubble extends StatelessWidget {
               onTap: () => _openImageGallery(context, 0),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.network(images[0], fit: BoxFit.cover),
+                child: SVGAvatar.image(
+                  imageUrl: images[0],
+                  width: 200,
+                  height: 200,
+                ),
               ),
             ),
           ),
@@ -216,7 +212,11 @@ class TextMessageBubble extends StatelessWidget {
                     onTap: () => _openImageGallery(context, 1),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.network(images[1], fit: BoxFit.cover),
+                      child: SVGAvatar.image(
+                        imageUrl: images[1],
+                        width: 200,
+                        height: 200,
+                      ),
                     ),
                   ),
                 ),
@@ -226,7 +226,11 @@ class TextMessageBubble extends StatelessWidget {
                     onTap: () => _openImageGallery(context, 2),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.network(images[2], fit: BoxFit.cover),
+                      child: SVGAvatar.image(
+                        imageUrl: images[2],
+                        width: 200,
+                        height: 200,
+                      ),
                     ),
                   ),
                 ),
@@ -259,11 +263,10 @@ class TextMessageBubble extends StatelessWidget {
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),
-                    child: Image.network(
-                      images[index],
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
+                    child: SVGAvatar.image(
+                      imageUrl: images[index],
+                      width: 200,
+                      height: 200,
                     ),
                   ),
                   Container(
@@ -291,13 +294,10 @@ class TextMessageBubble extends StatelessWidget {
             onTap: () => _openImageGallery(context, index),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                images[index],
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  color: Colors.grey[300],
-                  child: Icon(Icons.broken_image),
-                ),
+              child: SVGAvatar.image(
+                imageUrl: images[index],
+                width: 200,
+                height: 200,
               ),
             ),
           );
@@ -314,8 +314,12 @@ class TextMessageBubble extends StatelessWidget {
       decoration: BoxDecoration(
         color: isOwn
             ? (Theme.of(context).brightness == Brightness.dark
-                  ? Colors.white.withOpacity(0.1) // Light overlay on blue background in dark mode
-                  : Colors.black.withOpacity(0.05)) // Subtle dark overlay on light cyan in light mode
+                  ? Colors.white.withOpacity(
+                      0.1,
+                    ) // Light overlay on blue background in dark mode
+                  : Colors.black.withOpacity(
+                      0.05,
+                    )) // Subtle dark overlay on light cyan in light mode
             : Colors.grey.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
       ),
@@ -325,8 +329,10 @@ class TextMessageBubble extends StatelessWidget {
             _getDocumentIcon(doc.filename),
             color: isOwn
                 ? (Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white // White icons on blue background in dark mode
-                      : Colors.black87) // Dark icons on light cyan background in light mode
+                      ? Colors
+                            .white // White icons on blue background in dark mode
+                      : Colors
+                            .black87) // Dark icons on light cyan background in light mode
                 : Theme.of(context).primaryColor,
             size: 20,
           ),
@@ -342,8 +348,10 @@ class TextMessageBubble extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                     color: isOwn
                         ? (Theme.of(context).brightness == Brightness.dark
-                              ? Colors.white // White text on blue background in dark mode
-                              : Colors.black87) // Black text on light cyan background in light mode
+                              ? Colors
+                                    .white // White text on blue background in dark mode
+                              : Colors
+                                    .black87) // Black text on light cyan background in light mode
                         : Colors.black87,
                   ),
                   maxLines: 1,
@@ -356,8 +364,10 @@ class TextMessageBubble extends StatelessWidget {
                       fontSize: 12,
                       color: isOwn
                           ? (Theme.of(context).brightness == Brightness.dark
-                                ? Colors.white70 // Light white text on blue background in dark mode
-                                : Colors.black54) // Dark text on light cyan background in light mode
+                                ? Colors
+                                      .white70 // Light white text on blue background in dark mode
+                                : Colors
+                                      .black54) // Dark text on light cyan background in light mode
                           : Colors.grey[600],
                     ),
                   ),
@@ -368,8 +378,10 @@ class TextMessageBubble extends StatelessWidget {
             Icons.download,
             color: isOwn
                 ? (Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white // White icons on blue background in dark mode
-                      : Colors.black87) // Dark icons on light cyan background in light mode
+                      ? Colors
+                            .white // White icons on blue background in dark mode
+                      : Colors
+                            .black87) // Dark icons on light cyan background in light mode
                 : Theme.of(context).primaryColor,
             size: 16,
           ),
@@ -418,7 +430,9 @@ class TextMessageBubble extends StatelessWidget {
         left: 4,
         right: 4,
         top: 4,
-        bottom: isLastFromSender ? 0 : 4, // Remove bottom padding for last message to allow shadow space
+        bottom: isLastFromSender
+            ? 0
+            : 4, // Remove bottom padding for last message to allow shadow space
       ),
       child: Text(
         message.content,
@@ -426,8 +440,10 @@ class TextMessageBubble extends StatelessWidget {
           fontSize: 14,
           color: isOwn
               ? (Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white // White text on blue background in dark mode
-                    : Colors.black87) // Black text on light cyan background in light mode
+                    ? Colors
+                          .white // White text on blue background in dark mode
+                    : Colors
+                          .black87) // Black text on light cyan background in light mode
               : (Theme.of(context).brightness == Brightness.dark
                     ? Colors.white
                     : Colors.black87),

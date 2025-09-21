@@ -153,16 +153,16 @@ class SVGAvatar extends StatelessWidget {
 
   /// Check if the URL points to an SVG image
   bool _isSvg(String url) {
-    return url.toLowerCase().contains('.svg') || 
-           url.toLowerCase().contains('svg?') ||
-           url.toLowerCase().contains('/svg/') ||
-           url.toLowerCase().contains('dicebear.com');
+    return url.toLowerCase().contains('.svg') ||
+        url.toLowerCase().contains('svg?') ||
+        url.toLowerCase().contains('/svg/') ||
+        url.toLowerCase().contains('dicebear.com');
   }
 
   /// Get default background color based on theme
   Color _getBackgroundColor(BuildContext context) {
     if (backgroundColor != null) return backgroundColor!;
-    
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return isDark ? Colors.grey[700]! : Colors.grey[300]!;
   }
@@ -170,7 +170,7 @@ class SVGAvatar extends StatelessWidget {
   /// Get default icon color based on theme
   Color _getIconColor(BuildContext context) {
     if (iconColor != null) return iconColor!;
-    
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return isDark ? Colors.white.withOpacity(0.8) : Colors.black54;
   }
@@ -178,16 +178,17 @@ class SVGAvatar extends StatelessWidget {
   /// Generate initials from text (e.g., "Morningstar" -> "MO", "Spartan Kings" -> "SK")
   String _generateInitials(String text) {
     if (text.isEmpty) return '';
-    
+
     final words = text.trim().split(RegExp(r'\s+'));
     if (words.length == 1) {
       // Single word: take first two characters
-      return words[0].length >= 2 
+      return words[0].length >= 2
           ? words[0].substring(0, 2).toUpperCase()
           : words[0].substring(0, 1).toUpperCase();
     } else {
       // Multiple words: take first letter of first two words
-      return (words[0].substring(0, 1) + words[1].substring(0, 1)).toUpperCase();
+      return (words[0].substring(0, 1) + words[1].substring(0, 1))
+          .toUpperCase();
     }
   }
 
@@ -199,15 +200,17 @@ class SVGAvatar extends StatelessWidget {
       return Center(
         child: Text(
           initials,
-          style: fallbackTextStyle ?? TextStyle(
-            fontSize: size * 0.4,
-            fontWeight: FontWeight.bold,
-            color: _getIconColor(context),
-          ),
+          style:
+              fallbackTextStyle ??
+              TextStyle(
+                fontSize: size * 0.4,
+                fontWeight: FontWeight.bold,
+                color: _getIconColor(context),
+              ),
         ),
       );
     }
-    
+
     // Default to icon fallback
     return Icon(
       fallbackIcon,
@@ -267,7 +270,8 @@ class SVGAvatar extends StatelessWidget {
               width: size,
               height: size,
               fit: fit,
-              errorBuilder: (context, error, stackTrace) => _buildFallback(context),
+              errorBuilder: (context, error, stackTrace) =>
+                  _buildFallback(context),
             );
           } else {
             imageWidget = Image.network(
@@ -275,7 +279,8 @@ class SVGAvatar extends StatelessWidget {
               width: size,
               height: size,
               fit: fit,
-              errorBuilder: (context, error, stackTrace) => _buildFallback(context),
+              errorBuilder: (context, error, stackTrace) =>
+                  _buildFallback(context),
               loadingBuilder: (context, child, loadingProgress) {
                 if (loadingProgress == null) return child;
                 return _buildFallback(context);
@@ -290,19 +295,12 @@ class SVGAvatar extends StatelessWidget {
             children: [
               imageWidget,
               Positioned(
-                top: 0,
-                right: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.8),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.offline_bolt,
-                    color: Colors.white,
-                    size: size * 0.2,
-                  ),
+                top: 5,
+                right: 5,
+                child: Icon(
+                  Icons.offline_bolt,
+                  color: Colors.green.withOpacity(0.8),
+                  size: 20,
                 ),
               ),
             ],
@@ -326,14 +324,14 @@ class SVGAvatar extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: _getBackgroundColor(context),
-          border: showBorder ? Border.all(
-            color: borderColor ?? Theme.of(context).primaryColor,
-            width: borderWidth,
-          ) : null,
+          border: showBorder
+              ? Border.all(
+                  color: borderColor ?? Theme.of(context).primaryColor,
+                  width: borderWidth,
+                )
+              : null,
         ),
-        child: ClipOval(
-          child: child ?? _buildImage(context),
-        ),
+        child: ClipOval(child: child ?? _buildImage(context)),
       );
     } else {
       // Image mode: rectangular, no background
@@ -346,10 +344,7 @@ class SVGAvatar extends StatelessWidget {
 
     // Wrap with GestureDetector if onTap is provided
     if (onTap != null) {
-      content = GestureDetector(
-        onTap: onTap,
-        child: content,
-      );
+      content = GestureDetector(onTap: onTap, child: content);
     }
 
     return content;

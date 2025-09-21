@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:share_plus/share_plus.dart';
 import '../models/club_message.dart';
+import '../services/media_storage_service.dart';
+import 'svg_avatar.dart';
 
 class ImageGalleryScreen extends StatefulWidget {
   final List<ClubMessage> messages;
@@ -88,6 +90,35 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     super.dispose();
   }
 
+  Future<void> _shareCurrentImage() async {
+    if (_allImages.isNotEmpty && _currentIndex < _allImages.length) {
+      final currentImage = _allImages[_currentIndex];
+      final imageUrl = currentImage.image;
+
+      try {
+        // Try to get cached local file first
+        final localPath = await MediaStorageService.getCachedMediaPath(imageUrl);
+
+        if (localPath != null) {
+          // Share the local cached file
+          await Share.shareXFiles(
+            [XFile(localPath)],
+            subject: 'Shared image from Duggy',
+          );
+        } else {
+          // Fallback to sharing URL if no local file
+          await Share.shareUri(Uri.parse(imageUrl));
+        }
+      } catch (e) {
+        // Final fallback to sharing as text URL
+        await Share.share(
+          imageUrl,
+          subject: 'Shared image from Duggy',
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_allImages.isEmpty) {
@@ -142,14 +173,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
               actions: [
                 IconButton(
                   icon: Icon(Icons.share, color: Colors.white),
-                  onPressed: () {
-                    // TODO: Implement share functionality
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Share functionality coming soon'),
-                      ),
-                    );
-                  },
+                  onPressed: () => _shareCurrentImage(),
                 ),
                 IconButton(
                   icon: Icon(Icons.more_vert, color: Colors.white),
@@ -181,40 +205,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                     child: InteractiveViewer(
                       minScale: 0.8,
                       maxScale: 4.0,
-                      child: CachedNetworkImage(
+                      child: SVGAvatar.image(
                         imageUrl: imageWithMessage.image,
+                        width: MediaQuery.of(context).size.width,
+                        height: MediaQuery.of(context).size.height,
                         fit: BoxFit.contain,
-                        placeholder: (context, url) => Container(
-                          color: Colors.black,
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Color(0xFF06aeef),
-                              ),
-                            ),
-                          ),
-                        ),
-                        errorWidget: (context, url, error) => Container(
-                          color: Colors.black,
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.broken_image_outlined,
-                                color: Colors.white54,
-                                size: 64,
-                              ),
-                              SizedBox(height: 16),
-                              Text(
-                                'Failed to load image',
-                                style: TextStyle(
-                                  color: Colors.white54,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
                       ),
                     ),
                   ),
