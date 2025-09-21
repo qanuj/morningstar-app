@@ -1,8 +1,10 @@
 import '../models/match.dart';
 import 'api_service.dart';
+import 'match_service.dart';
 
 class PracticeService {
-  /// Create a new practice session
+  /// Create a new practice session using dedicated /api/practice endpoint
+  /// (Creation uses specialized practice endpoint, fetching uses unified /api/matches)
   static Future<Map<String, dynamic>?> createPractice({
     required String clubId,
     required String title,
@@ -43,93 +45,68 @@ class PracticeService {
     }
   }
 
-  /// Get practice sessions for a club
+  /// Get practice sessions for a club using unified matches API
   static Future<List<MatchListItem>> getPracticeSessions({
     required String clubId,
+    bool includeCancelled = false,
+    bool showFullyPaid = false,
     bool upcomingOnly = true,
     int limit = 50,
     int offset = 0,
-    String? type, // 'practice' or 'match'
   }) async {
     try {
-      final params = [
-        'clubId=$clubId',
-        'upcomingOnly=$upcomingOnly',
-        'limit=$limit',
-        'offset=$offset',
-        'type=practice',
-      ];
-      if (type != null) {
-        params.add('type=$type');
-      }
-
-      final response = await ApiService.get('/matches?${params.join('&')}');
-
-      if (response != null && response['matches'] != null) {
-        final practiceData = response['matches'] as List;
-        return practiceData
-            .map((data) => _transformPracticeToMatchListItem(data))
-            .toList();
-      }
-
-      return [];
+      // Use MatchService with type='practice' to get practice sessions
+      return await MatchService.getMatches(
+        clubId: clubId,
+        includeCancelled: includeCancelled,
+        showFullyPaid: showFullyPaid,
+        upcomingOnly: upcomingOnly,
+        limit: limit,
+        offset: offset,
+        type: 'practice', // Filter for practice sessions only
+      );
     } catch (e) {
       print('❌ Error fetching practice sessions: $e');
       return [];
     }
   }
 
-  /// Transform practice data to MatchListItem format for compatibility
-  static MatchListItem _transformPracticeToMatchListItem(
-    Map<String, dynamic> practice,
-  ) {
-    return MatchListItem(
-      id: practice['id'] ?? '',
-      clubId: practice['club']?['id'] ?? '',
-      type: practice['type'] ?? 'PRACTICE',
-      location: practice['venue'] ?? 'TBD',
-      opponent: practice['title'] ?? 'Practice Session',
-      notes: practice['description'] ?? '',
-      spots: practice['maxParticipants'] ?? 20,
-      matchDate: DateTime.parse(
-        practice['practiceDate'] ?? DateTime.now().toIso8601String(),
-      ),
-      createdAt: practice['createdAt'] != null
-          ? DateTime.parse(practice['createdAt'])
-          : DateTime.now(),
-      updatedAt: practice['createdAt'] != null
-          ? DateTime.parse(practice['createdAt'])
-          : DateTime.now(),
-      hideUntilRSVP: false,
-      rsvpAfterDate: null,
-      rsvpBeforeDate: practice['practiceDate'] != null
-          ? DateTime.parse(practice['practiceDate'])
-          : null,
-      notifyMembers: true,
-      isCancelled: practice['isCancelled'] ?? false,
-      cancellationReason: practice['cancellationReason'],
-      isSquadReleased: false,
-      totalExpensed: 0.0,
-      paidAmount: 0.0,
-      club: ClubModel.fromJson(
-        practice['club'] ??
-            {
-              'id': '',
-              'name': 'Unknown Club',
-              'logo': null,
-              'city': null,
-              'membershipFeeCurrency': 'USD',
-            },
-      ),
-      canSeeDetails: true,
-      canRsvp: practice['canRsvp'] ?? true,
-      availableSpots:
-          (practice['maxParticipants'] ?? 20) -
-          (practice['confirmedPlayers'] ?? 0),
-      confirmedPlayers: practice['confirmedPlayers'] ?? 0,
-      userRsvp: practice['userRsvp'] != null
-          ? MatchRSVPSimple.fromJson(practice['userRsvp'])
-          : null,
+  /// Get user's practice sessions from all clubs using unified matches API
+  static Future<List<MatchListItem>> getUserPracticeSessions({
+    bool includeCancelled = false,
+    bool showFullyPaid = false,
+    bool upcomingOnly = true,
+  }) async {
+    try {
+      // Use MatchService.getUserMatches with type='practice' to get user's practice sessions
+      return await MatchService.getUserMatches(
+        includeCancelled: includeCancelled,
+        showFullyPaid: showFullyPaid,
+        upcomingOnly: upcomingOnly,
+      ).then((matches) =>
+        matches.where((match) => match.type == 'PRACTICE').toList()
+      );
+    } catch (e) {
+      print('❌ Error fetching user practice sessions: $e');
+      return [];
+    }
+  }
+
+  /// RSVP to a practice session (delegates to MatchService)
+  static Future<Map<String, dynamic>> rsvpToPractice({
+    required String practiceId,
+    required String status,
+    String? selectedRole,
+  }) async {
+    return await MatchService.rsvpToMatch(
+      matchId: practiceId,
+      status: status,
+      selectedRole: selectedRole,
     );
+  }
+
+  /// Cancel RSVP for a practice session (delegates to MatchService)
+  static Future<Map<String, dynamic>> cancelPracticeRsvp(String practiceId) async {
+    return await MatchService.cancelRsvp(practiceId);
   }
 }

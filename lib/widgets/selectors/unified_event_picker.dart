@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../../models/match.dart';
 import '../../services/match_service.dart';
@@ -131,7 +130,6 @@ class _UnifiedEventPickerState extends State<UnifiedEventPicker> {
           upcomingOnly: true,
           limit: _pageSize,
           offset: isRefresh ? 0 : _currentOffset,
-          type: 'practice',
         );
       }
 
@@ -182,7 +180,6 @@ class _UnifiedEventPickerState extends State<UnifiedEventPicker> {
           upcomingOnly: true,
           limit: _pageSize,
           offset: _currentOffset,
-          type: 'practice',
         );
       }
 
@@ -452,7 +449,6 @@ class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal> {
           upcomingOnly: true,
           limit: _pageSize,
           offset: isRefresh ? 0 : _currentOffset,
-          type: 'practice',
         );
       }
 
@@ -503,7 +499,6 @@ class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal> {
           upcomingOnly: true,
           limit: _pageSize,
           offset: _currentOffset,
-          type: 'practice',
         );
       }
 
