@@ -477,7 +477,7 @@ class _MessageInputState extends State<MessageInput> {
       content: practiceBody,
       messageType: 'practice',
       practiceId: practice.id,
-      meta: practice.toJson(),
+      meta: _createCleanPracticeMetadata(practice),
       createdAt: DateTime.now(),
       status: MessageStatus.sending,
       starred: StarredInfo(isStarred: false),
@@ -508,7 +508,7 @@ class _MessageInputState extends State<MessageInput> {
       content: matchBody,
       messageType: 'match',
       matchId: match.id,
-      meta: match.toJson(),
+      meta: _createCleanMatchMetadata(match),
       createdAt: DateTime.now(),
       status: MessageStatus.sending,
       starred: StarredInfo(isStarred: false),
@@ -1054,5 +1054,25 @@ class _MessageInputState extends State<MessageInput> {
         ],
       ),
     );
+  }
+
+  /// Create clean metadata for practice messages (excludes user-specific data)
+  Map<String, dynamic> _createCleanPracticeMetadata(MatchListItem practice) {
+    final practiceData = practice.toJson();
+    // Remove user-specific fields that shouldn't be in shared meta
+    practiceData.remove('userRsvp');
+    practiceData.remove('canRsvp');
+    practiceData.remove('canSeeDetails');
+    return practiceData;
+  }
+
+  /// Create clean metadata for match messages (excludes user-specific data)
+  Map<String, dynamic> _createCleanMatchMetadata(MatchListItem match) {
+    final matchData = match.toJson();
+    // Remove user-specific fields that shouldn't be in shared meta
+    matchData.remove('userRsvp');
+    matchData.remove('canRsvp');
+    matchData.remove('canSeeDetails');
+    return matchData;
   }
 }
