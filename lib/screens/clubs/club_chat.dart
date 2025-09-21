@@ -1276,12 +1276,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
         }
       }
 
-      if (mediaUrls.isNotEmpty) {
-        await MediaStorageService.downloadAllMediaForClub(
-          widget.club.id,
-          mediaUrls,
-        );
-      }
+      // Media will be cached automatically when accessed by widgets
     } catch (e) {
       // Ignore errors during media download
     }

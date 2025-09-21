@@ -44,7 +44,9 @@ class _CachedMediaFileState extends State<CachedMediaFile> {
   Future<void> _checkCacheStatus() async {
     try {
       // Check if file is already cached
-      final localPath = await MediaStorageService.getLocalMediaPath(widget.fileUrl);
+      final localPath = await MediaStorageService.getLocalMediaPath(
+        widget.fileUrl,
+      );
       if (localPath != null && await File(localPath).exists()) {
         setState(() {
           _localPath = localPath;
@@ -66,7 +68,6 @@ class _CachedMediaFileState extends State<CachedMediaFile> {
     try {
       final localPath = await MediaStorageService.getCachedMediaPath(
         widget.fileUrl,
-        clubId: widget.clubId,
       );
 
       if (localPath != null && await File(localPath).exists()) {
@@ -117,7 +118,8 @@ class _CachedMediaFileState extends State<CachedMediaFile> {
 
     if (widget.isAudio) return Icons.audiotrack;
 
-    final extension = widget.fileType?.toLowerCase() ??
+    final extension =
+        widget.fileType?.toLowerCase() ??
         widget.fileName.split('.').last.toLowerCase();
 
     switch (extension) {
@@ -157,7 +159,8 @@ class _CachedMediaFileState extends State<CachedMediaFile> {
   Color _getFileColor() {
     if (widget.isAudio) return Colors.purple;
 
-    final extension = widget.fileType?.toLowerCase() ??
+    final extension =
+        widget.fileType?.toLowerCase() ??
         widget.fileName.split('.').last.toLowerCase();
 
     switch (extension) {
@@ -224,11 +227,9 @@ class _CachedMediaFileState extends State<CachedMediaFile> {
                     color: _getFileColor().withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: widget.customIcon ?? Icon(
-                    _getFileIcon(),
-                    color: _getFileColor(),
-                    size: 24,
-                  ),
+                  child:
+                      widget.customIcon ??
+                      Icon(_getFileIcon(), color: _getFileColor(), size: 24),
                 ),
 
                 const SizedBox(width: 12),
@@ -272,17 +273,9 @@ class _CachedMediaFileState extends State<CachedMediaFile> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 else if (_isAvailable)
-                  Icon(
-                    Icons.check_circle,
-                    color: Colors.green,
-                    size: 20,
-                  )
+                  Icon(Icons.check_circle, color: Colors.green, size: 20)
                 else
-                  Icon(
-                    Icons.download,
-                    color: Colors.grey[600],
-                    size: 20,
-                  ),
+                  Icon(Icons.download, color: Colors.grey[600], size: 20),
               ],
             ),
           ),
@@ -315,7 +308,7 @@ class CachedAudioFile extends StatelessWidget {
   Widget build(BuildContext context) {
     return CachedMediaFile(
       fileUrl: audio.url,
-      fileName: '${audio.filename} • ${_formatDuration(audio.duration)}',
+      fileName: '${audio.filename} • ${_formatDuration(audio.duration ?? 0)}',
       clubId: clubId,
       isAudio: true,
       onTap: onPlay,

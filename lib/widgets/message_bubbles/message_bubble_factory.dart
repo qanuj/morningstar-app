@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/club_message.dart';
 import '../../screens/matches/match_detail.dart';
+import '../../screens/matches/cached_match_detail_screen.dart';
 import '../../screens/practices/practice_match_detail.dart';
 import 'text_message_bubble.dart';
 import 'audio_message_bubble.dart';
@@ -138,7 +139,7 @@ class MessageBubbleFactory extends StatelessWidget {
         isSelected: isSelected,
         showSenderInfo: showSenderInfo,
         onReactionRemoved: onReactionRemoved,
-        onViewMatch: null, // No match detail navigation for practice
+        onViewMatch: () => _navigateToCachedMatchDetail(context, message), // Practice details also cached
         onRSVP: () {
           // RSVP is handled internally by the CachedMatchMessageBubble
         },

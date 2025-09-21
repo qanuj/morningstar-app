@@ -44,8 +44,10 @@ class _OfflineImageState extends State<OfflineImage> {
   Future<void> _loadImage() async {
     try {
       // Check if image is available locally
-      final localPath = await MediaStorageService.getLocalMediaPath(widget.imageUrl);
-      
+      final localPath = await MediaStorageService.getLocalMediaPath(
+        widget.imageUrl,
+      );
+
       if (localPath != null && await File(localPath).exists()) {
         // Use cached image
         setState(() {
@@ -55,10 +57,9 @@ class _OfflineImageState extends State<OfflineImage> {
       } else {
         // Try to download and cache the image
         final downloadedPath = await MediaStorageService.downloadMedia(
-          widget.imageUrl, 
-          clubId: widget.clubId,
+          widget.imageUrl,
         );
-        
+
         if (downloadedPath != null && mounted) {
           setState(() {
             _localPath = downloadedPath;
@@ -109,17 +110,14 @@ class _OfflineImageState extends State<OfflineImage> {
       height: widget.height,
       fit: widget.fit ?? BoxFit.cover,
       placeholder: widget.placeholder,
-      errorWidget: widget.errorWidget ?? 
-        (context, url, error) => Container(
-          width: widget.width,
-          height: widget.height,
-          color: Colors.grey[300],
-          child: Icon(
-            Icons.broken_image,
-            color: Colors.grey[600],
-            size: 24,
+      errorWidget:
+          widget.errorWidget ??
+          (context, url, error) => Container(
+            width: widget.width,
+            height: widget.height,
+            color: Colors.grey[300],
+            child: Icon(Icons.broken_image, color: Colors.grey[600], size: 24),
           ),
-        ),
     );
   }
 
@@ -127,7 +125,7 @@ class _OfflineImageState extends State<OfflineImage> {
     if (widget.placeholder != null) {
       return widget.placeholder!(context, widget.imageUrl);
     }
-    
+
     return Container(
       width: widget.width,
       height: widget.height,
@@ -143,9 +141,13 @@ class _OfflineImageState extends State<OfflineImage> {
 
   Widget _buildErrorWidget() {
     if (widget.errorWidget != null) {
-      return widget.errorWidget!(context, widget.imageUrl, 'Failed to load image');
+      return widget.errorWidget!(
+        context,
+        widget.imageUrl,
+        'Failed to load image',
+      );
     }
-    
+
     return Container(
       width: widget.width,
       height: widget.height,
@@ -153,18 +155,11 @@ class _OfflineImageState extends State<OfflineImage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.broken_image,
-            color: Colors.grey[600],
-            size: 24,
-          ),
+          Icon(Icons.broken_image, color: Colors.grey[600], size: 24),
           SizedBox(height: 4),
           Text(
             'Failed to load',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 12,
-            ),
+            style: TextStyle(color: Colors.grey[600], fontSize: 12),
             textAlign: TextAlign.center,
           ),
         ],
@@ -225,8 +220,10 @@ class _OfflineAudioPlayerState extends State<OfflineAudioPlayer> {
   Future<void> _loadAudio() async {
     try {
       // Check if audio is available locally
-      final localPath = await MediaStorageService.getLocalMediaPath(widget.audioUrl);
-      
+      final localPath = await MediaStorageService.getLocalMediaPath(
+        widget.audioUrl,
+      );
+
       if (localPath != null && await File(localPath).exists()) {
         setState(() {
           _localPath = localPath;
@@ -236,9 +233,8 @@ class _OfflineAudioPlayerState extends State<OfflineAudioPlayer> {
         // Download and cache the audio
         final downloadedPath = await MediaStorageService.downloadMedia(
           widget.audioUrl,
-          clubId: widget.clubId,
         );
-        
+
         if (downloadedPath != null && mounted) {
           setState(() {
             _localPath = downloadedPath;
@@ -277,7 +273,7 @@ class _OfflineAudioPlayerState extends State<OfflineAudioPlayer> {
 
     // Use local path if available, otherwise network path
     final audioPath = _localPath ?? widget.audioUrl;
-    
+
     return Container(
       height: 60,
       decoration: BoxDecoration(
@@ -308,18 +304,14 @@ class _OfflineAudioPlayerState extends State<OfflineAudioPlayer> {
             ),
           ),
           if (_localPath != null)
-            Icon(
-              Icons.offline_pin,
-              color: Colors.green,
-              size: 16,
-            ),
+            Icon(Icons.offline_pin, color: Colors.green, size: 16),
         ],
       ),
     );
   }
 }
 
-/// Offline-aware document viewer widget  
+/// Offline-aware document viewer widget
 class OfflineDocument extends StatefulWidget {
   final String documentUrl;
   final String filename;
@@ -349,8 +341,10 @@ class _OfflineDocumentState extends State<OfflineDocument> {
   Future<void> _loadDocument() async {
     try {
       // Check if document is available locally
-      final localPath = await MediaStorageService.getLocalMediaPath(widget.documentUrl);
-      
+      final localPath = await MediaStorageService.getLocalMediaPath(
+        widget.documentUrl,
+      );
+
       if (localPath != null && await File(localPath).exists()) {
         setState(() {
           _localPath = localPath;
@@ -360,9 +354,8 @@ class _OfflineDocumentState extends State<OfflineDocument> {
         // Download and cache the document
         final downloadedPath = await MediaStorageService.downloadMedia(
           widget.documentUrl,
-          clubId: widget.clubId,
         );
-        
+
         if (downloadedPath != null && mounted) {
           setState(() {
             _localPath = downloadedPath;
@@ -395,11 +388,7 @@ class _OfflineDocumentState extends State<OfflineDocument> {
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.description,
-            color: Colors.blue,
-            size: 24,
-          ),
+          Icon(Icons.description, color: Colors.blue, size: 24),
           SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -430,11 +419,7 @@ class _OfflineDocumentState extends State<OfflineDocument> {
             ),
           ),
           if (_localPath != null)
-            Icon(
-              Icons.offline_pin,
-              color: Colors.green,
-              size: 16,
-            ),
+            Icon(Icons.offline_pin, color: Colors.green, size: 16),
         ],
       ),
     );

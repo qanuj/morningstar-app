@@ -65,7 +65,6 @@ class _CachedMediaImageState extends State<CachedMediaImage> {
       // Get cached media path (downloads if not cached)
       final localPath = await MediaStorageService.getCachedMediaPath(
         widget.imageUrl,
-        clubId: widget.clubId,
       );
 
       if (!mounted) return;
@@ -214,10 +213,7 @@ class _CachedMediaImageState extends State<CachedMediaImage> {
 
     // Apply border radius if specified
     if (widget.borderRadius != null) {
-      child = ClipRRect(
-        borderRadius: widget.borderRadius!,
-        child: child,
-      );
+      child = ClipRRect(borderRadius: widget.borderRadius!, child: child);
     }
 
     return child;

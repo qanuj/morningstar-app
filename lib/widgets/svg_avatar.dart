@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import '../services/media_storage_service.dart';
 
 /// A versatile avatar widget that handles both SVG and regular images
 /// with proper fallback handling and consistent styling across the app
@@ -190,36 +192,72 @@ class SVGAvatar extends StatelessWidget {
     );
   }
 
-  /// Build the image widget (SVG or regular)
+  /// Build the image widget (SVG or regular) with caching
   Widget _buildImage(BuildContext context) {
     if (imageUrl == null || imageUrl!.isEmpty) {
       return _buildFallback(context);
     }
 
-    if (_isSvg(imageUrl!)) {
-      return SvgPicture.network(
-        imageUrl!,
-        width: size,
-        height: size,
-        fit: fit,
-        placeholderBuilder: (context) => _buildFallback(context),
-        // Handle errors gracefully
-        // ignore: deprecated_member_use
-        semanticsLabel: 'User avatar',
-      );
-    } else {
-      return Image.network(
-        imageUrl!,
-        width: size,
-        height: size,
-        fit: fit,
-        errorBuilder: (context, error, stackTrace) => _buildFallback(context),
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
+    return FutureBuilder<String?>(
+      future: MediaStorageService.getCachedMediaPath(imageUrl!),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return _buildFallback(context);
-        },
-      );
-    }
+        }
+
+        if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
+          return _buildFallback(context);
+        }
+
+        final localPath = snapshot.data!;
+
+        if (_isSvg(imageUrl!)) {
+          // For SVG, check if it's a local file or still needs network loading
+          if (File(localPath).existsSync()) {
+            return SvgPicture.file(
+              File(localPath),
+              width: size,
+              height: size,
+              fit: fit,
+              placeholderBuilder: (context) => _buildFallback(context),
+              semanticsLabel: 'User avatar',
+            );
+          } else {
+            return SvgPicture.network(
+              imageUrl!,
+              width: size,
+              height: size,
+              fit: fit,
+              placeholderBuilder: (context) => _buildFallback(context),
+              semanticsLabel: 'User avatar',
+            );
+          }
+        } else {
+          // For regular images
+          if (File(localPath).existsSync()) {
+            return Image.file(
+              File(localPath),
+              width: size,
+              height: size,
+              fit: fit,
+              errorBuilder: (context, error, stackTrace) => _buildFallback(context),
+            );
+          } else {
+            return Image.network(
+              imageUrl!,
+              width: size,
+              height: size,
+              fit: fit,
+              errorBuilder: (context, error, stackTrace) => _buildFallback(context),
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return _buildFallback(context);
+              },
+            );
+          }
+        }
+      },
+    );
   }
 
   /// Build the complete avatar widget

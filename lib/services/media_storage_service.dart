@@ -8,7 +8,6 @@ import 'package:crypto/crypto.dart';
 
 class MediaStorageService {
   static const String _mediaMetadataPrefix = 'media_meta_';
-  static const String _mediaDownloadsPrefix = 'media_downloads_';
   
   /// Get the local media directory
   static Future<Directory> getMediaDirectory() async {
@@ -33,17 +32,40 @@ class MediaStorageService {
   static String _getFileExtension(String url) {
     final uri = Uri.parse(url);
     final path = uri.path;
-    final lastDot = path.lastIndexOf('.');
-    if (lastDot != -1 && lastDot < path.length - 1) {
-      return path.substring(lastDot);
+
+    // Handle special cases like dicebear URLs
+    if (path.contains('/svg')) {
+      return '.svg';
     }
-    return '.bin'; // Default extension
+
+    // Get the last segment of the path
+    final segments = path.split('/');
+    final lastSegment = segments.isNotEmpty ? segments.last : '';
+
+    // Check if last segment has an extension
+    final lastDot = lastSegment.lastIndexOf('.');
+    if (lastDot != -1 && lastDot < lastSegment.length - 1) {
+      final extension = lastSegment.substring(lastDot);
+      // Ensure extension doesn't contain path separators
+      if (!extension.contains('/') && extension.length <= 6) {
+        return extension;
+      }
+    }
+
+    // Default fallback
+    return '.bin';
   }
 
   /// Download and cache a media file with smart caching
-  static Future<String?> downloadMedia(String url, {String? clubId}) async {
+  static Future<String?> downloadMedia(String url) async {
     try {
       print('📥 Downloading media: $url');
+
+      // Check if URL is already a local path
+      if (_isLocalPath(url)) {
+        print('ℹ️ URL is already a local path, returning as is: $url');
+        return File(url).existsSync() ? url : null;
+      }
 
       // Check if already downloaded
       final localPath = await getLocalMediaPath(url);
@@ -67,7 +89,7 @@ class MediaStorageService {
       await file.writeAsBytes(response.bodyBytes);
 
       // Save metadata
-      await _saveMediaMetadata(url, file.path, clubId);
+      await _saveMediaMetadata(url, file.path);
 
       print('✅ Media downloaded and cached: ${file.path}');
       return file.path;
@@ -78,8 +100,13 @@ class MediaStorageService {
   }
 
   /// Get cached media file or download if not exists (for widgets)
-  static Future<String?> getCachedMediaPath(String url, {String? clubId}) async {
+  static Future<String?> getCachedMediaPath(String url) async {
     try {
+      // Check if URL is already a local path
+      if (_isLocalPath(url)) {
+        return File(url).existsSync() ? url : null;
+      }
+
       // Check if already cached
       final localPath = await getLocalMediaPath(url);
       if (localPath != null && await File(localPath).exists()) {
@@ -87,7 +114,7 @@ class MediaStorageService {
       }
 
       // Download and cache if not exists
-      return await downloadMedia(url, clubId: clubId);
+      return await downloadMedia(url);
     } catch (e) {
       print('❌ Error getting cached media: $e');
       return null;
@@ -121,7 +148,7 @@ class MediaStorageService {
   }
 
   /// Save media metadata
-  static Future<void> _saveMediaMetadata(String url, String localPath, String? clubId) async {
+  static Future<void> _saveMediaMetadata(String url, String localPath) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final metadataKey = '$_mediaMetadataPrefix${_hashUrl(url)}';
@@ -130,42 +157,15 @@ class MediaStorageService {
         'url': url,
         'localPath': localPath,
         'downloadedAt': DateTime.now().toIso8601String(),
-        'clubId': clubId,
         'fileSize': await File(localPath).length(),
       };
-      
+
       await prefs.setString(metadataKey, jsonEncode(metadata));
-      
-      // Add to downloads list for club
-      if (clubId != null) {
-        await _addToClubDownloads(clubId, url);
-      }
     } catch (e) {
       print('❌ Error saving media metadata: $e');
     }
   }
 
-  /// Add media URL to club downloads list
-  static Future<void> _addToClubDownloads(String clubId, String url) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final downloadsKey = '$_mediaDownloadsPrefix$clubId';
-      
-      final existingJson = prefs.getString(downloadsKey);
-      List<String> downloads = [];
-      
-      if (existingJson != null) {
-        downloads = List<String>.from(jsonDecode(existingJson));
-      }
-      
-      if (!downloads.contains(url)) {
-        downloads.add(url);
-        await prefs.setString(downloadsKey, jsonEncode(downloads));
-      }
-    } catch (e) {
-      print('❌ Error adding to club downloads: $e');
-    }
-  }
 
   /// Hash URL for consistent key generation
   static String _hashUrl(String url) {
@@ -174,212 +174,84 @@ class MediaStorageService {
     return digest.toString();
   }
 
-  /// Download all media for a club's messages
-  static Future<void> downloadAllMediaForClub(String clubId, List<Map<String, dynamic>> mediaUrls) async {
-    print('📥 Starting bulk media download for club $clubId (${mediaUrls.length} items)');
-    
-    int downloaded = 0;
-    int failed = 0;
-    int skipped = 0;
-    
-    for (final mediaInfo in mediaUrls) {
-      final url = mediaInfo['url'] as String;
-      final type = mediaInfo['type'] as String? ?? 'unknown';
-      
-      try {
-        // Check if already downloaded
-        final localPath = await getLocalMediaPath(url);
-        if (localPath != null && await File(localPath).exists()) {
-          skipped++;
-          continue;
-        }
-        
-        // Download media
-        final result = await downloadMedia(url, clubId: clubId);
-        if (result != null) {
-          downloaded++;
-          print('✅ Downloaded $type: $url');
-        } else {
-          failed++;
-          print('❌ Failed to download $type: $url');
-        }
-        
-        // Small delay to avoid overwhelming the server
-        await Future.delayed(Duration(milliseconds: 100));
-      } catch (e) {
-        failed++;
-        print('❌ Error downloading $type ($url): $e');
-      }
+  /// Check if URL is a local file path
+  static bool _isLocalPath(String url) {
+    // Check if it's a local file path
+    if (url.startsWith('/') ||
+        url.startsWith('file://') ||
+        url.contains('/Documents/') ||
+        url.contains('/Library/') ||
+        url.contains('/var/mobile/')) {
+      return true;
     }
-    
-    print('📥 Bulk download complete for club $clubId:');
-    print('   Downloaded: $downloaded, Skipped: $skipped, Failed: $failed');
-  }
 
-  /// Get all media URLs from a list of messages
-  static List<Map<String, dynamic>> extractMediaUrls(List<dynamic> messages) {
-    final List<Map<String, dynamic>> mediaUrls = [];
-    
-    for (final message in messages) {
-      if (message is! Map<String, dynamic>) continue;
-      
-      // Extract images
-      final pictures = message['pictures'] as List<dynamic>? ?? [];
-      for (final picture in pictures) {
-        if (picture is Map<String, dynamic> && picture['url'] != null) {
-          mediaUrls.add({
-            'url': picture['url'],
-            'type': 'image',
-            'messageId': message['id'],
-          });
-        }
-      }
-      
-      // Extract documents
-      final documents = message['documents'] as List<dynamic>? ?? [];
-      for (final document in documents) {
-        if (document is Map<String, dynamic> && document['url'] != null) {
-          mediaUrls.add({
-            'url': document['url'],
-            'type': 'document',
-            'messageId': message['id'],
-            'filename': document['filename'] ?? 'document',
-          });
-        }
-      }
-      
-      // Extract audio
-      final audio = message['audio'] as Map<String, dynamic>?;
-      if (audio != null && audio['url'] != null) {
-        mediaUrls.add({
-          'url': audio['url'],
-          'type': 'audio',
-          'messageId': message['id'],
-          'duration': audio['duration'],
-        });
-      }
-      
-      // Extract GIFs
-      if (message['gifUrl'] != null) {
-        mediaUrls.add({
-          'url': message['gifUrl'],
-          'type': 'gif',
-          'messageId': message['id'],
-        });
-      }
-    }
-    
-    return mediaUrls;
-  }
-
-  /// Clear all cached media for a club
-  static Future<void> clearClubMedia(String clubId) async {
+    // Check if it's a valid HTTP/HTTPS URL
     try {
-      print('🗑️ Clearing media cache for club $clubId');
-      
-      final prefs = await SharedPreferences.getInstance();
-      final downloadsKey = '$_mediaDownloadsPrefix$clubId';
-      final downloadsJson = prefs.getString(downloadsKey);
-      
-      if (downloadsJson != null) {
-        final downloads = List<String>.from(jsonDecode(downloadsJson));
-        
-        for (final url in downloads) {
-          final localPath = await getLocalMediaPath(url);
-          if (localPath != null) {
-            final file = File(localPath);
-            if (await file.exists()) {
-              await file.delete();
-            }
-            
-            // Remove metadata
-            final metadataKey = '$_mediaMetadataPrefix${_hashUrl(url)}';
-            await prefs.remove(metadataKey);
-          }
-        }
-        
-        // Remove downloads list
-        await prefs.remove(downloadsKey);
-      }
-      
-      print('✅ Media cache cleared for club $clubId');
+      final uri = Uri.parse(url);
+      return !(uri.scheme == 'http' || uri.scheme == 'https');
     } catch (e) {
-      print('❌ Error clearing club media: $e');
+      // If URI parsing fails, assume it's a local path
+      return true;
     }
   }
 
-  /// Get storage statistics for a club
-  static Future<Map<String, dynamic>> getStorageStats(String clubId) async {
+
+  /// Clear all cached media
+  static Future<void> clearAllMedia() async {
     try {
+      print('🗑️ Clearing all media cache');
+
+      final mediaDir = await getMediaDirectory();
+      if (await mediaDir.exists()) {
+        await mediaDir.delete(recursive: true);
+      }
+
+      // Clear metadata from SharedPreferences
       final prefs = await SharedPreferences.getInstance();
-      final downloadsKey = '$_mediaDownloadsPrefix$clubId';
-      final downloadsJson = prefs.getString(downloadsKey);
-      
-      if (downloadsJson == null) {
+      final keys = prefs.getKeys();
+      final mediaKeys = keys.where((key) => key.startsWith(_mediaMetadataPrefix));
+
+      for (final key in mediaKeys) {
+        await prefs.remove(key);
+      }
+
+      print('✅ All media cache cleared');
+    } catch (e) {
+      print('❌ Error clearing media cache: $e');
+    }
+  }
+
+  /// Get total cache size and file count
+  static Future<Map<String, dynamic>> getCacheStats() async {
+    try {
+      final mediaDir = await getMediaDirectory();
+      if (!await mediaDir.exists()) {
         return {
           'totalFiles': 0,
           'totalSizeBytes': 0,
           'totalSizeMB': 0.0,
-          'byType': <String, int>{},
         };
       }
-      
-      final downloads = List<String>.from(jsonDecode(downloadsJson));
+
+      final files = await mediaDir.list().toList();
       int totalSize = 0;
-      final typeCount = <String, int>{};
-      int existingFiles = 0;
-      
-      for (final url in downloads) {
-        final localPath = await getLocalMediaPath(url);
-        if (localPath != null && await File(localPath).exists()) {
-          existingFiles++;
-          final file = File(localPath);
+      int fileCount = 0;
+
+      for (final file in files) {
+        if (file is File) {
+          fileCount++;
           final size = await file.length();
           totalSize += size;
-          
-          // Determine type from extension
-          final extension = _getFileExtension(url);
-          final type = _getTypeFromExtension(extension);
-          typeCount[type] = (typeCount[type] ?? 0) + 1;
         }
       }
-      
+
       return {
-        'totalFiles': existingFiles,
+        'totalFiles': fileCount,
         'totalSizeBytes': totalSize,
         'totalSizeMB': (totalSize / (1024 * 1024)),
-        'byType': typeCount,
       };
     } catch (e) {
       return {'error': e.toString()};
-    }
-  }
-
-  /// Get type from file extension
-  static String _getTypeFromExtension(String extension) {
-    switch (extension.toLowerCase()) {
-      case '.jpg':
-      case '.jpeg':
-      case '.png':
-      case '.gif':
-      case '.webp':
-        return 'image';
-      case '.mp3':
-      case '.wav':
-      case '.m4a':
-      case '.aac':
-        return 'audio';
-      case '.pdf':
-      case '.doc':
-      case '.docx':
-      case '.txt':
-        return 'document';
-      case '.mp4':
-      case '.mov':
-      case '.avi':
-        return 'video';
-      default:
-        return 'other';
     }
   }
 
