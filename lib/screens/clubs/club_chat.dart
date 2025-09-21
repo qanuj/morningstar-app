@@ -30,6 +30,21 @@ import '../manage/add_members_screen.dart';
 import '../../providers/club_provider.dart';
 import '../../models/shared_content.dart';
 
+// Wrapper class to pre-calculate expensive properties and avoid rebuilds
+class _MessageWrapper {
+  final ClubMessage message;
+  final bool showSenderInfo;
+  final bool isLastFromSender;
+  final bool isFirstFromSender;
+
+  _MessageWrapper({
+    required this.message,
+    required this.showSenderInfo,
+    required this.isLastFromSender,
+    required this.isFirstFromSender,
+  });
+}
+
 class ClubChatScreen extends StatefulWidget {
   final Club club;
   final SharedContent? sharedContent;
@@ -248,7 +263,9 @@ class ClubChatScreenState extends State<ClubChatScreen>
         widget.club.id,
       );
 
-      if (cachedMessages.isNotEmpty && !forceSync) {
+      // For bottom refreshes, skip the cached setState to avoid double rebuild
+      // Only update state with cached messages if this is not a bottom refresh
+      if (cachedMessages.isNotEmpty && !forceSync && _messages.isEmpty) {
         setState(() {
           _messages = cachedMessages;
           _isLoading = false;
@@ -286,35 +303,45 @@ class ClubChatScreenState extends State<ClubChatScreen>
       if (newMessages.isNotEmpty) {
         debugPrint('🆕 Got ${newMessages.length} new messages');
 
-        // Merge new messages with existing ones
-        final allMessages = [...cachedMessages];
+        // Use existing messages as base to avoid rebuilding all widgets
+        List<ClubMessage> currentMessages = List.from(_messages);
+        bool hasNewAdditions = false;
 
-        // Add new messages (avoid duplicates with smart matching)
+        // Only add truly new messages (avoid duplicates with smart matching)
         for (final newMessage in newMessages) {
           final existingIndex = _findExistingMessageIndex(
-            allMessages,
+            currentMessages,
             newMessage,
           );
           if (existingIndex != -1) {
             // Update existing message (replace temp with real message)
-            allMessages[existingIndex] = newMessage;
+            currentMessages[existingIndex] = newMessage;
           } else {
-            // Add new message
-            allMessages.add(newMessage);
+            // Add new message - this is a true addition
+            currentMessages.add(newMessage);
+            hasNewAdditions = true;
           }
         }
 
-        // Sort by creation time
-        allMessages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        // Only sort and setState if there are actual new additions
+        if (hasNewAdditions) {
+          // Sort by creation time
+          currentMessages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
-        // Update state and storage
-        setState(() {
-          _messages = allMessages;
-          _isLoading = false;
-        });
+          // Update state with incremental changes
+          setState(() {
+            _messages = currentMessages;
+            _isLoading = false;
+          });
+        } else {
+          // No new messages, just update loading state
+          setState(() {
+            _isLoading = false;
+          });
+        }
 
         // Save to local cache
-        await MessageStorageService.saveMessages(widget.club.id, allMessages);
+        await MessageStorageService.saveMessages(widget.club.id, currentMessages);
 
         // Media will be cached lazily when widgets display them
 
@@ -322,15 +349,16 @@ class ClubChatScreenState extends State<ClubChatScreen>
         await _markNewMessagesAsDelivered();
 
         debugPrint(
-          '✅ Successfully loaded and cached ${allMessages.length} total messages',
+          '✅ Successfully loaded and cached ${currentMessages.length} total messages',
         );
-      } else if (cachedMessages.isEmpty) {
-        // No cached messages and no new messages
-        setState(() {
-          _messages = [];
-          _isLoading = false;
-        });
-        debugPrint('📭 No messages found');
+      } else {
+        // No new messages, just stop loading state if needed
+        if (_isLoading) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+        debugPrint('📭 No new messages found');
       }
 
       // Stop refresh animation
@@ -1996,36 +2024,13 @@ class ClubChatScreenState extends State<ClubChatScreen>
                     return ChatHeader.date(date: item);
                   }
 
-                  // Otherwise it's a message
-                  final message = item as ClubMessage;
-                  final messageIndex = allMessages.indexOf(message);
-                  final previousMessage = messageIndex > 0
-                      ? allMessages[messageIndex - 1]
-                      : null;
-                  final nextMessage = messageIndex < allMessages.length - 1
-                      ? allMessages[messageIndex + 1]
-                      : null;
+                  // Otherwise it's a message wrapper with pre-calculated properties
+                  final messageWrapper = item as _MessageWrapper;
+                  final message = messageWrapper.message;
+                  final showSenderInfo = messageWrapper.showSenderInfo;
 
-                  final showSenderInfo =
-                      previousMessage == null ||
-                      previousMessage.senderId != message.senderId ||
-                      !_isSameDate(
-                        message.createdAt,
-                        previousMessage.createdAt,
-                      );
-
-                  final isLastFromSender =
-                      nextMessage == null ||
-                      nextMessage.senderId != message.senderId ||
-                      !_isSameDate(message.createdAt, nextMessage.createdAt);
-
-                  final isFirstFromSender =
-                      previousMessage == null ||
-                      previousMessage.senderId != message.senderId ||
-                      !_isSameDate(
-                        message.createdAt,
-                        previousMessage.createdAt,
-                      );
+                  final isLastFromSender = messageWrapper.isLastFromSender;
+                  final isFirstFromSender = messageWrapper.isFirstFromSender;
 
                   return Container(
                     key: ValueKey('message_${message.id}'),
@@ -2160,12 +2165,13 @@ class ClubChatScreenState extends State<ClubChatScreen>
     });
   }
 
-  // Helper method to build list items with date headers
+  // Helper method to build list items with date headers and pre-calculated properties
   List<dynamic> _buildListItemsWithDateHeaders(List<ClubMessage> messages) {
     final List<dynamic> items = [];
     DateTime? lastDate;
 
-    for (final message in messages) {
+    for (int i = 0; i < messages.length; i++) {
+      final message = messages[i];
       final messageDate = DateTime(
         message.createdAt.year,
         message.createdAt.month,
@@ -2178,8 +2184,31 @@ class ClubChatScreenState extends State<ClubChatScreen>
         lastDate = messageDate;
       }
 
-      // Add the message
-      items.add(message);
+      // Pre-calculate expensive properties to avoid indexOf() in itemBuilder
+      final previousMessage = i > 0 ? messages[i - 1] : null;
+      final nextMessage = i < messages.length - 1 ? messages[i + 1] : null;
+
+      final showSenderInfo = previousMessage == null ||
+          previousMessage.senderId != message.senderId ||
+          message.createdAt.difference(previousMessage.createdAt).inMinutes > 5;
+
+      final isLastFromSender = nextMessage == null ||
+          nextMessage.senderId != message.senderId ||
+          nextMessage.createdAt.difference(message.createdAt).inMinutes > 5;
+
+      final isFirstFromSender = previousMessage == null ||
+          previousMessage.senderId != message.senderId ||
+          !_isSameDate(message.createdAt, previousMessage.createdAt);
+
+      // Create wrapper with pre-calculated properties
+      final messageWrapper = _MessageWrapper(
+        message: message,
+        showSenderInfo: showSenderInfo,
+        isLastFromSender: isLastFromSender,
+        isFirstFromSender: isFirstFromSender,
+      );
+
+      items.add(messageWrapper);
     }
 
     return items;
