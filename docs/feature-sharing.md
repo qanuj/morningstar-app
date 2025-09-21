@@ -244,7 +244,7 @@ External App Share → Platform Intent → ShareHandlerService → ShareTargetSc
 <!-- File provider for sharing files -->
 <provider
     android:name="androidx.core.content.FileProvider"
-    android:authorities="com.duggy.app.fileprovider"
+    android:authorities="app.duggy.app.fileprovider"
     android:exported="false"
     android:grantUriPermissions="true">
     <meta-data
@@ -276,7 +276,7 @@ Create `android/app/src/main/res/xml/file_paths.xml`:
 <array>
     <dict>
         <key>CFBundleURLName</key>
-        <string>com.duggy.app.deeplink</string>
+        <string>app.duggy.deeplink</string>
         <key>CFBundleURLSchemes</key>
         <array>
             <string>duggy</string>
@@ -284,7 +284,7 @@ Create `android/app/src/main/res/xml/file_paths.xml`:
     </dict>
     <dict>
         <key>CFBundleURLName</key>
-        <string>com.duggy.app.universal</string>
+        <string>app.duggy.universal</string>
         <key>CFBundleURLSchemes</key>
         <array>
             <string>https</string>

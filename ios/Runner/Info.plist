@@ -124,6 +124,12 @@
 	<string>This app needs access to camera to record and upload videos for club activities.</string>
 	<key>NSContactsUsageDescription</key>
 	<string>This app needs access to contacts to help you quickly add club members from your contact list.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>This app uses Face ID for secure authentication to protect your account.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>This app needs access to your location to help you find nearby cricket clubs and set match venues.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app needs access to your location to help you find nearby cricket clubs and set match venues.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>This app needs access to microphone to record voice messages in club chats.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
@@ -133,14 +139,8 @@
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>NSUserActivityTypeBrowsingWeb</string>
-		<string>com.duggy.share</string>
+		<string>app.duggy.share</string>
 	</array>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>This app needs access to your location to help you find nearby cricket clubs and set match venues.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>This app needs access to your location to help you find nearby cricket clubs and set match venues.</string>
-	<key>NSFaceIDUsageDescription</key>
-	<string>This app uses Face ID for secure authentication to protect your account.</string>
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>This app needs access to send notifications to keep you updated about club activities, matches, and important announcements.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
@@ -181,7 +181,7 @@
 			<key>UTTypeDescription</key>
 			<string>Shared Content</string>
 			<key>UTTypeIdentifier</key>
-			<string>com.duggy.shared-content</string>
+			<string>app.duggy.shared-content</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>

@@ -63,6 +63,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '1067526313310',
     projectId: 'duggy-2d72c',
     storageBucket: 'duggy-2d72c.firebasestorage.app',
-    iosBundleId: 'com.duggy',
+    iosBundleId: 'app.duggy',
   );
 }
