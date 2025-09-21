@@ -238,10 +238,19 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
   Map<String, int> _extractStatusCounts(Map<String, dynamic> details) {
     final counts = <String, int>{'YES': 0, 'NO': 0, 'MAYBE': 0};
 
-    // Try the new unified meta fields first
-    if (details['confirmedPlayers'] != null || details['availableSpots'] != null) {
+
+    // Try the new practice API structure first (from /api/practice)
+    if (details['currentParticipants'] != null || details['maxParticipants'] != null) {
+      final currentParticipants = (details['currentParticipants'] as num?)?.toInt() ?? 0;
+      counts['YES'] = currentParticipants;
+      return counts;
+    }
+
+    // Try the older unified meta fields (backward compatibility)
+    if (details['confirmedPlayers'] != null || details['availableSpots'] != null || details['spots'] != null) {
       final confirmedPlayers = (details['confirmedPlayers'] as num?)?.toInt() ?? 0;
       final availableSpots = (details['availableSpots'] as num?)?.toInt() ?? 0;
+      final spots = (details['spots'] as num?)?.toInt() ?? 0;
 
       counts['YES'] = confirmedPlayers;
       // For spots and other counts, we don't have detailed breakdown from match data
@@ -675,20 +684,39 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     Map<String, dynamic> details, {
     bool isCancelled = false,
   }) {
+
+    // Handle both old and new field structures
     final date = details['date']?.toString() ?? '';
     final time = details['time']?.toString() ?? '';
 
     final venueMap = _safeMapFromData(details['venue']);
-    final venue = venueMap?['name']?.toString() ?? details['venue']?.toString() ?? '';
+    final venue = venueMap?['name']?.toString() ??
+                  details['venue']?.toString() ??
+                  details['location']?.toString() ?? '';
 
     final duration = details['duration']?.toString() ?? '';
-    final maxParticipants = details['maxParticipants'] as int? ?? 0;
-    final confirmedPlayers = details['confirmedPlayers'] as int? ?? 0;
+    // Use spots for total capacity (not availableSpots which is remaining spots)
+    final maxParticipants = (details['maxParticipants'] as int?) ??
+                           (details['spots'] as int?) ?? 0;
+    final confirmedPlayers = (details['currentParticipants'] as int?) ??
+                            (details['confirmedPlayers'] as int?) ?? 0;
+
 
     DateTime? practiceDateTime;
+
+    // Try old format first (date + time)
     if (date.isNotEmpty && time.isNotEmpty) {
       try {
         practiceDateTime = DateTime.parse('${date}T$time:00');
+      } catch (e) {
+        practiceDateTime = null;
+      }
+    }
+
+    // Try new unified format (matchDate)
+    if (practiceDateTime == null && details['matchDate'] != null) {
+      try {
+        practiceDateTime = DateTime.parse(details['matchDate'].toString());
       } catch (e) {
         practiceDateTime = null;
       }
@@ -717,7 +745,7 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
           _buildInfoRow(
             context,
             icon: Icons.group,
-            label: '$confirmedPlayers/$maxParticipants participants',
+            label: '${maxParticipants - confirmedPlayers} spots available ($confirmedPlayers/$maxParticipants)',
             isCancelled: isCancelled,
           ),
           SizedBox(height: 8),

@@ -67,21 +67,13 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
   @override
   void initState() {
     super.initState();
-    print('🔍 SelfSendingMessageBubble: initState called for message: ${widget.message.id}');
-    print('🔍 SelfSendingMessageBubble: Message status: ${widget.message.status}');
-    print('🔍 SelfSendingMessageBubble: Message images: ${widget.message.images}');
-    print('🔍 SelfSendingMessageBubble: Message messageType: ${widget.message.messageType}');
-    
+
     currentMessage = widget.message;
     // If this is a sending message, start the send process
     if (currentMessage.status == MessageStatus.sending && !_isSending) {
-      print('🔍 SelfSendingMessageBubble: Scheduling send process start');
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        print('🔍 SelfSendingMessageBubble: Starting send process now');
         _startSendProcess();
       });
-    } else {
-      print('🔍 SelfSendingMessageBubble: NOT starting send process. Status: ${currentMessage.status}, _isSending: $_isSending');
     }
   }
 
@@ -183,9 +175,6 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
   }
 
   Future<void> _handleExistingMedia() async {
-    print(
-      '🔍 _handleExistingMedia: currentMessage.images.length = ${currentMessage.images.length}',
-    );
     // Handle images that are already in the message (from cropping, etc.)
     if (currentMessage.images.isNotEmpty) {
       if (mounted) {
@@ -421,8 +410,6 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
         messageType = _determineMessageType(currentMessage.content, linkMeta);
       }
 
-      print('🔍 SelfSendingMessageBubble: Sending messageType: $messageType');
-
       // Prepare API request - all images/videos use 'text' type with arrays
       Map<String, dynamic> contentMap;
 
@@ -482,7 +469,6 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
           'practiceId': currentMessage.practiceId,
           'meta': currentMessage.meta,
         };
-        print('🔍 SelfSendingMessageBubble: Created practice contentMap: $contentMap');
       } else if (messageType == 'match') {
         // Match message with special schema format
         contentMap = {
@@ -572,8 +558,6 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
     List<LinkMetadata> linkMeta,
   ) async {
     try {
-      print('🔍 _handleSuccessResponse: Full response = $response');
-
       // Extract message data from response
       Map<String, dynamic>? messageData;
 
@@ -586,11 +570,9 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
         messageData = response;
       }
 
-      print('🔍 _handleSuccessResponse: Extracted messageData = $messageData');
-
       // Create new message from server response
       var finalMessage = ClubMessage.fromJson(messageData);
-      
+
       // Preserve locally extracted link metadata if we have richer local data
       if (linkMeta.isNotEmpty) {
         if (finalMessage.linkMeta.isEmpty) {
@@ -600,7 +582,7 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
           // Check if our local metadata is more complete than server's
           final serverMeta = finalMessage.linkMeta.first;
           final localMeta = linkMeta.first;
-          
+
           // Prefer local metadata if it has siteName/favicon (richer data)
           if (localMeta.siteName != null || localMeta.favicon != null) {
             finalMessage = finalMessage.copyWith(linkMeta: linkMeta);
@@ -676,17 +658,15 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
         title: ogData.title,
         description: ogData.description,
         image: ogData.image,
-        siteName: ogData.siteName ?? Uri.parse(url).host, // Get domain name as fallback
+        siteName:
+            ogData.siteName ??
+            Uri.parse(url).host, // Get domain name as fallback
         favicon: ogData.favicon,
       );
     } catch (e) {
       debugPrint('Failed to fetch link metadata for $url: $e');
       // Create basic link metadata if OG data fails
-      return LinkMetadata(
-        url: url, 
-        title: url,
-        siteName: Uri.parse(url).host,
-      );
+      return LinkMetadata(url: url, title: url, siteName: Uri.parse(url).host);
     }
   }
 

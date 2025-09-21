@@ -57,17 +57,16 @@ class PracticeService {
         'upcomingOnly=$upcomingOnly',
         'limit=$limit',
         'offset=$offset',
+        'type=practice',
       ];
       if (type != null) {
         params.add('type=$type');
       }
 
-      final response = await ApiService.get(
-        '/practice?${params.join('&')}',
-      );
+      final response = await ApiService.get('/matches?${params.join('&')}');
 
-      if (response != null && response['practices'] != null) {
-        final practiceData = response['practices'] as List;
+      if (response != null && response['matches'] != null) {
+        final practiceData = response['matches'] as List;
         return practiceData
             .map((data) => _transformPracticeToMatchListItem(data))
             .toList();

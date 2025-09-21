@@ -341,7 +341,10 @@ class ClubChatScreenState extends State<ClubChatScreen>
         }
 
         // Save to local cache
-        await MessageStorageService.saveMessages(widget.club.id, currentMessages);
+        await MessageStorageService.saveMessages(
+          widget.club.id,
+          currentMessages,
+        );
 
         // Media will be cached lazily when widgets display them
 
@@ -1641,20 +1644,11 @@ class ClubChatScreenState extends State<ClubChatScreen>
   }
 
   void _handleNewMessage(ClubMessage tempMessage) {
-    debugPrint(
-      '🔍 ClubChat: _handleNewMessage called with tempMessage id: ${tempMessage.id}',
-    );
-    debugPrint('🔍 ClubChat: tempMessage replyTo: ${tempMessage.replyTo}');
-    debugPrint('🔍 ClubChat: _replyingTo state: $_replyingTo');
-
     final userProvider = context.read<UserProvider>();
     final user = userProvider.user;
     if (user == null) {
-      debugPrint('🔍 ClubChat: User is null, returning');
       return;
     }
-
-    debugPrint('🔍 ClubChat: User found: ${user.name} (${user.id})');
 
     // Fill in user information
     final message = ClubMessage(
@@ -1691,10 +1685,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
       replyTo: _replyingTo, // Add reply if replying
     );
 
-    debugPrint(
-      '🔍 ClubChat: Created final message with replyTo: ${message.replyTo}',
-    );
-
     // Clear reply state
     _cancelReply();
 
@@ -1714,10 +1704,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToBottom();
     });
-
-    debugPrint(
-      '🔍 ClubChat: Added message to _messages list. Total messages: ${_messages.length}',
-    );
   }
 
   /// Scroll to the bottom of the messages list with animation
@@ -2185,15 +2171,18 @@ class ClubChatScreenState extends State<ClubChatScreen>
       final previousMessage = i > 0 ? messages[i - 1] : null;
       final nextMessage = i < messages.length - 1 ? messages[i + 1] : null;
 
-      final showSenderInfo = previousMessage == null ||
+      final showSenderInfo =
+          previousMessage == null ||
           previousMessage.senderId != message.senderId ||
           message.createdAt.difference(previousMessage.createdAt).inMinutes > 5;
 
-      final isLastFromSender = nextMessage == null ||
+      final isLastFromSender =
+          nextMessage == null ||
           nextMessage.senderId != message.senderId ||
           nextMessage.createdAt.difference(message.createdAt).inMinutes > 5;
 
-      final isFirstFromSender = previousMessage == null ||
+      final isFirstFromSender =
+          previousMessage == null ||
           previousMessage.senderId != message.senderId ||
           !_isSameDate(message.createdAt, previousMessage.createdAt);
 
