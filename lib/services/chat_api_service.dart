@@ -88,7 +88,7 @@ class ChatApiService {
           'type': 'practice',
           'body': content['body'] ?? ' ',
           'practiceId': content['practiceId'],
-          'practiceDetails': content['practiceDetails'],
+          'meta': content['practiceDetails'] ?? content['meta'],
         };
         break;
 
@@ -97,7 +97,7 @@ class ChatApiService {
           'type': 'match',
           'body': content['body'] ?? ' ',
           'matchId': content['matchId'],
-          'matchDetails': content['matchDetails'],
+          'meta': content['matchDetails'] ?? content['meta'],
         };
         break;
 
@@ -106,7 +106,7 @@ class ChatApiService {
           'type': 'poll',
           'body': content['body'] ?? ' ',
           'pollId': content['pollId'],
-          'pollDetails': content['pollDetails'],
+          'meta': content['pollDetails'] ?? content['meta'],
         };
         break;
 
@@ -114,7 +114,7 @@ class ChatApiService {
         contentMap = {
           'type': 'location',
           'body': content['body'] ?? ' ',
-          'locationDetails': content['locationDetails'],
+          'meta': content['locationDetails'] ?? content['meta'],
         };
         break;
 

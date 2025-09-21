@@ -48,9 +48,7 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
   Map<String, dynamic> get _getUnifiedMatchDetails {
     return _cachedMatchDetails.isNotEmpty
         ? _cachedMatchDetails
-        : widget.message.matchDetails ??
-          widget.message.practiceDetails ??
-          {};
+        : widget.message.meta ?? {};
   }
 
   /// Get the unified match ID
@@ -96,7 +94,7 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
 
     final messageIdChanged = oldMessageId != newMessageId;
     final messageChanged = oldWidget.message.id != widget.message.id;
-    final detailsChanged = (oldWidget.message.matchDetails ?? oldWidget.message.practiceDetails) != _getUnifiedMatchDetails;
+    final detailsChanged = oldWidget.message.meta != _getUnifiedMatchDetails;
 
     if (messageIdChanged || messageChanged || detailsChanged) {
       // Update cached data from new message
@@ -223,8 +221,7 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
       final messageIndex = messages.indexWhere((m) => m.id == widget.message.id);
       if (messageIndex != -1) {
         final updatedMessage = widget.message.copyWith(
-          matchDetails: _isPracticeMessage ? null : updatedDetails,
-          practiceDetails: _isPracticeMessage ? updatedDetails : null,
+          meta: updatedDetails,
         );
 
         messages[messageIndex] = updatedMessage;
@@ -241,6 +238,18 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
   Map<String, int> _extractStatusCounts(Map<String, dynamic> details) {
     final counts = <String, int>{'YES': 0, 'NO': 0, 'MAYBE': 0};
 
+    // Try the new unified meta fields first
+    if (details['confirmedPlayers'] != null || details['availableSpots'] != null) {
+      final confirmedPlayers = (details['confirmedPlayers'] as num?)?.toInt() ?? 0;
+      final availableSpots = (details['availableSpots'] as num?)?.toInt() ?? 0;
+
+      counts['YES'] = confirmedPlayers;
+      // For spots and other counts, we don't have detailed breakdown from match data
+      // so we'll show what we have
+      return counts;
+    }
+
+    // Fallback to old field structure
     final aggregate = details['counts'];
     if (aggregate is Map<String, dynamic>) {
       counts['YES'] = ((aggregate['confirmed'] as num?)?.toInt() ?? 0) +
@@ -291,12 +300,14 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     final isPractice = _isTypePractice(matchDetails);
 
     // Extract match information
-    final homeTeam = _safeMapFromData(matchDetails['homeTeam']) ?? {};
+    final homeTeam = _safeMapFromData(matchDetails['homeTeam'] ?? matchDetails['team']) ?? {};
     final opponentTeam = _safeMapFromData(matchDetails['opponentTeam']) ?? {};
-    final venue = _safeMapFromData(matchDetails['venue']) ?? {};
+    final venue = _safeMapFromData(matchDetails['venue']) ?? (matchDetails['location'] != null ? {'name': matchDetails['location']} : {});
     final matchDateTime = matchDetails['dateTime'] != null
         ? DateTime.tryParse(matchDetails['dateTime'].toString())
-        : null;
+        : (matchDetails['matchDate'] != null
+            ? DateTime.tryParse(matchDetails['matchDate'].toString())
+            : null);
 
     if (matchDetails.isEmpty) {
       return Padding(

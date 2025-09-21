@@ -41,7 +41,7 @@ class LocationMessageBubble extends StatelessWidget {
 
   Widget _buildLocationContent(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final locationDetails = message.locationDetails ?? {};
+    final locationDetails = message.meta ?? {};
     
     // Extract location information
     final locationName = locationDetails['name']?.toString() ?? 'Location';

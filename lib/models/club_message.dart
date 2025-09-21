@@ -52,19 +52,12 @@ class ClubMessage {
   final PinInfo pin;
   // Match-specific fields
   final String? matchId; // ID of the associated match
-  final Map<String, dynamic>?
-  matchDetails; // Match details (teams, date, venue)
   // Practice-specific fields
   final String? practiceId; // ID of the associated practice session
-  final Map<String, dynamic>?
-  practiceDetails; // Practice details (date, venue, type, etc.)
-  // Location-specific fields
-  final Map<String, dynamic>?
-  locationDetails; // Location details (name, address, coordinates)
+  // Unified metadata field for all message types
+  final Map<String, dynamic>? meta; // Additional metadata (match details, practice details, location details, poll details, etc.)
   // Poll-specific fields
   final String? pollId; // ID of the associated poll
-  final Map<String, dynamic>?
-  pollDetails; // Poll details (question, options, votes, etc.)
   // Local-only fields for read/delivered tracking
   final DateTime? deliveredAt;
   final DateTime? readAt;
@@ -96,12 +89,9 @@ class ClubMessage {
     this.deletedBy,
     required this.starred,
     this.matchId,
-    this.matchDetails,
     this.practiceId,
-    this.practiceDetails,
-    this.locationDetails,
+    this.meta,
     this.pollId,
-    this.pollDetails,
     this.deliveredAt,
     this.readAt,
     required this.pin,
@@ -125,12 +115,9 @@ class ClubMessage {
     String? deletedBy,
     StarredInfo? starred,
     String? matchId,
-    Map<String, dynamic>? matchDetails,
     String? practiceId,
-    Map<String, dynamic>? practiceDetails,
-    Map<String, dynamic>? locationDetails,
+    Map<String, dynamic>? meta,
     String? pollId,
-    Map<String, dynamic>? pollDetails,
     PinInfo? pin,
     DateTime? deliveredAt,
     DateTime? readAt,
@@ -161,12 +148,9 @@ class ClubMessage {
       deletedBy: deletedBy ?? this.deletedBy,
       starred: starred ?? this.starred,
       matchId: matchId ?? this.matchId,
-      matchDetails: matchDetails ?? this.matchDetails,
       practiceId: practiceId ?? this.practiceId,
-      practiceDetails: practiceDetails ?? this.practiceDetails,
-      locationDetails: locationDetails ?? this.locationDetails,
+      meta: meta ?? this.meta,
       pollId: pollId ?? this.pollId,
-      pollDetails: pollDetails ?? this.pollDetails,
       pin: pin ?? this.pin,
       deliveredAt: deliveredAt ?? this.deliveredAt,
       readAt: readAt ?? this.readAt,
@@ -198,12 +182,9 @@ class ClubMessage {
 
     // New message type fields
     String? matchId;
-    Map<String, dynamic>? matchDetails;
     String? practiceId;
-    Map<String, dynamic>? practiceDetails;
-    Map<String, dynamic>? locationDetails;
     String? pollId;
-    Map<String, dynamic>? pollDetails;
+    Map<String, dynamic>? meta;
 
     // Check for deleted message
     bool isDeleted = false;
@@ -330,20 +311,20 @@ class ClubMessage {
         if (messageType == 'match') {
           // Extract match-specific fields from content
           matchId = content['matchId'] as String?;
-          matchDetails = _safeMapFromJson(content['matchDetails']);
-          print('🏏 ClubMessage.fromJson: Match content - matchId: $matchId, matchDetails: $matchDetails');
+          meta = _safeMapFromJson(content['meta']) ?? _safeMapFromJson(content['matchDetails']);
+          print('🏏 ClubMessage.fromJson: Match content - matchId: $matchId, meta: $meta');
         } else if (messageType == 'practice') {
           // Extract practice-specific fields from content
           practiceId = content['practiceId'] as String?;
-          practiceDetails = _safeMapFromJson(content['practiceDetails']);
-          print('⚽ ClubMessage.fromJson: Practice content - practiceId: $practiceId, practiceDetails: $practiceDetails');
+          meta = _safeMapFromJson(content['meta']) ?? _safeMapFromJson(content['practiceDetails']);
+          print('⚽ ClubMessage.fromJson: Practice content - practiceId: $practiceId, meta: $meta');
         } else if (messageType == 'location') {
           // Extract location-specific fields from content
-          locationDetails = _safeMapFromJson(content['locationDetails']);
+          meta = _safeMapFromJson(content['meta']) ?? _safeMapFromJson(content['locationDetails']);
         } else if (messageType == 'poll') {
           // Extract poll-specific fields from content
           pollId = content['pollId'] as String?;
-          pollDetails = _safeMapFromJson(content['pollDetails']);
+          meta = _safeMapFromJson(content['meta']) ?? _safeMapFromJson(content['pollDetails']);
         }
       }
 
@@ -594,14 +575,13 @@ class ClubMessage {
       deletedBy: deletedByName,
       starred: starredInfo,
       matchId: matchId ?? (json['matchId'] as String?),
-      matchDetails: matchDetails ?? _safeMapFromJson(json['matchDetails']),
       practiceId: practiceId ?? (json['practiceId'] as String?),
-      practiceDetails:
-          practiceDetails ?? _safeMapFromJson(json['practiceDetails']),
-      locationDetails:
-          locationDetails ?? _safeMapFromJson(json['locationDetails']),
       pollId: pollId ?? (json['pollId'] as String?),
-      pollDetails: pollDetails ?? _safeMapFromJson(json['pollDetails']),
+      meta: meta ?? _safeMapFromJson(json['meta']) ??
+           _safeMapFromJson(json['matchDetails']) ??
+           _safeMapFromJson(json['practiceDetails']) ??
+           _safeMapFromJson(json['locationDetails']) ??
+           _safeMapFromJson(json['pollDetails']),
       pin: PinInfo(
         isPinned: isPinned,
         pinStart: pinStart,
@@ -685,12 +665,9 @@ class ClubMessage {
       'starred': starred.toJson(),
       'pin': pin.toJson(),
       'matchId': matchId,
-      'matchDetails': matchDetails,
       'practiceId': practiceId,
-      'practiceDetails': practiceDetails,
-      'locationDetails': locationDetails,
       'pollId': pollId,
-      'pollDetails': pollDetails,
+      'meta': meta,
       // Local-only fields for storage
       'deliveredAt': deliveredAt?.toIso8601String(),
       'readAt': readAt?.toIso8601String(),

@@ -477,24 +477,7 @@ class _MessageInputState extends State<MessageInput> {
       content: practiceBody,
       messageType: 'practice',
       practiceId: practice.id,
-      practiceDetails: {
-        'title': practice.opponent?.isNotEmpty == true
-            ? practice.opponent!
-            : 'Practice Session',
-        'description': 'Join our training session',
-        'date': practice.matchDate.toIso8601String().split('T')[0],
-        'time':
-            '${practice.matchDate.hour.toString().padLeft(2, '0')}:${practice.matchDate.minute.toString().padLeft(2, '0')}',
-        'venue': practice.location.isNotEmpty
-            ? practice.location
-            : 'Training Ground',
-        'duration': '2 hours',
-        'type': 'PRACTICE',
-        'maxParticipants': practice.spots,
-        'currentParticipants': practice.confirmedPlayers,
-        'isJoined':
-            practice.userRsvp != null && practice.userRsvp!.status == 'YES',
-      },
+      meta: practice.toJson(),
       createdAt: DateTime.now(),
       status: MessageStatus.sending,
       starred: StarredInfo(isStarred: false),
@@ -525,21 +508,7 @@ class _MessageInputState extends State<MessageInput> {
       content: matchBody,
       messageType: 'match',
       matchId: match.id,
-      matchDetails: {
-        'homeTeam': {
-          'name': match.team?.name ?? match.club.name,
-          'logo': match.team?.logo ?? match.club.logo,
-        },
-        'opponentTeam': {
-          'name': match.opponentTeam?.name ?? match.opponent ?? 'TBD',
-          'logo': match.opponentTeam?.logo,
-        },
-        'dateTime': match.matchDate.toIso8601String(),
-        'venue': {
-          'name': match.location.isNotEmpty ? match.location : 'Venue TBD',
-          'address': match.location,
-        },
-      },
+      meta: match.toJson(),
       createdAt: DateTime.now(),
       status: MessageStatus.sending,
       starred: StarredInfo(isStarred: false),

@@ -35,7 +35,7 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
   @override
   void initState() {
     super.initState();
-    pollDetails = widget.message.pollDetails ?? {};
+    pollDetails = widget.message.meta ?? {};
   }
 
   @override

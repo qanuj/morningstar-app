@@ -223,7 +223,7 @@ class MessageBubbleFactory extends StatelessWidget {
   void _navigateToCachedMatchDetail(BuildContext context, ClubMessage message) {
     if (message.matchId == null) return;
 
-    final matchData = message.matchDetails ?? message.practiceDetails ?? {};
+    final matchData = message.meta ?? {};
 
     // Create a cached match detail screen that uses the message data
     Navigator.of(context).push(

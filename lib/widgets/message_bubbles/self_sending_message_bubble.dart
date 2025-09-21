@@ -480,7 +480,7 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
               ? ' '
               : currentMessage.content,
           'practiceId': currentMessage.practiceId,
-          'practiceDetails': currentMessage.practiceDetails,
+          'meta': currentMessage.meta,
         };
         print('🔍 SelfSendingMessageBubble: Created practice contentMap: $contentMap');
       } else if (messageType == 'match') {
@@ -491,7 +491,7 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
               ? ' '
               : currentMessage.content,
           'matchId': currentMessage.matchId,
-          'matchDetails': currentMessage.matchDetails,
+          'meta': currentMessage.meta,
         };
       } else if (messageType == 'poll') {
         // Poll message with special schema format
@@ -501,7 +501,7 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
               ? ' '
               : currentMessage.content,
           'pollId': currentMessage.pollId,
-          'pollDetails': currentMessage.pollDetails,
+          'meta': currentMessage.meta,
         };
       } else if (messageType == 'location') {
         // Location message with special schema format
@@ -510,7 +510,7 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
           'body': currentMessage.content.trim().isEmpty
               ? ' '
               : currentMessage.content,
-          'locationDetails': currentMessage.locationDetails,
+          'meta': currentMessage.meta,
         };
       } else {
         // All other cases: text, emoji, and ALL images/videos (single or multiple)

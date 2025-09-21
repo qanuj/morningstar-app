@@ -1679,12 +1679,9 @@ class ClubChatScreenState extends State<ClubChatScreen>
       gifUrl: tempMessage.gifUrl,
       // ✅ RICH MESSAGE TYPE FIELDS - Critical for practice/match/poll messages
       practiceId: tempMessage.practiceId,
-      practiceDetails: tempMessage.practiceDetails,
       matchId: tempMessage.matchId,
-      matchDetails: tempMessage.matchDetails,
-      locationDetails: tempMessage.locationDetails,
       pollId: tempMessage.pollId,
-      pollDetails: tempMessage.pollDetails,
+      meta: tempMessage.meta,
       // ✅ OTHER FIELDS
       reactions: tempMessage.reactions,
       deleted: tempMessage.deleted,
