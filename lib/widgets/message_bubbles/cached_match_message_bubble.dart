@@ -6,7 +6,7 @@ import '../../models/club_message.dart';
 import '../../services/match_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/message_storage_service.dart';
-import '../cached_media_image.dart';
+import '../svg_avatar.dart';
 import 'base_message_bubble.dart';
 
 /// A cached match message bubble that uses local data and only updates via push notifications
@@ -582,7 +582,7 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
       width: 56,
       height: 56,
       child: logoUrl != null && logoUrl.isNotEmpty
-          ? CachedAvatarImage(
+          ? SVGAvatar(
               imageUrl: logoUrl,
               size: 56,
               fallbackText: '',

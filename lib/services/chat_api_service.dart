@@ -109,14 +109,8 @@ class ChatApiService {
     Map<String, dynamic> matchData,
   ) async {
     try {
-      final requestData = {
-        'content': {
-          'type': 'match',
-          'body': matchData['content'] ?? 'New match created! Check your matches to view details and RSVP.',
-          'matchId': matchData['matchId'],
-          'matchDetails': matchData['matchDetails'], // Optional match details
-        },
-      };
+      // matchData now contains the correctly structured content
+      final requestData = matchData;
       
       final response = await ApiService.post(
         '/conversations/$clubId/messages',
@@ -135,17 +129,8 @@ class ChatApiService {
     Map<String, dynamic> practiceData,
   ) async {
     try {
-      final requestData = {
-        'content': {
-          'type': 'practice',
-          'body': practiceData['content'] ?? 'New practice session scheduled!',
-          'matchId': practiceData['matchId'],        // Use unified matchId
-          'matchDetails': practiceData['matchDetails'], // Use unified matchDetails
-          // Keep legacy fields for backward compatibility (optional)
-          'practiceId': practiceData['matchId'],
-          'practiceDetails': practiceData['matchDetails'],
-        },
-      };
+      // practiceData now contains the correctly structured content
+      final requestData = practiceData;
       
       final response = await ApiService.post(
         '/conversations/$clubId/messages',

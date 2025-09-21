@@ -308,7 +308,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
               ),
               SizedBox(height: 16),
               Text(
-                'Select Match Type',
+                'Match Type',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -1340,11 +1340,12 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       return;
     }
 
-    final selectedTournament = await TournamentPickerScreen.showTournamentPicker(
-      context: context,
-      clubId: _selectedHomeTeam!.club!.id,
-      title: 'Select Tournament',
-    );
+    final selectedTournament =
+        await TournamentPickerScreen.showTournamentPicker(
+          context: context,
+          clubId: _selectedHomeTeam!.club!.id,
+          title: 'Select Tournament',
+        );
 
     if (selectedTournament != null) {
       setState(() {

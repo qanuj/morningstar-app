@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../services/media_storage_service.dart';
@@ -20,6 +21,7 @@ class SVGAvatar extends StatelessWidget {
   final Color? borderColor;
   final double borderWidth;
   final VoidCallback? onTap;
+  final bool isAvatarMode;
 
   const SVGAvatar({
     super.key,
@@ -37,6 +39,7 @@ class SVGAvatar extends StatelessWidget {
     this.borderColor,
     this.borderWidth = 2.0,
     this.onTap,
+    this.isAvatarMode = true,
   });
 
   /// Factory constructor for small avatars (24px)
@@ -55,6 +58,24 @@ class SVGAvatar extends StatelessWidget {
       fallbackIcon: fallbackIcon,
       iconSize: 14,
       onTap: onTap,
+      isAvatarMode: true,
+    );
+  }
+
+  /// Factory constructor for images (flexible sizing)
+  factory SVGAvatar.image({
+    required String imageUrl,
+    required double width,
+    required double height,
+    BoxFit fit = BoxFit.cover,
+    VoidCallback? onTap,
+  }) {
+    return SVGAvatar(
+      imageUrl: imageUrl,
+      size: width, // Use width as size for image mode
+      fit: fit,
+      onTap: onTap,
+      isAvatarMode: false,
     );
   }
 
@@ -78,6 +99,7 @@ class SVGAvatar extends StatelessWidget {
       showBorder: showBorder,
       borderColor: borderColor,
       onTap: onTap,
+      isAvatarMode: true,
     );
   }
 
@@ -101,6 +123,7 @@ class SVGAvatar extends StatelessWidget {
       showBorder: showBorder,
       borderColor: borderColor,
       onTap: onTap,
+      isAvatarMode: true,
     );
   }
 
@@ -124,6 +147,7 @@ class SVGAvatar extends StatelessWidget {
       showBorder: showBorder,
       borderColor: borderColor,
       onTap: onTap,
+      isAvatarMode: true,
     );
   }
 
@@ -210,11 +234,14 @@ class SVGAvatar extends StatelessWidget {
         }
 
         final localPath = snapshot.data!;
+        final isLoadedFromCache = File(localPath).existsSync();
+
+        Widget imageWidget;
 
         if (_isSvg(imageUrl!)) {
           // For SVG, check if it's a local file or still needs network loading
-          if (File(localPath).existsSync()) {
-            return SvgPicture.file(
+          if (isLoadedFromCache) {
+            imageWidget = SvgPicture.file(
               File(localPath),
               width: size,
               height: size,
@@ -223,7 +250,7 @@ class SVGAvatar extends StatelessWidget {
               semanticsLabel: 'User avatar',
             );
           } else {
-            return SvgPicture.network(
+            imageWidget = SvgPicture.network(
               imageUrl!,
               width: size,
               height: size,
@@ -234,8 +261,8 @@ class SVGAvatar extends StatelessWidget {
           }
         } else {
           // For regular images
-          if (File(localPath).existsSync()) {
-            return Image.file(
+          if (isLoadedFromCache) {
+            imageWidget = Image.file(
               File(localPath),
               width: size,
               height: size,
@@ -243,7 +270,7 @@ class SVGAvatar extends StatelessWidget {
               errorBuilder: (context, error, stackTrace) => _buildFallback(context),
             );
           } else {
-            return Image.network(
+            imageWidget = Image.network(
               imageUrl!,
               width: size,
               height: size,
@@ -256,37 +283,76 @@ class SVGAvatar extends StatelessWidget {
             );
           }
         }
+
+        // Add offline indicator in debug mode
+        if (kDebugMode && isLoadedFromCache) {
+          return Stack(
+            children: [
+              imageWidget,
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.offline_bolt,
+                    color: Colors.white,
+                    size: size * 0.2,
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+
+        return imageWidget;
       },
     );
   }
 
-  /// Build the complete avatar widget
+  /// Build the complete avatar/image widget
   Widget _buildAvatar(BuildContext context) {
-    Widget avatar = Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: _getBackgroundColor(context),
-        border: showBorder ? Border.all(
-          color: borderColor ?? Theme.of(context).primaryColor,
-          width: borderWidth,
-        ) : null,
-      ),
-      child: ClipOval(
-        child: child ?? _buildImage(context),
-      ),
-    );
+    Widget content;
 
-    // Wrap with GestureDetector if onTap is provided
-    if (onTap != null) {
-      avatar = GestureDetector(
-        onTap: onTap,
-        child: avatar,
+    if (isAvatarMode) {
+      // Avatar mode: circular with background
+      content = Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: _getBackgroundColor(context),
+          border: showBorder ? Border.all(
+            color: borderColor ?? Theme.of(context).primaryColor,
+            width: borderWidth,
+          ) : null,
+        ),
+        child: ClipOval(
+          child: child ?? _buildImage(context),
+        ),
+      );
+    } else {
+      // Image mode: rectangular, no background
+      content = SizedBox(
+        width: size,
+        height: size,
+        child: child ?? _buildImage(context),
       );
     }
 
-    return avatar;
+    // Wrap with GestureDetector if onTap is provided
+    if (onTap != null) {
+      content = GestureDetector(
+        onTap: onTap,
+        child: content,
+      );
+    }
+
+    return content;
   }
 
   @override

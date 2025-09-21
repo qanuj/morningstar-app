@@ -8,7 +8,7 @@ import 'package:crypto/crypto.dart';
 
 class MediaStorageService {
   static const String _mediaMetadataPrefix = 'media_meta_';
-  
+
   /// Get the local media directory
   static Future<Directory> getMediaDirectory() async {
     final appDir = await getApplicationDocumentsDirectory();
@@ -59,18 +59,14 @@ class MediaStorageService {
   /// Download and cache a media file with smart caching
   static Future<String?> downloadMedia(String url) async {
     try {
-      print('📥 Downloading media: $url');
-
       // Check if URL is already a local path
       if (_isLocalPath(url)) {
-        print('ℹ️ URL is already a local path, returning as is: $url');
         return File(url).existsSync() ? url : null;
       }
 
       // Check if already downloaded
       final localPath = await getLocalMediaPath(url);
       if (localPath != null && await File(localPath).exists()) {
-        print('✅ Media already cached: $localPath');
         return localPath;
       }
 
@@ -90,8 +86,6 @@ class MediaStorageService {
 
       // Save metadata
       await _saveMediaMetadata(url, file.path);
-
-      print('✅ Media downloaded and cached: ${file.path}');
       return file.path;
     } catch (e) {
       print('❌ Error downloading media: $e');
@@ -127,12 +121,12 @@ class MediaStorageService {
       final prefs = await SharedPreferences.getInstance();
       final metadataKey = '$_mediaMetadataPrefix${_hashUrl(url)}';
       final metadataJson = prefs.getString(metadataKey);
-      
+
       if (metadataJson == null) return null;
-      
+
       final metadata = jsonDecode(metadataJson) as Map<String, dynamic>;
       final localPath = metadata['localPath'] as String;
-      
+
       // Check if file still exists
       if (await File(localPath).exists()) {
         return localPath;
@@ -152,7 +146,7 @@ class MediaStorageService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final metadataKey = '$_mediaMetadataPrefix${_hashUrl(url)}';
-      
+
       final metadata = {
         'url': url,
         'localPath': localPath,
@@ -165,7 +159,6 @@ class MediaStorageService {
       print('❌ Error saving media metadata: $e');
     }
   }
-
 
   /// Hash URL for consistent key generation
   static String _hashUrl(String url) {
@@ -195,7 +188,6 @@ class MediaStorageService {
     }
   }
 
-
   /// Clear all cached media
   static Future<void> clearAllMedia() async {
     try {
@@ -209,7 +201,9 @@ class MediaStorageService {
       // Clear metadata from SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       final keys = prefs.getKeys();
-      final mediaKeys = keys.where((key) => key.startsWith(_mediaMetadataPrefix));
+      final mediaKeys = keys.where(
+        (key) => key.startsWith(_mediaMetadataPrefix),
+      );
 
       for (final key in mediaKeys) {
         await prefs.remove(key);
@@ -226,11 +220,7 @@ class MediaStorageService {
     try {
       final mediaDir = await getMediaDirectory();
       if (!await mediaDir.exists()) {
-        return {
-          'totalFiles': 0,
-          'totalSizeBytes': 0,
-          'totalSizeMB': 0.0,
-        };
+        return {'totalFiles': 0, 'totalSizeBytes': 0, 'totalSizeMB': 0.0};
       }
 
       final files = await mediaDir.list().toList();

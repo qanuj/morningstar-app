@@ -364,47 +364,77 @@ class _MessageInputState extends State<MessageInput> {
 
 
   void _sendExistingPracticeMessage(MatchListItem practice) async {
-    // Send practice message to backend first
+    final practiceBody = '⚽ Practice session: ${practice.opponent?.isNotEmpty == true ? practice.opponent! : 'Practice Session'}';
+
+    // Create temporary message for immediate UI update
+    final tempMessage = ClubMessage(
+      id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+      clubId: widget.clubId,
+      senderId: 'current_user', // Will be filled by parent
+      senderName: 'You',
+      senderProfilePicture: null,
+      senderRole: 'MEMBER',
+      content: practiceBody,
+      messageType: 'practice',
+      practiceId: practice.id,
+      practiceDetails: {
+        'title': practice.opponent?.isNotEmpty == true
+            ? practice.opponent!
+            : 'Practice Session',
+        'description': 'Join our training session',
+        'date': practice.matchDate.toIso8601String().split('T')[0],
+        'time':
+            '${practice.matchDate.hour.toString().padLeft(2, '0')}:${practice.matchDate.minute.toString().padLeft(2, '0')}',
+        'venue': practice.location.isNotEmpty
+            ? practice.location
+            : 'Training Ground',
+        'duration': '2 hours',
+        'type': 'PRACTICE',
+        'maxParticipants': practice.spots,
+        'currentParticipants': practice.confirmedPlayers,
+        'isJoined':
+            practice.userRsvp != null && practice.userRsvp!.status == 'YES',
+      },
+      createdAt: DateTime.now(),
+      status: MessageStatus.sending,
+      starred: StarredInfo(isStarred: false),
+      pin: PinInfo(isPinned: false),
+    );
+
+    // Show message immediately in UI
+    widget.onSendMessage(tempMessage);
+
+    // Send practice message to backend
     try {
       final practiceData = {
-        'content':
-            '⚽ Practice session: ${practice.opponent?.isNotEmpty == true ? practice.opponent! : 'Practice Session'}',
-        'matchId': practice.id, // Use unified matchId instead of practiceId
-        'matchDetails': {
-          // Use unified matchDetails instead of practiceDetails
-          'title': practice.opponent?.isNotEmpty == true
-              ? practice.opponent!
-              : 'Practice Session',
-          'description': 'Join our training session',
-          'date': practice.matchDate.toIso8601String().split('T')[0],
-          'time':
-              '${practice.matchDate.hour.toString().padLeft(2, '0')}:${practice.matchDate.minute.toString().padLeft(2, '0')}',
-          'venue': practice.location.isNotEmpty
-              ? practice.location
-              : 'Training Ground',
-          'duration': '2 hours',
-          'type': 'PRACTICE', // Set type to indicate this is a practice
-          'maxParticipants': practice.spots,
-          'confirmedPlayers': practice.confirmedPlayers,
-          'isJoined':
-              practice.userRsvp != null && practice.userRsvp!.status == 'YES',
-          'isCancelled': practice.isCancelled,
-          'cancellationReason': practice.cancellationReason,
+        'content': {
+          'type': 'practice',
+          'body': practiceBody,
+          'practiceId': practice.id,
+          'practiceDetails': {
+            'title': practice.opponent?.isNotEmpty == true
+                ? practice.opponent!
+                : 'Practice Session',
+            'description': 'Join our training session',
+            'date': practice.matchDate.toIso8601String().split('T')[0],
+            'time':
+                '${practice.matchDate.hour.toString().padLeft(2, '0')}:${practice.matchDate.minute.toString().padLeft(2, '0')}',
+            'venue': practice.location.isNotEmpty
+                ? practice.location
+                : 'Training Ground',
+            'duration': '2 hours',
+            'type': 'PRACTICE',
+            'maxParticipants': practice.spots,
+            'currentParticipants': practice.confirmedPlayers,
+            'isJoined':
+                practice.userRsvp != null && practice.userRsvp!.status == 'YES',
+          },
         },
       };
 
       await ChatApiService.sendPracticeMessage(widget.clubId, practiceData);
 
-      // Show success feedback
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Practice announcement sent successfully'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
+      // Success - message sent, optimistic UI already showing
     } catch (e) {
       print('❌ Error sending practice message: $e');
       // Handle error - show snackbar or retry
@@ -424,41 +454,71 @@ class _MessageInputState extends State<MessageInput> {
   }
 
   void _sendExistingMatchMessage(MatchListItem match) async {
-    // Send match message to backend first
+    final matchBody = '📅 Match announcement: ${match.team?.name ?? match.club.name} vs ${match.opponentTeam?.name ?? match.opponent ?? "TBD"}';
+
+    // Create temporary message for immediate UI update
+    final tempMessage = ClubMessage(
+      id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+      clubId: widget.clubId,
+      senderId: 'current_user', // Will be filled by parent
+      senderName: 'You',
+      senderProfilePicture: null,
+      senderRole: 'MEMBER',
+      content: matchBody,
+      messageType: 'match',
+      matchId: match.id,
+      matchDetails: {
+        'homeTeam': {
+          'name': match.team?.name ?? match.club.name,
+          'logo': match.team?.logo ?? match.club.logo,
+        },
+        'opponentTeam': {
+          'name': match.opponentTeam?.name ?? match.opponent ?? 'TBD',
+          'logo': match.opponentTeam?.logo,
+        },
+        'dateTime': match.matchDate.toIso8601String(),
+        'venue': {
+          'name': match.location.isNotEmpty ? match.location : 'Venue TBD',
+          'address': match.location,
+        },
+      },
+      createdAt: DateTime.now(),
+      status: MessageStatus.sending,
+      starred: StarredInfo(isStarred: false),
+      pin: PinInfo(isPinned: false),
+    );
+
+    // Show message immediately in UI
+    widget.onSendMessage(tempMessage);
+
+    // Send match message to backend
     try {
       final matchData = {
-        'content':
-            '📅 Match announcement: ${match.team?.name ?? match.club.name} vs ${match.opponentTeam?.name ?? match.opponent ?? "TBD"}',
-        'matchId': match.id,
-        'matchDetails': {
-          'homeTeam': {
-            'name': match.team?.name ?? match.club.name,
-            'logo': match.team?.logo ?? match.club.logo,
-          },
-          'opponentTeam': {
-            'name': match.opponentTeam?.name ?? match.opponent ?? 'TBD',
-            'logo': match.opponentTeam?.logo,
-          },
-          'dateTime': match.matchDate.toIso8601String(),
-          'venue': {
-            'name': match.location.isNotEmpty ? match.location : 'Venue TBD',
-            'address': match.location,
+        'content': {
+          'type': 'match',
+          'body': matchBody,
+          'matchId': match.id,
+          'matchDetails': {
+            'homeTeam': {
+              'name': match.team?.name ?? match.club.name,
+              'logo': match.team?.logo ?? match.club.logo,
+            },
+            'opponentTeam': {
+              'name': match.opponentTeam?.name ?? match.opponent ?? 'TBD',
+              'logo': match.opponentTeam?.logo,
+            },
+            'dateTime': match.matchDate.toIso8601String(),
+            'venue': {
+              'name': match.location.isNotEmpty ? match.location : 'Venue TBD',
+              'address': match.location,
+            },
           },
         },
       };
 
       await ChatApiService.sendMatchMessage(widget.clubId, matchData);
 
-      // Show success feedback
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Match announcement sent successfully'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
+      // Success - message sent, optimistic UI already showing
     } catch (e) {
       print('❌ Error sending existing match message: $e');
       if (mounted) {

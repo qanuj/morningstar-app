@@ -38,10 +38,8 @@ class UnifiedEventPicker extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => UnifiedEventPickerModal(
-        clubId: clubId,
-        eventType: eventType,
-      ),
+      builder: (context) =>
+          UnifiedEventPickerModal(clubId: clubId, eventType: eventType),
     );
   }
 }
@@ -58,7 +56,8 @@ class UnifiedEventPickerModal extends StatefulWidget {
   });
 
   @override
-  State<UnifiedEventPickerModal> createState() => _UnifiedEventPickerModalState();
+  State<UnifiedEventPickerModal> createState() =>
+      _UnifiedEventPickerModalState();
 }
 
 class _UnifiedEventPickerState extends State<UnifiedEventPicker> {
@@ -84,11 +83,14 @@ class _UnifiedEventPickerState extends State<UnifiedEventPicker> {
     super.dispose();
   }
 
-  String get _title => widget.eventType == EventType.match ? 'Select Match' : 'Select Practice Session';
+  String get _title =>
+      widget.eventType == EventType.match ? 'Match' : 'Practice Session';
   String get _emptyMessage => widget.eventType == EventType.match
       ? 'No upcoming matches found for this club.'
       : 'No upcoming practice sessions found for this club.';
-  IconData get _headerIcon => widget.eventType == EventType.match ? Icons.sports_cricket : Icons.fitness_center;
+  IconData get _headerIcon => widget.eventType == EventType.match
+      ? Icons.sports_cricket
+      : Icons.fitness_center;
 
   void _onScroll() {
     if (_scrollController.position.pixels >=
@@ -221,9 +223,9 @@ class _UnifiedEventPickerState extends State<UnifiedEventPicker> {
       );
     }
 
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => createScreen),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => createScreen));
   }
 
   @override
@@ -236,7 +238,9 @@ class _UnifiedEventPickerState extends State<UnifiedEventPicker> {
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: widget.eventType == EventType.match ? 'Create Match' : 'Create Practice',
+            tooltip: widget.eventType == EventType.match
+                ? 'Create Match'
+                : 'Create Practice',
             onPressed: _createNewEvent,
           ),
         ],
@@ -245,9 +249,7 @@ class _UnifiedEventPickerState extends State<UnifiedEventPicker> {
         color: theme.brightness == Brightness.dark
             ? theme.colorScheme.surface
             : Colors.grey[200],
-        child: SafeArea(
-          child: _buildEventsContent(theme),
-        ),
+        child: SafeArea(child: _buildEventsContent(theme)),
       ),
     );
   }
@@ -300,18 +302,27 @@ class _UnifiedEventPickerState extends State<UnifiedEventPicker> {
                   SizedBox(height: 16),
                   Text(
                     _emptyMessage,
-                    style: theme.textTheme.bodyMedium?.copyWith(color: theme.textTheme.bodySmall?.color),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.textTheme.bodySmall?.color,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 24),
                   ElevatedButton.icon(
                     onPressed: _createNewEvent,
                     icon: Icon(Icons.add),
-                    label: Text(widget.eventType == EventType.match ? 'Create Match' : 'Create Practice'),
+                    label: Text(
+                      widget.eventType == EventType.match
+                          ? 'Create Match'
+                          : 'Create Practice',
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: theme.colorScheme.primary,
                       foregroundColor: theme.colorScheme.onPrimary,
-                      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
                     ),
                   ),
                 ],
@@ -393,11 +404,14 @@ class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal> {
     super.dispose();
   }
 
-  String get _title => widget.eventType == EventType.match ? 'Select Match' : 'Select Practice Session';
+  String get _title =>
+      widget.eventType == EventType.match ? 'Match' : 'Practice Session';
   String get _emptyMessage => widget.eventType == EventType.match
       ? 'No upcoming matches found for this club.'
       : 'No upcoming practice sessions found for this club.';
-  IconData get _headerIcon => widget.eventType == EventType.match ? Icons.sports_cricket : Icons.fitness_center;
+  IconData get _headerIcon => widget.eventType == EventType.match
+      ? Icons.sports_cricket
+      : Icons.fitness_center;
 
   void _onScroll() {
     if (_scrollController.position.pixels >=
@@ -516,25 +530,23 @@ class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal> {
     if (widget.eventType == EventType.match) {
       createScreen = CreateMatchScreen(
         onMatchCreated: (match) {
-          // Refresh the list after creation and close modal
+          // Refresh the list after creation to show new match
           _loadEvents(isRefresh: true);
-          Navigator.of(context).pop();
         },
       );
     } else {
       createScreen = CreatePracticeScreen(
         clubId: widget.clubId,
         onPracticeCreated: (practiceData) {
-          // Refresh the list after creation and close modal
+          // Refresh the list after creation to show new practice
           _loadEvents(isRefresh: true);
-          Navigator.of(context).pop();
         },
       );
     }
 
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => createScreen),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => createScreen));
   }
 
   Widget _buildEventsContent() {
@@ -545,7 +557,9 @@ class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal> {
           children: [
             CircularProgressIndicator(color: Theme.of(context).primaryColor),
             SizedBox(height: 16),
-            Text('Loading ${widget.eventType == EventType.match ? 'matches' : 'practices'}...'),
+            Text(
+              'Loading ${widget.eventType == EventType.match ? 'matches' : 'practices'}...',
+            ),
           ],
         ),
       );
@@ -556,11 +570,7 @@ class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Colors.red,
-            ),
+            Icon(Icons.error_outline, size: 64, color: Colors.red),
             SizedBox(height: 16),
             Text(
               _error!,
@@ -607,7 +617,11 @@ class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal> {
             ElevatedButton.icon(
               onPressed: _createNewEvent,
               icon: Icon(Icons.add),
-              label: Text(widget.eventType == EventType.match ? 'Create Match' : 'Create Practice'),
+              label: Text(
+                widget.eventType == EventType.match
+                    ? 'Create Match'
+                    : 'Create Practice',
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).primaryColor,
                 foregroundColor: Colors.white,
@@ -637,7 +651,9 @@ class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal> {
             padding: const EdgeInsets.symmetric(vertical: 16),
             child: Center(
               child: _isLoadingMore
-                  ? CircularProgressIndicator(color: Theme.of(context).primaryColor)
+                  ? CircularProgressIndicator(
+                      color: Theme.of(context).primaryColor,
+                    )
                   : SizedBox.shrink(),
             ),
           );
@@ -707,7 +723,9 @@ class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal> {
                 ),
                 IconButton(
                   icon: Icon(Icons.add),
-                  tooltip: widget.eventType == EventType.match ? 'Create Match' : 'Create Practice',
+                  tooltip: widget.eventType == EventType.match
+                      ? 'Create Match'
+                      : 'Create Practice',
                   onPressed: _createNewEvent,
                 ),
                 IconButton(
@@ -722,9 +740,7 @@ class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal> {
           Divider(height: 1),
 
           // Content Area
-          Expanded(
-            child: _buildEventsContent(),
-          ),
+          Expanded(child: _buildEventsContent()),
         ],
       ),
     );

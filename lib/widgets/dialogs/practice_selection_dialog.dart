@@ -16,7 +16,8 @@ class PracticeSelectionScreen extends StatefulWidget {
   });
 
   @override
-  State<PracticeSelectionScreen> createState() => _PracticeSelectionScreenState();
+  State<PracticeSelectionScreen> createState() =>
+      _PracticeSelectionScreenState();
 }
 
 class _PracticeSelectionScreenState extends State<PracticeSelectionScreen> {
@@ -43,7 +44,7 @@ class _PracticeSelectionScreenState extends State<PracticeSelectionScreen> {
         upcomingOnly: true,
         limit: 20,
       );
-      
+
       setState(() {
         _practices = practices;
         _isLoading = false;
@@ -76,7 +77,7 @@ class _PracticeSelectionScreenState extends State<PracticeSelectionScreen> {
             Icon(Icons.fitness_center, color: Colors.white, size: 24),
             SizedBox(width: 12),
             Text(
-              'Select Practice Session',
+              'Practice Sessions',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 18,
@@ -88,7 +89,6 @@ class _PracticeSelectionScreenState extends State<PracticeSelectionScreen> {
       ),
       body: Column(
         children: [
-
           // Create New Practice Button
           Padding(
             padding: EdgeInsets.all(16),
@@ -102,7 +102,10 @@ class _PracticeSelectionScreenState extends State<PracticeSelectionScreen> {
                 icon: Icon(Icons.add, color: Colors.white),
                 label: Text(
                   'Create New Practice Session',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: theme.colorScheme.primary,
@@ -115,89 +118,90 @@ class _PracticeSelectionScreenState extends State<PracticeSelectionScreen> {
             ),
           ),
 
-            // Divider
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  Expanded(child: Divider()),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      'Or select existing practice',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 14,
-                      ),
-                    ),
+          // Divider
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Expanded(child: Divider()),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    'Or select existing practice',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
                   ),
-                  Expanded(child: Divider()),
-                ],
-              ),
+                ),
+                Expanded(child: Divider()),
+              ],
             ),
+          ),
 
           // Practice List
           Expanded(
             child: _isLoading
-                ? Center(child: CircularProgressIndicator(color: theme.colorScheme.primary))
+                ? Center(
+                    child: CircularProgressIndicator(
+                      color: theme.colorScheme.primary,
+                    ),
+                  )
                 : _error != null
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.error, color: Colors.red, size: 48),
-                              SizedBox(height: 16),
-                              Text(
-                                _error!,
-                                style: TextStyle(color: Colors.red),
-                                textAlign: TextAlign.center,
-                              ),
-                              SizedBox(height: 16),
-                              ElevatedButton(
-                                onPressed: _loadPractices,
-                                child: Text('Retry'),
-                              ),
-                            ],
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.error, color: Colors.red, size: 48),
+                        SizedBox(height: 16),
+                        Text(
+                          _error!,
+                          style: TextStyle(color: Colors.red),
+                          textAlign: TextAlign.center,
+                        ),
+                        SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _loadPractices,
+                          child: Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  )
+                : _practices.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.fitness_center,
+                          color: Colors.grey[400],
+                          size: 48,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'No upcoming practice sessions',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 16,
                           ),
-                        )
-                      : _practices.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.fitness_center,
-                                    color: Colors.grey[400],
-                                    size: 48,
-                                  ),
-                                  SizedBox(height: 16),
-                                  Text(
-                                    'No upcoming practice sessions',
-                                    style: TextStyle(
-                                      color: Colors.grey[600],
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  SizedBox(height: 8),
-                                  Text(
-                                    'Create a new practice session to get started',
-                                    style: TextStyle(
-                                      color: Colors.grey[500],
-                                      fontSize: 14,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
-                              ),
-                            )
-                          : ListView.builder(
-                              padding: EdgeInsets.all(16),
-                              itemCount: _practices.length,
-                              itemBuilder: (context, index) {
-                                final practice = _practices[index];
-                                return _buildPracticeItem(practice);
-                              },
-                            ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Create a new practice session to get started',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 14,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: EdgeInsets.all(16),
+                    itemCount: _practices.length,
+                    itemBuilder: (context, index) {
+                      final practice = _practices[index];
+                      return _buildPracticeItem(practice);
+                    },
+                  ),
           ),
         ],
       ),
@@ -207,9 +211,11 @@ class _PracticeSelectionScreenState extends State<PracticeSelectionScreen> {
   Widget _buildPracticeItem(MatchListItem practice) {
     final practiceDate = practice.matchDate;
     final dayName = _getDayName(practiceDate.weekday);
-    final timeStr = '${practiceDate.hour.toString().padLeft(2, '0')}:${practiceDate.minute.toString().padLeft(2, '0')}';
-    final dateStr = '${practiceDate.day}/${practiceDate.month}/${practiceDate.year}';
-    
+    final timeStr =
+        '${practiceDate.hour.toString().padLeft(2, '0')}:${practiceDate.minute.toString().padLeft(2, '0')}';
+    final dateStr =
+        '${practiceDate.day}/${practiceDate.month}/${practiceDate.year}';
+
     return Card(
       margin: EdgeInsets.only(bottom: 12),
       child: InkWell(
@@ -237,7 +243,7 @@ class _PracticeSelectionScreenState extends State<PracticeSelectionScreen> {
                 ),
               ),
               SizedBox(width: 16),
-              
+
               // Practice Details
               Expanded(
                 flex: 3,
@@ -245,9 +251,9 @@ class _PracticeSelectionScreenState extends State<PracticeSelectionScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      practice.opponent?.isNotEmpty == true 
-                        ? practice.opponent! 
-                        : 'Practice Session',
+                      practice.opponent?.isNotEmpty == true
+                          ? practice.opponent!
+                          : 'Practice Session',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -257,7 +263,11 @@ class _PracticeSelectionScreenState extends State<PracticeSelectionScreen> {
                     SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Icons.location_on, size: 14, color: Colors.grey[600]),
+                        Icon(
+                          Icons.location_on,
+                          size: 14,
+                          color: Colors.grey[600],
+                        ),
                         SizedBox(width: 4),
                         Expanded(
                           child: Text(
@@ -274,7 +284,7 @@ class _PracticeSelectionScreenState extends State<PracticeSelectionScreen> {
                   ],
                 ),
               ),
-              
+
               // Date & Time
               Expanded(
                 flex: 2,
@@ -292,10 +302,7 @@ class _PracticeSelectionScreenState extends State<PracticeSelectionScreen> {
                     SizedBox(height: 2),
                     Text(
                       dateStr,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
                   ],
                 ),

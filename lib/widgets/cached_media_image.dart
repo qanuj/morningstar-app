@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../services/media_storage_service.dart';
@@ -209,6 +210,31 @@ class _CachedMediaImageState extends State<CachedMediaImage> {
       child = _buildErrorWidget();
     } else {
       child = _buildImageWidget();
+    }
+
+    // Add offline indicator in debug mode for cached images
+    if (kDebugMode && !_isLoading && !_hasError && _localPath != null) {
+      child = Stack(
+        children: [
+          child,
+          Positioned(
+            top: 0,
+            right: 0,
+            child: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.8),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.offline_bolt,
+                color: Colors.white,
+                size: (widget.width != null ? widget.width! : 40) * 0.2,
+              ),
+            ),
+          ),
+        ],
+      );
     }
 
     // Apply border radius if specified

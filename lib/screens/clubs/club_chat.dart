@@ -212,7 +212,8 @@ class ClubChatScreenState extends State<ClubChatScreen>
       // Use a slight delay to ensure the server has processed the message
       Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted) {
-          _loadMessages(forceSync: true);
+          // Instead of full sync, just load new messages to avoid duplicates
+          _loadMessages(forceSync: false);
         }
       });
     });
@@ -293,13 +294,11 @@ class ClubChatScreenState extends State<ClubChatScreen>
         // Merge new messages with existing ones
         final allMessages = [...cachedMessages];
 
-        // Add new messages (avoid duplicates)
+        // Add new messages (avoid duplicates with smart matching)
         for (final newMessage in newMessages) {
-          final existingIndex = allMessages.indexWhere(
-            (m) => m.id == newMessage.id,
-          );
+          final existingIndex = _findExistingMessageIndex(allMessages, newMessage);
           if (existingIndex != -1) {
-            // Update existing message
+            // Update existing message (replace temp with real message)
             allMessages[existingIndex] = newMessage;
           } else {
             // Add new message
@@ -1240,7 +1239,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
     await MessageStorageService.setOfflineMode(widget.club.id, enabled);
   }
 
-
   Future<void> _downloadAllMedia() async {
     try {
       // Extract media URLs from current messages
@@ -1282,117 +1280,32 @@ class ClubChatScreenState extends State<ClubChatScreen>
     }
   }
 
-  Future<void> _showStorageInfo() async {
-    final storageInfo = await MessageStorageService.getStorageInfo(
-      widget.club.id,
-    );
+  /// Find existing message index with smart matching for temp messages
+  int _findExistingMessageIndex(List<ClubMessage> messages, ClubMessage newMessage) {
+    // First try exact ID match
+    final exactMatch = messages.indexWhere((m) => m.id == newMessage.id);
+    if (exactMatch != -1) return exactMatch;
 
-    final mediaInfo = storageInfo['media'] as Map<String, dynamic>? ?? {};
-
-    if (mounted) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Storage Information'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '📱 OFFLINE STATUS',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'Offline Mode: ${storageInfo['isOfflineMode'] ? 'ON' : 'OFF'}',
-                ),
-                SizedBox(height: 16),
-
-                Text(
-                  '💬 MESSAGES',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 8),
-                Text('Count: ${storageInfo['messageCount']}'),
-                Text('Last Sync: ${storageInfo['lastSync'] ?? 'Never'}'),
-                Text('Needs Sync: ${storageInfo['needsSync']}'),
-                if (storageInfo['lastMessageAt'] != null)
-                  Text('Latest: ${storageInfo['lastMessageAt']}'),
-                SizedBox(height: 8),
-                Text(
-                  '📧 Delivered: ${storageInfo['deliveredCount'] ?? 0}',
-                  style: TextStyle(fontSize: 12, color: Colors.green[700]),
-                ),
-                Text(
-                  '👁️ Read: ${storageInfo['readCount'] ?? 0}',
-                  style: TextStyle(fontSize: 12, color: Colors.blue[700]),
-                ),
-                SizedBox(height: 16),
-
-                Text(
-                  '💾 MEDIA CACHE',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 8),
-                Text('Files: ${mediaInfo['totalFiles'] ?? 0}'),
-                if (mediaInfo['totalSizeMB'] != null)
-                  Text(
-                    'Size: ${(mediaInfo['totalSizeMB'] as double).toStringAsFixed(1)} MB',
-                  ),
-                if (mediaInfo['byType'] != null) ...[
-                  SizedBox(height: 8),
-                  ...((mediaInfo['byType'] as Map<String, dynamic>).entries.map(
-                    (e) => Text('${e.key}: ${e.value}'),
-                  )),
-                ],
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Close'),
-            ),
-          ],
-        ),
+    // For server messages, also check if we have a temp message that matches
+    // This handles the case where optimistic message becomes real server message
+    if (!newMessage.id.startsWith('temp_')) {
+      final tempMatch = messages.indexWhere((m) =>
+        m.id.startsWith('temp_') &&
+        m.senderId == newMessage.senderId &&
+        m.content == newMessage.content &&
+        m.messageType == newMessage.messageType &&
+        // For practice/match messages, also match by practiceId/matchId
+        (newMessage.messageType == 'practice' ?
+          m.practiceId == newMessage.practiceId : true) &&
+        (newMessage.messageType == 'match' ?
+          m.matchId == newMessage.matchId : true) &&
+        // Match within 30 seconds to account for server processing time
+        (newMessage.createdAt.difference(m.createdAt).inSeconds.abs() < 30)
       );
+      if (tempMatch != -1) return tempMatch;
     }
-  }
 
-  Future<void> _clearLocalData() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Clear Local Data?'),
-        content: Text(
-          'This will clear all locally stored messages and downloaded media files, then reload from the server.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text('Clear All'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      try {
-        // Clear all club data including media
-        await MessageStorageService.clearClubData(widget.club.id);
-
-        // Reload from server
-        await _loadMessages(forceSync: true);
-      } catch (e) {
-        // Ignore clear data errors
-      }
-    }
+    return -1; // No match found
   }
 
   /// Insert a message in the correct chronological position without sorting the entire list
@@ -1747,9 +1660,16 @@ class ClubChatScreenState extends State<ClubChatScreen>
     // Clear reply state
     _cancelReply();
 
-    // Add to messages list optimistically
+    // Add to messages list optimistically (avoid duplicates)
     setState(() {
-      _messages.add(message);
+      final existingIndex = _findExistingMessageIndex(_messages, message);
+      if (existingIndex != -1) {
+        // Update existing message
+        _messages[existingIndex] = message;
+      } else {
+        // Add new message
+        _messages.add(message);
+      }
     });
 
     // Auto-scroll to bottom after new message is added
