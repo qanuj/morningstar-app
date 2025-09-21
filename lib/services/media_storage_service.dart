@@ -40,11 +40,11 @@ class MediaStorageService {
     return '.bin'; // Default extension
   }
 
-  /// Download and cache a media file
+  /// Download and cache a media file with smart caching
   static Future<String?> downloadMedia(String url, {String? clubId}) async {
     try {
       print('📥 Downloading media: $url');
-      
+
       // Check if already downloaded
       final localPath = await getLocalMediaPath(url);
       if (localPath != null && await File(localPath).exists()) {
@@ -63,16 +63,33 @@ class MediaStorageService {
       final mediaDir = await getMediaDirectory();
       final fileName = _getFileNameFromUrl(url);
       final file = File('${mediaDir.path}/$fileName');
-      
+
       await file.writeAsBytes(response.bodyBytes);
-      
+
       // Save metadata
       await _saveMediaMetadata(url, file.path, clubId);
-      
+
       print('✅ Media downloaded and cached: ${file.path}');
       return file.path;
     } catch (e) {
       print('❌ Error downloading media: $e');
+      return null;
+    }
+  }
+
+  /// Get cached media file or download if not exists (for widgets)
+  static Future<String?> getCachedMediaPath(String url, {String? clubId}) async {
+    try {
+      // Check if already cached
+      final localPath = await getLocalMediaPath(url);
+      if (localPath != null && await File(localPath).exists()) {
+        return localPath;
+      }
+
+      // Download and cache if not exists
+      return await downloadMedia(url, clubId: clubId);
+    } catch (e) {
+      print('❌ Error getting cached media: $e');
       return null;
     }
   }

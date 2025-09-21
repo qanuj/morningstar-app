@@ -15,6 +15,7 @@ import '../../services/chat_api_service.dart';
 import '../../services/message_storage_service.dart';
 import '../../services/media_storage_service.dart';
 import '../../services/notification_service.dart';
+import '../../services/efficient_messaging_service.dart';
 import '../../widgets/club_info_dialog.dart';
 import '../../widgets/audio_recording_widget.dart';
 import '../../widgets/pinned_messages_section.dart';
@@ -107,11 +108,9 @@ class ClubChatScreenState extends State<ClubChatScreen>
       vsync: this,
     );
 
-    // Clear cached messages to handle model migration (pin/starred structure changes)
-    MessageStorageService.clearCachedMessages(widget.club.id);
     // Load persistent delivered/read status flags
     _loadPersistentStatusFlags();
-    // Remove the listener since we handle it in onChanged now
+    // Load messages (cache-first approach)
     _loadMessages();
 
     // Setup push notification callback instead of polling
@@ -244,13 +243,14 @@ class ClubChatScreenState extends State<ClubChatScreen>
       // Start refresh animation
       _refreshAnimationController.repeat();
 
-      // Always load from local storage first for offline-first experience
-      debugPrint('📱 Loading messages from local storage...');
+      debugPrint('🚀 Loading messages efficiently (Telegram-style)...');
+
+      // Load existing messages from cache first (for instant UI)
       final cachedMessages = await MessageStorageService.loadMessages(
         widget.club.id,
       );
 
-      if (cachedMessages.isNotEmpty) {
+      if (cachedMessages.isNotEmpty && !forceSync) {
         setState(() {
           _messages = cachedMessages;
           _isLoading = false;
@@ -259,37 +259,113 @@ class ClubChatScreenState extends State<ClubChatScreen>
         // Stop refresh animation and reset to 0
         _refreshAnimationController.stop();
         _refreshAnimationController.reset();
+      }
 
-        // Mark new messages as delivered if not already in cache
-        _markNewMessagesAsDelivered();
+      // Fetch only new messages efficiently using enhanced ChatApiService
+      final lastMessageId = cachedMessages.isNotEmpty && !forceSync
+          ? cachedMessages.last.id
+          : null;
 
-        // Only sync if explicitly requested or if not in offline mode
-        final isOfflineMode = await MessageStorageService.isOfflineMode(
+      final response = await ChatApiService.getMessagesEfficient(
+        widget.club.id,
+        lastMessageId: lastMessageId,
+        forceFullSync: forceSync,
+        limit: 50,
+      );
+
+      List<ClubMessage> newMessages = [];
+      if (response != null) {
+        final messagesData = response['messages'] as List<dynamic>;
+        newMessages = messagesData
+            .map((json) => ClubMessage.fromJson(json))
+            .toList();
+
+        // Apply local soft delete filter
+        newMessages = await EfficientMessagingService.filterDeletedMessages(
+          widget.club.id,
+          newMessages,
+        );
+      }
+
+      if (newMessages.isNotEmpty) {
+        debugPrint('🆕 Got ${newMessages.length} new messages');
+
+        // Merge new messages with existing ones
+        final allMessages = [...cachedMessages];
+
+        // Add new messages (avoid duplicates)
+        for (final newMessage in newMessages) {
+          final existingIndex = allMessages.indexWhere(
+            (m) => m.id == newMessage.id,
+          );
+          if (existingIndex != -1) {
+            // Update existing message
+            allMessages[existingIndex] = newMessage;
+          } else {
+            // Add new message
+            allMessages.add(newMessage);
+          }
+        }
+
+        // Sort by creation time
+        allMessages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+        // Update state and storage
+        setState(() {
+          _messages = allMessages;
+          _isLoading = false;
+        });
+
+        // Save to local cache
+        await MessageStorageService.saveMessages(widget.club.id, allMessages);
+
+        // Media will be cached lazily when widgets display them
+
+        // Mark new messages as delivered
+        await _markNewMessagesAsDelivered();
+
+        debugPrint(
+          '✅ Successfully loaded and cached ${allMessages.length} total messages',
+        );
+      } else if (cachedMessages.isEmpty) {
+        // No cached messages and no new messages
+        setState(() {
+          _messages = [];
+          _isLoading = false;
+        });
+        debugPrint('📭 No messages found');
+      }
+
+      // Stop refresh animation
+      _refreshAnimationController.stop();
+      _refreshAnimationController.reset();
+    } catch (e) {
+      debugPrint('❌ Error in efficient message loading: $e');
+
+      // Fallback to cache if available
+      if (_messages.isEmpty) {
+        final cachedMessages = await MessageStorageService.loadMessages(
           widget.club.id,
         );
-        if (forceSync ||
-            (!isOfflineMode &&
-                await MessageStorageService.needsSync(widget.club.id))) {
-          _syncMessagesFromServer(forceSync: forceSync);
+        if (cachedMessages.isNotEmpty) {
+          setState(() {
+            _messages = cachedMessages;
+            _isLoading = false;
+          });
+          debugPrint(
+            '📱 Fallback: Loaded ${cachedMessages.length} cached messages',
+          );
+        } else {
+          _error = 'Unable to load messages. Please check your connection.';
+          setState(() => _isLoading = false);
         }
       } else {
-        // No local data available, must sync with server
-        await _syncMessagesFromServer(forceSync: true);
-      }
-    } catch (e) {
-      debugPrint('❌ Error loading messages: $e');
-      // Try to load from server directly if local storage fails
-      try {
-        await _syncMessagesFromServer(forceSync: true);
-      } catch (syncError) {
-        debugPrint('❌ Error syncing from server: $syncError');
-        _error = 'Unable to load messages. Please check your connection.';
         setState(() => _isLoading = false);
-
-        // Stop refresh animation on error and reset to 0
-        _refreshAnimationController.stop();
-        _refreshAnimationController.reset();
       }
+
+      // Stop refresh animation on error
+      _refreshAnimationController.stop();
+      _refreshAnimationController.reset();
     }
   }
 
@@ -526,31 +602,44 @@ class ClubChatScreenState extends State<ClubChatScreen>
     final currentUserId = userProvider.user?.id;
     if (currentUserId == null) return;
 
-    final messagesToMarkAsDelivered = <ClubMessage>[];
+    // Find messages from other users that need to be marked as delivered
+    final messagesToMark = _messages
+        .where(
+          (message) =>
+              message.senderId != currentUserId && // Not own message
+              message.status == MessageStatus.sent,
+        ) // Still in sent status
+        .map((message) => message.id)
+        .toList();
 
-    // Find messages from other users that don't have deliveredAt set and aren't from current user
-    for (final message in _messages) {
-      if (message.senderId != currentUserId && // Not own message
-          message.deliveredAt == null && // No deliveredAt timestamp
-          !_deliveredMessages.contains(message.id) && // Not in memory cache
-          !_processingDelivery.contains(message.id)) {
-        // Not currently being processed
-
-        // Check if message status indicates it needs delivery marking
-        if (message.status == MessageStatus.sent) {
-          messagesToMarkAsDelivered.add(message);
-        }
-      }
-    }
-
-    if (messagesToMarkAsDelivered.isNotEmpty) {
+    if (messagesToMark.isNotEmpty) {
       debugPrint(
-        '📝 Found ${messagesToMarkAsDelivered.length} new messages to mark as delivered',
+        '📧 Marking ${messagesToMark.length} messages as delivered efficiently',
       );
 
-      // Mark messages as delivered with delivery timestamp
-      for (final message in messagesToMarkAsDelivered) {
-        await _markSingleMessageAsDelivered(message);
+      // Use efficient service to mark multiple messages at once
+      final success = await EfficientMessagingService.markAsDelivered(
+        widget.club.id,
+        messagesToMark,
+      );
+
+      if (success) {
+        // Update local message status for immediate UI feedback
+        setState(() {
+          for (final message in _messages) {
+            if (messagesToMark.contains(message.id)) {
+              final updatedMessage = message.copyWith(
+                status: MessageStatus.delivered,
+                deliveredAt: DateTime.now(),
+              );
+              final index = _messages.indexOf(message);
+              _messages[index] = updatedMessage;
+            }
+          }
+        });
+
+        // Save updated messages to cache
+        await MessageStorageService.saveMessages(widget.club.id, _messages);
       }
     }
   }
@@ -838,8 +927,9 @@ class ClubChatScreenState extends State<ClubChatScreen>
           .firstOrNull;
 
       // Check if user is admin or owner
-      final isAdminOrOwner = membership?.role.toLowerCase() == 'admin' ||
-                             membership?.role.toLowerCase() == 'owner';
+      final isAdminOrOwner =
+          membership?.role.toLowerCase() == 'admin' ||
+          membership?.role.toLowerCase() == 'owner';
 
       showModalBottomSheet(
         context: context,
@@ -881,7 +971,8 @@ class ClubChatScreenState extends State<ClubChatScreen>
                         builder: (context) => AddMembersScreen(
                           club: widget.club,
                           onContactsSelected: _processSelectedContacts,
-                          onSyncedContactsSelected: _processSelectedSyncedContacts,
+                          onSyncedContactsSelected:
+                              _processSelectedSyncedContacts,
                         ),
                       ),
                     );
@@ -895,7 +986,11 @@ class ClubChatScreenState extends State<ClubChatScreen>
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 title: Text('Manage Club'),
-                subtitle: Text(isAdminOrOwner ? 'Club settings and configuration' : 'View club information and features'),
+                subtitle: Text(
+                  isAdminOrOwner
+                      ? 'Club settings and configuration'
+                      : 'View club information and features',
+                ),
                 onTap: () {
                   Navigator.pop(context);
                   if (membership != null) {
@@ -919,7 +1014,11 @@ class ClubChatScreenState extends State<ClubChatScreen>
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 title: Text('Matches'),
-                subtitle: Text(isAdminOrOwner ? 'View and manage club matches' : 'View club matches'),
+                subtitle: Text(
+                  isAdminOrOwner
+                      ? 'View and manage club matches'
+                      : 'View club matches',
+                ),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.push(
@@ -939,7 +1038,11 @@ class ClubChatScreenState extends State<ClubChatScreen>
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 title: Text('Transactions'),
-                subtitle: Text(isAdminOrOwner ? 'Club financial transactions' : 'My club transactions'),
+                subtitle: Text(
+                  isAdminOrOwner
+                      ? 'Club financial transactions'
+                      : 'My club transactions',
+                ),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.push(
@@ -959,7 +1062,9 @@ class ClubChatScreenState extends State<ClubChatScreen>
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 title: Text('Teams'),
-                subtitle: Text(isAdminOrOwner ? 'Manage club teams' : 'View club teams'),
+                subtitle: Text(
+                  isAdminOrOwner ? 'Manage club teams' : 'View club teams',
+                ),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.push(
@@ -1134,6 +1239,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
   Future<void> _toggleOfflineMode(bool enabled) async {
     await MessageStorageService.setOfflineMode(widget.club.id, enabled);
   }
+
 
   Future<void> _downloadAllMedia() async {
     try {
@@ -1723,8 +1829,8 @@ class ClubChatScreenState extends State<ClubChatScreen>
         onExitSelectionMode: _exitSelectionMode,
         onDeleteSelectedMessages: _deleteSelectedMessages,
         onRefreshMessages: () {
-          debugPrint('🔄 App bar refresh pressed, forcing sync...');
-          _loadMessages(forceSync: true);
+          debugPrint('🔄 App bar refresh pressed, fetching new messages...');
+          _loadMessages(forceSync: false);
         },
         onShowMoreOptions: _showMoreOptions,
       ),
@@ -2320,10 +2426,8 @@ class ClubChatScreenState extends State<ClubChatScreen>
   void _navigateToManageClub(ClubMembership membership) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ManageClubScreen(
-          club: widget.club,
-          membership: membership,
-        ),
+        builder: (_) =>
+            ManageClubScreen(club: widget.club, membership: membership),
       ),
     );
   }
@@ -2459,6 +2563,103 @@ class ClubChatScreenState extends State<ClubChatScreen>
       await _syncMessagesFromServer(forceSync: false);
     } catch (e) {
       // Error unpinning message
+    }
+  }
+
+  /// Soft delete a message (Telegram-style - only removes from user's view)
+  Future<void> _softDeleteMessage(ClubMessage message) async {
+    try {
+      debugPrint('🗑️ Soft deleting message ${message.id}');
+
+      // Remove from UI immediately for instant feedback
+      setState(() {
+        _messages.removeWhere((m) => m.id == message.id);
+      });
+
+      // Soft delete on server (user-specific)
+      final success = await ChatApiService.softDeleteMessages(widget.club.id, [
+        message.id,
+      ]);
+
+      if (success) {
+        // Update local cache without the deleted message
+        await MessageStorageService.saveMessages(widget.club.id, _messages);
+        debugPrint('✅ Message soft deleted successfully');
+
+        // Show snackbar with undo option
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Message deleted'),
+              action: SnackBarAction(
+                label: 'Undo',
+                onPressed: () => _restoreMessage(message),
+              ),
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
+      } else {
+        // Restore message in UI if server deletion failed
+        setState(() {
+          _messages.add(message);
+          _messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        });
+        debugPrint('❌ Failed to soft delete message');
+
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Failed to delete message')));
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Error in soft delete: $e');
+      // Restore message in UI if error occurred
+      setState(() {
+        _messages.add(message);
+        _messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to delete message')));
+      }
+    }
+  }
+
+  /// Restore a soft deleted message
+  Future<void> _restoreMessage(ClubMessage message) async {
+    try {
+      debugPrint('↩️ Restoring message ${message.id}');
+
+      // Add back to UI immediately
+      setState(() {
+        _messages.add(message);
+        _messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      });
+
+      // Restore on server
+      final success = await ChatApiService.restoreMessages(widget.club.id, [
+        message.id,
+      ]);
+
+      if (success) {
+        // Update local cache with restored message
+        await MessageStorageService.saveMessages(widget.club.id, _messages);
+        debugPrint('✅ Message restored successfully');
+
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Message restored')));
+        }
+      } else {
+        debugPrint('❌ Failed to restore message on server');
+      }
+    } catch (e) {
+      debugPrint('❌ Error restoring message: $e');
     }
   }
 

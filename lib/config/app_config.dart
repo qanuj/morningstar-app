@@ -20,7 +20,7 @@ class AppConfig {
   // Toggle this to true when building for TestFlight (App Store Connect).
   // This forces the app to use production backend even in debug builds.
   // This is useful to test the app with TestFlight distribution before release.
-  static const bool useTestFlightMode = true;
+  static const bool useTestFlightMode = false;
 
   // ——— API Base Hosts (no paths) ———
   static const String _prodHostDual = 'duggy.app'; // dual stack (web)

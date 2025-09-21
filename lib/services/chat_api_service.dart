@@ -24,6 +24,34 @@ class ChatApiService {
     }
   }
 
+  /// Fetch messages efficiently with sync support (Telegram-style)
+  static Future<Map<String, dynamic>?> getMessagesEfficient(
+    String clubId, {
+    String? lastMessageId,
+    bool forceFullSync = false,
+    int limit = 50,
+  }) async {
+    try {
+      final queryParams = <String, String>{
+        'syncMode': forceFullSync ? 'full' : 'incremental',
+        'limit': limit.toString(),
+      };
+
+      if (lastMessageId != null && !forceFullSync) {
+        queryParams['lastMessageId'] = lastMessageId;
+      }
+
+      final response = await ApiService.get(
+        '/conversations/$clubId/messages',
+        queryParams: queryParams,
+      );
+      return response;
+    } catch (e) {
+      print('❌ Error fetching messages efficiently: $e');
+      return null;
+    }
+  }
+
   /// Send a text message
   static Future<Map<String, dynamic>?> sendMessage(
     String clubId,
@@ -440,6 +468,36 @@ class ChatApiService {
     } catch (e) {
       print('❌ Error getting match RSVP status: $e');
       return null;
+    }
+  }
+
+  // Soft Delete Operations (Telegram-style)
+
+  /// Soft delete messages (user-specific, like Telegram)
+  static Future<bool> softDeleteMessages(String clubId, List<String> messageIds) async {
+    try {
+      await ApiService.put('/conversations/$clubId/messages', {
+        'messageIds': messageIds,
+        'action': 'soft_delete',
+      });
+      return true;
+    } catch (e) {
+      print('❌ Error soft deleting messages: $e');
+      return false;
+    }
+  }
+
+  /// Restore soft deleted messages
+  static Future<bool> restoreMessages(String clubId, List<String> messageIds) async {
+    try {
+      await ApiService.put('/conversations/$clubId/messages', {
+        'messageIds': messageIds,
+        'action': 'restore',
+      });
+      return true;
+    } catch (e) {
+      print('❌ Error restoring messages: $e');
+      return false;
     }
   }
 }

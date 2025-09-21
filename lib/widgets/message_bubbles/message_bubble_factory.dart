@@ -8,7 +8,7 @@ import 'document_message_bubble.dart';
 import 'link_message_bubble.dart';
 import 'gif_message_bubble.dart';
 import 'emoji_message_bubble.dart';
-import 'match_message_bubble.dart';
+import 'cached_match_message_bubble.dart';
 import 'location_message_bubble.dart';
 import 'poll_message_bubble.dart';
 import 'base_message_bubble.dart';
@@ -116,31 +116,31 @@ class MessageBubbleFactory extends StatelessWidget {
         showSenderInfo: showSenderInfo,
       );
     } else if (message.messageType == 'match') {
-      // MATCH MESSAGE: Special match announcement with RSVP buttons
-      return MatchMessageBubble(
+      // MATCH MESSAGE: Special match announcement with RSVP buttons (cached)
+      return CachedMatchMessageBubble(
         message: message,
         isOwn: isOwn,
         isPinned: isPinned,
         isSelected: isSelected,
         showSenderInfo: showSenderInfo,
         onReactionRemoved: onReactionRemoved,
-        onViewMatch: () => _navigateToMatchDetail(context, message),
+        onViewMatch: () => _navigateToCachedMatchDetail(context, message),
         onRSVP: () {
-          // RSVP is handled internally by the MatchMessageBubble
+          // RSVP is handled internally by the CachedMatchMessageBubble
         },
       );
     } else if (message.messageType == 'practice') {
-      // PRACTICE MESSAGE: Practice session announcement with RSVP buttons (reuses match bubble)
-      return MatchMessageBubble(
+      // PRACTICE MESSAGE: Practice session announcement with RSVP buttons (cached)
+      return CachedMatchMessageBubble(
         message: message,
         isOwn: isOwn,
         isPinned: isPinned,
         isSelected: isSelected,
         showSenderInfo: showSenderInfo,
         onReactionRemoved: onReactionRemoved,
-        onViewMatch: null, // No match detail for practice
+        onViewMatch: null, // No match detail navigation for practice
         onRSVP: () {
-          // RSVP is handled internally by the MatchMessageBubble
+          // RSVP is handled internally by the CachedMatchMessageBubble
         },
       );
     } else if (message.messageType == 'location') {
@@ -219,24 +219,18 @@ class MessageBubbleFactory extends StatelessWidget {
     );
   }
 
-  void _navigateToMatchDetail(BuildContext context, ClubMessage message) {
+  void _navigateToCachedMatchDetail(BuildContext context, ClubMessage message) {
     if (message.matchId == null) return;
 
     final matchData = message.matchDetails ?? message.practiceDetails ?? {};
-    final rawType = matchData['type'] ?? matchData['matchType'];
-    final initialType = rawType?.toString();
-    final matchType = initialType?.toLowerCase();
-    final isPractice =
-        matchType == 'practice' || message.practiceDetails != null;
 
+    // Create a cached match detail screen that uses the message data
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => isPractice
-            ? PracticeMatchDetailScreen(matchId: message.matchId!)
-            : MatchDetailScreen(
-                matchId: message.matchId!,
-                initialType: initialType,
-              ),
+        builder: (context) => CachedMatchDetailScreen(
+          message: message,
+          matchData: matchData,
+        ),
       ),
     );
   }

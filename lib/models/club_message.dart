@@ -52,15 +52,19 @@ class ClubMessage {
   final PinInfo pin;
   // Match-specific fields
   final String? matchId; // ID of the associated match
-  final Map<String, dynamic>? matchDetails; // Match details (teams, date, venue)
+  final Map<String, dynamic>?
+  matchDetails; // Match details (teams, date, venue)
   // Practice-specific fields
   final String? practiceId; // ID of the associated practice session
-  final Map<String, dynamic>? practiceDetails; // Practice details (date, venue, type, etc.)
+  final Map<String, dynamic>?
+  practiceDetails; // Practice details (date, venue, type, etc.)
   // Location-specific fields
-  final Map<String, dynamic>? locationDetails; // Location details (name, address, coordinates)
+  final Map<String, dynamic>?
+  locationDetails; // Location details (name, address, coordinates)
   // Poll-specific fields
   final String? pollId; // ID of the associated poll
-  final Map<String, dynamic>? pollDetails; // Poll details (question, options, votes, etc.)
+  final Map<String, dynamic>?
+  pollDetails; // Poll details (question, options, votes, etc.)
   // Local-only fields for read/delivered tracking
   final DateTime? deliveredAt;
   final DateTime? readAt;
@@ -191,7 +195,7 @@ class ClubMessage {
     MessageDocument? document;
     MessageAudio? audio;
     List<LinkMetadata> linkMeta = [];
-    
+
     // New message type fields
     String? matchId;
     Map<String, dynamic>? matchDetails;
@@ -255,7 +259,8 @@ class ClubMessage {
             break;
           case 'text':
             // Handle text messages that may also have images
-            if (content['images'] is List && (content['images'] as List).isNotEmpty) {
+            if (content['images'] is List &&
+                (content['images'] as List).isNotEmpty) {
               images = (content['images'] as List)
                   .map((url) => url as String)
                   .toList();
@@ -588,8 +593,10 @@ class ClubMessage {
       matchId: matchId ?? (json['matchId'] as String?),
       matchDetails: matchDetails ?? _safeMapFromJson(json['matchDetails']),
       practiceId: practiceId ?? (json['practiceId'] as String?),
-      practiceDetails: practiceDetails ?? _safeMapFromJson(json['practiceDetails']),
-      locationDetails: locationDetails ?? _safeMapFromJson(json['locationDetails']),
+      practiceDetails:
+          practiceDetails ?? _safeMapFromJson(json['practiceDetails']),
+      locationDetails:
+          locationDetails ?? _safeMapFromJson(json['locationDetails']),
       pollId: pollId ?? (json['pollId'] as String?),
       pollDetails: pollDetails ?? _safeMapFromJson(json['pollDetails']),
       pin: PinInfo(
