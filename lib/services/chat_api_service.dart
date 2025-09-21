@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:file_picker/file_picker.dart';
-import '../models/club_message.dart';
 import '../models/message_reaction.dart';
 import 'api_service.dart';
 import 'match_service.dart';
@@ -52,15 +51,18 @@ class ChatApiService {
     }
   }
 
-  /// Send a text message
+  /// Send any type of message - handles content formatting based on message type
   static Future<Map<String, dynamic>?> sendMessage(
     String clubId,
     Map<String, dynamic> messageData,
   ) async {
     try {
+      // Format the content based on message type
+      final formattedData = _formatMessageContent(messageData);
+
       final response = await ApiService.post(
         '/conversations/$clubId/messages',
-        messageData,
+        formattedData,
       );
       return response;
     } catch (e) {
@@ -69,129 +71,125 @@ class ChatApiService {
     }
   }
 
-  /// Send a message with uploaded media
-  static Future<Map<String, dynamic>?> sendMessageWithMedia(
-    String clubId,
-    Map<String, dynamic> requestData,
-  ) async {
-    try {
-      final response = await ApiService.post(
-        '/conversations/$clubId/messages',
-        requestData,
-      );
-      return response;
-    } catch (e) {
-      print('❌ Error sending message with media: $e');
-      return null;
-    }
-  }
+  /// Format message content based on message type and data
+  static Map<String, dynamic> _formatMessageContent(
+    Map<String, dynamic> messageData,
+  ) {
+    // Extract the raw message data
+    final content = messageData['content'];
+    final messageType = content?['type'] ?? 'text';
+    final replyToId = messageData['replyToId'];
 
-  /// Send a message with documents
-  static Future<Map<String, dynamic>?> sendMessageWithDocuments(
-    String clubId,
-    Map<String, dynamic> requestData,
-  ) async {
-    try {
-      final response = await ApiService.post(
-        '/conversations/$clubId/messages',
-        requestData,
-      );
-      return response;
-    } catch (e) {
-      print('❌ Error sending message with documents: $e');
-      return null;
-    }
-  }
+    Map<String, dynamic> contentMap;
 
-  /// Send a match announcement message
-  static Future<Map<String, dynamic>?> sendMatchMessage(
-    String clubId,
-    Map<String, dynamic> matchData,
-  ) async {
-    try {
-      // matchData now contains the correctly structured content
-      final requestData = matchData;
-      
-      final response = await ApiService.post(
-        '/conversations/$clubId/messages',
-        requestData,
-      );
-      return response;
-    } catch (e) {
-      print('❌ Error sending match message: $e');
-      return null;
-    }
-  }
+    switch (messageType) {
+      case 'practice':
+        contentMap = {
+          'type': 'practice',
+          'body': content['body'] ?? ' ',
+          'practiceId': content['practiceId'],
+          'practiceDetails': content['practiceDetails'],
+        };
+        break;
 
-  /// Send a practice session message
-  static Future<Map<String, dynamic>?> sendPracticeMessage(
-    String clubId,
-    Map<String, dynamic> practiceData,
-  ) async {
-    try {
-      // practiceData now contains the correctly structured content
-      final requestData = practiceData;
-      
-      final response = await ApiService.post(
-        '/conversations/$clubId/messages',
-        requestData,
-      );
-      return response;
-    } catch (e) {
-      print('❌ Error sending practice message: $e');
-      return null;
-    }
-  }
+      case 'match':
+        contentMap = {
+          'type': 'match',
+          'body': content['body'] ?? ' ',
+          'matchId': content['matchId'],
+          'matchDetails': content['matchDetails'],
+        };
+        break;
 
-  /// Send a location message
-  static Future<Map<String, dynamic>?> sendLocationMessage(
-    String clubId,
-    Map<String, dynamic> locationData,
-  ) async {
-    try {
-      final requestData = {
-        'content': {
-          'type': 'location',
-          'body': locationData['content'] ?? '',
-          'locationDetails': locationData['locationDetails'],
-        },
-      };
-      
-      final response = await ApiService.post(
-        '/conversations/$clubId/messages',
-        requestData,
-      );
-      return response;
-    } catch (e) {
-      print('❌ Error sending location message: $e');
-      return null;
-    }
-  }
-
-  /// Send a poll message
-  static Future<Map<String, dynamic>?> sendPollMessage(
-    String clubId,
-    Map<String, dynamic> pollData,
-  ) async {
-    try {
-      final requestData = {
-        'content': {
+      case 'poll':
+        contentMap = {
           'type': 'poll',
-          'body': pollData['content'] ?? pollData['question'] ?? 'New poll created',
-          'pollId': pollData['pollId'],
-          'pollDetails': pollData['pollDetails'],
-        },
-      };
-      
-      final response = await ApiService.post(
-        '/conversations/$clubId/messages',
-        requestData,
-      );
-      return response;
-    } catch (e) {
-      print('❌ Error sending poll message: $e');
-      return null;
+          'body': content['body'] ?? ' ',
+          'pollId': content['pollId'],
+          'pollDetails': content['pollDetails'],
+        };
+        break;
+
+      case 'location':
+        contentMap = {
+          'type': 'location',
+          'body': content['body'] ?? ' ',
+          'locationDetails': content['locationDetails'],
+        };
+        break;
+
+      case 'link':
+        contentMap = {
+          'type': 'link',
+          'url': content['url'],
+          'body': content['body'] ?? ' ',
+        };
+        // Add optional fields only if they exist
+        if (content['title'] != null &&
+            content['title'].toString().isNotEmpty) {
+          contentMap['title'] = content['title'];
+        }
+        if (content['description'] != null &&
+            content['description'].toString().isNotEmpty) {
+          contentMap['description'] = content['description'];
+        }
+        if (content['images'] != null &&
+            content['images'] is List &&
+            (content['images'] as List).isNotEmpty) {
+          contentMap['images'] = content['images'];
+        }
+        break;
+
+      case 'document':
+        contentMap = {
+          'type': 'document',
+          'url': content['url'],
+          'name': content['name'],
+          'size': content['size'],
+        };
+        break;
+
+      case 'audio':
+        contentMap = {
+          'type': 'audio',
+          'url': content['url'],
+          'duration': content['duration'],
+          'size': content['size']?.toString(),
+        };
+        break;
+
+      case 'text':
+      case 'emoji':
+      default:
+        // Text messages (including with media attachments)
+        contentMap = {
+          'type': messageType,
+          'body': content['body'] ?? content['content'] ?? ' ',
+        };
+
+        // Add media arrays if present
+        if (content['images'] != null &&
+            content['images'] is List &&
+            (content['images'] as List).isNotEmpty) {
+          contentMap['images'] = content['images'];
+        }
+        if (content['videos'] != null &&
+            content['videos'] is List &&
+            (content['videos'] as List).isNotEmpty) {
+          contentMap['videos'] = content['videos'];
+        }
+        break;
     }
+
+    final requestData = {'content': contentMap};
+
+    // Add replyToId if present
+    if (replyToId != null) {
+      requestData['replyToId'] = replyToId;
+    }
+
+    print('🔍 ChatApiService: Formatted content for $messageType: $contentMap');
+    return requestData;
   }
 
   // Message Status Operations
@@ -417,7 +415,7 @@ class ChatApiService {
   }
 
   // Match Message Operations
-  
+
   /// RSVP to a match from a chat message
   static Future<bool> rsvpToMatch(
     String clubId,
@@ -459,7 +457,10 @@ class ChatApiService {
   // Soft Delete Operations (Telegram-style)
 
   /// Soft delete messages (user-specific, like Telegram)
-  static Future<bool> softDeleteMessages(String clubId, List<String> messageIds) async {
+  static Future<bool> softDeleteMessages(
+    String clubId,
+    List<String> messageIds,
+  ) async {
     try {
       await ApiService.put('/conversations/$clubId/messages', {
         'messageIds': messageIds,
@@ -473,7 +474,10 @@ class ChatApiService {
   }
 
   /// Restore soft deleted messages
-  static Future<bool> restoreMessages(String clubId, List<String> messageIds) async {
+  static Future<bool> restoreMessages(
+    String clubId,
+    List<String> messageIds,
+  ) async {
     try {
       await ApiService.put('/conversations/$clubId/messages', {
         'messageIds': messageIds,

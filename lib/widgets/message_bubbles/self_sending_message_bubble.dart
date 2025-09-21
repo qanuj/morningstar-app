@@ -412,28 +412,16 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
 
   Future<void> _sendMessage() async {
     try {
-      // Fetch link metadata if message contains URLs
-      List<LinkMetadata> linkMeta = [];
-      final urlPattern = RegExp(
-        r'http?://[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:/[^\s]*)?',
-        caseSensitive: false,
-      );
-      final matches = urlPattern.allMatches(currentMessage.content);
+      // Use the message data as-is (messageType and linkMeta already set during input)
+      String messageType = currentMessage.messageType ?? 'text';
+      List<LinkMetadata> linkMeta = currentMessage.linkMeta ?? [];
 
-      if (matches.isNotEmpty) {
-        // Only process the first link (break after first)
-        final url = matches.first.group(0)!;
-        final metadata = await _fetchLinkMetadata(url);
-        if (metadata != null) {
-          linkMeta.add(metadata);
-        }
+      // Only override messageType for media uploads (since media changes the type)
+      if (_hasUploads()) {
+        messageType = _determineMessageType(currentMessage.content, linkMeta);
       }
 
-      // Determine message type based on content and uploads
-      String messageType = _determineMessageType(
-        currentMessage.content,
-        linkMeta,
-      );
+      print('🔍 SelfSendingMessageBubble: Sending messageType: $messageType');
 
       // Prepare API request - all images/videos use 'text' type with arrays
       Map<String, dynamic> contentMap;
@@ -463,7 +451,7 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
           'size': _uploadedAudio!.size?.toString(),
         };
       } else if (messageType == 'link' && linkMeta.isNotEmpty) {
-        // Link message with special schema format
+        // Link message with special schema format (parsed during input)
         final firstLink = linkMeta.first;
         contentMap = {
           'type': 'link',
@@ -484,6 +472,46 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
         if (firstLink.image != null && firstLink.image!.isNotEmpty) {
           contentMap['images'] = [firstLink.image!]; // Array with one image
         }
+      } else if (messageType == 'practice') {
+        // Practice message with special schema format
+        contentMap = {
+          'type': 'practice',
+          'body': currentMessage.content.trim().isEmpty
+              ? ' '
+              : currentMessage.content,
+          'practiceId': currentMessage.practiceId,
+          'practiceDetails': currentMessage.practiceDetails,
+        };
+        print('🔍 SelfSendingMessageBubble: Created practice contentMap: $contentMap');
+      } else if (messageType == 'match') {
+        // Match message with special schema format
+        contentMap = {
+          'type': 'match',
+          'body': currentMessage.content.trim().isEmpty
+              ? ' '
+              : currentMessage.content,
+          'matchId': currentMessage.matchId,
+          'matchDetails': currentMessage.matchDetails,
+        };
+      } else if (messageType == 'poll') {
+        // Poll message with special schema format
+        contentMap = {
+          'type': 'poll',
+          'body': currentMessage.content.trim().isEmpty
+              ? ' '
+              : currentMessage.content,
+          'pollId': currentMessage.pollId,
+          'pollDetails': currentMessage.pollDetails,
+        };
+      } else if (messageType == 'location') {
+        // Location message with special schema format
+        contentMap = {
+          'type': 'location',
+          'body': currentMessage.content.trim().isEmpty
+              ? ' '
+              : currentMessage.content,
+          'locationDetails': currentMessage.locationDetails,
+        };
       } else {
         // All other cases: text, emoji, and ALL images/videos (single or multiple)
         contentMap = {
@@ -515,16 +543,11 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
           'replyToId': currentMessage.replyTo!.messageId,
       };
 
-      // Send to API using the appropriate method based on content type
-      Map<String, dynamic>? response;
-      if (_hasUploads()) {
-        response = await ChatApiService.sendMessageWithMedia(
-          widget.clubId,
-          requestData,
-        );
-      } else {
-        response = await ChatApiService.sendMessage(widget.clubId, requestData);
-      }
+      // Send to API using the unified sendMessage method
+      Map<String, dynamic>? response = await ChatApiService.sendMessage(
+        widget.clubId,
+        requestData,
+      );
 
       if (response == null) {
         throw Exception('No response from server');

@@ -13,7 +13,9 @@ import '../models/message_document.dart';
 import '../models/starred_info.dart';
 import '../models/message_audio.dart';
 import '../models/match.dart';
+import '../models/link_metadata.dart';
 import '../services/chat_api_service.dart';
+import '../services/open_graph_service.dart';
 import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
 import '../providers/club_provider.dart';
@@ -51,6 +53,11 @@ class _MessageInputState extends State<MessageInput> {
   final ImagePicker _imagePicker = ImagePicker();
   List<Map<String, dynamic>> _availableUpiApps = [];
 
+  // Link preview state
+  List<LinkMetadata> _linkMetadata = [];
+  bool _isLoadingLinkPreview = false;
+  String? _lastProcessedText;
+
   @override
   void initState() {
     super.initState();
@@ -66,6 +73,95 @@ class _MessageInputState extends State<MessageInput> {
         _isComposing = isComposing;
       });
     }
+
+    // Handle link preview parsing
+    _handleLinkPreview(value);
+  }
+
+  void _handleLinkPreview(String text) async {
+    // Avoid processing the same text multiple times
+    if (_lastProcessedText == text) return;
+    _lastProcessedText = text;
+
+    // Clear previous metadata if text is empty
+    if (text.trim().isEmpty) {
+      if (_linkMetadata.isNotEmpty) {
+        setState(() {
+          _linkMetadata.clear();
+          _isLoadingLinkPreview = false;
+        });
+      }
+      return;
+    }
+
+    // Look for URLs in the text
+    final urlPattern = RegExp(
+      r'http?://[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:/[^\s]*)?',
+      caseSensitive: false,
+    );
+    final matches = urlPattern.allMatches(text);
+
+    if (matches.isEmpty) {
+      // No URLs found, clear metadata
+      if (_linkMetadata.isNotEmpty) {
+        setState(() {
+          _linkMetadata.clear();
+          _isLoadingLinkPreview = false;
+        });
+      }
+      return;
+    }
+
+    // Process the first URL found
+    final url = matches.first.group(0)!;
+
+    // Don't fetch if we already have metadata for this URL
+    if (_linkMetadata.isNotEmpty && _linkMetadata.first.url == url) {
+      return;
+    }
+
+    // Start loading indicator
+    setState(() {
+      _isLoadingLinkPreview = true;
+    });
+
+    try {
+      final metadata = await _fetchLinkMetadata(url);
+      if (metadata != null && _lastProcessedText == text) {
+        setState(() {
+          _linkMetadata = [metadata];
+          _isLoadingLinkPreview = false;
+        });
+      } else {
+        setState(() {
+          _linkMetadata.clear();
+          _isLoadingLinkPreview = false;
+        });
+      }
+    } catch (e) {
+      print('❌ Error fetching link metadata: $e');
+      setState(() {
+        _linkMetadata.clear();
+        _isLoadingLinkPreview = false;
+      });
+    }
+  }
+
+  Future<LinkMetadata?> _fetchLinkMetadata(String url) async {
+    try {
+      final ogData = await OpenGraphService.fetchMetadata(url);
+      return LinkMetadata(
+        url: ogData.url,
+        title: ogData.title,
+        description: ogData.description,
+        image: ogData.image,
+        siteName: ogData.siteName ?? Uri.parse(url).host,
+        favicon: ogData.favicon,
+      );
+    } catch (e) {
+      print('❌ Failed to fetch link metadata for $url: $e');
+      return null;
+    }
   }
 
   bool get _isAdminOrOwner {
@@ -77,7 +173,7 @@ class _MessageInputState extends State<MessageInput> {
     final text = widget.messageController.text.trim();
     if (text.isEmpty) return;
 
-    // Create temp message - SelfSendingMessageBubble will handle link detection and processing
+    // Create temp message with link metadata if available
     final tempMessage = ClubMessage(
       id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
       clubId: widget.clubId,
@@ -86,7 +182,8 @@ class _MessageInputState extends State<MessageInput> {
       senderProfilePicture: null,
       senderRole: 'MEMBER',
       content: text,
-      messageType: 'text',
+      messageType: _linkMetadata.isNotEmpty ? 'link' : 'text',
+      linkMeta: _linkMetadata, // Include parsed link metadata
       createdAt: DateTime.now(),
       status: MessageStatus.sending,
       starred: StarredInfo(isStarred: false),
@@ -96,6 +193,9 @@ class _MessageInputState extends State<MessageInput> {
     widget.messageController.clear();
     setState(() {
       _isComposing = false;
+      _linkMetadata.clear();
+      _isLoadingLinkPreview = false;
+      _lastProcessedText = null;
     });
 
     widget.onSendMessage(tempMessage);
@@ -399,58 +499,16 @@ class _MessageInputState extends State<MessageInput> {
       status: MessageStatus.sending,
       starred: StarredInfo(isStarred: false),
       pin: PinInfo(isPinned: false),
+      reactions: const [],
+      deliveredTo: const [],
+      readBy: const [],
     );
 
     // Show message immediately in UI
     widget.onSendMessage(tempMessage);
 
-    // Send practice message to backend
-    try {
-      final practiceData = {
-        'content': {
-          'type': 'practice',
-          'body': practiceBody,
-          'practiceId': practice.id,
-          'practiceDetails': {
-            'title': practice.opponent?.isNotEmpty == true
-                ? practice.opponent!
-                : 'Practice Session',
-            'description': 'Join our training session',
-            'date': practice.matchDate.toIso8601String().split('T')[0],
-            'time':
-                '${practice.matchDate.hour.toString().padLeft(2, '0')}:${practice.matchDate.minute.toString().padLeft(2, '0')}',
-            'venue': practice.location.isNotEmpty
-                ? practice.location
-                : 'Training Ground',
-            'duration': '2 hours',
-            'type': 'PRACTICE',
-            'maxParticipants': practice.spots,
-            'currentParticipants': practice.confirmedPlayers,
-            'isJoined':
-                practice.userRsvp != null && practice.userRsvp!.status == 'YES',
-          },
-        },
-      };
-
-      await ChatApiService.sendPracticeMessage(widget.clubId, practiceData);
-
-      // Success - message sent, optimistic UI already showing
-    } catch (e) {
-      print('❌ Error sending practice message: $e');
-      // Handle error - show snackbar or retry
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to send practice announcement'),
-            backgroundColor: Colors.red,
-            action: SnackBarAction(
-              label: 'Retry',
-              onPressed: () => _sendExistingPracticeMessage(practice),
-            ),
-          ),
-        );
-      }
-    }
+    // Note: Parent widget will handle the API call based on the messageType
+    // No manual API call needed - this prevents the duplicate sending issue
   }
 
   void _sendExistingMatchMessage(MatchListItem match) async {
@@ -486,54 +544,16 @@ class _MessageInputState extends State<MessageInput> {
       status: MessageStatus.sending,
       starred: StarredInfo(isStarred: false),
       pin: PinInfo(isPinned: false),
+      reactions: const [],
+      deliveredTo: const [],
+      readBy: const [],
     );
 
     // Show message immediately in UI
     widget.onSendMessage(tempMessage);
 
-    // Send match message to backend
-    try {
-      final matchData = {
-        'content': {
-          'type': 'match',
-          'body': matchBody,
-          'matchId': match.id,
-          'matchDetails': {
-            'homeTeam': {
-              'name': match.team?.name ?? match.club.name,
-              'logo': match.team?.logo ?? match.club.logo,
-            },
-            'opponentTeam': {
-              'name': match.opponentTeam?.name ?? match.opponent ?? 'TBD',
-              'logo': match.opponentTeam?.logo,
-            },
-            'dateTime': match.matchDate.toIso8601String(),
-            'venue': {
-              'name': match.location.isNotEmpty ? match.location : 'Venue TBD',
-              'address': match.location,
-            },
-          },
-        },
-      };
-
-      await ChatApiService.sendMatchMessage(widget.clubId, matchData);
-
-      // Success - message sent, optimistic UI already showing
-    } catch (e) {
-      print('❌ Error sending existing match message: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to send match announcement'),
-            backgroundColor: Colors.red,
-            action: SnackBarAction(
-              label: 'Retry',
-              onPressed: () => _sendExistingMatchMessage(match),
-            ),
-          ),
-        );
-      }
-    }
+    // Note: Parent widget will handle the API call based on the messageType
+    // No manual API call needed - this prevents the duplicate sending issue
   }
 
   void _showUploadOptions() {

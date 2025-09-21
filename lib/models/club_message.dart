@@ -326,14 +326,17 @@ class ClubMessage {
 
       // Extract type-specific data from content for new message types
       if (content is Map<String, dynamic>) {
+        print('📝 ClubMessage.fromJson: messageType=$messageType, content=$content');
         if (messageType == 'match') {
           // Extract match-specific fields from content
           matchId = content['matchId'] as String?;
           matchDetails = _safeMapFromJson(content['matchDetails']);
+          print('🏏 ClubMessage.fromJson: Match content - matchId: $matchId, matchDetails: $matchDetails');
         } else if (messageType == 'practice') {
           // Extract practice-specific fields from content
           practiceId = content['practiceId'] as String?;
           practiceDetails = _safeMapFromJson(content['practiceDetails']);
+          print('⚽ ClubMessage.fromJson: Practice content - practiceId: $practiceId, practiceDetails: $practiceDetails');
         } else if (messageType == 'location') {
           // Extract location-specific fields from content
           locationDetails = _safeMapFromJson(content['locationDetails']);
