@@ -385,7 +385,7 @@ class MatchDetailData {
   final MatchDetailTeam? team;
   final MatchDetailTeam? opponentTeam;
   final List<MatchPreference> matchPreferences;
-  final MatchDetailUserRsvp? userRsvp;
+  final List<MatchRSVP> rsvps;
 
   MatchDetailData({
     required this.id,
@@ -406,7 +406,7 @@ class MatchDetailData {
     this.team,
     this.opponentTeam,
     this.matchPreferences = const [],
-    this.userRsvp,
+    this.rsvps = const [],
   });
 
   factory MatchDetailData.fromJson(Map<String, dynamic> json) {
@@ -442,9 +442,11 @@ class MatchDetailData {
               .map(MatchPreference.fromJson)
               .toList() ??
           const [],
-      userRsvp: json['userRsvp'] != null
-          ? MatchDetailUserRsvp.fromJson(json['userRsvp'])
-          : null,
+      rsvps: (json['rsvps'] as List?)
+              ?.whereType<Map<String, dynamic>>()
+              .map(MatchRSVP.fromJson)
+              .toList() ??
+          const [],
     );
   }
 }

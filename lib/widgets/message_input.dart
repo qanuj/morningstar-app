@@ -164,10 +164,6 @@ class _MessageInputState extends State<MessageInput> {
     }
   }
 
-  bool get _isAdminOrOwner {
-    return widget.userRole?.toLowerCase() == 'admin' || 
-           widget.userRole?.toLowerCase() == 'owner';
-  }
 
   void _sendTextMessage() {
     final text = widget.messageController.text.trim();
@@ -434,10 +430,13 @@ class _MessageInputState extends State<MessageInput> {
   }
 
   void _openMatchPicker() async {
+    final clubProvider = Provider.of<ClubProvider>(context, listen: false);
     final selectedMatch = await UnifiedEventPicker.showEventPicker(
       context: context,
       clubId: widget.clubId,
       eventType: EventType.match,
+      userRole: widget.userRole,
+      clubName: clubProvider.currentClub?.club.name,
     );
 
     if (selectedMatch != null) {
@@ -448,10 +447,13 @@ class _MessageInputState extends State<MessageInput> {
   }
 
   void _openPracticePicker() async {
+    final clubProvider = Provider.of<ClubProvider>(context, listen: false);
     final selectedPractice = await UnifiedEventPicker.showEventPicker(
       context: context,
       clubId: widget.clubId,
       eventType: EventType.practice,
+      userRole: widget.userRole,
+      clubName: clubProvider.currentClub?.club.name,
     );
 
     if (selectedPractice != null) {
@@ -608,29 +610,24 @@ class _MessageInputState extends State<MessageInput> {
                               _pickAudioFiles();
                             },
                           ),
-                          if (_isAdminOrOwner) ...[
-                            _buildGridOption(
-                              icon: Icons.sports_cricket,
-                              iconColor: Color(0xFF4CAF50),
-                              title: 'Match',
-                              onTap: () {
-                                Navigator.pop(context);
-                                _openMatchPicker();
-                              },
-                            ),
-                            _buildGridOption(
-                              icon: Icons.fitness_center,
-                              iconColor: Color(0xFF00BCD4),
-                              title: 'Practice',
-                              onTap: () {
-                                Navigator.pop(context);
-                                _openPracticePicker();
-                              },
-                            ),
-                          ] else ...[
-                            SizedBox(width: 70), // Placeholder for symmetry
-                            SizedBox(width: 70), // Placeholder for symmetry
-                          ],
+                          _buildGridOption(
+                            icon: Icons.sports_cricket,
+                            iconColor: Color(0xFF4CAF50),
+                            title: 'Match',
+                            onTap: () {
+                              Navigator.pop(context);
+                              _openMatchPicker();
+                            },
+                          ),
+                          _buildGridOption(
+                            icon: Icons.fitness_center,
+                            iconColor: Color(0xFF00BCD4),
+                            title: 'Practice',
+                            onTap: () {
+                              Navigator.pop(context);
+                              _openPracticePicker();
+                            },
+                          ),
                         ],
                       ),
                       SizedBox(height: 50),
@@ -1073,6 +1070,7 @@ class _MessageInputState extends State<MessageInput> {
     matchData.remove('userRsvp');
     matchData.remove('canRsvp');
     matchData.remove('canSeeDetails');
+    // Keep rsvps array for RSVP status detection in message bubbles
     return matchData;
   }
 }

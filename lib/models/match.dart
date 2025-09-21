@@ -1,4 +1,5 @@
 import 'team.dart';
+import 'match_details.dart';
 
 class MatchListItem {
   final String id;
@@ -26,6 +27,7 @@ class MatchListItem {
   final int availableSpots;
   final int confirmedPlayers;
   final MatchRSVPSimple? userRsvp;
+  final List<MatchRSVP> rsvps;
   final Team? team;
   final Team? opponentTeam;
 
@@ -55,6 +57,7 @@ class MatchListItem {
     required this.availableSpots,
     required this.confirmedPlayers,
     this.userRsvp,
+    this.rsvps = const [],
     this.team,
     this.opponentTeam,
   });
@@ -86,6 +89,10 @@ class MatchListItem {
       availableSpots: json['availableSpots'] ?? (json['spots'] ?? 13),
       confirmedPlayers: json['confirmedPlayers'] ?? 0,
       userRsvp: json['userRsvp'] != null ? MatchRSVPSimple.fromJson(json['userRsvp']) : null,
+      rsvps: (json['rsvps'] as List?)
+          ?.whereType<Map<String, dynamic>>()
+          .map(MatchRSVP.fromJson)
+          .toList() ?? const [],
       team: json['team'] != null ? Team.fromJson(json['team']) : null,
       opponentTeam: json['opponentTeam'] != null ? Team.fromJson(json['opponentTeam']) : null,
     );
@@ -118,6 +125,7 @@ class MatchListItem {
       'availableSpots': availableSpots,
       'confirmedPlayers': confirmedPlayers,
       'userRsvp': userRsvp?.toJson(),
+      'rsvps': rsvps.map((rsvp) => rsvp.toJson()).toList(),
       'team': team?.toJson(),
       'opponentTeam': opponentTeam?.toJson(),
     };

@@ -305,18 +305,6 @@ class PracticeEventCard extends StatelessWidget {
               ),
             ),
           ),
-
-          // RSVP indicator badge (top-right corner)
-          if (practice.userRsvp != null)
-            Positioned(
-              top: 8,
-              right: 8,
-              child: _RSVPIndicator(
-                status: practice.userRsvp!.status,
-                isConfirmed: practice.userRsvp!.isConfirmed,
-                waitlistPosition: practice.userRsvp!.waitlistPosition,
-              ),
-            ),
         ],
       ),
     );

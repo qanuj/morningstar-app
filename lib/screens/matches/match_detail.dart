@@ -2,11 +2,13 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import '../../models/match_details.dart';
 import '../../services/api_service.dart';
 import '../../utils/theme.dart';
 import '../../widgets/svg_avatar.dart';
+import '../../providers/user_provider.dart';
 
 class MatchDetailScreen extends StatefulWidget {
   final String matchId;
@@ -23,11 +25,19 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
   bool _isLoading = false;
   String? _error;
   int _selectedTabIndex = 0;
+  late PageController _pageController;
 
   @override
   void initState() {
     super.initState();
+    _pageController = PageController(initialPage: 0);
     _loadMatchDetail();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadMatchDetail() async {
@@ -52,6 +62,23 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
     }
   }
 
+  /// Find the current user's RSVP in the match RSVP list
+  MatchRSVP? _getCurrentUserRsvp(MatchDetailData detail) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final currentUserId = userProvider.user?.id;
+
+    if (currentUserId == null) return null;
+
+    try {
+      return detail.rsvps.firstWhere(
+        (rsvp) => rsvp.user?.id == currentUserId,
+      );
+    } catch (e) {
+      // No RSVP found for current user
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -72,6 +99,11 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
         selectedIndex: _selectedTabIndex,
         onDestinationSelected: (index) {
           setState(() => _selectedTabIndex = index);
+          _pageController.animateToPage(
+            index,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
         },
         destinations: const [
           NavigationDestination(
@@ -92,14 +124,20 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
   Widget _buildBody() {
     if (_detail == null) {
       final placeholder = _error != null ? _buildError() : _buildLoading();
-      return IndexedStack(
-        index: _selectedTabIndex,
+      return PageView(
+        controller: _pageController,
+        onPageChanged: (index) {
+          setState(() => _selectedTabIndex = index);
+        },
         children: [placeholder, placeholder],
       );
     }
 
-    return IndexedStack(
-      index: _selectedTabIndex,
+    return PageView(
+      controller: _pageController,
+      onPageChanged: (index) {
+        setState(() => _selectedTabIndex = index);
+      },
       children: [_buildInfoTab(_detail!), _buildSquadTab(_detail!)],
     );
   }
@@ -142,6 +180,8 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
   }
 
   Widget _buildInfoTab(MatchDetailData detail) {
+    final userRsvp = _getCurrentUserRsvp(detail);
+
     return RefreshIndicator(
       onRefresh: _loadMatchDetail,
       child: ListView(
@@ -149,15 +189,8 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
         children: [
           _buildMatchHeader(detail),
           const SizedBox(height: 12),
-          _buildQuickFacts(detail),
-          if (detail.userRsvp != null) ...[
-            const SizedBox(height: 12),
-            _buildUserRsvp(detail.userRsvp!),
-          ],
-          if (detail.matchPreferences.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            _buildPreferenceCards(detail),
-          ],
+          // Show user RSVP if exists
+          if (userRsvp != null) _buildUserRsvp(userRsvp),
         ],
       ),
     );
@@ -424,68 +457,8 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
     );
   }
 
-  Widget _buildQuickFacts(MatchDetailData detail) {
-    final theme = Theme.of(context);
-    final facts = <_FactItem>[
-      _FactItem(
-        icon: Icons.remove_red_eye_outlined,
-        label: 'Visibility',
-        value: detail.matchPreferences.any((pref) => pref.hideUntilRsvp)
-            ? 'Hidden until RSVP'
-            : 'Visible to members',
-      ),
-      _FactItem(
-        icon: Icons.notifications_active_outlined,
-        label: 'Notifications',
-        value: detail.matchPreferences.any((pref) => pref.notifyMembers)
-            ? 'Enabled'
-            : 'Disabled',
-      ),
-      _FactItem(
-        icon: Icons.timer_outlined,
-        label: 'Created',
-        value: DateFormat('MMM d, yyyy').format(detail.createdAt.toLocal()),
-      ),
-    ];
 
-    final panelColor = _panelColor(theme);
-
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 0,
-      color: panelColor,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Quick facts',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: facts
-                  .map(
-                    (fact) => _FactChip(
-                      icon: fact.icon,
-                      label: fact.label,
-                      value: fact.value,
-                    ),
-                  )
-                  .toList(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildUserRsvp(MatchDetailUserRsvp rsvp) {
+  Widget _buildUserRsvp(MatchRSVP rsvp) {
     final color = _getRSVPColor(rsvp.status);
     final panelColor = _panelColor(Theme.of(context));
     return Card(
@@ -533,53 +506,6 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
     );
   }
 
-  Widget _buildPreferenceCards(MatchDetailData detail) {
-    final theme = Theme.of(context);
-
-    MatchDetailTeam? teamForClub(String clubId) {
-      if (detail.team?.clubId == clubId) return detail.team;
-      if (detail.opponentTeam?.clubId == clubId) return detail.opponentTeam;
-      return null;
-    }
-
-    final cards = detail.matchPreferences.map((pref) {
-      final team = teamForClub(pref.clubId);
-      return _PreferenceCard(preference: pref, team: team);
-    }).toList();
-
-    final panelColor = _panelColor(theme);
-
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 0,
-      color: panelColor,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Team allocations',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Column(
-              children: cards
-                  .map(
-                    (card) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: card,
-                    ),
-                  )
-                  .toList(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   List<MatchDetailPlayer> _sortedSquad(List<MatchDetailPlayer> squad) {
     final sorted = List<MatchDetailPlayer>.from(squad);
@@ -1042,156 +968,6 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
   }
 }
 
-class _FactItem {
-  final IconData icon;
-  final String label;
-  final String value;
-
-  _FactItem({required this.icon, required this.label, required this.value});
-}
-
-class _FactChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-
-  const _FactChip({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final backgroundColor = isDark
-        ? theme.colorScheme.surfaceVariant.withOpacity(0.6)
-        : Colors.white;
-    final borderColor = theme.colorScheme.outline.withOpacity(
-      isDark ? 0.4 : 0.12,
-    );
-    return Container(
-      width: 200,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: borderColor),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: theme.colorScheme.primary),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(value, style: theme.textTheme.bodyMedium),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PreferenceCard extends StatelessWidget {
-  final MatchPreference preference;
-  final MatchDetailTeam? team;
-
-  const _PreferenceCard({required this.preference, required this.team});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final borderColor = theme.colorScheme.outline.withOpacity(
-      theme.brightness == Brightness.dark ? 0.4 : 0.12,
-    );
-    final backgroundColor = theme.brightness == Brightness.dark
-        ? theme.colorScheme.surfaceVariant.withOpacity(0.5)
-        : Colors.white;
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  team?.club?.name ?? 'Club ${preference.clubId}',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              Text('${preference.spots} spots'),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              _PreferenceStat(
-                label: 'Total expensed',
-                value: '₹${preference.totalExpensed.toStringAsFixed(0)}',
-              ),
-              _PreferenceStat(
-                label: 'Paid',
-                value: '₹${preference.paidAmount.toStringAsFixed(0)}',
-              ),
-              _PreferenceStat(
-                label: 'Squad released',
-                value: preference.isSquadReleased ? 'Yes' : 'No',
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PreferenceStat extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _PreferenceStat({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: theme.textTheme.bodySmall?.copyWith(
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 3),
-        Text(value, style: theme.textTheme.bodyMedium),
-      ],
-    );
-  }
-}
 
 class _Badge extends StatelessWidget {
   final String label;

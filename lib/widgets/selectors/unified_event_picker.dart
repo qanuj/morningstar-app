@@ -16,12 +16,16 @@ class UnifiedEventPicker extends StatefulWidget {
   final String clubId;
   final EventType eventType;
   final ValueChanged<MatchListItem> onEventSelected;
+  final String? userRole;
+  final String? clubName;
 
   const UnifiedEventPicker({
     super.key,
     required this.clubId,
     required this.eventType,
     required this.onEventSelected,
+    this.userRole,
+    this.clubName,
   });
 
   @override
@@ -32,13 +36,15 @@ class UnifiedEventPicker extends StatefulWidget {
     required BuildContext context,
     required String clubId,
     required EventType eventType,
+    String? userRole,
+    String? clubName,
   }) async {
     return await showModalBottomSheet<MatchListItem>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) =>
-          UnifiedEventPickerModal(clubId: clubId, eventType: eventType),
+          UnifiedEventPickerModal(clubId: clubId, eventType: eventType, userRole: userRole, clubName: clubName),
     );
   }
 }
@@ -47,11 +53,15 @@ class UnifiedEventPicker extends StatefulWidget {
 class UnifiedEventPickerModal extends StatefulWidget {
   final String clubId;
   final EventType eventType;
+  final String? userRole;
+  final String? clubName;
 
   const UnifiedEventPickerModal({
     super.key,
     required this.clubId,
     required this.eventType,
+    this.userRole,
+    this.clubName,
   });
 
   @override
@@ -69,6 +79,11 @@ class _UnifiedEventPickerState extends State<UnifiedEventPicker> {
   int _currentOffset = 0;
   static const int _pageSize = 20;
 
+  bool get _canCreateEvent {
+    final role = widget.userRole?.toLowerCase();
+    return role == 'admin' || role == 'owner';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -84,9 +99,12 @@ class _UnifiedEventPickerState extends State<UnifiedEventPicker> {
 
   String get _title =>
       widget.eventType == EventType.match ? 'Match' : 'Practice Session';
-  String get _emptyMessage => widget.eventType == EventType.match
-      ? 'No upcoming matches found for this club.'
-      : 'No upcoming practice sessions found for this club.';
+  String get _emptyMessage {
+    final clubName = widget.clubName ?? 'this club';
+    return widget.eventType == EventType.match
+        ? 'No upcoming matches found for $clubName'
+        : 'No upcoming practice sessions found for $clubName';
+  }
   IconData get _headerIcon => widget.eventType == EventType.match
       ? Icons.sports_cricket
       : Icons.fitness_center;
@@ -232,7 +250,7 @@ class _UnifiedEventPickerState extends State<UnifiedEventPicker> {
     return Scaffold(
       appBar: DuggyAppBar(
         subtitle: _title,
-        actions: [
+        actions: _canCreateEvent ? [
           IconButton(
             icon: const Icon(Icons.add),
             tooltip: widget.eventType == EventType.match
@@ -240,7 +258,7 @@ class _UnifiedEventPickerState extends State<UnifiedEventPicker> {
                 : 'Create Practice',
             onPressed: _createNewEvent,
           ),
-        ],
+        ] : null,
       ),
       body: Container(
         color: theme.brightness == Brightness.dark
@@ -289,40 +307,68 @@ class _UnifiedEventPickerState extends State<UnifiedEventPicker> {
           children: [
             SizedBox(height: MediaQuery.of(context).size.height * 0.2),
             Center(
-              child: Column(
-                children: [
-                  Icon(
-                    _headerIcon,
-                    color: theme.colorScheme.onSurface.withOpacity(0.4),
-                    size: 64,
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    _emptyMessage,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.textTheme.bodySmall?.color,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: _createNewEvent,
-                    icon: Icon(Icons.add),
-                    label: Text(
-                      widget.eventType == EventType.match
-                          ? 'Create Match'
-                          : 'Create Practice',
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.colorScheme.primary,
-                      foregroundColor: theme.colorScheme.onPrimary,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Column(
+                  children: [
+                    // Icon with circular background
+                    Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        _headerIcon,
+                        color: theme.colorScheme.primary.withOpacity(0.6),
+                        size: 60,
                       ),
                     ),
-                  ),
-                ],
+                    SizedBox(height: 32),
+
+                    // Empty message with better typography
+                    Text(
+                      _emptyMessage,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                        height: 1.4,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 40),
+
+                    // Create button with improved styling - only for admin/owner
+                    if (_canCreateEvent)
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _createNewEvent,
+                          icon: Icon(Icons.add, size: 20),
+                          label: Text(
+                            widget.eventType == EventType.match
+                                ? 'Create Match'
+                                : 'Create Practice',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: theme.colorScheme.primary,
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 0,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -388,6 +434,11 @@ class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal> {
   int _currentOffset = 0;
   static const int _pageSize = 20;
 
+  bool get _canCreateEvent {
+    final role = widget.userRole?.toLowerCase();
+    return role == 'admin' || role == 'owner';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -403,9 +454,12 @@ class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal> {
 
   String get _title =>
       widget.eventType == EventType.match ? 'Match' : 'Practice Session';
-  String get _emptyMessage => widget.eventType == EventType.match
-      ? 'No upcoming matches found for this club.'
-      : 'No upcoming practice sessions found for this club.';
+  String get _emptyMessage {
+    final clubName = widget.clubName ?? 'this club';
+    return widget.eventType == EventType.match
+        ? 'No upcoming matches found for $clubName'
+        : 'No upcoming practice sessions found for $clubName';
+  }
   IconData get _headerIcon => widget.eventType == EventType.match
       ? Icons.sports_cricket
       : Icons.fitness_center;
@@ -588,42 +642,69 @@ class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal> {
 
     if (_events.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              _headerIcon,
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Theme.of(context).colorScheme.onSurface.withOpacity(0.5)
-                  : Theme.of(context).textTheme.bodySmall?.color,
-              size: 64,
-            ),
-            SizedBox(height: 16),
-            Text(
-              _emptyMessage,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w500,
-                color: Theme.of(context).textTheme.bodySmall?.color,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Icon with circular background
+              Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  _headerIcon,
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.6),
+                  size: 60,
+                ),
               ),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _createNewEvent,
-              icon: Icon(Icons.add),
-              label: Text(
-                widget.eventType == EventType.match
-                    ? 'Create Match'
-                    : 'Create Practice',
+              SizedBox(height: 32),
+
+              // Empty message with better typography
+              Text(
+                _emptyMessage,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                  height: 1.4,
+                ),
+                textAlign: TextAlign.center,
               ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).primaryColor,
-                foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
-            ),
-          ],
+              SizedBox(height: 40),
+
+              // Create button with improved styling - only for admin/owner
+              if (_canCreateEvent)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _createNewEvent,
+                    icon: Icon(Icons.add, size: 20),
+                    label: Text(
+                      widget.eventType == EventType.match
+                          ? 'Create Match'
+                          : 'Create Practice',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       );
     }
@@ -716,13 +797,14 @@ class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal> {
                     ),
                   ),
                 ),
-                IconButton(
-                  icon: Icon(Icons.add),
-                  tooltip: widget.eventType == EventType.match
-                      ? 'Create Match'
-                      : 'Create Practice',
-                  onPressed: _createNewEvent,
-                ),
+                if (_canCreateEvent)
+                  IconButton(
+                    icon: Icon(Icons.add),
+                    tooltip: widget.eventType == EventType.match
+                        ? 'Create Match'
+                        : 'Create Practice',
+                    onPressed: _createNewEvent,
+                  ),
                 IconButton(
                   icon: Icon(Icons.refresh),
                   tooltip: 'Refresh',

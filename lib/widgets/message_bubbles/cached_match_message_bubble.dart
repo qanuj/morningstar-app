@@ -2,12 +2,14 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../../models/club_message.dart';
 import '../../services/match_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/message_storage_service.dart';
 import '../svg_avatar.dart';
 import 'base_message_bubble.dart';
+import '../../providers/user_provider.dart';
 
 /// A cached match message bubble that uses local data and only updates via push notifications
 /// No unnecessary API calls - all data comes from the message content
@@ -112,12 +114,40 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
 
   String? _extractRSVPStatus() {
     final details = _getUnifiedMatchDetails;
-    if (details.isNotEmpty && details['userRsvp'] != null) {
+    if (details.isEmpty) return null;
+
+    // First check for rsvps array (new approach)
+    final rsvps = details['rsvps'];
+    if (rsvps is List) {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final currentUserId = userProvider.user?.id;
+      if (currentUserId != null) {
+        try {
+          final userRsvp = rsvps.firstWhere(
+            (rsvp) => rsvp is Map<String, dynamic> &&
+                      rsvp['user'] is Map<String, dynamic> &&
+                      rsvp['user']['id'] == currentUserId,
+          );
+          if (userRsvp is Map<String, dynamic>) {
+            final status = userRsvp['status'];
+            if (status is String && status.isNotEmpty) {
+              return status.toUpperCase();
+            }
+          }
+        } catch (e) {
+          // User not found in rsvps array
+        }
+      }
+    }
+
+    // Fallback to old userRsvp field for backward compatibility
+    if (details['userRsvp'] != null) {
       final status = details['userRsvp']['status'];
       if (status is String && status.isNotEmpty) {
         return status.toUpperCase();
       }
     }
+
     return null;
   }
 
@@ -198,6 +228,11 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     // Update RSVP status if included
     if (data['userRsvp'] != null) {
       updatedDetails['userRsvp'] = data['userRsvp'];
+    }
+
+    // Update rsvps array if included
+    if (data['rsvps'] != null) {
+      updatedDetails['rsvps'] = data['rsvps'];
     }
 
     setState(() {
@@ -1089,12 +1124,41 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
       if (isSuccess) {
         // Update local cached data optimistically
         final updatedDetails = Map<String, dynamic>.from(_cachedMatchDetails);
+
+        // Update userRsvp for backward compatibility
         final updatedUserRsvp = Map<String, dynamic>.from(
           _safeMapFromData(updatedDetails['userRsvp']) ?? {},
         );
-
         updatedUserRsvp['status'] = normalizedStatus;
         updatedDetails['userRsvp'] = updatedUserRsvp;
+
+        // Update rsvps array with current user's RSVP
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        final currentUserId = userProvider.user?.id;
+        if (currentUserId != null) {
+          final rsvps = updatedDetails['rsvps'] as List? ?? [];
+          final updatedRsvps = List<Map<String, dynamic>>.from(
+            rsvps.map((rsvp) => Map<String, dynamic>.from(rsvp as Map<String, dynamic>))
+          );
+
+          // Find and update existing RSVP or add new one
+          final existingIndex = updatedRsvps.indexWhere(
+            (rsvp) => rsvp['user'] is Map<String, dynamic> &&
+                      rsvp['user']['id'] == currentUserId,
+          );
+
+          if (existingIndex != -1) {
+            updatedRsvps[existingIndex]['status'] = normalizedStatus;
+          } else {
+            // Add new RSVP if user doesn't exist in list
+            updatedRsvps.add({
+              'user': {'id': currentUserId},
+              'status': normalizedStatus,
+            });
+          }
+
+          updatedDetails['rsvps'] = updatedRsvps;
+        }
 
         // Update counts locally
         if (isPractice) {
