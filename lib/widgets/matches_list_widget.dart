@@ -782,6 +782,7 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
           selectedRole: selectedRole,
           isConfirmed: status == 'YES', // Optimistic assumption
           waitlistPosition: null, // Will be updated from API response if needed
+          teamId: match.userRsvp?.teamId, // Preserve existing teamId if available
         );
 
         // Create updated match with optimistic RSVP info
@@ -811,6 +812,8 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
           availableSpots: match.availableSpots,
           confirmedPlayers: match.confirmedPlayers,
           userRsvp: optimisticRsvp,
+          team: match.team, // Preserve team data
+          opponentTeam: match.opponentTeam, // Preserve opponent team data
         );
         _matches[matchIndex] = updatedMatch;
       }
@@ -862,6 +865,8 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
                 availableSpots: currentMatch.availableSpots,
                 confirmedPlayers: currentMatch.confirmedPlayers,
                 userRsvp: MatchRSVPSimple.fromJson(actualRsvp),
+                team: currentMatch.team, // Preserve team data
+                opponentTeam: currentMatch.opponentTeam, // Preserve opponent team data
               );
               _matches[matchIndex] = updatedMatch;
             }
@@ -914,6 +919,8 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
             availableSpots: currentMatch.availableSpots,
             confirmedPlayers: currentMatch.confirmedPlayers,
             userRsvp: match.userRsvp, // Revert to original state
+            team: currentMatch.team, // Preserve team data
+            opponentTeam: currentMatch.opponentTeam, // Preserve opponent team data
           );
           _matches[matchIndex] = revertedMatch;
         }

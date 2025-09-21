@@ -151,7 +151,6 @@ class SVGAvatar extends StatefulWidget {
     );
   }
 
-
   @override
   State<SVGAvatar> createState() => _SVGAvatarState();
 }
@@ -351,7 +350,7 @@ class _SVGAvatarState extends State<SVGAvatar> {
                       color: Colors.grey[600],
                       value: loadingProgress.expectedTotalBytes != null
                           ? loadingProgress.cumulativeBytesLoaded /
-                              loadingProgress.expectedTotalBytes!
+                                loadingProgress.expectedTotalBytes!
                           : null,
                     ),
                   ),
@@ -372,7 +371,7 @@ class _SVGAvatarState extends State<SVGAvatar> {
                 child: Icon(
                   Icons.offline_bolt,
                   color: Colors.green.withOpacity(0.8),
-                  size: 20,
+                  size: 10,
                 ),
               ),
             ],

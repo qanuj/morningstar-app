@@ -130,6 +130,7 @@ class MatchRSVPSimple {
   final String? selectedRole;
   final bool isConfirmed;
   final int? waitlistPosition;
+  final String? teamId;
 
   MatchRSVPSimple({
     required this.id,
@@ -137,6 +138,7 @@ class MatchRSVPSimple {
     this.selectedRole,
     required this.isConfirmed,
     this.waitlistPosition,
+    this.teamId,
   });
 
   factory MatchRSVPSimple.fromJson(Map<String, dynamic> json) {
@@ -146,6 +148,7 @@ class MatchRSVPSimple {
       selectedRole: json['selectedRole'],
       isConfirmed: json['isConfirmed'] ?? false,
       waitlistPosition: json['waitlistPosition'],
+      teamId: json['teamId'],
     );
   }
 
@@ -156,6 +159,7 @@ class MatchRSVPSimple {
       'selectedRole': selectedRole,
       'isConfirmed': isConfirmed,
       'waitlistPosition': waitlistPosition,
+      'teamId': teamId,
     };
   }
 }
