@@ -6,7 +6,7 @@ import '../services/media_storage_service.dart';
 
 /// A versatile avatar widget that handles both SVG and regular images
 /// with proper fallback handling and consistent styling across the app
-class SVGAvatar extends StatelessWidget {
+class SVGAvatar extends StatefulWidget {
   final String? imageUrl;
   final double size;
   final Color? backgroundColor;
@@ -151,6 +151,47 @@ class SVGAvatar extends StatelessWidget {
     );
   }
 
+
+  @override
+  State<SVGAvatar> createState() => _SVGAvatarState();
+}
+
+class _SVGAvatarState extends State<SVGAvatar> {
+  String? _cachedImageUrl;
+  Widget? _cachedImageWidget;
+  Future<String?>? _imageFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeImage();
+  }
+
+  @override
+  void didUpdateWidget(SVGAvatar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Only rebuild if the image URL or size changed
+    if (oldWidget.imageUrl != widget.imageUrl ||
+        oldWidget.size != widget.size ||
+        oldWidget.fit != widget.fit) {
+      _initializeImage();
+    }
+  }
+
+  void _initializeImage() {
+    if (widget.imageUrl != null && widget.imageUrl!.isNotEmpty) {
+      if (_cachedImageUrl != widget.imageUrl) {
+        _cachedImageUrl = widget.imageUrl;
+        _cachedImageWidget = null;
+        _imageFuture = MediaStorageService.getCachedMediaPath(widget.imageUrl!);
+      }
+    } else {
+      _cachedImageUrl = null;
+      _cachedImageWidget = null;
+      _imageFuture = null;
+    }
+  }
+
   /// Check if the URL points to an SVG image
   bool _isSvg(String url) {
     return url.toLowerCase().contains('.svg') ||
@@ -161,7 +202,7 @@ class SVGAvatar extends StatelessWidget {
 
   /// Get default background color based on theme
   Color _getBackgroundColor(BuildContext context) {
-    if (backgroundColor != null) return backgroundColor!;
+    if (widget.backgroundColor != null) return widget.backgroundColor!;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return isDark ? Colors.grey[700]! : Colors.grey[300]!;
@@ -169,7 +210,7 @@ class SVGAvatar extends StatelessWidget {
 
   /// Get default icon color based on theme
   Color _getIconColor(BuildContext context) {
-    if (iconColor != null) return iconColor!;
+    if (widget.iconColor != null) return widget.iconColor!;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return isDark ? Colors.white.withOpacity(0.8) : Colors.black54;
@@ -195,15 +236,15 @@ class SVGAvatar extends StatelessWidget {
   /// Build the fallback widget (text or icon)
   Widget _buildFallback(BuildContext context) {
     // If fallbackText is provided, use text instead of icon
-    if (fallbackText != null && fallbackText!.isNotEmpty) {
-      final initials = _generateInitials(fallbackText!);
+    if (widget.fallbackText != null && widget.fallbackText!.isNotEmpty) {
+      final initials = _generateInitials(widget.fallbackText!);
       return Center(
         child: Text(
           initials,
           style:
-              fallbackTextStyle ??
+              widget.fallbackTextStyle ??
               TextStyle(
-                fontSize: size * 0.4,
+                fontSize: widget.size * 0.4,
                 fontWeight: FontWeight.bold,
                 color: _getIconColor(context),
               ),
@@ -213,26 +254,31 @@ class SVGAvatar extends StatelessWidget {
 
     // Default to icon fallback
     return Icon(
-      fallbackIcon,
-      size: iconSize ?? (size * 0.6),
+      widget.fallbackIcon,
+      size: widget.iconSize ?? (widget.size * 0.6),
       color: _getIconColor(context),
     );
   }
 
   /// Build the image widget (SVG or regular) with caching
   Widget _buildImage(BuildContext context) {
-    if (imageUrl == null || imageUrl!.isEmpty) {
+    if (widget.imageUrl == null || widget.imageUrl!.isEmpty) {
       return _buildFallback(context);
     }
 
+    // Return cached widget if available and URL hasn't changed
+    if (_cachedImageWidget != null && _cachedImageUrl == widget.imageUrl) {
+      return _cachedImageWidget!;
+    }
+
     return FutureBuilder<String?>(
-      future: MediaStorageService.getCachedMediaPath(imageUrl!),
+      future: _imageFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           // Show a loading placeholder with consistent dimensions
-          return Container(
-            width: size,
-            height: size,
+          final loadingWidget = Container(
+            width: widget.size,
+            height: widget.size,
             color: Colors.grey[300],
             child: Center(
               child: CircularProgressIndicator(
@@ -241,6 +287,7 @@ class SVGAvatar extends StatelessWidget {
               ),
             ),
           );
+          return loadingWidget;
         }
 
         if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
@@ -252,23 +299,23 @@ class SVGAvatar extends StatelessWidget {
 
         Widget imageWidget;
 
-        if (_isSvg(imageUrl!)) {
+        if (_isSvg(widget.imageUrl!)) {
           // For SVG, check if it's a local file or still needs network loading
           if (isLoadedFromCache) {
             imageWidget = SvgPicture.file(
               File(localPath),
-              width: size,
-              height: size,
-              fit: fit,
+              width: widget.size,
+              height: widget.size,
+              fit: widget.fit,
               placeholderBuilder: (context) => _buildFallback(context),
               semanticsLabel: 'User avatar',
             );
           } else {
             imageWidget = SvgPicture.network(
-              imageUrl!,
-              width: size,
-              height: size,
-              fit: fit,
+              widget.imageUrl!,
+              width: widget.size,
+              height: widget.size,
+              fit: widget.fit,
               placeholderBuilder: (context) => _buildFallback(context),
               semanticsLabel: 'User avatar',
             );
@@ -278,25 +325,25 @@ class SVGAvatar extends StatelessWidget {
           if (isLoadedFromCache) {
             imageWidget = Image.file(
               File(localPath),
-              width: size,
-              height: size,
-              fit: fit,
+              width: widget.size,
+              height: widget.size,
+              fit: widget.fit,
               errorBuilder: (context, error, stackTrace) =>
                   _buildFallback(context),
             );
           } else {
             imageWidget = Image.network(
-              imageUrl!,
-              width: size,
-              height: size,
-              fit: fit,
+              widget.imageUrl!,
+              width: widget.size,
+              height: widget.size,
+              fit: widget.fit,
               errorBuilder: (context, error, stackTrace) =>
                   _buildFallback(context),
               loadingBuilder: (context, child, loadingProgress) {
                 if (loadingProgress == null) return child;
                 return Container(
-                  width: size,
-                  height: size,
+                  width: widget.size,
+                  height: widget.size,
                   color: Colors.grey[300],
                   child: Center(
                     child: CircularProgressIndicator(
@@ -316,7 +363,7 @@ class SVGAvatar extends StatelessWidget {
 
         // Add offline indicator in debug mode
         if (kDebugMode && isLoadedFromCache) {
-          return Stack(
+          imageWidget = Stack(
             children: [
               imageWidget,
               Positioned(
@@ -332,6 +379,8 @@ class SVGAvatar extends StatelessWidget {
           );
         }
 
+        // Cache the built widget to avoid rebuilding
+        _cachedImageWidget = imageWidget;
         return imageWidget;
       },
     );
@@ -341,35 +390,35 @@ class SVGAvatar extends StatelessWidget {
   Widget _buildAvatar(BuildContext context) {
     Widget content;
 
-    if (isAvatarMode) {
+    if (widget.isAvatarMode) {
       // Avatar mode: circular with background
       content = Container(
-        width: size,
-        height: size,
+        width: widget.size,
+        height: widget.size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: _getBackgroundColor(context),
-          border: showBorder
+          border: widget.showBorder
               ? Border.all(
-                  color: borderColor ?? Theme.of(context).primaryColor,
-                  width: borderWidth,
+                  color: widget.borderColor ?? Theme.of(context).primaryColor,
+                  width: widget.borderWidth,
                 )
               : null,
         ),
-        child: ClipOval(child: child ?? _buildImage(context)),
+        child: ClipOval(child: widget.child ?? _buildImage(context)),
       );
     } else {
       // Image mode: rectangular, no background
       content = SizedBox(
-        width: size,
-        height: size,
-        child: child ?? _buildImage(context),
+        width: widget.size,
+        height: widget.size,
+        child: widget.child ?? _buildImage(context),
       );
     }
 
     // Wrap with GestureDetector if onTap is provided
-    if (onTap != null) {
-      content = GestureDetector(onTap: onTap, child: content);
+    if (widget.onTap != null) {
+      content = GestureDetector(onTap: widget.onTap, child: content);
     }
 
     return content;
