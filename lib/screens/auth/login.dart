@@ -119,6 +119,8 @@ class _LoginScreenState extends State<LoginScreen> {
         errorMessage = errorMessage.substring(11);
       }
 
+      print('Error sending OTP: $errorMessage');
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(errorMessage),

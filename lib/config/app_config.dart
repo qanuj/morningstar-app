@@ -17,6 +17,11 @@ class AppConfig {
   // and DON’T add AAAA at your origin. Browsers can still use dual-stack on duggy.app.
   static const bool useIPv4OnlyApiForMobile = true;
 
+  // Toggle this to true when building for TestFlight (App Store Connect).
+  // This forces the app to use production backend even in debug builds.
+  // This is useful to test the app with TestFlight distribution before release.
+  static const bool useTestFlightMode = true;
+
   // ——— API Base Hosts (no paths) ———
   static const String _prodHostDual = 'duggy.app'; // dual stack (web)
   static const String _prodHostV4 = 'api4.duggy.app'; // IPv4-only alias for app
@@ -36,8 +41,15 @@ class AppConfig {
     return 'http://$_devLanHost:$_devPort/api'; // Real devices on same Wi-Fi
   }
 
-  static String get apiBaseUrl =>
-      isProduction ? _productionBaseUrl : _developmentBaseUrl;
+  static String get apiBaseUrl => isProduction || useTestFlightMode
+      ? _productionBaseUrl
+      : _developmentBaseUrl;
+
+  // Fallback production URLs for better connectivity
+  static List<String> get productionFallbackUrls => [
+    'https://$_prodHostV4/api', // IPv4-only first
+    'https://$_prodHostDual/api', // Dual-stack fallback
+  ];
 
   // ——— Logging ———
   static bool get enableLogging => !isProduction;
@@ -53,6 +65,12 @@ class AppConfig {
   // Package-http retry policy from your ApiService (idempotent reads)
   static const int maxRetriesIdempotent = 2;
   static const int maxRetriesMutating = 0;
+
+  // Network connectivity and fallback settings
+  static const Duration fallbackTimeout = Duration(seconds: 5);
+  static const int maxFallbackAttempts = 2;
+  static const Duration connectivityCheckInterval = Duration(minutes: 1);
+  static const Duration networkStatusCacheTime = Duration(seconds: 30);
 
   // ——— Image cache ———
   static const int maxImageCacheSize = 100;

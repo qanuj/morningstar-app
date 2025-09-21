@@ -277,42 +277,23 @@ class TimedHttpClient extends http.BaseClient {
       debugPrint('📤 Request sent to ${uri.host}${uri.path}');
       debugPrint('⚡ First byte received in ${timing.firstByteDuration?.inMilliseconds ?? 0}ms');
 
-      // Create a new response that measures download time
-      final responseBytes = <int>[];
-      final responseStream = response.stream.map((chunk) {
-        responseBytes.addAll(chunk);
-        return chunk;
-      });
+      // Read the stream once and convert to bytes to avoid "Stream already listened to" error
+      final responseBytes = await response.stream.toBytes();
+      timing.endTime = DateTime.now();
+      timing.responseSize = responseBytes.length;
+      NetworkTimingService.addTiming(timing);
 
-      final newResponse = http.StreamedResponse(
-        responseStream,
+      // Return a StreamedResponse with a fresh stream containing the bytes
+      return http.StreamedResponse(
+        Stream.fromIterable([responseBytes]),
         response.statusCode,
-        contentLength: response.contentLength,
+        contentLength: responseBytes.length,
         request: response.request,
         headers: response.headers,
         isRedirect: response.isRedirect,
         persistentConnection: response.persistentConnection,
         reasonPhrase: response.reasonPhrase,
       );
-
-      // Listen for completion to mark end time
-      newResponse.stream.listen(
-        (chunk) {
-          // Data is being received
-        },
-        onDone: () {
-          timing.endTime = DateTime.now();
-          timing.responseSize = responseBytes.length;
-          NetworkTimingService.addTiming(timing);
-        },
-        onError: (error) {
-          timing.endTime = DateTime.now();
-          timing.error = error.toString();
-          NetworkTimingService.addTiming(timing);
-        },
-      );
-
-      return newResponse;
 
     } catch (e) {
       timing.endTime = DateTime.now();
