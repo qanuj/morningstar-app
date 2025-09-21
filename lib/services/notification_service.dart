@@ -655,6 +655,12 @@ class NotificationService {
     _clubProvider = null;
     print('🗑️ Club provider reference cleared');
   }
+
+  /// Manually trigger match update notifications (for immediate local updates)
+  static void triggerMatchUpdate(String matchId, Map<String, dynamic> data) {
+    print('🔄 Manually triggering match update for: $matchId');
+    _dispatchMatchUpdate(matchId, data);
+  }
 }
 
 /// Background message handler (must be top-level function)

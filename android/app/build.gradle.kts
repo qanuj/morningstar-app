@@ -56,7 +56,7 @@ android {
     buildTypes {
         debug {
             isDebuggable = true
-            // applicationIdSuffix = ".dev"  // Temporarily commented for testing
+            applicationIdSuffix = ".dev"  // Re-enabled for proper Firebase configuration
             versionNameSuffix = "-dev"
         }
         release {

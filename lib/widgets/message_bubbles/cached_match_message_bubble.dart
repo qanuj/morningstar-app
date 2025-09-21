@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -230,9 +231,30 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
       updatedDetails['userRsvp'] = data['userRsvp'];
     }
 
-    // Update rsvps array if included
+    // Update rsvps array if included (parse JSON string from push notification)
     if (data['rsvps'] != null) {
-      updatedDetails['rsvps'] = data['rsvps'];
+      try {
+        if (data['rsvps'] is String) {
+          // Parse JSON string from push notification
+          final rsvpsData = json.decode(data['rsvps']);
+          updatedDetails['rsvps'] = rsvpsData;
+        } else {
+          // Direct data from local trigger
+          updatedDetails['rsvps'] = data['rsvps'];
+        }
+      } catch (e) {
+        debugPrint('❌ Error parsing rsvps data: $e');
+      }
+    }
+
+    // Update confirmed players count
+    if (data['confirmedPlayers'] != null) {
+      try {
+        final confirmedCount = int.tryParse(data['confirmedPlayers'].toString()) ?? 0;
+        updatedDetails['confirmedPlayers'] = confirmedCount;
+      } catch (e) {
+        debugPrint('❌ Error parsing confirmedPlayers: $e');
+      }
     }
 
     setState(() {

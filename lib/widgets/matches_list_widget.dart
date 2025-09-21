@@ -8,6 +8,7 @@ import '../widgets/svg_avatar.dart';
 import '../widgets/event_cards.dart';
 import '../screens/matches/match_detail.dart';
 import '../screens/practices/practice_match_detail.dart';
+import '../services/notification_service.dart';
 
 class MatchesListWidget extends StatefulWidget {
   final Club? clubFilter;
@@ -30,6 +31,9 @@ class MatchesListWidget extends StatefulWidget {
 class MatchesListWidgetState extends State<MatchesListWidget> {
   List<MatchListItem> _matches = [];
   bool _isLoading = false;
+
+  // Real-time notification subscriptions for match updates
+  final Set<String> _subscribedMatchIds = {};
 
   // Search and filtering
   final TextEditingController _searchController = TextEditingController();
@@ -59,6 +63,12 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
 
   @override
   void dispose() {
+    // Clean up notification subscriptions
+    for (final matchId in _subscribedMatchIds) {
+      NotificationService.removeMatchUpdateCallback(matchId, _handleMatchUpdate);
+    }
+    _subscribedMatchIds.clear();
+
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -137,6 +147,9 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
           // For club matches without pagination
           _hasNextPage = false;
         }
+
+        // Subscribe to real-time updates for new matches
+        _subscribeToMatchUpdates();
 
         // Sort matches: upcoming first (ascending), then past matches (descending)
         final now = DateTime.now();
@@ -1044,6 +1057,83 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
         ),
       ),
     );
+  }
+
+  /// Subscribe to real-time updates for all matches in the current list
+  void _subscribeToMatchUpdates() {
+    for (final match in _matches) {
+      if (!_subscribedMatchIds.contains(match.id)) {
+        NotificationService.addMatchUpdateCallback(match.id, _handleMatchUpdate);
+        _subscribedMatchIds.add(match.id);
+        print('🔔 Subscribed to match updates: ${match.id}');
+      }
+    }
+  }
+
+  /// Handle real-time match updates (e.g., RSVP changes)
+  void _handleMatchUpdate(Map<String, dynamic> data) {
+    if (!mounted) return;
+
+    final matchId = data['matchId'] as String?;
+    if (matchId == null) return;
+
+    print('🔄 Received match update for: $matchId, data: $data');
+
+    // Find the match in our list and update it
+    final matchIndex = _matches.indexWhere((match) => match.id == matchId);
+    if (matchIndex == -1) {
+      print('ℹ️ Match $matchId not found in current list, skipping update');
+      return;
+    }
+
+    try {
+      // Parse the updated RSVP data
+      final rsvpsData = data['rsvps'];
+      final confirmedPlayers = int.tryParse(data['confirmedPlayers']?.toString() ?? '0') ?? 0;
+
+      if (rsvpsData != null) {
+        setState(() {
+          // Update the match with new RSVP data
+          final currentMatch = _matches[matchIndex];
+
+          // Create an updated match with new RSVP information
+          _matches[matchIndex] = MatchListItem(
+            id: currentMatch.id,
+            clubId: currentMatch.clubId,
+            type: currentMatch.type,
+            location: currentMatch.location,
+            opponent: currentMatch.opponent,
+            notes: currentMatch.notes,
+            spots: currentMatch.spots,
+            matchDate: currentMatch.matchDate,
+            createdAt: currentMatch.createdAt,
+            updatedAt: currentMatch.updatedAt,
+            hideUntilRSVP: currentMatch.hideUntilRSVP,
+            rsvpAfterDate: currentMatch.rsvpAfterDate,
+            rsvpBeforeDate: currentMatch.rsvpBeforeDate,
+            notifyMembers: currentMatch.notifyMembers,
+            isCancelled: bool.tryParse(data['isCancelled']?.toString() ?? 'false') ?? currentMatch.isCancelled,
+            cancellationReason: data['cancellationReason']?.toString() ?? currentMatch.cancellationReason,
+            isSquadReleased: currentMatch.isSquadReleased,
+            totalExpensed: currentMatch.totalExpensed,
+            paidAmount: currentMatch.paidAmount,
+            club: currentMatch.club,
+            canSeeDetails: currentMatch.canSeeDetails,
+            canRsvp: currentMatch.canRsvp,
+            availableSpots: currentMatch.availableSpots,
+            confirmedPlayers: confirmedPlayers,
+            userRsvp: currentMatch.userRsvp,
+            rsvps: currentMatch.rsvps,
+            team: currentMatch.team,
+            opponentTeam: currentMatch.opponentTeam,
+          );
+        });
+
+        print('✅ Updated match $matchId with $confirmedPlayers confirmed players');
+      }
+    } catch (e) {
+      print('❌ Error updating match $matchId: $e');
+    }
   }
 
   IconData _getRoleIcon(String role) {
