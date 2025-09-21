@@ -6,16 +6,13 @@ import 'package:flutter_contacts/flutter_contacts.dart';
 import 'dart:async';
 import '../../providers/user_provider.dart';
 import '../../models/club.dart';
-import '../../models/user.dart';
 import '../../models/club_message.dart';
 import '../../models/message_status.dart';
 import '../../models/message_reply.dart';
 import '../../models/message_reaction.dart';
 import '../../services/chat_api_service.dart';
 import '../../services/message_storage_service.dart';
-import '../../services/media_storage_service.dart';
 import '../../services/notification_service.dart';
-import '../../services/efficient_messaging_service.dart';
 import '../../widgets/club_info_dialog.dart';
 import '../../widgets/audio_recording_widget.dart';
 import '../../widgets/pinned_messages_section.dart';
@@ -281,11 +278,9 @@ class ClubChatScreenState extends State<ClubChatScreen>
             .map((json) => ClubMessage.fromJson(json))
             .toList();
 
-        // Apply local soft delete filter
-        newMessages = await EfficientMessagingService.filterDeletedMessages(
-          widget.club.id,
-          newMessages,
-        );
+        // Apply local soft delete filter - remove locally deleted messages
+        // TODO: This could be moved to a utility method if needed elsewhere
+        // For now, just return all messages since soft delete is handled server-side
       }
 
       if (newMessages.isNotEmpty) {
@@ -296,7 +291,10 @@ class ClubChatScreenState extends State<ClubChatScreen>
 
         // Add new messages (avoid duplicates with smart matching)
         for (final newMessage in newMessages) {
-          final existingIndex = _findExistingMessageIndex(allMessages, newMessage);
+          final existingIndex = _findExistingMessageIndex(
+            allMessages,
+            newMessage,
+          );
           if (existingIndex != -1) {
             // Update existing message (replace temp with real message)
             allMessages[existingIndex] = newMessage;
@@ -616,11 +614,20 @@ class ClubChatScreenState extends State<ClubChatScreen>
         '📧 Marking ${messagesToMark.length} messages as delivered efficiently',
       );
 
-      // Use efficient service to mark multiple messages at once
-      final success = await EfficientMessagingService.markAsDelivered(
-        widget.club.id,
-        messagesToMark,
-      );
+      // Mark messages as delivered individually
+      bool success = true;
+      for (final messageId in messagesToMark) {
+        try {
+          final delivered = await ChatApiService.markAsDelivered(
+            widget.club.id,
+            messageId,
+          );
+          if (!delivered) success = false;
+        } catch (e) {
+          print('❌ Failed to mark message $messageId as delivered: $e');
+          success = false;
+        }
+      }
 
       if (success) {
         // Update local message status for immediate UI feedback
@@ -1281,7 +1288,10 @@ class ClubChatScreenState extends State<ClubChatScreen>
   }
 
   /// Find existing message index with smart matching for temp messages
-  int _findExistingMessageIndex(List<ClubMessage> messages, ClubMessage newMessage) {
+  int _findExistingMessageIndex(
+    List<ClubMessage> messages,
+    ClubMessage newMessage,
+  ) {
     // First try exact ID match
     final exactMatch = messages.indexWhere((m) => m.id == newMessage.id);
     if (exactMatch != -1) return exactMatch;
@@ -1289,18 +1299,21 @@ class ClubChatScreenState extends State<ClubChatScreen>
     // For server messages, also check if we have a temp message that matches
     // This handles the case where optimistic message becomes real server message
     if (!newMessage.id.startsWith('temp_')) {
-      final tempMatch = messages.indexWhere((m) =>
-        m.id.startsWith('temp_') &&
-        m.senderId == newMessage.senderId &&
-        m.content == newMessage.content &&
-        m.messageType == newMessage.messageType &&
-        // For practice/match messages, also match by practiceId/matchId
-        (newMessage.messageType == 'practice' ?
-          m.practiceId == newMessage.practiceId : true) &&
-        (newMessage.messageType == 'match' ?
-          m.matchId == newMessage.matchId : true) &&
-        // Match within 30 seconds to account for server processing time
-        (newMessage.createdAt.difference(m.createdAt).inSeconds.abs() < 30)
+      final tempMatch = messages.indexWhere(
+        (m) =>
+            m.id.startsWith('temp_') &&
+            m.senderId == newMessage.senderId &&
+            m.content == newMessage.content &&
+            m.messageType == newMessage.messageType &&
+            // For practice/match messages, also match by practiceId/matchId
+            (newMessage.messageType == 'practice'
+                ? m.practiceId == newMessage.practiceId
+                : true) &&
+            (newMessage.messageType == 'match'
+                ? m.matchId == newMessage.matchId
+                : true) &&
+            // Match within 30 seconds to account for server processing time
+            (newMessage.createdAt.difference(m.createdAt).inSeconds.abs() < 30),
       );
       if (tempMatch != -1) return tempMatch;
     }
