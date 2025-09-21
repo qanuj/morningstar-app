@@ -7,6 +7,7 @@ import 'package:http_parser/http_parser.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/app_config.dart';
+import 'network_timing_service.dart';
 
 class ApiException implements Exception {
   final String message;
@@ -25,8 +26,9 @@ class ApiService {
   static Map<String, dynamic>? _userData;
   static List<Map<String, dynamic>>? _clubsData;
 
-  // HTTP client with optimized settings for mobile networks
+  // HTTP client with optimized settings for mobile networks and precise timing
   static late http.Client _httpClient;
+  static late TimedHttpClient _timedHttpClient;
 
   // Timeout configurations optimized for mobile networks
   static const Duration _connectionTimeout = Duration(seconds: 15);
@@ -35,11 +37,17 @@ class ApiService {
 
   static void _initializeHttpClient() {
     _httpClient = http.Client();
+    _timedHttpClient = TimedHttpClient(_httpClient);
   }
 
   static Future<void> init() async {
     // Initialize HTTP client
     _initializeHttpClient();
+
+    // Enable network timing by default in debug mode
+    if (AppConfig.enableDebugPrints) {
+      enableNetworkTiming();
+    }
 
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString('token');
@@ -106,23 +114,18 @@ class ApiService {
 
   static Map<String, String> get headers => {
     'Content-Type': 'application/json',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'Connection': 'keep-alive',
-    'Cache-Control': 'no-cache',
     if (_token != null) 'Authorization': 'Bearer $_token',
   };
 
   static Map<String, String> get fileHeaders => {
-    'Accept-Encoding': 'gzip, deflate, br',
-    'Connection': 'keep-alive',
     if (_token != null) 'Authorization': 'Bearer $_token',
   };
 
-  // Retry logic for mobile network reliability
+  // Conservative retry logic for mobile network reliability
   static Future<T> _retryRequest<T>(
     Future<T> Function() request, {
-    int maxRetries = 3,
-    Duration delay = const Duration(seconds: 2),
+    int maxRetries = 2, // Reduced from 3 to 2
+    Duration delay = const Duration(seconds: 1), // Reduced from 2 to 1
   }) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -130,23 +133,22 @@ class ApiService {
       } catch (e) {
         if (attempt == maxRetries) rethrow;
 
-        // Only retry on network errors, not on HTTP errors like 400, 401, etc
-        if (e is SocketException ||
-            e is HttpException ||
-            e is FormatException ||
-            e.toString().contains('timeout') ||
-            e.toString().contains('connection')) {
+        // Only retry on clear network connection failures
+        if (e is SocketException &&
+            (e.toString().contains('Failed host lookup') ||
+             e.toString().contains('Network is unreachable') ||
+             e.toString().contains('Connection refused'))) {
 
           if (AppConfig.enableDebugPrints) {
-            debugPrint('🔄 Request failed (attempt $attempt/$maxRetries): $e');
+            debugPrint('🔄 Network error (attempt $attempt/$maxRetries): $e');
             debugPrint('⏳ Retrying in ${delay.inSeconds}s...');
           }
 
-          await Future.delayed(delay * attempt); // Exponential backoff
+          await Future.delayed(delay);
           continue;
         }
 
-        rethrow; // Don't retry on non-network errors
+        rethrow; // Don't retry on anything else
       }
     }
 
@@ -158,6 +160,44 @@ class ApiService {
   static List<Map<String, dynamic>>? get cachedClubsData => _clubsData;
   static bool get hasUserData => _userData != null;
   static bool get hasClubsData => _clubsData != null;
+
+  // Network timing controls
+  static void enableNetworkTiming() {
+    NetworkTimingService.setEnabled(true);
+    if (AppConfig.enableDebugPrints) {
+      debugPrint('🔍 Network timing enabled - DNS/TLS/connection delays will be logged');
+    }
+  }
+
+  static void disableNetworkTiming() {
+    NetworkTimingService.setEnabled(false);
+    if (AppConfig.enableDebugPrints) {
+      debugPrint('🔍 Network timing disabled');
+    }
+  }
+
+  static void printNetworkPerformanceSummary() {
+    NetworkTimingService.printPerformanceSummary();
+  }
+
+  static void clearNetworkTimings() {
+    NetworkTimingService.clearTimings();
+    if (AppConfig.enableDebugPrints) {
+      debugPrint('🔍 Network timing data cleared');
+    }
+  }
+
+  static List<NetworkTiming> getSlowRequests({int thresholdMs = 2000}) {
+    return NetworkTimingService.getSlowRequests(thresholdMs: thresholdMs);
+  }
+
+  static List<NetworkTiming> getDnsIssues({int thresholdMs = 1000}) {
+    return NetworkTimingService.getDnsIssues(thresholdMs: thresholdMs);
+  }
+
+  static List<NetworkTiming> getTlsIssues({int thresholdMs = 2000}) {
+    return NetworkTimingService.getTlsIssues(thresholdMs: thresholdMs);
+  }
 
   static Future<Map<String, dynamic>> get(String endpoint, {Map<String, String>? queryParams}) async {
     return await _retryRequest(() async {
@@ -173,7 +213,7 @@ class ApiService {
         debugPrint('🔵 Making GET request to: $url');
       }
 
-      final response = await _httpClient.get(
+      final response = await _timedHttpClient.get(
         Uri.parse(url),
         headers: headers,
       );
@@ -192,7 +232,7 @@ class ApiService {
         print('🔵 Request headers: $headers');
       }
 
-      final response = await _httpClient.post(
+      final response = await _timedHttpClient.post(
         Uri.parse('$baseUrl$endpoint'),
         headers: headers,
         body: json.encode(data),
@@ -212,7 +252,7 @@ class ApiService {
     Map<String, dynamic> data,
   ) async {
     return await _retryRequest(() async {
-      final response = await _httpClient.put(
+      final response = await _timedHttpClient.put(
         Uri.parse('$baseUrl$endpoint'),
         headers: headers,
         body: json.encode(data),
@@ -226,7 +266,7 @@ class ApiService {
     Map<String, dynamic> data,
   ) async {
     return await _retryRequest(() async {
-      final response = await _httpClient.patch(
+      final response = await _timedHttpClient.patch(
         Uri.parse('$baseUrl$endpoint'),
         headers: headers,
         body: json.encode(data),
@@ -240,7 +280,7 @@ class ApiService {
     dynamic data,
   ]) async {
     return await _retryRequest(() async {
-      final response = await _httpClient.delete(
+      final response = await _timedHttpClient.delete(
         Uri.parse('$baseUrl$endpoint'),
         headers: headers,
         body: data != null ? json.encode(data) : null,
@@ -256,12 +296,19 @@ class ApiService {
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       if (AppConfig.enableDebugPrints) {
-        print('✅ Success Response Body: ${response.body}');
+        print('✅ Success Response Body Length: ${response.body.length}');
+        print('✅ Response Headers: ${response.headers}');
       }
+
+      // Handle empty response
+      if (response.body.isEmpty) {
+        return {'success': true};
+      }
+
       try {
         final decoded = json.decode(response.body);
         if (AppConfig.enableDebugPrints) {
-          print('🔵 Decoded response: $decoded');
+          print('🔵 Decoded response type: ${decoded.runtimeType}');
         }
 
         // Handle both Map and List responses
@@ -271,7 +318,15 @@ class ApiService {
         return decoded as Map<String, dynamic>;
       } catch (e) {
         debugPrint('❌ Error decoding JSON: $e');
-        throw Exception('Invalid JSON response: ${response.body}');
+        debugPrint('❌ Response body (first 200 chars): ${response.body.length > 200 ? response.body.substring(0, 200) + "..." : response.body}');
+
+        // Return raw response if JSON parsing fails
+        return {
+          'success': false,
+          'error': 'JSON parsing failed',
+          'raw_response': response.body,
+          'status_code': response.statusCode,
+        };
       }
     } else {
       debugPrint('❌ Error Response Body: ${response.body}');

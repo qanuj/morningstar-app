@@ -1,57 +1,81 @@
 // lib/config/app_config.dart
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 
 class AppConfig {
-  // Environment configuration
+  // ——— Environment ———
   static bool get isProduction {
-    // First try dart-define
     const dartDefineProduction = bool.fromEnvironment(
       'PRODUCTION',
       defaultValue: false,
     );
     if (dartDefineProduction) return true;
-
-    // For iOS release builds, use kReleaseMode as fallback
-    // This ensures Xcode archive builds use production
     return kReleaseMode;
   }
 
-  // API Configuration
-  static const String _developmentBaseUrl = 'http://192.168.1.56:3000/api';
-  static const String _productionBaseUrl = 'https://duggy.app/api';
+  // Toggle this to route the MOBILE APP to an IPv4-only alias when needed.
+  // Create api4.duggy.app in Cloudflare DNS, keep it proxied (orange cloud),
+  // and DON’T add AAAA at your origin. Browsers can still use dual-stack on duggy.app.
+  static const bool useIPv4OnlyApiForMobile = true;
+
+  // ——— API Base Hosts (no paths) ———
+  static const String _prodHostDual = 'duggy.app'; // dual stack (web)
+  static const String _prodHostV4 = 'api4.duggy.app'; // IPv4-only alias for app
+  static const String _devLanHost = '192.168.1.56'; // your LAN backend
+  static const int _devPort = 3000;
+
+  // ——— API Base URLs (final) ———
+  static String get _productionBaseUrl {
+    final host = useIPv4OnlyApiForMobile ? _prodHostV4 : _prodHostDual;
+    return 'https://$host/api';
+  }
+
+  static String get _developmentBaseUrl {
+    // Choose one depending on where you run:
+    // return 'http://$_androidEmuHost:$_devPort/api'; // Android Emulator
+    // return 'http://$_iosSimHost:$_devPort/api';     // iOS Simulator
+    return 'http://$_devLanHost:$_devPort/api'; // Real devices on same Wi-Fi
+  }
 
   static String get apiBaseUrl =>
-      isProduction ? _productionBaseUrl : _productionBaseUrl;
+      isProduction ? _productionBaseUrl : _developmentBaseUrl;
 
-  // Other environment-specific configurations
+  // ——— Logging ———
   static bool get enableLogging => !isProduction;
   static bool get enableDebugPrints => !isProduction;
 
-  // Mobile network optimizations
-  static const Duration requestTimeout = Duration(seconds: 15);
-  static const Duration connectionTimeout = Duration(seconds: 30);
-  static const int maxRetries = 3;
-  static const bool enableRequestCompression = true;
+  // ——— Network tuning (keep these aligned with ApiService) ———
+  // TCP connect timeout: fail fast on bad path (IPv6 stalls etc.)
+  static const Duration connectionTimeout = Duration(seconds: 3);
+  // Total read timeout per request
+  static const Duration requestTimeout = Duration(seconds: 30);
+  // Reasonable idle keep-alive time for mobile radios
+  static const Duration idleConnectionKeepAlive = Duration(seconds: 15);
+  // Package-http retry policy from your ApiService (idempotent reads)
+  static const int maxRetriesIdempotent = 2;
+  static const int maxRetriesMutating = 0;
 
-  // Image optimization for mobile
+  // ——— Image cache ———
   static const int maxImageCacheSize = 100;
   static const int maxImageCacheSizeBytes = 50 * 1024 * 1024; // 50MB
 
-  // App information
+  // ——— App info ———
   static const String appName = 'Duggy';
   static const String appVersion = '1.0.0';
 
-  // Development helpers
+  // ——— Utilities ———
   static void logConfig() {
-    if (enableDebugPrints) {
-      debugPrint('🔧 App Configuration:');
-      debugPrint(
-        '   Environment: ${isProduction ? "Production" : "Development"}',
-      );
-      debugPrint('   API Base URL: $apiBaseUrl');
-      debugPrint('   Logging Enabled: $enableLogging');
-      debugPrint('   Debug Prints: $enableDebugPrints');
-    }
+    if (!enableDebugPrints) return;
+    debugPrint('🔧 App Configuration:');
+    debugPrint(
+      '   Environment: ${isProduction ? "Production" : "Development"}',
+    );
+    debugPrint('   API Base URL: $apiBaseUrl');
+    debugPrint('   IPv4-only API for app: $useIPv4OnlyApiForMobile');
+    debugPrint('   Connect timeout: ${connectionTimeout.inSeconds}s');
+    debugPrint('   Request timeout: ${requestTimeout.inSeconds}s');
+    debugPrint('   Idle keep-alive: ${idleConnectionKeepAlive.inSeconds}s');
+    debugPrint(
+      '   Retries (GET): $maxRetriesIdempotent, (mutations): $maxRetriesMutating',
+    );
   }
 }

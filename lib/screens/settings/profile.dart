@@ -14,6 +14,8 @@ import '../../widgets/svg_avatar.dart';
 import '../auth/login.dart';
 import 'notification_settings_screen.dart';
 import 'edit_profile.dart';
+import '../debug/network_timing_screen.dart';
+import '../../config/app_config.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -346,6 +348,22 @@ class ProfileScreenState extends State<ProfileScreen> {
                               );
                             },
                           ),
+
+                          // Network Timing (Debug Mode Only)
+                          if (AppConfig.enableDebugPrints)
+                            _buildExpandableSection(
+                              icon: Icons.network_check,
+                              title: 'Network Timing',
+                              isExpanded: false,
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        NetworkTimingScreen(),
+                                  ),
+                                );
+                              },
+                            ),
 
                           Divider(
                             height: 1,

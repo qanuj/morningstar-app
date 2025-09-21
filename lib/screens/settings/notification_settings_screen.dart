@@ -62,18 +62,21 @@ class NotificationSettingsScreenState extends State<NotificationSettingsScreen> 
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: colorScheme.background,
       appBar: AppBar(
         title: Text('Notification Settings'),
-        backgroundColor: AppTheme.primaryBlue,
-        foregroundColor: Colors.white,
+        backgroundColor: theme.appBarTheme.backgroundColor,
+        foregroundColor: theme.appBarTheme.foregroundColor,
         elevation: 0,
       ),
       body: _isLoading
           ? Center(
               child: CircularProgressIndicator(
-                color: AppTheme.primaryBlue,
+                color: colorScheme.primary,
               ),
             )
           : SingleChildScrollView(
@@ -82,21 +85,22 @@ class NotificationSettingsScreenState extends State<NotificationSettingsScreen> 
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Main notification toggle
-                  _buildMainToggleCard(),
-                  
+                  _buildMainToggleCard(theme, colorScheme),
+
                   SizedBox(height: 24),
-                  
+
                   // Information section
-                  if (_notificationsEnabled) _buildInfoSection(),
+                  if (_notificationsEnabled) _buildInfoSection(theme, colorScheme),
                 ],
               ),
             ),
     );
   }
 
-  Widget _buildMainToggleCard() {
+  Widget _buildMainToggleCard(ThemeData theme, ColorScheme colorScheme) {
     return Card(
       elevation: 2,
+      color: colorScheme.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: EdgeInsets.all(20),
@@ -108,14 +112,14 @@ class NotificationSettingsScreenState extends State<NotificationSettingsScreen> 
                 Container(
                   padding: EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: _notificationsEnabled 
-                        ? AppTheme.primaryBlue.withOpacity(0.1)
-                        : Colors.grey.withOpacity(0.1),
+                    color: _notificationsEnabled
+                        ? colorScheme.primary.withOpacity(0.1)
+                        : theme.disabledColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
                     _notificationsEnabled ? Icons.notifications_active : Icons.notifications_off,
-                    color: _notificationsEnabled ? AppTheme.primaryBlue : Colors.grey,
+                    color: _notificationsEnabled ? colorScheme.primary : theme.disabledColor,
                     size: 24,
                   ),
                 ),
@@ -129,17 +133,17 @@ class NotificationSettingsScreenState extends State<NotificationSettingsScreen> 
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
-                          color: AppTheme.primaryTextColor,
+                          color: colorScheme.onSurface,
                         ),
                       ),
                       SizedBox(height: 4),
                       Text(
-                        _notificationsEnabled 
+                        _notificationsEnabled
                             ? 'Stay updated with club activities'
                             : 'Enable to receive important updates',
                         style: TextStyle(
                           fontSize: 14,
-                          color: AppTheme.secondaryTextColor,
+                          color: colorScheme.onSurface.withOpacity(0.7),
                         ),
                       ),
                     ],
@@ -148,7 +152,7 @@ class NotificationSettingsScreenState extends State<NotificationSettingsScreen> 
                 Switch(
                   value: _notificationsEnabled,
                   onChanged: _toggleNotifications,
-                  activeColor: AppTheme.primaryBlue,
+                  activeColor: colorScheme.primary,
                 ),
               ],
             ),
@@ -158,9 +162,10 @@ class NotificationSettingsScreenState extends State<NotificationSettingsScreen> 
     );
   }
 
-  Widget _buildInfoSection() {
+  Widget _buildInfoSection(ThemeData theme, ColorScheme colorScheme) {
     return Card(
       elevation: 1,
+      color: colorScheme.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: EdgeInsets.all(20),
@@ -172,23 +177,29 @@ class NotificationSettingsScreenState extends State<NotificationSettingsScreen> 
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
-                color: AppTheme.primaryTextColor,
+                color: colorScheme.onSurface,
               ),
             ),
             SizedBox(height: 16),
             _buildNotificationItem(
+              theme: theme,
+              colorScheme: colorScheme,
               icon: Icons.sports_cricket,
               title: 'Match Updates',
               description: 'Match schedules, results, and team announcements',
             ),
             SizedBox(height: 12),
             _buildNotificationItem(
+              theme: theme,
+              colorScheme: colorScheme,
               icon: Icons.shopping_bag,
               title: 'Order Updates',
               description: 'Order confirmations and delivery status',
             ),
             SizedBox(height: 12),
             _buildNotificationItem(
+              theme: theme,
+              colorScheme: colorScheme,
               icon: Icons.campaign,
               title: 'Club Announcements',
               description: 'Important club news and updates',
@@ -197,10 +208,10 @@ class NotificationSettingsScreenState extends State<NotificationSettingsScreen> 
             Container(
               padding: EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppTheme.lightBlue.withOpacity(0.1),
+                color: colorScheme.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: AppTheme.lightBlue.withOpacity(0.3),
+                  color: colorScheme.primary.withOpacity(0.3),
                   width: 1,
                 ),
               ),
@@ -208,7 +219,7 @@ class NotificationSettingsScreenState extends State<NotificationSettingsScreen> 
                 children: [
                   Icon(
                     Icons.info_outline,
-                    color: AppTheme.primaryBlue,
+                    color: colorScheme.primary,
                     size: 20,
                   ),
                   SizedBox(width: 12),
@@ -217,7 +228,7 @@ class NotificationSettingsScreenState extends State<NotificationSettingsScreen> 
                       'You can manage detailed notification preferences in your device settings.',
                       style: TextStyle(
                         fontSize: 13,
-                        color: AppTheme.primaryBlue,
+                        color: colorScheme.primary,
                       ),
                     ),
                   ),
@@ -231,6 +242,8 @@ class NotificationSettingsScreenState extends State<NotificationSettingsScreen> 
   }
 
   Widget _buildNotificationItem({
+    required ThemeData theme,
+    required ColorScheme colorScheme,
     required IconData icon,
     required String title,
     required String description,
@@ -241,12 +254,12 @@ class NotificationSettingsScreenState extends State<NotificationSettingsScreen> 
         Container(
           padding: EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: AppTheme.primaryBlue.withOpacity(0.1),
+            color: colorScheme.primary.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
             icon,
-            color: AppTheme.primaryBlue,
+            color: colorScheme.primary,
             size: 20,
           ),
         ),
@@ -260,7 +273,7 @@ class NotificationSettingsScreenState extends State<NotificationSettingsScreen> 
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
-                  color: AppTheme.primaryTextColor,
+                  color: colorScheme.onSurface,
                 ),
               ),
               SizedBox(height: 2),
@@ -268,7 +281,7 @@ class NotificationSettingsScreenState extends State<NotificationSettingsScreen> 
                 description,
                 style: TextStyle(
                   fontSize: 13,
-                  color: AppTheme.secondaryTextColor,
+                  color: colorScheme.onSurface.withOpacity(0.7),
                 ),
               ),
             ],
