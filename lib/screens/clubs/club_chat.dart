@@ -1306,13 +1306,19 @@ class ClubChatScreenState extends State<ClubChatScreen>
   void _processSelectedContacts(List<Contact> contacts) {
     // This method will be called when members are successfully added
     // The actual member addition logic is handled in AddMembersScreen
-    // System message will appear in chat automatically
+    // Refresh messages to show system messages for added members
+    if (mounted) {
+      _loadMessages(forceSync: true);
+    }
   }
 
   void _processSelectedSyncedContacts(List<SyncedContact> syncedContacts) {
     // This method will be called when synced contacts are successfully added
     // The actual member addition logic is handled in AddMembersScreen
-    // System message will appear in chat automatically
+    // Refresh messages to show system messages for added members
+    if (mounted) {
+      _loadMessages(forceSync: true);
+    }
   }
 
   /// Find existing message index with smart matching for temp messages
