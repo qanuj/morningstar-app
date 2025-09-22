@@ -648,42 +648,30 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     );
 
     try {
-      // For multiple members, make individual API calls as per the requirement
-      List<Map<String, dynamic>> results = [];
-      List<String> errors = [];
-
-      for (final contact in selectedContacts) {
-        try {
-          final memberData = {
+      // Use bulk API for better performance and handling
+      final membersData = selectedContacts.map((contact) => {
             'name': contact.displayName,
             'phoneNumber': contact.phones.first.number.replaceAll(
               RegExp(r'[^\d+]'),
               '',
             ), // Clean phone number
             'clubId': widget.club.id,
-            'role': 'member', // Set default role as member
-          };
+          }).toList();
 
-          final response = await ApiService.post('/members', memberData);
-          results.add(response);
-        } catch (e) {
-          errors.add('Failed to add ${contact.displayName}: $e');
-        }
-      }
-
-      // Create a response structure
-      final response = {'success': true, 'added': results, 'errors': errors};
+      final response = await ApiService.postRaw('/members', membersData);
 
       Navigator.pop(context); // Close progress dialog
 
       if (response['success'] == true) {
-        final addedCount = results.length;
+        final results = response['results'];
+        final addedCount = results['successful'] ?? 0;
+        final failedCount = results['failed'] ?? 0;
 
-        if (errors.isNotEmpty) {
+        if (failedCount > 0) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Added $addedCount members. ${errors.length} failed to add.',
+                'Added $addedCount members. $failedCount failed to add.',
               ),
               backgroundColor: Colors.orange,
               duration: Duration(seconds: 4),
@@ -785,40 +773,28 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     );
 
     try {
-      // For multiple users, make individual API calls
-      List<Map<String, dynamic>> results = [];
-      List<String> errors = [];
-
-      for (final contact in selectedUsers) {
-        try {
-          final memberData = {
-            'userId': contact.userId, // Use userId for existing Duggy users
+      // Use bulk API for better performance and handling
+      final membersData = selectedUsers.map((contact) => {
+            'name': contact.name,
+            'phoneNumber': contact.phoneNumber,
             'clubId': widget.club.id,
-            'role': 'member', // Set default role as member
-          };
-          final response = await ApiService.post('/members', memberData);
-          results.add(response);
-        } catch (e) {
-          errors.add('Failed to add ${contact.name}: $e');
-        }
-      }
+          }).toList();
 
-      // Create a response structure
-      final response = {'success': true, 'added': results, 'errors': errors};
+      final response = await ApiService.postRaw('/members', membersData);
       Navigator.pop(context); // Close progress dialog
 
       // Handle the response
       if (response['success'] == true) {
-        final List<dynamic> addedList = (response['added'] as List<dynamic>?) ?? [];
-        final List<dynamic> errorsList = (response['errors'] as List<dynamic>?) ?? [];
-        final addedCount = addedList.length;
+        final results = response['results'];
+        final addedCount = results['successful'] ?? 0;
+        final failedCount = results['failed'] ?? 0;
 
-        if (errorsList.isNotEmpty) {
+        if (failedCount > 0) {
           // Show both success and error message
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Added $addedCount of ${selectedUsers.length} users. ${errorsList.length} failed.',
+                'Added $addedCount of ${selectedUsers.length} users. $failedCount failed.',
               ),
               backgroundColor: Colors.orange,
               duration: Duration(seconds: 4),

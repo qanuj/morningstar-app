@@ -34,6 +34,13 @@ class ApiService {
   }) =>
       HttpService.post(endpoint, data);
 
+  static Future<Map<String, dynamic>> postRaw(
+    String endpoint,
+    dynamic data, {
+    bool retry = false,
+  }) =>
+      HttpService.postRaw(endpoint, data);
+
   static Future<Map<String, dynamic>> put(
     String endpoint,
     Map<String, dynamic> data, {

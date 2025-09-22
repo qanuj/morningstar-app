@@ -583,23 +583,17 @@ class MessageInputState extends State<MessageInput> {
   }
 
   void _showUploadOptions() {
-    print('🎯 _showUploadOptions called');
-    print('🎯 hasFocus: ${widget.textFieldFocusNode.hasFocus}');
-    print('🎯 current _isAttachmentMenuOpen: $_isAttachmentMenuOpen');
-
     final currentKeyboardHeight = MediaQuery.of(context).viewInsets.bottom;
 
     // Smooth transition from keyboard to attachment menu
     if (widget.textFieldFocusNode.hasFocus && currentKeyboardHeight > 100) {
       // Capture current keyboard height for smooth transition
       _lastKnownKeyboardHeight = currentKeyboardHeight;
-      print('🎯 Captured keyboard height for smooth transition: $currentKeyboardHeight');
 
       // Show attachment menu IMMEDIATELY at captured height
       setState(() {
         _isAttachmentMenuOpen = true;
       });
-      print('🎯 Attachment menu set to open (immediate - smooth transition)');
 
       // THEN unfocus to start keyboard hide animation
       // This creates a smooth "morphing" effect as keyboard collapses and attachment menu maintains height
@@ -609,7 +603,6 @@ class MessageInputState extends State<MessageInput> {
       setState(() {
         _isAttachmentMenuOpen = true;
       });
-      print('🎯 Attachment menu set to open (immediate - no keyboard)');
     }
   }
 
@@ -897,9 +890,6 @@ class MessageInputState extends State<MessageInput> {
   }
 
   Widget _buildAttachmentMenu() {
-    print(
-      '🎯 _buildAttachmentMenu called, _isAttachmentMenuOpen: $_isAttachmentMenuOpen',
-    );
     final mediaQuery = MediaQuery.of(context);
     final keyboardHeight = mediaQuery.viewInsets.bottom;
     final screenSize = mediaQuery.size;
@@ -912,7 +902,6 @@ class MessageInputState extends State<MessageInput> {
       // If keyboard is currently visible and substantial, use its exact height and store it
       if (keyboardHeight > breakpointHeight) {
         _lastKnownKeyboardHeight = keyboardHeight;
-        print('🎯 Captured keyboard height: $keyboardHeight');
         return keyboardHeight;
       }
 
@@ -920,15 +909,11 @@ class MessageInputState extends State<MessageInput> {
       // This prevents collapsing during keyboard hide animation
       if (_isAttachmentMenuOpen &&
           _lastKnownKeyboardHeight > breakpointHeight) {
-        print(
-          '🎯 Using stored height for attachment menu: $_lastKnownKeyboardHeight',
-        );
         return _lastKnownKeyboardHeight;
       }
 
       // If we have a stored height from recent use and it's reasonable, use that
       if (_lastKnownKeyboardHeight > breakpointHeight) {
-        print('🎯 Using stored height: $_lastKnownKeyboardHeight');
         return _lastKnownKeyboardHeight;
       }
 
@@ -953,11 +938,6 @@ class MessageInputState extends State<MessageInput> {
     }
 
     final targetHeight = getTargetHeight();
-
-    // Debug logging
-    print(
-      '🎯 Attachment menu - keyboardHeight: $keyboardHeight, lastKnown: $_lastKnownKeyboardHeight, targetHeight: $targetHeight, isOpen: $_isAttachmentMenuOpen',
-    );
 
     return AnimatedContainer(
       duration: Duration(milliseconds: 250),

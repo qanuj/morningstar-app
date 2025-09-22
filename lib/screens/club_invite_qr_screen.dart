@@ -32,13 +32,35 @@ class ClubInviteQRScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
+        child: Column(
+          children: [
+            // Close button header
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.close,
+                      color: Color(0xFF003f9b),
+                    ),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                  const Spacer(),
+                ],
+              ),
+            ),
+
+            // Main content centered
+            Expanded(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                 // QR Code
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -106,9 +128,12 @@ class ClubInviteQRScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-              ],
+                    ],
+                  ),
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );

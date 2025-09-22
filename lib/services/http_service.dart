@@ -103,6 +103,32 @@ class HttpService {
     }
   }
 
+  static Future<Map<String, dynamic>> postRaw(
+    String endpoint,
+    dynamic data,
+  ) async {
+    await init();
+
+    final uri = _buildUri(endpoint);
+
+    if (AppConfig.enableDebugPrints) {
+      debugPrint('🔵 POST: $uri');
+    }
+
+    try {
+      final response = await _client
+          .post(uri, headers: _headers, body: json.encode(data))
+          .timeout(AppConfig.requestTimeout);
+
+      return _handleResponse(response);
+    } catch (e) {
+      if (AppConfig.enableDebugPrints) {
+        debugPrint('❌ POST failed: $e');
+      }
+      rethrow;
+    }
+  }
+
   static Future<Map<String, dynamic>> put(
     String endpoint,
     Map<String, dynamic> data,
