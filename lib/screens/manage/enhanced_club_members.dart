@@ -12,7 +12,6 @@ import '../../widgets/transaction_dialog_helper.dart';
 import '../transactions/bulk_transaction_screen.dart';
 import '../points/bulk_points_screen.dart';
 import 'club_member_manage.dart';
-import 'contact_picker_screen.dart';
 import 'add_members_screen.dart';
 import 'manual_add_member_screen.dart';
 
@@ -30,8 +29,8 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
   // State variables
   bool _isLoading = false;
   bool _isLoadingMore = false;
-  List<ClubMember> _members = [];
-  List<ClubMember> _filteredMembers = [];
+  List<EnhancedClubMember> _members = [];
+  List<EnhancedClubMember> _filteredMembers = [];
 
   // Pagination
   int _currentPage = 1;
@@ -94,7 +93,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
       final newMembers = await _fetchMembersFromAPI(_currentPage, _pageSize);
 
       if (refresh) {
-        _members = List<ClubMember>.from(newMembers); // Create new list
+        _members = List<EnhancedClubMember>.from(newMembers); // Create new list
         print('🔄 REFRESH: Loaded ${_members.length} members');
       } else {
         final initialCount = _members.length;
@@ -106,7 +105,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
             _members.add(member);
           }
         }
-        print('📄 LOAD MORE: ${initialCount} -> ${_members.length} members');
+        print('📄 LOAD MORE: $initialCount -> ${_members.length} members');
       }
 
       _hasMoreData = newMembers.length == _pageSize;
@@ -142,7 +141,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     }
   }
 
-  Future<List<ClubMember>> _fetchMembersFromAPI(int page, int pageSize) async {
+  Future<List<EnhancedClubMember>> _fetchMembersFromAPI(int page, int pageSize) async {
     try {
       // Make API call to get members for the specific club
       final response = await ApiService.get(
@@ -159,7 +158,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
       }
 
       return membersData.map((memberData) {
-        return ClubMember(
+        return EnhancedClubMember(
           id: memberData['id'] ?? '',
           userId:
               memberData['userId'] ??
@@ -193,13 +192,13 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     }
   }
 
-  List<ClubMember> _generateMockMembers() {
+  List<EnhancedClubMember> _generateMockMembers() {
     return List.generate(50, (index) {
       final statuses = ['active', 'pending', 'banned', 'inactive'];
       final roles = ['Member', 'Captain', 'Vice Captain', 'Treasurer'];
       final status = statuses[index % statuses.length];
 
-      return ClubMember(
+      return EnhancedClubMember(
         id: 'member_${index + 1}',
         userId: 'user_${index + 1}',
         name: 'Member ${index + 1}',
@@ -221,7 +220,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
   }
 
   void _applyFilters() {
-    List<ClubMember> filtered = _members;
+    List<EnhancedClubMember> filtered = _members;
 
     // Apply search filter
     if (_searchQuery.isNotEmpty) {
@@ -269,12 +268,14 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
       if (_showActiveMembers &&
           member.approved &&
           member.isActive &&
-          !member.isBanned)
+          !member.isBanned) {
         return true;
+      }
       if (_showPendingMembers && !member.approved) return true;
       if (_showBannedMembers && member.isBanned) return true;
-      if (_showInactiveMembers && !member.isActive && !member.isBanned)
+      if (_showInactiveMembers && !member.isActive && !member.isBanned) {
         return true;
+      }
       if (_showLowBalanceMembers && member.balance < 0) return true;
 
       return false;
@@ -575,250 +576,18 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     }
   }
 
-  Future<void> _addMembersFromContacts(List<Contact> selectedContacts) async {
-    if (selectedContacts.isEmpty) return;
-
-    // Show confirmation dialog
-    final confirmed =
-        await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text('Add ${selectedContacts.length} Members'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Add the following contacts as club members:'),
-                SizedBox(height: 12),
-                ...selectedContacts
-                    .take(5)
-                    .map(
-                      (contact) => Text(
-                        '• ${contact.displayName}',
-                        style: TextStyle(fontSize: 14),
-                      ),
-                    ),
-                if (selectedContacts.length > 5)
-                  Text('... and ${selectedContacts.length - 5} more'),
-                SizedBox(height: 12),
-                Text(
-                  'All members will be added with "Member" role.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFF003f9b),
-                  foregroundColor: Colors.white,
-                ),
-                child: Text('Add Members'),
-              ),
-            ],
-          ),
-        ) ??
-        false;
-
-    if (!confirmed) return;
-
-    // Show progress dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(color: Color(0xFF003f9b)),
-            SizedBox(height: 16),
-            Text('Adding ${selectedContacts.length} members...'),
-          ],
-        ),
-      ),
-    );
-
-    try {
-      // Use bulk API for better performance and handling
-      final membersData = selectedContacts.map((contact) => {
-            'name': contact.displayName,
-            'phoneNumber': contact.phones.first.number.replaceAll(
-              RegExp(r'[^\d+]'),
-              '',
-            ), // Clean phone number
-            'clubId': widget.club.id,
-          }).toList();
-
-      final response = await ApiService.postRaw('/members', membersData);
-
-      Navigator.pop(context); // Close progress dialog
-
-      if (response['success'] == true) {
-        final results = response['results'];
-        final addedCount = results['successful'] ?? 0;
-        final failedCount = results['failed'] ?? 0;
-
-        if (failedCount > 0) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Added $addedCount members. $failedCount failed to add.',
-              ),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 4),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Successfully added $addedCount members!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-
-        // Refresh the members list
-        _loadMembers(refresh: true);
-      } else {
-        throw Exception('Failed to add members');
-      }
-    } catch (e) {
-      Navigator.pop(context); // Close progress dialog
-      _showErrorSnackBar('Failed to add members: $e');
-    }
+  void _addMembersFromContacts(List<Contact> selectedContacts) {
+    // Members have been successfully added via AddMembersScreen API call
+    // Just refresh the list to show the new members
+    _loadMembers(refresh: true);
   }
 
-  Future<void> _addSyncedContacts(List<SyncedContact> selectedSyncedContacts) async {
-    // Filter to only Duggy users who can be added
-    final selectedUsers = selectedSyncedContacts
-        .where((contact) => contact.isDuggyUser && contact.canBeAdded)
-        .toList();
-    if (selectedUsers.isEmpty) return;
-
-    // Show confirmation dialog
-    final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text('Add ${selectedUsers.length} Duggy Users'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Add the following Duggy users as club members:'),
-                SizedBox(height: 12),
-                ...selectedUsers
-                    .take(5)
-                    .map(
-                      (contact) => Text(
-                        '• ${contact.name}',
-                        style: TextStyle(fontSize: 14),
-                      ),
-                    ),
-                if (selectedUsers.length > 5)
-                  Text('... and ${selectedUsers.length - 5} more'),
-                SizedBox(height: 12),
-                Text(
-                  'All users will be added with "Member" role.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFF003f9b),
-                  foregroundColor: Colors.white,
-                ),
-                child: Text('Add Members'),
-              ),
-            ],
-          ),
-        ) ??
-        false;
-
-    if (!confirmed) return;
-
-    // Show progress dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(color: Color(0xFF003f9b)),
-            SizedBox(height: 16),
-            Text('Adding ${selectedUsers.length} Duggy users...'),
-          ],
-        ),
-      ),
-    );
-
-    try {
-      // Use bulk API for better performance and handling
-      final membersData = selectedUsers.map((contact) => {
-            'name': contact.name,
-            'phoneNumber': contact.phoneNumber,
-            'clubId': widget.club.id,
-          }).toList();
-
-      final response = await ApiService.postRaw('/members', membersData);
-      Navigator.pop(context); // Close progress dialog
-
-      // Handle the response
-      if (response['success'] == true) {
-        final results = response['results'];
-        final addedCount = results['successful'] ?? 0;
-        final failedCount = results['failed'] ?? 0;
-
-        if (failedCount > 0) {
-          // Show both success and error message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Added $addedCount of ${selectedUsers.length} users. $failedCount failed.',
-              ),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 4),
-            ),
-          );
-        } else {
-          // All successful
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Successfully added $addedCount Duggy users!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-        // Refresh the members list
-        _loadMembers(refresh: true);
-      } else {
-        throw Exception('Failed to add Duggy users');
-      }
-    } catch (e) {
-      Navigator.pop(context); // Close progress dialog
-      _showErrorSnackBar('Failed to add Duggy users: $e');
-    }
+  void _addSyncedContacts(List<SyncedContact> selectedSyncedContacts) {
+    // Members have been successfully added via AddMembersScreen API call
+    // Just refresh the list to show the new members
+    _loadMembers(refresh: true);
   }
+
 
   void _showSearchAndFilterDrawer() {
     showModalBottomSheet(
@@ -1252,7 +1021,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     );
   }
 
-  void _navigateToMemberManage(ClubMember member) async {
+  void _navigateToMemberManage(EnhancedClubMember member) async {
     // Convert ClubMember to User for the management screen
     final user = User(
       id: member.id,
@@ -1282,7 +1051,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     }
   }
 
-  List<ClubMember> _getSelectedMembers() {
+  List<EnhancedClubMember> _getSelectedMembers() {
     return _filteredMembers
         .where((member) => _selectedMembers.contains(member.id))
         .toList();
@@ -1737,7 +1506,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     );
   }
 
-  Widget _buildMemberCard(ClubMember member) {
+  Widget _buildMemberCard(EnhancedClubMember member) {
     final isSelected = _selectedMembers.contains(member.id);
 
     return Card(
@@ -1944,7 +1713,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     );
   }
 
-  Widget _buildStatusIndicator(ClubMember member) {
+  Widget _buildStatusIndicator(EnhancedClubMember member) {
     Color indicatorColor;
     if (member.isBanned) {
       indicatorColor = Colors.red;
@@ -1989,13 +1758,13 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     }
   }
 
-  Color _getStatusColor(ClubMember member) {
+  Color _getStatusColor(EnhancedClubMember member) {
     if (member.isBanned) return Colors.red;
     if (!member.approved) return Colors.orange;
     return Colors.green;
   }
 
-  String _getStatusText(ClubMember member) {
+  String _getStatusText(EnhancedClubMember member) {
     if (member.isBanned) return 'Banned';
     if (!member.approved) return 'Pending';
     return 'Active';
@@ -2192,7 +1961,7 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
 }
 
 // Enhanced ClubMember model with additional fields
-class ClubMember {
+class EnhancedClubMember {
   final String id;
   final String? userId;
   final String name;
@@ -2208,7 +1977,7 @@ class ClubMember {
   final bool isBanned;
   final DateTime? lastActive;
 
-  ClubMember({
+  EnhancedClubMember({
     required this.id,
     this.userId,
     required this.name,
@@ -2406,7 +2175,7 @@ class _TransactionDialog extends StatefulWidget {
   final String type;
   final String title;
   final bool isBulk;
-  final List<ClubMember> selectedMembers;
+  final List<EnhancedClubMember> selectedMembers;
   final Function(Map<String, dynamic>) onSubmit;
 
   const _TransactionDialog({
@@ -2548,7 +2317,7 @@ class _TransactionDialogState extends State<_TransactionDialog> {
 class _PointsDialog extends StatefulWidget {
   final String type;
   final bool isBulk;
-  final List<ClubMember> selectedMembers;
+  final List<EnhancedClubMember> selectedMembers;
   final Function(Map<String, dynamic>) onSubmit;
 
   const _PointsDialog({
