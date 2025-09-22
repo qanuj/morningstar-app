@@ -84,6 +84,10 @@ class ClubChatScreenState extends State<ClubChatScreen>
   final GlobalKey<AudioRecordingWidgetState> _audioRecordingKey =
       GlobalKey<AudioRecordingWidgetState>();
 
+  // Message input widget key
+  final GlobalKey<MessageInputState> _messageInputKey =
+      GlobalKey<MessageInputState>();
+
   // Message selection state
   bool _isSelectionMode = false;
   final Set<String> _selectedMessageIds = <String>{};
@@ -2162,7 +2166,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
         .firstOrNull;
 
     return Scaffold(
-      resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: true,
       backgroundColor: Colors.transparent,
       appBar: ChatAppBar(
         club: widget.club,
@@ -2245,6 +2249,8 @@ class ClubChatScreenState extends State<ClubChatScreen>
                         );
                       },
                       onTap: () {
+                        // Close attachment menu when user taps on chat area
+                        _messageInputKey.currentState?.closeAttachmentMenu();
                         // Close keyboard when tapping in messages area
                         FocusScope.of(context).unfocus();
                       },
@@ -2285,6 +2291,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
                               vertical: 8,
                             ),
                             child: MessageInput(
+                              key: _messageInputKey,
                               messageController: _messageController,
                               textFieldFocusNode: _textFieldFocusNode,
                               clubId: widget.club.id,

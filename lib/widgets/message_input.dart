@@ -21,6 +21,10 @@ import '../providers/club_provider.dart';
 /// A comprehensive self-contained message input widget for chat functionality
 /// Handles text input, file attachments, camera capture, and audio recording
 class MessageInput extends StatefulWidget {
+  /// Closes the attachment menu if it's open
+  static void closeAttachmentMenuIfOpen(GlobalKey<MessageInputState> key) {
+    key.currentState?.closeAttachmentMenu();
+  }
   final TextEditingController messageController;
   final FocusNode textFieldFocusNode;
   final String clubId;
@@ -30,6 +34,7 @@ class MessageInput extends StatefulWidget {
 
   // Simplified callbacks - only what's needed
   final Function(ClubMessage) onSendMessage;
+  final VoidCallback? onAttachmentMenuClose;
 
   const MessageInput({
     super.key,
@@ -38,17 +43,39 @@ class MessageInput extends StatefulWidget {
     required this.clubId,
     required this.audioRecordingKey,
     required this.onSendMessage,
+    this.onAttachmentMenuClose,
     this.upiId,
     this.userRole,
   });
 
   @override
-  State<MessageInput> createState() => _MessageInputState();
+  State<MessageInput> createState() => MessageInputState();
 }
 
-class _MessageInputState extends State<MessageInput> {
+class MessageInputState extends State<MessageInput> {
   bool _isComposing = false;
   bool _isAttachmentMenuOpen = false;
+
+  /// Closes the attachment menu if it's open
+  void closeAttachmentMenu() {
+    if (_isAttachmentMenuOpen) {
+      setState(() {
+        _isAttachmentMenuOpen = false;
+      });
+    }
+  }
+
+  /// Getter to check if attachment menu is open
+  bool get isAttachmentMenuOpen => _isAttachmentMenuOpen;
+
+  /// Helper method to close attachment menu
+  void _closeAttachmentMenu() {
+    if (_isAttachmentMenuOpen) {
+      setState(() {
+        _isAttachmentMenuOpen = false;
+      });
+    }
+  }
   final ImagePicker _imagePicker = ImagePicker();
   List<Map<String, dynamic>> _availableUpiApps = [];
 
@@ -75,18 +102,15 @@ class _MessageInputState extends State<MessageInput> {
   }
 
   void _onFocusChange() {
-    print(
-      '🎯 Focus changed: hasFocus=${widget.textFieldFocusNode.hasFocus}, menuOpen=$_isAttachmentMenuOpen',
-    );
+    // Only close attachment menu if keyboard is becoming visible
+    // This prevents the jarring close/reopen behavior
     if (widget.textFieldFocusNode.hasFocus && _isAttachmentMenuOpen) {
-      print('🎯 Focus gained, closing attachment menu');
-      setState(() {
-        _isAttachmentMenuOpen = false;
-      });
-    } else if (!widget.textFieldFocusNode.hasFocus && _isAttachmentMenuOpen) {
-      print('🎯 Focus lost, closing attachment menu');
-      setState(() {
-        _isAttachmentMenuOpen = false;
+      print('🎯 Focus gained, will close attachment menu');
+      // Only close if this is a user-initiated focus, not programmatic
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _isAttachmentMenuOpen) {
+          _closeAttachmentMenu();
+        }
       });
     }
   }
@@ -552,17 +576,37 @@ class _MessageInputState extends State<MessageInput> {
   }
 
   void _showKeyboard() {
-    setState(() {
-      _isAttachmentMenuOpen = false;
-    });
-    widget.textFieldFocusNode.requestFocus(); // Show keyboard instantly
+    // Smooth transition from attachment menu to keyboard
+    if (_isAttachmentMenuOpen) {
+      _closeAttachmentMenu();
+      // Small delay to ensure smooth transition
+      Future.delayed(Duration(milliseconds: 100), () {
+        if (mounted) {
+          widget.textFieldFocusNode.requestFocus();
+        }
+      });
+    } else {
+      widget.textFieldFocusNode.requestFocus();
+    }
   }
 
   void _showUploadOptions() {
-    setState(() {
-      _isAttachmentMenuOpen = true;
-    });
-    widget.textFieldFocusNode.unfocus(); // Hide keyboard instantly
+    // Smooth transition from keyboard to attachment menu
+    if (widget.textFieldFocusNode.hasFocus) {
+      widget.textFieldFocusNode.unfocus();
+      // Wait for keyboard to hide before showing attachment menu
+      Future.delayed(Duration(milliseconds: 200), () {
+        if (mounted) {
+          setState(() {
+            _isAttachmentMenuOpen = true;
+          });
+        }
+      });
+    } else {
+      setState(() {
+        _isAttachmentMenuOpen = true;
+      });
+    }
   }
 
   Widget _buildGridOption({
@@ -880,19 +924,23 @@ class _MessageInputState extends State<MessageInput> {
       }
     }
 
-    return Container(
-      height: mediaQuery.viewInsets.bottom > 0 || _isAttachmentMenuOpen
-          ? getKeyboardHeight()
-          : 0.0, // Reserve keyboard height space when keyboard is open OR attachment menu is open
-      child: _isAttachmentMenuOpen ? Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: 2,
-                vertical: 2,
-              ), // Reduced padding
-              child: Column(
-                mainAxisAlignment:
-                    MainAxisAlignment.spaceEvenly, // Distribute space evenly
-                children: [
+    final targetHeight = getKeyboardHeight();
+
+    return AnimatedContainer(
+      duration: Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
+      height: _isAttachmentMenuOpen ? targetHeight : 0.0,
+      child: _isAttachmentMenuOpen
+          ? ClipRect(
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: 2,
+                  vertical: 2,
+                ), // Reduced padding
+                child: Column(
+                  mainAxisAlignment:
+                      MainAxisAlignment.spaceEvenly, // Distribute space evenly
+                  children: [
                   // First row - Photos, Camera, Location, Contact
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -902,9 +950,7 @@ class _MessageInputState extends State<MessageInput> {
                         iconColor: Color(0xFF2196F3),
                         title: 'Photos',
                         onTap: () {
-                          setState(() {
-                            _isAttachmentMenuOpen = false;
-                          });
+                          _closeAttachmentMenu();
                           _pickImages();
                         },
                       ),
@@ -913,9 +959,7 @@ class _MessageInputState extends State<MessageInput> {
                         iconColor: Color(0xFF4CAF50),
                         title: 'Camera',
                         onTap: () {
-                          setState(() {
-                            _isAttachmentMenuOpen = false;
-                          });
+                          _closeAttachmentMenu();
                           _handleCameraCapture();
                         },
                       ),
@@ -924,9 +968,7 @@ class _MessageInputState extends State<MessageInput> {
                         iconColor: Color(0xFF4CAF50),
                         title: 'Location',
                         onTap: () {
-                          setState(() {
-                            _isAttachmentMenuOpen = false;
-                          });
+                          _closeAttachmentMenu();
                           // TODO: Implement location sharing
                         },
                       ),
@@ -935,9 +977,7 @@ class _MessageInputState extends State<MessageInput> {
                         iconColor: Color(0xFF9E9E9E),
                         title: 'Contact',
                         onTap: () {
-                          setState(() {
-                            _isAttachmentMenuOpen = false;
-                          });
+                          _closeAttachmentMenu();
                           // TODO: Implement contact sharing
                         },
                       ),
@@ -953,9 +993,7 @@ class _MessageInputState extends State<MessageInput> {
                         iconColor: Color(0xFF2196F3),
                         title: 'Document',
                         onTap: () {
-                          setState(() {
-                            _isAttachmentMenuOpen = false;
-                          });
+                          _closeAttachmentMenu();
                           _pickDocuments();
                         },
                       ),
@@ -964,9 +1002,7 @@ class _MessageInputState extends State<MessageInput> {
                         iconColor: Color(0xFFFFC107),
                         title: 'Poll',
                         onTap: () {
-                          setState(() {
-                            _isAttachmentMenuOpen = false;
-                          });
+                          _closeAttachmentMenu();
                           // TODO: Implement poll creation
                         },
                       ),
@@ -975,9 +1011,7 @@ class _MessageInputState extends State<MessageInput> {
                         iconColor: Color(0xFFE91E63),
                         title: 'Event',
                         onTap: () {
-                          setState(() {
-                            _isAttachmentMenuOpen = false;
-                          });
+                          _closeAttachmentMenu();
                           _openMatchPicker(); // For now, use match picker
                         },
                       ),
@@ -986,9 +1020,7 @@ class _MessageInputState extends State<MessageInput> {
                         iconColor: Color(0xFF4CAF50),
                         title: 'Payment',
                         onTap: () {
-                          setState(() {
-                            _isAttachmentMenuOpen = false;
-                          });
+                          _closeAttachmentMenu();
                           if (_availableUpiApps.isNotEmpty) {
                             _openUPIPayment();
                           }
@@ -1006,9 +1038,7 @@ class _MessageInputState extends State<MessageInput> {
                         iconColor: Color(0xFFFF9800),
                         title: 'Audio',
                         onTap: () {
-                          setState(() {
-                            _isAttachmentMenuOpen = false;
-                          });
+                          _closeAttachmentMenu();
                           _pickAudioFiles();
                         },
                       ),
@@ -1018,9 +1048,11 @@ class _MessageInputState extends State<MessageInput> {
                       Container(width: 70),
                     ],
                   ),
-                ],
+                  ],
+                ),
               ),
-            ) : SizedBox.shrink(), // Empty when closed
+            )
+          : null, // Empty when closed for better performance
     );
   }
 
@@ -1068,12 +1100,11 @@ class _MessageInputState extends State<MessageInput> {
                     focusNode: widget.textFieldFocusNode,
                     autofocus: false,
                     onTap: () {
-                      // Ensure attachment menu closes when text field is tapped
+                      // Only close attachment menu if it's currently open
+                      // This ensures smooth transitions without interference
                       if (_isAttachmentMenuOpen) {
                         print('🎯 TextField tapped, closing attachment menu');
-                        setState(() {
-                          _isAttachmentMenuOpen = false;
-                        });
+                        _closeAttachmentMenu();
                       }
                     },
                     decoration: InputDecoration(

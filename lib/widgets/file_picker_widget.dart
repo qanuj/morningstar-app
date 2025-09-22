@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 
 class FilePickerWidget extends StatefulWidget {
@@ -220,14 +221,33 @@ class _FilePickerWidgetState extends State<FilePickerWidget> {
 
   void _pickFile(List<String> extensions) async {
     try {
-      // TODO: Implement file_picker package
-      // For now, show placeholder
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('File picker integration requires file_picker dependency'),
-          duration: Duration(seconds: 2),
-        ),
+      // Use file_picker package - no storage permissions needed
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: extensions,
+        allowMultiple: false,
       );
+
+      if (result != null && result.files.single.path != null) {
+        PlatformFile file = result.files.first;
+        File selectedFileObj = File(file.path!);
+
+        // Check file size
+        int fileSizeBytes = await selectedFileObj.length();
+        double fileSizeMB = fileSizeBytes / (1024 * 1024);
+
+        if (fileSizeMB > widget.maxFileSizeMB) {
+          _showError('File size exceeds ${widget.maxFileSizeMB}MB limit');
+          return;
+        }
+
+        setState(() {
+          selectedFile = selectedFileObj;
+          fileName = file.name;
+          fileSize = _formatFileSize(fileSizeBytes);
+          fileType = file.extension;
+        });
+      }
     } catch (e) {
       _showError('Failed to pick file: $e');
     }

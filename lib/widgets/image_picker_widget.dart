@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
 class ImagePickerWidget extends StatefulWidget {
@@ -164,14 +165,20 @@ class _ImagePickerWidgetState extends State<ImagePickerWidget> {
 
   void _pickFromCamera() async {
     try {
-      // TODO: Implement image_picker for camera
-      // For now, show placeholder
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Camera integration requires image_picker dependency'),
-          duration: Duration(seconds: 2),
-        ),
+      // Use image_picker with camera - no storage permissions needed
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 85,
+        maxWidth: 1920,
+        maxHeight: 1080,
       );
+
+      if (image != null) {
+        setState(() {
+          selectedImages.add(File(image.path));
+        });
+      }
     } catch (e) {
       _showError('Failed to access camera: $e');
     }
@@ -179,14 +186,34 @@ class _ImagePickerWidgetState extends State<ImagePickerWidget> {
 
   void _pickFromGallery() async {
     try {
-      // TODO: Implement image_picker for gallery
-      // For now, show placeholder  
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gallery integration requires image_picker dependency'),
-          duration: Duration(seconds: 2),
-        ),
+      // Use image_picker with gallery - uses Android Photo Picker automatically
+      final ImagePicker picker = ImagePicker();
+
+      // Always pick single image for now - user can tap multiple times for multiple
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 1920,
+        maxHeight: 1080,
       );
+
+      if (image != null) {
+        if (widget.allowMultiple) {
+          // Check if adding this image exceeds the limit
+          if (selectedImages.length >= widget.maxImages) {
+            _showError('Cannot select more than ${widget.maxImages} images');
+            return;
+          }
+          setState(() {
+            selectedImages.add(File(image.path));
+          });
+        } else {
+          setState(() {
+            selectedImages.clear();
+            selectedImages.add(File(image.path));
+          });
+        }
+      }
     } catch (e) {
       _showError('Failed to access gallery: $e');
     }
