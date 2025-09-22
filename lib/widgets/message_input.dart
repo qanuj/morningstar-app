@@ -587,23 +587,29 @@ class MessageInputState extends State<MessageInput> {
     print('🎯 hasFocus: ${widget.textFieldFocusNode.hasFocus}');
     print('🎯 current _isAttachmentMenuOpen: $_isAttachmentMenuOpen');
 
+    final currentKeyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+
     // Smooth transition from keyboard to attachment menu
-    if (widget.textFieldFocusNode.hasFocus) {
-      widget.textFieldFocusNode.unfocus();
-      // Wait for keyboard to hide before showing attachment menu
-      Future.delayed(Duration(milliseconds: 200), () {
-        if (mounted) {
-          setState(() {
-            _isAttachmentMenuOpen = true;
-          });
-          print('🎯 Attachment menu set to open (delayed)');
-        }
-      });
-    } else {
+    if (widget.textFieldFocusNode.hasFocus && currentKeyboardHeight > 100) {
+      // Capture current keyboard height for smooth transition
+      _lastKnownKeyboardHeight = currentKeyboardHeight;
+      print('🎯 Captured keyboard height for smooth transition: $currentKeyboardHeight');
+
+      // Show attachment menu IMMEDIATELY at captured height
       setState(() {
         _isAttachmentMenuOpen = true;
       });
-      print('🎯 Attachment menu set to open (immediate)');
+      print('🎯 Attachment menu set to open (immediate - smooth transition)');
+
+      // THEN unfocus to start keyboard hide animation
+      // This creates a smooth "morphing" effect as keyboard collapses and attachment menu maintains height
+      widget.textFieldFocusNode.unfocus();
+    } else {
+      // No keyboard visible, show attachment menu normally
+      setState(() {
+        _isAttachmentMenuOpen = true;
+      });
+      print('🎯 Attachment menu set to open (immediate - no keyboard)');
     }
   }
 

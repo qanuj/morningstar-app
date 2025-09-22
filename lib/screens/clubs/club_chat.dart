@@ -1802,8 +1802,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
           // Main content using Column layout
           SafeArea(
             child: Padding(
-              padding: EdgeInsets
-                  .zero, // Keep input at bottom, don't push above keyboard
+              padding: EdgeInsets.zero,
               child: Column(
                 children: [
                   // Messages List - Takes all available space above input
@@ -2006,7 +2005,14 @@ class ClubChatScreenState extends State<ClubChatScreen>
               onNotification: _handleScrollNotification,
               child: ListView.builder(
                 controller: _scrollController,
-                padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                padding: EdgeInsets.only(
+                  left: 4,
+                  right: 4,
+                  top: 2,
+                  bottom: MediaQuery.of(context).viewInsets.bottom > 0
+                      ? MediaQuery.of(context).viewInsets.bottom + 10
+                      : 2,
+                ),
                 itemCount: listItems.length,
                 itemBuilder: (context, index) {
                   final item = listItems[index];
