@@ -1055,6 +1055,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
               club: widget.club,
               onContactsSelected: _processSelectedContacts,
               onSyncedContactsSelected: _processSelectedSyncedContacts,
+              showSuccessToast: false, // No toast in chat, system messages will appear
             ),
           ),
         );

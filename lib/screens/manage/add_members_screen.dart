@@ -115,12 +115,14 @@ class AddMembersScreen extends StatefulWidget {
   final Club club;
   final Function(List<Contact>)? onContactsSelected;
   final Function(List<SyncedContact>)? onSyncedContactsSelected;
+  final bool showSuccessToast;
 
   const AddMembersScreen({
     super.key,
     required this.club,
     this.onContactsSelected,
     this.onSyncedContactsSelected,
+    this.showSuccessToast = true, // Default to true for backward compatibility
   });
 
   @override
@@ -634,38 +636,136 @@ class AddMembersScreenState extends State<AddMembersScreen> {
     return 'Duggy User';
   }
 
-  void _confirmSelection() {
+  void _confirmSelection() async {
     final selectedContacts = _getSelectedContacts();
     final selectedSyncedContacts = _getSelectedSyncedContacts();
     final selectedDuggyUsers = _getSelectedDuggyUsers();
 
-    if (widget.onContactsSelected != null && selectedContacts.isNotEmpty) {
-      widget.onContactsSelected!(selectedContacts);
+    // Collect all members to add
+    List<Map<String, dynamic>> membersToAdd = [];
+
+    // Add regular contacts
+    if (selectedContacts.isNotEmpty) {
+      membersToAdd.addAll(selectedContacts.map((contact) => {
+        'name': contact.displayName,
+        'phoneNumber': contact.phones.first.number.replaceAll(
+          RegExp(r'[^\d+]'),
+          '',
+        ), // Clean phone number
+        'clubId': widget.club.id,
+      }));
     }
 
-    if (widget.onSyncedContactsSelected != null &&
-        selectedSyncedContacts.isNotEmpty) {
-      widget.onSyncedContactsSelected!(selectedSyncedContacts);
+    // Add synced contacts (existing Duggy users)
+    if (selectedSyncedContacts.isNotEmpty) {
+      membersToAdd.addAll(selectedSyncedContacts.map((contact) => {
+        'name': contact.name,
+        'phoneNumber': contact.phoneNumber,
+        'clubId': widget.club.id,
+      }));
     }
 
-    // Convert Duggy users to synced contacts format if needed
-    if (selectedDuggyUsers.isNotEmpty &&
-        widget.onSyncedContactsSelected != null) {
-      final duggyAsSynced = selectedDuggyUsers
-          .map(
-            (user) => SyncedContact(
-              userId: user.id,
-              name: user.name,
-              phoneNumber: user.phoneNumber,
-              profilePicture: user.profilePicture,
-              isClubMember: false,
-            ),
-          )
-          .toList();
-      widget.onSyncedContactsSelected!(duggyAsSynced);
+    // Add Duggy users
+    if (selectedDuggyUsers.isNotEmpty) {
+      membersToAdd.addAll(selectedDuggyUsers.map((user) => {
+        'name': user.name,
+        'phoneNumber': user.phoneNumber,
+        'clubId': widget.club.id,
+      }));
     }
 
-    Navigator.pop(context);
+    if (membersToAdd.isEmpty) {
+      Navigator.pop(context);
+      return;
+    }
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Adding ${membersToAdd.length} member${membersToAdd.length == 1 ? '' : 's'}...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      // Use bulk API for better performance and handling
+      final response = await ApiService.postRaw('/members', membersToAdd);
+      Navigator.pop(context); // Close loading dialog
+
+      if (response['success'] == true) {
+        final results = response['results'];
+        final addedCount = results['successful'] ?? 0;
+        final failedCount = results['failed'] ?? 0;
+
+        // Call the original callbacks after successful API addition
+        if (widget.onContactsSelected != null && selectedContacts.isNotEmpty) {
+          widget.onContactsSelected!(selectedContacts);
+        }
+        if (widget.onSyncedContactsSelected != null && selectedSyncedContacts.isNotEmpty) {
+          widget.onSyncedContactsSelected!(selectedSyncedContacts);
+        }
+        if (selectedDuggyUsers.isNotEmpty && widget.onSyncedContactsSelected != null) {
+          final duggyAsSynced = selectedDuggyUsers
+              .map(
+                (user) => SyncedContact(
+                  userId: user.id,
+                  name: user.name,
+                  phoneNumber: user.phoneNumber,
+                  profilePicture: user.profilePicture,
+                  isClubMember: false,
+                ),
+              )
+              .toList();
+          widget.onSyncedContactsSelected!(duggyAsSynced);
+        }
+
+        // Show success message (only if enabled)
+        if (widget.showSuccessToast) {
+          if (failedCount > 0) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Added $addedCount members successfully. $failedCount failed to add.'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Successfully added $addedCount member${addedCount == 1 ? '' : 's'}!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        }
+
+        Navigator.pop(context); // Close add members screen after showing message
+      } else {
+        // Handle API error
+        Navigator.pop(context); // Close add members screen
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to add members: ${response['message'] ?? 'Unknown error'}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      Navigator.pop(context); // Close loading dialog
+      Navigator.pop(context); // Close add members screen
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error adding members: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _inviteViaLink() {
