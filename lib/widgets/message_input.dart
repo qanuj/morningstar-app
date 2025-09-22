@@ -55,6 +55,7 @@ class MessageInput extends StatefulWidget {
 class MessageInputState extends State<MessageInput> {
   bool _isComposing = false;
   bool _isAttachmentMenuOpen = false;
+  double _lastKnownKeyboardHeight = 0.0;
 
   /// Closes the attachment menu if it's open
   void closeAttachmentMenu() {
@@ -894,17 +895,24 @@ class MessageInputState extends State<MessageInput> {
 
   Widget _buildAttachmentMenu() {
     final mediaQuery = MediaQuery.of(context);
+    final keyboardHeight = mediaQuery.viewInsets.bottom;
     final screenSize = mediaQuery.size;
     final isLandscape = mediaQuery.orientation == Orientation.landscape;
 
-    // Calculate appropriate keyboard height based on device and orientation
-    double getKeyboardHeight() {
-      // If keyboard is visible, use that height, otherwise estimate
-      if (mediaQuery.viewInsets.bottom > 0) {
-        return mediaQuery.viewInsets.bottom;
+    // Use actual keyboard height when available, otherwise use last known or estimate
+    double getTargetHeight() {
+      // If keyboard is currently visible, use its exact height and store it
+      if (keyboardHeight > 0) {
+        _lastKnownKeyboardHeight = keyboardHeight;
+        return keyboardHeight;
       }
 
-      // Otherwise, estimate based on device characteristics
+      // If keyboard is not visible but we have a stored height from recent use, use that
+      if (_lastKnownKeyboardHeight > 0) {
+        return _lastKnownKeyboardHeight;
+      }
+
+      // Otherwise, estimate the height based on device characteristics
       if (isLandscape) {
         // Landscape keyboard heights
         if (screenSize.width > 800) {
@@ -924,7 +932,10 @@ class MessageInputState extends State<MessageInput> {
       }
     }
 
-    final targetHeight = getKeyboardHeight();
+    final targetHeight = getTargetHeight();
+
+    // Debug logging
+    print('🎯 Attachment menu - keyboardHeight: $keyboardHeight, lastKnown: $_lastKnownKeyboardHeight, targetHeight: $targetHeight, isOpen: $_isAttachmentMenuOpen');
 
     return AnimatedContainer(
       duration: Duration(milliseconds: 250),

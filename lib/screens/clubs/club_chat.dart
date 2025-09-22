@@ -26,7 +26,6 @@ import '../manage/manage_club.dart';
 import '../manage/club_matches.dart';
 import '../manage/club_transactions.dart';
 import '../manage/club_teams_screen.dart';
-import '../manage/contact_picker_screen.dart';
 import '../manage/add_members_screen.dart';
 import '../../providers/club_provider.dart';
 import '../../models/shared_content.dart';
@@ -805,56 +804,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
     }
   }
 
-  // Helper method to mark a single message as delivered
-  Future<void> _markSingleMessageAsDelivered(ClubMessage message) async {
-    if (_processingDelivery.contains(message.id)) {
-      debugPrint(
-        '⏸️ Message ${message.id} already being processed for delivery',
-      );
-      return;
-    }
-
-    _processingDelivery.add(message.id);
-
-    try {
-      debugPrint('📡 Marking message ${message.id} as delivered...');
-
-      final success = await ChatApiService.markAsDelivered(
-        widget.club.id,
-        message.id,
-      );
-
-      if (success) {
-        // Update local state with current timestamp
-        final now = DateTime.now();
-
-        _deliveredMessages.add(message.id);
-        await MessageStorageService.markAsDelivered(widget.club.id, message.id);
-
-        // Update message with delivered status and timestamp
-        setState(() {
-          final messageIndex = _messages.indexWhere(
-            (msg) => msg.id == message.id,
-          );
-          if (messageIndex != -1) {
-            _messages[messageIndex] = _messages[messageIndex].copyWith(
-              status: MessageStatus.delivered,
-              deliveredAt: now,
-            );
-          }
-        });
-
-        debugPrint('✅ Successfully marked message ${message.id} as delivered');
-      }
-    } catch (e) {
-      debugPrint('❌ Error marking message ${message.id} as delivered: $e');
-    } finally {
-      _processingDelivery.remove(message.id);
-    }
-  }
-
-  // Note: Old scroll-based detection replaced with widget-based visibility detection
-
   /// Apply incremental changes to the message list without full reload
   Future<void> _applyIncrementalChanges(
     Map<String, dynamic> comparison,
@@ -1159,267 +1108,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
     }
   }
 
-  void _showMoreOptionsOld() async {
-    if (mounted) {
-      // Unfocus any active input to prevent keyboard issues
-      FocusScope.of(context).unfocus();
-
-      // Set modal state to prevent unwanted focus
-      setState(() {
-        _isModalOpen = true;
-      });
-
-      // Get user's membership to determine role
-      final clubProvider = Provider.of<ClubProvider>(context, listen: false);
-      final membership = clubProvider.clubs
-          .where((m) => m.club.id == widget.club.id)
-          .firstOrNull;
-
-      // Check if user is admin or owner
-      final isAdminOrOwner =
-          membership?.role.toLowerCase() == 'admin' ||
-          membership?.role.toLowerCase() == 'owner';
-
-      showModalBottomSheet(
-        context: context,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        builder: (context) => Container(
-          padding: EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header
-              Container(
-                padding: EdgeInsets.only(bottom: 16),
-                child: Text(
-                  isAdminOrOwner ? 'Club Management' : 'Club Features',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).textTheme.titleLarge?.color,
-                  ),
-                ),
-              ),
-
-              // Add Members - Only for admin/owner
-              if (isAdminOrOwner)
-                ListTile(
-                  leading: Icon(
-                    Icons.person_add,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  title: Text('Add Members'),
-                  subtitle: Text('Invite new members to the club'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => AddMembersScreen(
-                          club: widget.club,
-                          onContactsSelected: _processSelectedContacts,
-                          onSyncedContactsSelected:
-                              _processSelectedSyncedContacts,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-
-              // Manage Club - Available to all members, but content is role-based
-              ListTile(
-                leading: Icon(
-                  Icons.settings,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                title: Text('Manage Club'),
-                subtitle: Text(
-                  isAdminOrOwner
-                      ? 'Club settings and configuration'
-                      : 'View club information and features',
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  if (membership != null) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ManageClubScreen(
-                          club: widget.club,
-                          membership: membership,
-                        ),
-                      ),
-                    );
-                  }
-                },
-              ),
-
-              // Matches
-              ListTile(
-                leading: Icon(
-                  Icons.sports_cricket,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                title: Text('Matches'),
-                subtitle: Text(
-                  isAdminOrOwner
-                      ? 'View and manage club matches'
-                      : 'View club matches',
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          ClubMatchesScreen(club: widget.club),
-                    ),
-                  );
-                },
-              ),
-
-              // Transactions
-              ListTile(
-                leading: Icon(
-                  Icons.account_balance_wallet,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                title: Text('Transactions'),
-                subtitle: Text(
-                  isAdminOrOwner
-                      ? 'Club financial transactions'
-                      : 'My club transactions',
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          ClubTransactionsScreen(club: widget.club),
-                    ),
-                  );
-                },
-              ),
-
-              // Teams - Only for admin/owner (with full management), read-only for members
-              ListTile(
-                leading: Icon(
-                  Icons.groups,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                title: Text('Teams'),
-                subtitle: Text(
-                  isAdminOrOwner ? 'Manage club teams' : 'View club teams',
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ClubTeamsScreen(
-                        club: widget.club,
-                        isReadOnly: !isAdminOrOwner,
-                      ),
-                    ),
-                  );
-                },
-              ),
-              // Clear Messages - Available to all users
-              ListTile(
-                leading: Icon(Icons.clear_all, color: Colors.red),
-                title: Text('Clear Messages'),
-                subtitle: Text('Delete all messages from your device'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showClearMessagesDialog();
-                },
-              ),
-            ],
-          ),
-        ),
-      ).whenComplete(() {
-        // Reset modal state when modal is dismissed
-        if (mounted) {
-          setState(() {
-            _isModalOpen = false;
-          });
-        }
-      });
-    }
-  }
-
-  void _showAddMemberOptions() {
-    showModalBottomSheet(
-      context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Container(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Header
-            Container(
-              padding: EdgeInsets.only(bottom: 16),
-              child: Text(
-                'Add Members',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).textTheme.titleLarge?.color,
-                ),
-              ),
-            ),
-
-            // From Contacts
-            ListTile(
-              leading: Icon(
-                Icons.contacts,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              title: Text('From Contacts'),
-              subtitle: Text('Select from your phone contacts'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ContactPickerScreen(
-                      onContactsSelected: (contacts) {
-                        // Handle selected contacts
-                        Navigator.pop(context);
-                        // Process the selected contacts for club invitation
-                        _processSelectedContacts(contacts);
-                      },
-                    ),
-                  ),
-                );
-              },
-            ),
-
-            // Enter Manually
-            ListTile(
-              leading: Icon(
-                Icons.edit,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              title: Text('Enter Manually'),
-              subtitle: Text('Create new contact and add to club'),
-              onTap: () {
-                Navigator.pop(context);
-                _showManualEntryDialog();
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _showClearMessagesDialog() {
     // Use platform-specific dialog
     if (Theme.of(context).platform == TargetPlatform.iOS) {
@@ -1634,110 +1322,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
         backgroundColor: Theme.of(context).colorScheme.primary,
       ),
     );
-  }
-
-  void _showManualEntryDialog() {
-    final nameController = TextEditingController();
-    final phoneController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Add Member Manually'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: InputDecoration(
-                labelText: 'Full Name',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            SizedBox(height: 16),
-            TextField(
-              controller: phoneController,
-              keyboardType: TextInputType.phone,
-              decoration: InputDecoration(
-                labelText: 'Phone Number',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (nameController.text.isNotEmpty &&
-                  phoneController.text.isNotEmpty) {
-                Navigator.pop(context);
-                _addMemberManually(nameController.text, phoneController.text);
-              }
-            },
-            child: Text('Add Member'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _addMemberManually(String name, String phone) {
-    // TODO: Implement manual member addition logic
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Added $name ($phone) to club'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-      ),
-    );
-  }
-
-  Future<void> _toggleOfflineMode(bool enabled) async {
-    await MessageStorageService.setOfflineMode(widget.club.id, enabled);
-  }
-
-  Future<void> _downloadAllMedia() async {
-    try {
-      // Extract media URLs from current messages
-      final mediaUrls = <Map<String, dynamic>>[];
-      for (final message in _messages) {
-        // Images
-        for (final image in message.images) {
-          mediaUrls.add({
-            'url': image,
-            'type': 'image',
-            'messageId': message.id,
-          });
-        }
-
-        // Document: don't download automatically.
-
-        // Audio
-        if (message.audio != null) {
-          mediaUrls.add({
-            'url': message.audio!.url,
-            'type': 'audio',
-            'messageId': message.id,
-          });
-        }
-
-        // GIFs
-        if (message.gifUrl != null && message.gifUrl!.isNotEmpty) {
-          mediaUrls.add({
-            'url': message.gifUrl!,
-            'type': 'gif',
-            'messageId': message.id,
-          });
-        }
-      }
-
-      // Media will be cached automatically when accessed by widgets
-    } catch (e) {
-      // Ignore errors during media download
-    }
   }
 
   /// Find existing message index with smart matching for temp messages
@@ -2166,7 +1750,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
         .firstOrNull;
 
     return Scaffold(
-      resizeToAvoidBottomInset: true,
+      resizeToAvoidBottomInset: false,
       backgroundColor: Colors.transparent,
       appBar: ChatAppBar(
         club: widget.club,
@@ -2218,7 +1802,8 @@ class ClubChatScreenState extends State<ClubChatScreen>
           // Main content using Column layout
           SafeArea(
             child: Padding(
-              padding: EdgeInsets.zero, // Keep input at bottom, don't push above keyboard
+              padding: EdgeInsets
+                  .zero, // Keep input at bottom, don't push above keyboard
               child: Column(
                 children: [
                   // Messages List - Takes all available space above input
@@ -2263,45 +1848,48 @@ class ClubChatScreenState extends State<ClubChatScreen>
                     ),
                   ),
 
-                  // Footer with reply preview and input
-                  Container(
-                    // No padding - input stays at bottom, attachment menu handles its own height
-                    decoration: BoxDecoration(
-                      color: isDarkTheme ? Color(0xFF1e2428) : Colors.white,
-                      border: Border(
-                        top: BorderSide(
-                          color: isDarkTheme
-                              ? Colors.grey[700]!.withOpacity(0.3)
-                              : Colors.grey[300]!.withOpacity(0.5),
-                          width: 0.5,
+                  // Footer with reply preview and input - positioned above keyboard
+                  Transform.translate(
+                    offset: Offset(0, -keyboardHeight),
+                    child: Container(
+                      // No padding - input positioned above keyboard
+                      decoration: BoxDecoration(
+                        color: isDarkTheme ? Color(0xFF1e2428) : Colors.white,
+                        border: Border(
+                          top: BorderSide(
+                            color: isDarkTheme
+                                ? Colors.grey[700]!.withOpacity(0.3)
+                                : Colors.grey[300]!.withOpacity(0.5),
+                            width: 0.5,
+                          ),
                         ),
                       ),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Reply preview (if replying to a message)
-                        if (_replyingTo != null) _buildReplyPreview(),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Reply preview (if replying to a message)
+                          if (_replyingTo != null) _buildReplyPreview(),
 
-                        // Message Input - Fixed at bottom (hidden during recording mode)
-                        if (!_isInRecordingMode)
-                          Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 8,
+                          // Message Input - Positioned above keyboard (hidden during recording mode)
+                          if (!_isInRecordingMode)
+                            Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 8,
+                              ),
+                              child: MessageInput(
+                                key: _messageInputKey,
+                                messageController: _messageController,
+                                textFieldFocusNode: _textFieldFocusNode,
+                                clubId: widget.club.id,
+                                audioRecordingKey: _audioRecordingKey,
+                                onSendMessage: _handleNewMessage,
+                                upiId: widget.club.upiId,
+                                userRole: membership?.role,
+                              ),
                             ),
-                            child: MessageInput(
-                              key: _messageInputKey,
-                              messageController: _messageController,
-                              textFieldFocusNode: _textFieldFocusNode,
-                              clubId: widget.club.id,
-                              audioRecordingKey: _audioRecordingKey,
-                              onSendMessage: _handleNewMessage,
-                              upiId: widget.club.upiId,
-                              userRole: membership?.role,
-                            ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -2309,11 +1897,11 @@ class ClubChatScreenState extends State<ClubChatScreen>
             ),
           ),
 
-          // Bottom safe area background extension (iOS only)
+          // Bottom safe area background extension (iOS only) - positioned above keyboard
           Positioned(
             left: 0,
             right: 0,
-            bottom: 0,
+            bottom: keyboardHeight,
             height: MediaQuery.of(context).padding.bottom,
             child: Container(
               color: isDarkTheme ? Color(0xFF1e2428) : Colors.white,
@@ -2929,103 +2517,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
       await _syncMessagesFromServer(forceSync: false);
     } catch (e) {
       // Error unpinning message
-    }
-  }
-
-  /// Soft delete a message (Telegram-style - only removes from user's view)
-  Future<void> _softDeleteMessage(ClubMessage message) async {
-    try {
-      debugPrint('🗑️ Soft deleting message ${message.id}');
-
-      // Remove from UI immediately for instant feedback
-      setState(() {
-        _messages.removeWhere((m) => m.id == message.id);
-      });
-
-      // Soft delete on server (user-specific)
-      final success = await ChatApiService.softDeleteMessages(widget.club.id, [
-        message.id,
-      ]);
-
-      if (success) {
-        // Update local cache without the deleted message
-        await MessageStorageService.saveMessages(widget.club.id, _messages);
-        debugPrint('✅ Message soft deleted successfully');
-
-        // Show snackbar with undo option
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Message deleted'),
-              action: SnackBarAction(
-                label: 'Undo',
-                onPressed: () => _restoreMessage(message),
-              ),
-              duration: Duration(seconds: 5),
-            ),
-          );
-        }
-      } else {
-        // Restore message in UI if server deletion failed
-        setState(() {
-          _messages.add(message);
-          _messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-        });
-        debugPrint('❌ Failed to soft delete message');
-
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Failed to delete message')));
-        }
-      }
-    } catch (e) {
-      debugPrint('❌ Error in soft delete: $e');
-      // Restore message in UI if error occurred
-      setState(() {
-        _messages.add(message);
-        _messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to delete message')));
-      }
-    }
-  }
-
-  /// Restore a soft deleted message
-  Future<void> _restoreMessage(ClubMessage message) async {
-    try {
-      debugPrint('↩️ Restoring message ${message.id}');
-
-      // Add back to UI immediately
-      setState(() {
-        _messages.add(message);
-        _messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-      });
-
-      // Restore on server
-      final success = await ChatApiService.restoreMessages(widget.club.id, [
-        message.id,
-      ]);
-
-      if (success) {
-        // Update local cache with restored message
-        await MessageStorageService.saveMessages(widget.club.id, _messages);
-        debugPrint('✅ Message restored successfully');
-
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Message restored')));
-        }
-      } else {
-        debugPrint('❌ Failed to restore message on server');
-      }
-    } catch (e) {
-      debugPrint('❌ Error restoring message: $e');
     }
   }
 
