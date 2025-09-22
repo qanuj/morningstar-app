@@ -273,6 +273,9 @@ class NotificationService {
     // Handle foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       print('📨 Received foreground message: ${message.messageId}');
+      print('📨 Notification data: ${message.data}');
+      print('📨 Notification type: ${message.data['type']}');
+      print('📨 Club ID from notification: ${message.data['clubId']}');
       _handleForegroundMessage(message);
     });
 
@@ -299,6 +302,20 @@ class NotificationService {
     // Handle club message notifications specially
     if (data['type'] == 'club_message') {
       await _handleClubMessageNotification(message, inForeground: true);
+      return;
+    }
+
+    // Handle message update notifications
+    if (data['type'] == 'message_update') {
+      await _handleMessageUpdateNotification(message, inForeground: true);
+      return;
+    }
+
+    // Handle message reaction notifications
+    if (data['type'] == 'message_reaction' ||
+        data['type'] == 'reaction_update' ||
+        data['type'] == 'reaction_added') {
+      await _handleMessageReactionNotification(message, inForeground: true);
       return;
     }
 
@@ -437,6 +454,128 @@ class NotificationService {
     }
   }
 
+  /// Handle message update notifications
+  static Future<void> _handleMessageUpdateNotification(
+    RemoteMessage message, {
+    required bool inForeground,
+  }) async {
+    final data = message.data;
+    print('📝 Handling message update notification: $data');
+
+    final clubId = data['clubId'] as String?;
+    final messageId = data['messageId'] as String?;
+    final updatedContent = data['messageContent'] as String?;
+    final senderName = data['senderName'] as String?;
+    final senderId = data['senderId'] as String?;
+    final updatedAt = data['updatedAt'] as String?;
+
+    // Trigger the club message callback to refresh messages with updated content
+    if (clubId != null && _clubMessageCallbacks.containsKey(clubId)) {
+      print(
+        '🔄 Triggering real-time chat update for message update via callback for club: $clubId',
+      );
+      // Add update type to data for the callback to handle specifically
+      final updateData = Map<String, dynamic>.from(data);
+      updateData['isUpdate'] = true;
+      _clubMessageCallbacks[clubId]!(updateData);
+    } else {
+      print('ℹ️ No club message callback registered for club: $clubId');
+    }
+
+    // Show local notification for message updates (less intrusive)
+    final notification = message.notification;
+    if (notification != null && !inForeground) {
+      await _localNotifications.show(
+        message.hashCode,
+        notification.title ?? 'Message Updated',
+        notification.body ?? '$senderName updated a message',
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            'message_updates',
+            'Message Updates',
+            channelDescription: 'Updates to your messages',
+            importance: Importance.low, // Lower priority for updates
+            priority: Priority.low,
+            icon: '@drawable/ic_notification',
+            color: const Color(0xFF06aeef),
+            playSound: false, // No sound for updates
+            enableVibration: false, // No vibration for updates
+            category: AndroidNotificationCategory.message,
+          ),
+          iOS: const DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: false, // Don't increment badge for updates
+            presentSound: false, // No sound for updates
+            categoryIdentifier: 'MESSAGE_UPDATE_CATEGORY',
+          ),
+        ),
+        payload: data.toString(),
+      );
+    }
+  }
+
+  /// Handle message reaction notifications
+  static Future<void> _handleMessageReactionNotification(
+    RemoteMessage message, {
+    required bool inForeground,
+  }) async {
+    final data = message.data;
+    print('😀 Handling message reaction notification: $data');
+
+    final clubId = data['clubId'] as String?;
+    final reactionEmoji = data['emoji'] as String?;
+    final senderName =
+        data['userName'] as String? ?? data['senderName'] as String?;
+
+    debugPrint(
+      '😀 Reaction data - clubId: $clubId, emoji: $reactionEmoji, sender: $senderName',
+    );
+
+    // Trigger the club message callback to refresh messages with updated reactions
+    if (clubId != null && _clubMessageCallbacks.containsKey(clubId)) {
+      print(
+        '🔄 Triggering real-time chat update for reaction via callback for club: $clubId',
+      );
+      _clubMessageCallbacks[clubId]!(data);
+    } else {
+      print('ℹ️ No club message callback registered for club: $clubId');
+    }
+
+    // Don't show local notification for reactions in foreground to avoid spam
+    // Only show if in background and it's a meaningful reaction
+    if (!inForeground) {
+      final notification = message.notification;
+      if (notification != null && reactionEmoji != null && senderName != null) {
+        await _localNotifications.show(
+          message.hashCode,
+          notification.title ?? '$senderName reacted to a message',
+          notification.body ?? '$senderName reacted with $reactionEmoji',
+          NotificationDetails(
+            android: AndroidNotificationDetails(
+              'message_reactions',
+              'Message Reactions',
+              channelDescription: 'Reactions to your messages',
+              importance: Importance.low, // Lower priority for reactions
+              priority: Priority.low,
+              icon: '@drawable/ic_notification',
+              color: const Color(0xFF06aeef),
+              playSound: false, // No sound for reactions
+              enableVibration: false, // No vibration for reactions
+              category: AndroidNotificationCategory.social,
+            ),
+            iOS: const DarwinNotificationDetails(
+              presentAlert: true,
+              presentBadge: false, // Don't increment badge for reactions
+              presentSound: false, // No sound for reactions
+              categoryIdentifier: 'REACTION_CATEGORY',
+            ),
+          ),
+          payload: data.toString(),
+        );
+      }
+    }
+  }
+
   /// Handle match RSVP notifications
   static Future<void> _handleMatchRsvpNotification(
     RemoteMessage message, {
@@ -493,6 +632,10 @@ class NotificationService {
       case 'club_message':
         print('💬 Navigate to club chat: $clubId');
         // TODO: Navigate to specific club chat
+        break;
+      case 'message_update':
+        print('📝 Navigate to club chat for updated message: $clubId');
+        // TODO: Navigate to specific club chat and highlight updated message
         break;
       case 'match_reminder':
         print('🏏 Navigate to match: $matchId');
@@ -588,13 +731,8 @@ class NotificationService {
   static void _dispatchMatchUpdate(String matchId, Map<String, dynamic> data) {
     final callbacks = _matchUpdateCallbacks[matchId];
     if (callbacks == null || callbacks.isEmpty) {
-      print('ℹ️ No match update callbacks registered for match: $matchId');
       return;
     }
-
-    print(
-      '🔄 Dispatching match update to ${callbacks.length} listener(s) for match: $matchId',
-    );
     final snapshot = List<Function(Map<String, dynamic>)>.from(callbacks);
     for (final callback in snapshot) {
       try {
@@ -658,7 +796,6 @@ class NotificationService {
 
   /// Manually trigger match update notifications (for immediate local updates)
   static void triggerMatchUpdate(String matchId, Map<String, dynamic> data) {
-    print('🔄 Manually triggering match update for: $matchId');
     _dispatchMatchUpdate(matchId, data);
   }
 }
@@ -678,6 +815,37 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     if (clubId != null &&
         NotificationService._clubMessageCallbacks.containsKey(clubId)) {
       print('🔄 Triggering callback from background for club: $clubId');
+      NotificationService._clubMessageCallbacks[clubId]!(message.data);
+    }
+  }
+
+  // Handle message update notifications in background
+  if (message.data['type'] == 'message_update') {
+    print('📝 Background message update notification received');
+    final clubId = message.data['clubId'] as String?;
+    if (clubId != null &&
+        NotificationService._clubMessageCallbacks.containsKey(clubId)) {
+      print(
+        '🔄 Triggering callback from background for message update in club: $clubId',
+      );
+      // Add update type to data for the callback to handle specifically
+      final updateData = Map<String, dynamic>.from(message.data);
+      updateData['isUpdate'] = true;
+      NotificationService._clubMessageCallbacks[clubId]!(updateData);
+    }
+  }
+
+  // Handle message reaction notifications in background
+  if (message.data['type'] == 'message_reaction' ||
+      message.data['type'] == 'reaction_update' ||
+      message.data['type'] == 'reaction_added') {
+    print('😀 Background message reaction notification received');
+    final clubId = message.data['clubId'] as String?;
+    if (clubId != null &&
+        NotificationService._clubMessageCallbacks.containsKey(clubId)) {
+      print(
+        '🔄 Triggering callback from background for reaction in club: $clubId',
+      );
       NotificationService._clubMessageCallbacks[clubId]!(message.data);
     }
   }

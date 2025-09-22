@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
@@ -110,6 +111,11 @@ class ClubChatScreenState extends State<ClubChatScreen>
   static const double _audioRecordingPullThreshold = 100.0;
   bool _canActivateRecording = false; // Only true if tapped in bottom 20%
   bool _isInRecordingMode = false; // True during entire recording flow
+  bool _previousFocusState =
+      false; // Track previous focus state to prevent unwanted focus changes
+  bool _allowProgrammaticFocus =
+      false; // Flag to control when programmatic focus is allowed
+  bool _isModalOpen = false; // Track when modals are open to prevent focus
 
   @override
   void initState() {
@@ -128,15 +134,34 @@ class ClubChatScreenState extends State<ClubChatScreen>
     // Setup push notification callback instead of polling
     _setupPushNotificationCallback();
 
-    // Add focus listener to trigger UI updates and scroll to bottom when keyboard opens
+    // Add focus listener to scroll to bottom when keyboard opens
     _textFieldFocusNode.addListener(() {
-      setState(() {});
+      final currentFocusState = _textFieldFocusNode.hasFocus;
 
-      // Scroll to bottom when text field gains focus (keyboard opens)
-      if (_textFieldFocusNode.hasFocus && _messages.isNotEmpty) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _scrollToBottom();
-        });
+      // Only react to actual focus state changes to prevent reaction-triggered focus issues
+      if (currentFocusState != _previousFocusState) {
+        _previousFocusState = currentFocusState;
+
+        // Prevent unwanted focus when modals are open or programmatic focus is not allowed
+        if (currentFocusState && !_allowProgrammaticFocus && _isModalOpen) {
+          debugPrint('🚫 Prevented unwanted focus while modal is open');
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _textFieldFocusNode.unfocus();
+            }
+          });
+          return;
+        }
+
+        // Only scroll to bottom when gaining focus (keyboard opens)
+        if (currentFocusState && _messages.isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _scrollToBottom();
+          });
+        }
+
+        // Note: Removed setState() call here as it's not needed and causes unwanted focus events
+        // The UI will update naturally when the keyboard appears/disappears
       }
     });
 
@@ -216,19 +241,105 @@ class ClubChatScreenState extends State<ClubChatScreen>
     ) {
       debugPrint('💬 Received push notification data: $data');
 
-      // This callback is already club-specific, so we can directly refresh
-      debugPrint(
-        '✅ Push notification received for current club, refreshing messages',
-      );
+      // Check if this is a message update notification
+      final isUpdate = data['isUpdate'] == true;
+      final messageId = data['messageId'] as String?;
 
-      // Use a slight delay to ensure the server has processed the message
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) {
-          // Instead of full sync, just load new messages to avoid duplicates
-          _loadMessages(forceSync: false);
-        }
-      });
+      if (isUpdate && messageId != null) {
+        debugPrint(
+          '📝 Received message update notification for message: $messageId',
+        );
+        // Handle message update by patching the specific message
+        _handleMessageUpdate(data);
+      } else {
+        // This is a new message notification - refresh normally
+        debugPrint(
+          '✅ Push notification received for current club, refreshing messages',
+        );
+
+        // Use a slight delay to ensure the server has processed the message
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            debugPrint('🔄 Callback triggered: Refreshing messages now...');
+            // Force a fresh sync to ensure we get the new message
+            _loadMessages(forceSync: true);
+          } else {
+            debugPrint('⚠️ Widget not mounted, skipping message refresh');
+          }
+        });
+      }
     });
+  }
+
+  /// Handle message update notifications by patching the specific message
+  void _handleMessageUpdate(Map<String, dynamic> data) {
+    debugPrint('📝 Handling message update: $data');
+
+    final messageId = data['messageId'] as String?;
+    final updatedContent = data['messageContent'] as String?;
+
+    if (messageId == null) {
+      debugPrint('⚠️ No messageId in update notification');
+      return;
+    }
+
+    if (updatedContent == null) {
+      debugPrint('⚠️ No updated content in notification');
+      return;
+    }
+
+    // Find the message in the current list
+    final messageIndex = _messages.indexWhere((msg) => msg.id == messageId);
+    if (messageIndex == -1) {
+      debugPrint('⚠️ Message with ID $messageId not found in current list');
+      // Message not in current view, trigger a full refresh
+      debugPrint('🔄 Message not in view, triggering full refresh...');
+      _loadMessages(forceSync: true);
+      return;
+    }
+
+    // Create a new ClubMessage with updated content
+    final originalMessage = _messages[messageIndex];
+    final updatedMessage = ClubMessage(
+      id: originalMessage.id,
+      clubId: originalMessage.clubId,
+      senderId: originalMessage.senderId,
+      senderName: originalMessage.senderName,
+      senderProfilePicture: originalMessage.senderProfilePicture,
+      senderRole: originalMessage.senderRole,
+      content: updatedContent, // Update the content
+      images: originalMessage.images,
+      document: originalMessage.document,
+      audio: originalMessage.audio,
+      linkMeta: originalMessage.linkMeta,
+      gifUrl: originalMessage.gifUrl,
+      messageType: originalMessage.messageType,
+      createdAt: originalMessage.createdAt,
+      status: originalMessage.status,
+      errorMessage: originalMessage.errorMessage,
+      reactions: originalMessage.reactions,
+      reactionsCount: originalMessage.reactionsCount,
+      replyTo: originalMessage.replyTo,
+      deleted: originalMessage.deleted,
+      deletedBy: originalMessage.deletedBy,
+      starred: originalMessage.starred,
+      matchId: originalMessage.matchId,
+      practiceId: originalMessage.practiceId,
+      meta: originalMessage.meta,
+      pollId: originalMessage.pollId,
+      pin: originalMessage.pin,
+      deliveredAt: originalMessage.deliveredAt,
+      readAt: originalMessage.readAt,
+      deliveredTo: originalMessage.deliveredTo,
+      readBy: originalMessage.readBy,
+    );
+
+    // Update the message in place
+    setState(() {
+      _messages[messageIndex] = updatedMessage;
+    });
+
+    debugPrint('✅ Successfully updated message $messageId content in UI');
   }
 
   @override
@@ -248,6 +359,10 @@ class ClubChatScreenState extends State<ClubChatScreen>
 
   Future<void> _loadMessages({bool forceSync = false}) async {
     try {
+      debugPrint(
+        '🚀 _loadMessages called - forceSync: $forceSync, mounted: $mounted',
+      );
+
       setState(() {
         _isLoading = true;
         _error = null;
@@ -329,12 +444,17 @@ class ClubChatScreenState extends State<ClubChatScreen>
           currentMessages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
           // Update state with incremental changes
+          debugPrint(
+            '📱 Updating UI state with ${currentMessages.length} messages',
+          );
           setState(() {
             _messages = currentMessages;
             _isLoading = false;
           });
+          debugPrint('✅ UI state updated successfully');
         } else {
           // No new messages, just update loading state
+          debugPrint('ℹ️ No new messages found, just updating loading state');
           setState(() {
             _isLoading = false;
           });
@@ -846,7 +966,13 @@ class ClubChatScreenState extends State<ClubChatScreen>
         );
       }
 
+      debugPrint(
+        '🌐 Fetching messages from server for club: ${widget.club.id}',
+      );
       final response = await ChatApiService.getMessages(widget.club.id);
+      debugPrint(
+        '🌐 Server response received: ${response != null ? 'success' : 'null'}',
+      );
 
       if (response != null &&
           (response['success'] == true || response['messages'] != null)) {
@@ -955,8 +1081,90 @@ class ClubChatScreenState extends State<ClubChatScreen>
 
   // Removed duplicate _mergeMessagesWithLocalData function - now using MessageStorageService.mergeMessagesWithLocalData
 
-  void _showMoreOptions() async {
+  void _handleMoreOptionSelected(String option) async {
+    // Unfocus any active input to prevent keyboard issues
+    FocusScope.of(context).unfocus();
+
+    // Get user's membership to determine role
+    final clubProvider = Provider.of<ClubProvider>(context, listen: false);
+    final membership = clubProvider.clubs
+        .where((m) => m.club.id == widget.club.id)
+        .firstOrNull;
+
+    // Handle menu selection
+    switch (option) {
+      case 'add_members':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AddMembersScreen(
+              club: widget.club,
+              onContactsSelected: _processSelectedContacts,
+              onSyncedContactsSelected: _processSelectedSyncedContacts,
+            ),
+          ),
+        );
+        break;
+
+      case 'manage_club':
+        if (membership != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  ManageClubScreen(club: widget.club, membership: membership),
+            ),
+          );
+        }
+        break;
+
+      case 'matches':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ClubMatchesScreen(club: widget.club),
+          ),
+        );
+        break;
+
+      case 'transactions':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ClubTransactionsScreen(club: widget.club),
+          ),
+        );
+        break;
+
+      case 'teams':
+        final isAdminOrOwner =
+            membership?.role.toLowerCase() == 'admin' ||
+            membership?.role.toLowerCase() == 'owner';
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                ClubTeamsScreen(club: widget.club, isReadOnly: !isAdminOrOwner),
+          ),
+        );
+        break;
+
+      case 'clear_messages':
+        _showClearMessagesDialog();
+        break;
+    }
+  }
+
+  void _showMoreOptionsOld() async {
     if (mounted) {
+      // Unfocus any active input to prevent keyboard issues
+      FocusScope.of(context).unfocus();
+
+      // Set modal state to prevent unwanted focus
+      setState(() {
+        _isModalOpen = true;
+      });
+
       // Get user's membership to determine role
       final clubProvider = Provider.of<ClubProvider>(context, listen: false);
       final membership = clubProvider.clubs
@@ -1115,10 +1323,27 @@ class ClubChatScreenState extends State<ClubChatScreen>
                   );
                 },
               ),
+              // Clear Messages - Available to all users
+              ListTile(
+                leading: Icon(Icons.clear_all, color: Colors.red),
+                title: Text('Clear Messages'),
+                subtitle: Text('Delete all messages from your device'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showClearMessagesDialog();
+                },
+              ),
             ],
           ),
         ),
-      );
+      ).whenComplete(() {
+        // Reset modal state when modal is dismissed
+        if (mounted) {
+          setState(() {
+            _isModalOpen = false;
+          });
+        }
+      });
     }
   }
 
@@ -1189,6 +1414,199 @@ class ClubChatScreenState extends State<ClubChatScreen>
         ),
       ),
     );
+  }
+
+  void _showClearMessagesDialog() {
+    // Use platform-specific dialog
+    if (Theme.of(context).platform == TargetPlatform.iOS) {
+      _showIOSClearMessagesDialog();
+    } else {
+      _showAndroidClearMessagesDialog();
+    }
+  }
+
+  void _showIOSClearMessagesDialog() {
+    showCupertinoDialog(
+      context: context,
+      builder: (BuildContext context) {
+        bool keepStarredAndPinned = true;
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return CupertinoAlertDialog(
+              title: Text('Clear Messages'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(height: 8),
+                  Text(
+                    'This will delete all messages from your device. This action cannot be undone.',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                  SizedBox(height: 16),
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        keepStarredAndPinned = !keepStarredAndPinned;
+                      });
+                    },
+                    child: Row(
+                      children: [
+                        Icon(
+                          keepStarredAndPinned
+                              ? CupertinoIcons.check_mark_circled_solid
+                              : CupertinoIcons.circle,
+                          color: keepStarredAndPinned
+                              ? CupertinoColors.activeBlue
+                              : CupertinoColors.inactiveGray,
+                        ),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Keep starred and pinned',
+                            style: TextStyle(fontSize: 13),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                CupertinoDialogAction(
+                  child: Text('Cancel'),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+                CupertinoDialogAction(
+                  isDestructiveAction: true,
+                  child: Text('Clear Messages'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    _clearMessages(keepStarredAndPinned);
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showAndroidClearMessagesDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        bool keepStarredAndPinned = true;
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Row(
+                children: [
+                  Icon(Icons.clear_all, color: Colors.red),
+                  SizedBox(width: 8),
+                  Text('Clear Messages'),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'This will delete all messages from your device. This action cannot be undone.',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  SizedBox(height: 16),
+                  CheckboxListTile(
+                    title: Text('Keep starred and pinned'),
+                    subtitle: Text('Preserve important messages'),
+                    value: keepStarredAndPinned,
+                    onChanged: (bool? value) {
+                      setState(() {
+                        keepStarredAndPinned = value ?? true;
+                      });
+                    },
+                    controlAffinity: ListTileControlAffinity.leading,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    _clearMessages(keepStarredAndPinned);
+                  },
+                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                  child: Text('Clear Messages'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _clearMessages(bool keepStarredAndPinned) async {
+    try {
+      debugPrint(
+        '🗑️ Starting to clear messages. Keep starred/pinned: $keepStarredAndPinned',
+      );
+
+      List<ClubMessage> messagesToKeep = [];
+
+      if (keepStarredAndPinned) {
+        // Filter messages to keep starred and pinned ones
+        messagesToKeep = _messages.where((message) {
+          return message.starred.isStarred || _isCurrentlyPinned(message);
+        }).toList();
+
+        debugPrint(
+          '🌟 Keeping ${messagesToKeep.length} starred/pinned messages',
+        );
+      }
+
+      // Clear messages from local storage
+      await MessageStorageService.clearMessages(widget.club.id);
+
+      // If keeping some messages, save them back
+      if (messagesToKeep.isNotEmpty) {
+        for (var message in messagesToKeep) {
+          await MessageStorageService.addMessage(widget.club.id, message);
+        }
+      }
+
+      // Update UI
+      setState(() {
+        _messages = messagesToKeep;
+        _selectedMessageIds.clear();
+        _isSelectionMode = false;
+      });
+
+      debugPrint('✅ Messages cleared successfully');
+    } catch (e) {
+      debugPrint('❌ Error clearing messages: $e');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error, color: Colors.white),
+              SizedBox(width: 12),
+              Text('Failed to clear messages'),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   void _processSelectedContacts(List<Contact> contacts) {
@@ -1517,12 +1935,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
       _isSliding = _slideOffset > threshold;
       _slidingMessageId = message.id;
     });
-
-    if (_isSliding) {
-      debugPrint(
-        '➡️ Slide active: offset=$_slideOffset for message: ${message.content}',
-      );
-    }
   }
 
   void _handleSlideEnd(
@@ -1530,10 +1942,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
     ClubMessage message,
     bool isOwn,
   ) {
-    debugPrint(
-      '🔄 _handleSlideEnd: isSliding=$_isSliding, slideOffset=$_slideOffset, messageId=${message.id}',
-    );
-
     if (_isSliding && _slidingMessageId == message.id && _slideOffset > 40.0) {
       // Trigger reply if user slid far enough
       debugPrint('✅ Triggering reply for message: ${message.content}');
@@ -1567,11 +1975,16 @@ class ClubChatScreenState extends State<ClubChatScreen>
       );
     });
     debugPrint('📝 Reply state set: $_replyingTo');
-    // Only request focus after a small delay to ensure smooth transition
+    // Allow programmatic focus for reply action and request focus after a small delay
+    _allowProgrammaticFocus = true;
     Future.delayed(Duration(milliseconds: 300), () {
       if (mounted && _replyingTo != null) {
         _textFieldFocusNode.requestFocus();
       }
+      // Reset flag after a short delay to prevent other unwanted focus requests
+      Future.delayed(Duration(milliseconds: 100), () {
+        _allowProgrammaticFocus = false;
+      });
     });
   }
 
@@ -1771,7 +2184,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
           debugPrint('🔄 App bar refresh pressed, fetching new messages...');
           _loadMessages(forceSync: false);
         },
-        onShowMoreOptions: _showMoreOptions,
+        onMoreOptionSelected: _handleMoreOptionSelected,
       ),
       body: Stack(
         children: [
@@ -1801,7 +2214,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
           // Main content using Column layout
           SafeArea(
             child: Padding(
-              padding: EdgeInsets.only(bottom: keyboardHeight),
+              padding: EdgeInsets.zero, // Keep input at bottom, don't push above keyboard
               child: Column(
                 children: [
                   // Messages List - Takes all available space above input
@@ -1846,6 +2259,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
 
                   // Footer with reply preview and input
                   Container(
+                    // No padding - input stays at bottom, attachment menu handles its own height
                     decoration: BoxDecoration(
                       color: isDarkTheme ? Color(0xFF1e2428) : Colors.white,
                       border: Border(
@@ -1904,7 +2318,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
           if (_isPullingForAudio &&
               !(_audioRecordingKey.currentState?.isRecording ?? false))
             Positioned(
-              bottom: keyboardHeight + 150,
+              bottom: 150, // Fixed position above input area
               left: 0,
               right: 0,
               child: Center(
@@ -2042,6 +2456,8 @@ class ClubChatScreenState extends State<ClubChatScreen>
                         onMessageFailed: _handleMessageFailed,
                         onReactionRemoved: _handleReactionRemoved,
                         canPinMessages: _cachedCanPinMessages ?? false,
+                        canDeleteMessages:
+                            true, // Any user can delete messages (local cache only)
                         isCurrentlyPinned: _isCurrentlyPinned,
                         onReplyTap: _scrollToMessage,
                       ),

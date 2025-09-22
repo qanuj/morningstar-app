@@ -8,6 +8,7 @@ import '../../models/starred_info.dart';
 import '../../services/chat_api_service.dart';
 import '../../providers/user_provider.dart';
 import '../message_info_sheet.dart';
+import '../inline_reaction_picker.dart';
 import 'message_bubble_factory.dart';
 
 /// A wrapper for BaseMessageBubble that adds interactive functionality
@@ -104,10 +105,22 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _handleMessageTap(context),
-      onLongPress: () => _handleMessageLongPress(context),
-      child: MessageBubbleFactory(
+    return _MessageOptionsOverlay(
+      isOwnMessage: widget.isOwn,
+      onReactionSelected: (emoji) => _handleReactionAdded(_createMessageWithLocalState(), emoji),
+      onReply: () => widget.onReplyToMessage?.call(_createMessageWithLocalState()),
+      onForward: () => {}, // TODO: implement forward
+      onSelectMessage: () => {}, // TODO: implement select
+      onCopy: () => _handleCopyMessage(),
+      onStar: () => _handleToggleStarMessage(_createMessageWithLocalState()),
+      onDelete: () => _handleDeleteMessage(_createMessageWithLocalState()),
+      onMore: () => _showMessageOptions(context),
+      canDelete: widget.canDeleteMessages,
+      isDeleted: widget.message.deleted,
+      messageContent: _createMessageWithLocalState().content,
+      child: GestureDetector(
+        onTap: () => _handleMessageTap(context),
+        child: MessageBubbleFactory(
         message: _createMessageWithLocalState(),
         isOwn: widget.isOwn,
         isDeleted: widget.message.deleted,
@@ -125,6 +138,7 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
         canPinMessages: widget.canPinMessages,
         canDeleteMessages: widget.canDeleteMessages,
         isSelectionMode: widget.isSelectionMode,
+        ),
       ),
     );
   }
@@ -166,21 +180,21 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
     } else if (widget.onMessageTap != null) {
       // Custom tap handler
       widget.onMessageTap!(widget.message);
-    } else {
-      // Default behavior - show message options
-      _showMessageOptions(context);
     }
+    // Removed default behavior - no reaction drawer on tap
   }
 
-  void _handleMessageLongPress(BuildContext context) {
-    if (widget.message.deleted || widget.isSelectionMode) return;
+  // Long press behavior has been replaced with inline reaction picker
+  // Options menu is now accessible via double tap
 
-    if (widget.onMessageLongPress != null) {
-      widget.onMessageLongPress!(widget.message);
-    } else {
-      // Default behavior - show message options
-      _showMessageOptions(context);
-    }
+  void _handleCopyMessage() {
+    Clipboard.setData(ClipboardData(text: widget.message.content));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Message copied to clipboard'),
+        duration: Duration(seconds: 2),
+      ),
+    );
   }
 
   void _showRetryDialog(BuildContext context) {
@@ -207,6 +221,9 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
 
   void _showMessageOptions(BuildContext context) {
     if (widget.message.deleted) return;
+
+    // Unfocus any text fields to prevent keyboard from appearing
+    FocusScope.of(context).unfocus();
 
     HapticFeedback.lightImpact();
     showModalBottomSheet(
@@ -681,6 +698,13 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
   }
 
   void _handleDeleteMessage(ClubMessage message) {
+    // For already deleted messages, delete immediately without confirmation (cleanup)
+    if (message.deleted) {
+      widget.onDeleteMessage?.call(message);
+      return;
+    }
+
+    // For normal messages, keep existing confirmation behavior
     // Trigger selection mode and select this message
     if (widget.onToggleSelection != null) {
       widget.onToggleSelection!(message.id);
@@ -688,6 +712,9 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
   }
 
   void _handleShowMessageInfo(ClubMessage message) {
+    // Unfocus any text fields to prevent keyboard from appearing
+    FocusScope.of(context).unfocus();
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).brightness == Brightness.dark
@@ -770,5 +797,106 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
     }
 
     return false;
+  }
+}
+
+/// Wrapper overlay to handle enhanced message options with blur background
+class _MessageOptionsOverlay extends StatefulWidget {
+  final Widget child;
+  final Function(String emoji) onReactionSelected;
+  final VoidCallback onReply;
+  final VoidCallback onForward;
+  final VoidCallback onSelectMessage;
+  final VoidCallback onCopy;
+  final VoidCallback onStar;
+  final VoidCallback onDelete;
+  final VoidCallback onMore;
+  final bool isOwnMessage;
+  final bool canDelete;
+  final bool isDeleted;
+  final String? messageContent;
+
+  const _MessageOptionsOverlay({
+    required this.child,
+    required this.onReactionSelected,
+    required this.onReply,
+    required this.onForward,
+    required this.onSelectMessage,
+    required this.onCopy,
+    required this.onStar,
+    required this.onDelete,
+    required this.onMore,
+    this.isOwnMessage = false,
+    this.canDelete = false,
+    this.isDeleted = false,
+    this.messageContent,
+  });
+
+  @override
+  State<_MessageOptionsOverlay> createState() => _MessageOptionsOverlayState();
+}
+
+class _MessageOptionsOverlayState extends State<_MessageOptionsOverlay> {
+  OverlayEntry? _overlayEntry;
+  bool _isOptionsVisible = false;
+
+  void _showOptions() {
+    if (_isOptionsVisible) return;
+
+    _isOptionsVisible = true;
+    HapticFeedback.mediumImpact();
+
+    // Calculate message position and size
+    final RenderBox renderBox = context.findRenderObject() as RenderBox;
+    final size = renderBox.size;
+    final position = renderBox.localToGlobal(Offset.zero);
+
+    _overlayEntry = OverlayEntry(
+      builder: (context) => InlineMessageOptions(
+        onReactionSelected: (emoji) {
+          widget.onReactionSelected(emoji);
+          _dismissOptions();
+        },
+        onDismiss: _dismissOptions,
+        onReply: widget.onReply,
+        onForward: widget.onForward,
+        onSelectMessage: widget.onSelectMessage,
+        onCopy: widget.onCopy,
+        onStar: widget.onStar,
+        onDelete: widget.onDelete,
+        onMore: widget.onMore,
+        messagePosition: position,
+        messageSize: size,
+        isOwnMessage: widget.isOwnMessage,
+        canDelete: widget.canDelete,
+        isDeleted: widget.isDeleted,
+        messageWidget: widget.child,
+        messageContent: widget.messageContent,
+      ),
+    );
+
+    Overlay.of(context).insert(_overlayEntry!);
+  }
+
+  void _dismissOptions() {
+    if (!_isOptionsVisible) return;
+
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+    _isOptionsVisible = false;
+  }
+
+  @override
+  void dispose() {
+    _dismissOptions();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onLongPress: _showOptions,
+      child: widget.child,
+    );
   }
 }

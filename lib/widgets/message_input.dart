@@ -14,10 +14,8 @@ import '../models/starred_info.dart';
 import '../models/message_audio.dart';
 import '../models/match.dart';
 import '../models/link_metadata.dart';
-import '../services/chat_api_service.dart';
 import '../services/open_graph_service.dart';
 import 'package:provider/provider.dart';
-import '../providers/user_provider.dart';
 import '../providers/club_provider.dart';
 
 /// A comprehensive self-contained message input widget for chat functionality
@@ -50,6 +48,7 @@ class MessageInput extends StatefulWidget {
 
 class _MessageInputState extends State<MessageInput> {
   bool _isComposing = false;
+  bool _isAttachmentMenuOpen = false;
   final ImagePicker _imagePicker = ImagePicker();
   List<Map<String, dynamic>> _availableUpiApps = [];
 
@@ -63,6 +62,32 @@ class _MessageInputState extends State<MessageInput> {
     super.initState();
     if (widget.upiId != null && widget.upiId!.isNotEmpty) {
       _checkAvailableUpiApps();
+    }
+
+    // Listen for focus changes to close attachment menu when keyboard opens
+    widget.textFieldFocusNode.addListener(_onFocusChange);
+  }
+
+  @override
+  void dispose() {
+    widget.textFieldFocusNode.removeListener(_onFocusChange);
+    super.dispose();
+  }
+
+  void _onFocusChange() {
+    print(
+      '🎯 Focus changed: hasFocus=${widget.textFieldFocusNode.hasFocus}, menuOpen=$_isAttachmentMenuOpen',
+    );
+    if (widget.textFieldFocusNode.hasFocus && _isAttachmentMenuOpen) {
+      print('🎯 Focus gained, closing attachment menu');
+      setState(() {
+        _isAttachmentMenuOpen = false;
+      });
+    } else if (!widget.textFieldFocusNode.hasFocus && _isAttachmentMenuOpen) {
+      print('🎯 Focus lost, closing attachment menu');
+      setState(() {
+        _isAttachmentMenuOpen = false;
+      });
     }
   }
 
@@ -163,7 +188,6 @@ class _MessageInputState extends State<MessageInput> {
       return null;
     }
   }
-
 
   void _sendTextMessage() {
     final text = widget.messageController.text.trim();
@@ -463,10 +487,9 @@ class _MessageInputState extends State<MessageInput> {
     widget.textFieldFocusNode.unfocus();
   }
 
-
-
   void _sendExistingPracticeMessage(MatchListItem practice) async {
-    final practiceBody = '⚽ Practice session: ${practice.opponent?.isNotEmpty == true ? practice.opponent! : 'Practice Session'}';
+    final practiceBody =
+        '⚽ Practice session: ${practice.opponent?.isNotEmpty == true ? practice.opponent! : 'Practice Session'}';
 
     // Create temporary message for immediate UI update
     final tempMessage = ClubMessage(
@@ -497,7 +520,8 @@ class _MessageInputState extends State<MessageInput> {
   }
 
   void _sendExistingMatchMessage(MatchListItem match) async {
-    final matchBody = '📅 Match announcement: ${match.team?.name ?? match.club.name} vs ${match.opponentTeam?.name ?? match.opponent ?? "TBD"}';
+    final matchBody =
+        '📅 Match announcement: ${match.team?.name ?? match.club.name} vs ${match.opponentTeam?.name ?? match.opponent ?? "TBD"}';
 
     // Create temporary message for immediate UI update
     final tempMessage = ClubMessage(
@@ -527,125 +551,19 @@ class _MessageInputState extends State<MessageInput> {
     // No manual API call needed - this prevents the duplicate sending issue
   }
 
-  void _showUploadOptions() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Theme.of(context).dialogBackgroundColor,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.6,
-        minChildSize: 0.4,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (context, scrollController) => Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).dialogBackgroundColor,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-          ),
-          child: Column(
-            children: [
-              // Handle bar
-              Container(
-                width: 36,
-                height: 4,
-                margin: EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.grey[400],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              // Scrollable content
-              Expanded(
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  padding: EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      // First row - Photos, Camera, Document
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildGridOption(
-                            icon: Icons.photo_library,
-                            iconColor: Color(0xFF2196F3),
-                            title: 'Photos',
-                            onTap: () {
-                              Navigator.pop(context);
-                              _pickImages();
-                            },
-                          ),
-                          _buildGridOption(
-                            icon: Icons.camera_alt,
-                            iconColor: Color(0xFF4CAF50),
-                            title: 'Camera',
-                            onTap: () {
-                              Navigator.pop(context);
-                              _handleCameraCapture();
-                            },
-                          ),
-                          _buildGridOption(
-                            icon: Icons.description,
-                            iconColor: Color(0xFF2196F3),
-                            title: 'Document',
-                            onTap: () {
-                              Navigator.pop(context);
-                              _pickDocuments();
-                            },
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 30),
-                      // Second row - Audio and Admin options (if admin)
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildGridOption(
-                            icon: Icons.audiotrack,
-                            iconColor: Color(0xFFFF9800),
-                            title: 'Audio',
-                            onTap: () {
-                              Navigator.pop(context);
-                              _pickAudioFiles();
-                            },
-                          ),
-                          _buildGridOption(
-                            icon: Icons.sports_cricket,
-                            iconColor: Color(0xFF4CAF50),
-                            title: 'Match',
-                            onTap: () {
-                              Navigator.pop(context);
-                              _openMatchPicker();
-                            },
-                          ),
-                          _buildGridOption(
-                            icon: Icons.fitness_center,
-                            iconColor: Color(0xFF00BCD4),
-                            title: 'Practice',
-                            onTap: () {
-                              Navigator.pop(context);
-                              _openPracticePicker();
-                            },
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 50),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ).then((_) {
-      // Unfocus the text field when the modal is dismissed
-      // This prevents the keyboard from opening when user dismisses modal without selecting anything
-      widget.textFieldFocusNode.unfocus();
+  void _showKeyboard() {
+    setState(() {
+      _isAttachmentMenuOpen = false;
     });
+    widget.textFieldFocusNode.requestFocus(); // Show keyboard instantly
   }
 
+  void _showUploadOptions() {
+    setState(() {
+      _isAttachmentMenuOpen = true;
+    });
+    widget.textFieldFocusNode.unfocus(); // Hide keyboard instantly
+  }
 
   Widget _buildGridOption({
     required IconData icon,
@@ -662,32 +580,33 @@ class _MessageInputState extends State<MessageInput> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 60,
-              height: 60,
+              width: 54,
+              height: 54,
               decoration: BoxDecoration(
                 color: Theme.of(context).brightness == Brightness.dark
                     ? Colors.grey[800]
                     : Colors.grey[100],
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 30, color: iconColor),
+              child: Icon(icon, size: 26, color: iconColor),
             ),
-            SizedBox(height: 8),
+            SizedBox(height: 6),
             Text(
               title,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w500,
                 color: Theme.of(context).textTheme.bodyMedium?.color,
               ),
               textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
       ),
     );
   }
-
 
   void _showError(String message) {
     if (mounted) {
@@ -919,7 +838,9 @@ class _MessageInputState extends State<MessageInput> {
           return;
         } catch (e2) {
           // Both schemes failed, show user-friendly error
-          _showError('Please install a UPI payment app to complete the payment.');
+          _showError(
+            'Please install a UPI payment app to complete the payment.',
+          );
         }
       }
     } catch (e) {
@@ -927,127 +848,325 @@ class _MessageInputState extends State<MessageInput> {
     }
   }
 
+  Widget _buildAttachmentMenu() {
+    final mediaQuery = MediaQuery.of(context);
+    final screenSize = mediaQuery.size;
+    final isLandscape = mediaQuery.orientation == Orientation.landscape;
+
+    // Calculate appropriate keyboard height based on device and orientation
+    double getKeyboardHeight() {
+      // If keyboard is visible, use that height, otherwise estimate
+      if (mediaQuery.viewInsets.bottom > 0) {
+        return mediaQuery.viewInsets.bottom;
+      }
+
+      // Otherwise, estimate based on device characteristics
+      if (isLandscape) {
+        // Landscape keyboard heights
+        if (screenSize.width > 800) {
+          return 220.0; // iPad landscape
+        } else {
+          return 180.0; // iPhone landscape
+        }
+      } else {
+        // Portrait keyboard heights
+        if (screenSize.width > 400) {
+          return 320.0; // iPad portrait
+        } else if (screenSize.height > 800) {
+          return 300.0; // iPhone Plus/Pro Max
+        } else {
+          return 280.0; // Standard iPhone
+        }
+      }
+    }
+
+    return Container(
+      height: mediaQuery.viewInsets.bottom > 0 || _isAttachmentMenuOpen
+          ? getKeyboardHeight()
+          : 0.0, // Reserve keyboard height space when keyboard is open OR attachment menu is open
+      child: _isAttachmentMenuOpen ? Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: 2,
+                vertical: 2,
+              ), // Reduced padding
+              child: Column(
+                mainAxisAlignment:
+                    MainAxisAlignment.spaceEvenly, // Distribute space evenly
+                children: [
+                  // First row - Photos, Camera, Location, Contact
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildGridOption(
+                        icon: Icons.photo_library,
+                        iconColor: Color(0xFF2196F3),
+                        title: 'Photos',
+                        onTap: () {
+                          setState(() {
+                            _isAttachmentMenuOpen = false;
+                          });
+                          _pickImages();
+                        },
+                      ),
+                      _buildGridOption(
+                        icon: Icons.camera_alt,
+                        iconColor: Color(0xFF4CAF50),
+                        title: 'Camera',
+                        onTap: () {
+                          setState(() {
+                            _isAttachmentMenuOpen = false;
+                          });
+                          _handleCameraCapture();
+                        },
+                      ),
+                      _buildGridOption(
+                        icon: Icons.location_on,
+                        iconColor: Color(0xFF4CAF50),
+                        title: 'Location',
+                        onTap: () {
+                          setState(() {
+                            _isAttachmentMenuOpen = false;
+                          });
+                          // TODO: Implement location sharing
+                        },
+                      ),
+                      _buildGridOption(
+                        icon: Icons.person,
+                        iconColor: Color(0xFF9E9E9E),
+                        title: 'Contact',
+                        onTap: () {
+                          setState(() {
+                            _isAttachmentMenuOpen = false;
+                          });
+                          // TODO: Implement contact sharing
+                        },
+                      ),
+                    ],
+                  ),
+
+                  // Second row - Document, Poll, Event, Payment
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildGridOption(
+                        icon: Icons.description,
+                        iconColor: Color(0xFF2196F3),
+                        title: 'Document',
+                        onTap: () {
+                          setState(() {
+                            _isAttachmentMenuOpen = false;
+                          });
+                          _pickDocuments();
+                        },
+                      ),
+                      _buildGridOption(
+                        icon: Icons.poll,
+                        iconColor: Color(0xFFFFC107),
+                        title: 'Poll',
+                        onTap: () {
+                          setState(() {
+                            _isAttachmentMenuOpen = false;
+                          });
+                          // TODO: Implement poll creation
+                        },
+                      ),
+                      _buildGridOption(
+                        icon: Icons.event,
+                        iconColor: Color(0xFFE91E63),
+                        title: 'Event',
+                        onTap: () {
+                          setState(() {
+                            _isAttachmentMenuOpen = false;
+                          });
+                          _openMatchPicker(); // For now, use match picker
+                        },
+                      ),
+                      _buildGridOption(
+                        icon: Icons.currency_rupee,
+                        iconColor: Color(0xFF4CAF50),
+                        title: 'Payment',
+                        onTap: () {
+                          setState(() {
+                            _isAttachmentMenuOpen = false;
+                          });
+                          if (_availableUpiApps.isNotEmpty) {
+                            _openUPIPayment();
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+
+                  // Third row - Audio only (removed AI Images as requested)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildGridOption(
+                        icon: Icons.audiotrack,
+                        iconColor: Color(0xFFFF9800),
+                        title: 'Audio',
+                        onTap: () {
+                          setState(() {
+                            _isAttachmentMenuOpen = false;
+                          });
+                          _pickAudioFiles();
+                        },
+                      ),
+                      // Empty spaces to maintain layout
+                      Container(width: 70),
+                      Container(width: 70),
+                      Container(width: 70),
+                    ],
+                  ),
+                ],
+              ),
+            ) : SizedBox.shrink(), // Empty when closed
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       bottom: true,
       top: false,
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Check if audio recording is active - if so, show full-width recording interface
-          if (widget.audioRecordingKey.currentState?.isRecording == true ||
-              widget.audioRecordingKey.currentState?.hasRecording == true) ...[
-            // Full-width audio recording interface
-            AudioRecordingWidget(
-              key: widget.audioRecordingKey,
-              onAudioRecorded: _sendAudioMessage,
-              isComposing: _isComposing,
-              onRecordingStateChanged: () => setState(() {}),
-            ),
-          ] else ...[
-            // Normal input interface
-            // Attachment button (+)
-            IconButton(
-              onPressed: _showUploadOptions,
-              icon: Icon(
-                Icons.add,
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.grey[400]
-                    : Colors.grey[600],
-              ),
-            ),
-
-            // Expanded message input area
-            Expanded(
-              child: TextField(
-                controller: widget.messageController,
-                focusNode: widget.textFieldFocusNode,
-                autofocus: false,
-                decoration: InputDecoration(
-                  hintText: 'Message',
-                  hintStyle: TextStyle(
+          // Input field row
+          Row(
+            children: [
+              // Check if audio recording is active - if so, show full-width recording interface
+              if (widget.audioRecordingKey.currentState?.isRecording == true ||
+                  widget.audioRecordingKey.currentState?.hasRecording ==
+                      true) ...[
+                // Full-width audio recording interface
+                AudioRecordingWidget(
+                  key: widget.audioRecordingKey,
+                  onAudioRecorded: _sendAudioMessage,
+                  isComposing: _isComposing,
+                  onRecordingStateChanged: () => setState(() {}),
+                ),
+              ] else ...[
+                // Normal input interface
+                // Attachment button (+) or keyboard button
+                IconButton(
+                  onPressed: _isAttachmentMenuOpen
+                      ? _showKeyboard
+                      : _showUploadOptions,
+                  icon: Icon(
+                    _isAttachmentMenuOpen ? Icons.keyboard : Icons.add,
                     color: Theme.of(context).brightness == Brightness.dark
                         ? Colors.grey[400]
                         : Colors.grey[600],
-                    fontSize: 14,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(24)),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(24)),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(24)),
-                    borderSide: BorderSide.none,
-                  ),
-                  filled: true,
-                  fillColor: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.grey[800]
-                      : Colors.grey[100],
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
                   ),
                 ),
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white
-                      : Colors.black,
-                ),
-                maxLines: 5,
-                minLines: 1,
-                textCapitalization: TextCapitalization.sentences,
-                keyboardType: TextInputType.multiline,
-                textInputAction: TextInputAction.newline,
-                keyboardAppearance: Theme.of(context).brightness == Brightness.dark
-                    ? Brightness.dark
-                    : Brightness.light,
-                onChanged: _handleTextChanged,
-              ),
-            ),
 
-            // UPI Payment button - hidden when composing or no UPI apps available
-            if (!_isComposing && _availableUpiApps.isNotEmpty)
-              IconButton(
-                onPressed: () => _openUPIPayment(),
-                icon: Icon(
-                  Icons.currency_rupee,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.grey[400]
-                      : Colors.grey[600],
+                // Expanded message input area
+                Expanded(
+                  child: TextField(
+                    controller: widget.messageController,
+                    focusNode: widget.textFieldFocusNode,
+                    autofocus: false,
+                    onTap: () {
+                      // Ensure attachment menu closes when text field is tapped
+                      if (_isAttachmentMenuOpen) {
+                        print('🎯 TextField tapped, closing attachment menu');
+                        setState(() {
+                          _isAttachmentMenuOpen = false;
+                        });
+                      }
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Message',
+                      hintStyle: TextStyle(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.grey[400]
+                            : Colors.grey[600],
+                        fontSize: 14,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(24)),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(24)),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(24)),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey[800]
+                          : Colors.grey[100],
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                    ),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white
+                          : Colors.black,
+                    ),
+                    maxLines: 5,
+                    minLines: 1,
+                    textCapitalization: TextCapitalization.sentences,
+                    keyboardType: TextInputType.multiline,
+                    textInputAction: TextInputAction.newline,
+                    keyboardAppearance:
+                        Theme.of(context).brightness == Brightness.dark
+                        ? Brightness.dark
+                        : Brightness.light,
+                    onChanged: _handleTextChanged,
+                  ),
                 ),
-              ),
 
-            // Camera button - hidden when composing
-            if (!_isComposing)
-              IconButton(
-                onPressed: _handleCameraCapture,
-                icon: Icon(
-                  Icons.camera_alt,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.grey[400]
-                      : Colors.grey[600],
-                ),
-              ),
+                // UPI Payment button - hidden when composing or no UPI apps available
+                if (!_isComposing && _availableUpiApps.isNotEmpty)
+                  IconButton(
+                    onPressed: () => _openUPIPayment(),
+                    icon: Icon(
+                      Icons.currency_rupee,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey[400]
+                          : Colors.grey[600],
+                    ),
+                  ),
 
-            // Send button or audio recording widget
-            if (_isComposing)
-              IconButton(
-                onPressed: _sendTextMessage,
-                icon: const Icon(Icons.send, color: Color(0xFF003f9b)),
-              )
-            else
-              AudioRecordingWidget(
-                key: widget.audioRecordingKey,
-                onAudioRecorded: _sendAudioMessage,
-                isComposing: _isComposing,
-                onRecordingStateChanged: () => setState(() {}),
-              ),
-          ],
+                // Camera button - hidden when composing
+                if (!_isComposing)
+                  IconButton(
+                    onPressed: _handleCameraCapture,
+                    icon: Icon(
+                      Icons.camera_alt,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey[400]
+                          : Colors.grey[600],
+                    ),
+                  ),
+
+                // Send button or audio recording widget
+                if (_isComposing)
+                  IconButton(
+                    onPressed: _sendTextMessage,
+                    icon: const Icon(Icons.send, color: Color(0xFF003f9b)),
+                  )
+                else
+                  AudioRecordingWidget(
+                    key: widget.audioRecordingKey,
+                    onAudioRecorded: _sendAudioMessage,
+                    isComposing: _isComposing,
+                    onRecordingStateChanged: () => setState(() {}),
+                  ),
+              ],
+            ],
+          ),
+
+          // Attachment menu (always present but height animated)
+          _buildAttachmentMenu(),
         ],
       ),
     );

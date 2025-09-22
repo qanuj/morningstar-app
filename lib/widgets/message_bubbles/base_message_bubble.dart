@@ -155,7 +155,7 @@ class BaseMessageBubble extends StatelessWidget {
             ),
           ),
           // Reactions display (below the bubble with overlap using transform)
-          if (message.reactions.isNotEmpty)
+          if (message.reactions.isNotEmpty && !message.deleted)
             Transform.translate(
               offset: Offset(0, -14), // Overlap with bubble
               child: Container(
@@ -441,6 +441,9 @@ class BaseMessageBubble extends StatelessWidget {
 
   void _showReactionDetails(BuildContext context) {
     if (message.reactions.isEmpty) return;
+
+    // Unfocus any text fields to prevent keyboard from appearing
+    FocusScope.of(context).unfocus();
 
     // Group reactions by emoji and collect user information with emoji data
     Map<String, List<Map<String, String>>> groupedReactions = {};

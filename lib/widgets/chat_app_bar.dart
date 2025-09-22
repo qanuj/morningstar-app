@@ -17,7 +17,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback onExitSelectionMode;
   final VoidCallback onDeleteSelectedMessages;
   final VoidCallback onRefreshMessages;
-  final VoidCallback onShowMoreOptions;
+  final Function(String) onMoreOptionSelected;
 
   const ChatAppBar({
     super.key,
@@ -32,7 +32,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.onExitSelectionMode,
     required this.onDeleteSelectedMessages,
     required this.onRefreshMessages,
-    required this.onShowMoreOptions,
+    required this.onMoreOptionSelected,
   });
 
   @override
@@ -225,10 +225,112 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
           );
         },
       ),
-      IconButton(
-        icon: const Icon(Icons.more_vert, color: Colors.white),
-        onPressed: onShowMoreOptions,
-        tooltip: 'More options',
+      Builder(
+        builder: (context) => PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert, color: Colors.white),
+          onSelected: onMoreOptionSelected,
+          tooltip: 'More options',
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Color(0xFF2A2A2A)
+              : Colors.white,
+          elevation: 8,
+          itemBuilder: (BuildContext menuContext) {
+          // Build menu items based on role
+          final List<PopupMenuEntry<String>> items = [];
+
+          // Add Members - Only for admin/owner
+          if (userRole?.toLowerCase() == 'admin' || userRole?.toLowerCase() == 'owner') {
+            items.add(
+              PopupMenuItem<String>(
+                value: 'add_members',
+                child: Row(
+                  children: [
+                    Icon(Icons.person_add, color: Color(0xFF003f9b)),
+                    SizedBox(width: 12),
+                    Text('Add Members'),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          // Manage Club
+          items.add(
+            PopupMenuItem<String>(
+              value: 'manage_club',
+              child: Row(
+                children: [
+                  Icon(Icons.settings, color: Color(0xFF003f9b)),
+                  SizedBox(width: 12),
+                  Text('Manage Club'),
+                ],
+              ),
+            ),
+          );
+
+          // Matches
+          items.add(
+            PopupMenuItem<String>(
+              value: 'matches',
+              child: Row(
+                children: [
+                  Icon(Icons.sports_cricket, color: Color(0xFF003f9b)),
+                  SizedBox(width: 12),
+                  Text('Matches'),
+                ],
+              ),
+            ),
+          );
+
+          // Transactions
+          items.add(
+            PopupMenuItem<String>(
+              value: 'transactions',
+              child: Row(
+                children: [
+                  Icon(Icons.account_balance_wallet, color: Color(0xFF003f9b)),
+                  SizedBox(width: 12),
+                  Text('Transactions'),
+                ],
+              ),
+            ),
+          );
+
+          // Teams
+          items.add(
+            PopupMenuItem<String>(
+              value: 'teams',
+              child: Row(
+                children: [
+                  Icon(Icons.groups, color: Color(0xFF003f9b)),
+                  SizedBox(width: 12),
+                  Text('Teams'),
+                ],
+              ),
+            ),
+          );
+
+          // Divider before clear messages
+          items.add(PopupMenuDivider());
+
+          // Clear Messages
+          items.add(
+            PopupMenuItem<String>(
+              value: 'clear_messages',
+              child: Row(
+                children: [
+                  Icon(Icons.clear_all, color: Colors.red),
+                  SizedBox(width: 12),
+                  Text('Clear Messages', style: TextStyle(color: Colors.red)),
+                ],
+              ),
+            ),
+          );
+
+          return items;
+        },
+        ),
       ),
     ];
   }

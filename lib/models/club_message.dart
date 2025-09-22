@@ -55,7 +55,8 @@ class ClubMessage {
   // Practice-specific fields
   final String? practiceId; // ID of the associated practice session
   // Unified metadata field for all message types
-  final Map<String, dynamic>? meta; // Additional metadata (match details, practice details, location details, poll details, etc.)
+  final Map<String, dynamic>?
+  meta; // Additional metadata (match details, practice details, location details, poll details, etc.)
   // Poll-specific fields
   final String? pollId; // ID of the associated poll
   // Local-only fields for read/delivered tracking
@@ -307,24 +308,29 @@ class ClubMessage {
 
       // Extract type-specific data from content for new message types
       if (content is Map<String, dynamic>) {
-        print('📝 ClubMessage.fromJson: messageType=$messageType, content=$content');
         if (messageType == 'match') {
           // Extract match-specific fields from content
           matchId = content['matchId'] as String?;
-          meta = _safeMapFromJson(content['meta']) ?? _safeMapFromJson(content['matchDetails']);
-          print('🏏 ClubMessage.fromJson: Match content - matchId: $matchId, meta: $meta');
+          meta =
+              _safeMapFromJson(content['meta']) ??
+              _safeMapFromJson(content['matchDetails']);
         } else if (messageType == 'practice') {
           // Extract practice-specific fields from content
           practiceId = content['practiceId'] as String?;
-          meta = _safeMapFromJson(content['meta']) ?? _safeMapFromJson(content['practiceDetails']);
-          print('⚽ ClubMessage.fromJson: Practice content - practiceId: $practiceId, meta: $meta');
+          meta =
+              _safeMapFromJson(content['meta']) ??
+              _safeMapFromJson(content['practiceDetails']);
         } else if (messageType == 'location') {
           // Extract location-specific fields from content
-          meta = _safeMapFromJson(content['meta']) ?? _safeMapFromJson(content['locationDetails']);
+          meta =
+              _safeMapFromJson(content['meta']) ??
+              _safeMapFromJson(content['locationDetails']);
         } else if (messageType == 'poll') {
           // Extract poll-specific fields from content
           pollId = content['pollId'] as String?;
-          meta = _safeMapFromJson(content['meta']) ?? _safeMapFromJson(content['pollDetails']);
+          meta =
+              _safeMapFromJson(content['meta']) ??
+              _safeMapFromJson(content['pollDetails']);
         }
       }
 
@@ -577,11 +583,13 @@ class ClubMessage {
       matchId: matchId ?? (json['matchId'] as String?),
       practiceId: practiceId ?? (json['practiceId'] as String?),
       pollId: pollId ?? (json['pollId'] as String?),
-      meta: meta ?? _safeMapFromJson(json['meta']) ??
-           _safeMapFromJson(json['matchDetails']) ??
-           _safeMapFromJson(json['practiceDetails']) ??
-           _safeMapFromJson(json['locationDetails']) ??
-           _safeMapFromJson(json['pollDetails']),
+      meta:
+          meta ??
+          _safeMapFromJson(json['meta']) ??
+          _safeMapFromJson(json['matchDetails']) ??
+          _safeMapFromJson(json['practiceDetails']) ??
+          _safeMapFromJson(json['locationDetails']) ??
+          _safeMapFromJson(json['pollDetails']),
       pin: PinInfo(
         isPinned: isPinned,
         pinStart: pinStart,

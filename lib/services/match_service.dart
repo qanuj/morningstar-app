@@ -60,21 +60,10 @@ class MatchService {
 
       final endpoint = '/matches?${params.join('&')}';
 
-      print('🔍 MatchService Debug: Fetching user matches from: $endpoint');
-
       final response = await ApiService.get(endpoint);
       final matchesData = response['matches'] ?? response['data'] ?? response;
 
       if (matchesData is List) {
-        print(
-          '🔍 MatchService Debug: Number of matches received = ${matchesData.length}',
-        );
-        if (matchesData.isNotEmpty) {
-          print(
-            '🔍 MatchService Debug: First match structure = ${matchesData[0]}',
-          );
-        }
-
         try {
           return matchesData
               .map((match) => _transformUserMatch(match))
@@ -118,14 +107,6 @@ class MatchService {
           params.add('type=$type');
         }
 
-        print(
-          '🔍 MatchService Debug: Fetching club matches for clubId = $clubId',
-        );
-        print('🔍 MatchService Debug: upcomingOnly parameter = $upcomingOnly');
-        print(
-          '🔍 MatchService Debug: Final endpoint = /matches?${params.join('&')}',
-        );
-
         endpoint = '/matches?${params.join('&')}';
       } else {
         // For user matches, use the RSVP endpoint
@@ -143,21 +124,9 @@ class MatchService {
       if (clubId != null) {
         // Club-specific matches endpoint returns { matches: [...] }
         matchesData = response['matches'] ?? [];
-        print(
-          '🔍 MatchService Debug: Club matches response structure = ${response.keys.toList()}',
-        );
-        print(
-          '🔍 MatchService Debug: Number of club matches received = ${matchesData.length}',
-        );
       } else {
         // User RSVP endpoint returns { data: [...] } or direct array
         matchesData = response['data'] ?? response ?? [];
-      }
-
-      if (matchesData.isNotEmpty && clubId != null) {
-        print(
-          '🔍 MatchService Debug: First club match structure = ${matchesData[0]}',
-        );
       }
 
       try {
@@ -175,15 +144,8 @@ class MatchService {
         }
       } catch (e) {
         print('❌ MatchService Error parsing matches: $e');
-        if (matchesData.isNotEmpty) {
-          print(
-            '🔍 MatchService Debug: Sample match data causing error: ${matchesData[0]}',
-          );
-        }
         return [];
       }
-
-      return [];
     } catch (e) {
       print('❌ MatchService Error fetching matches: $e');
       throw Exception('Failed to fetch matches: $e');
@@ -274,9 +236,6 @@ class MatchService {
         if (tournamentId != null) 'tournamentId': tournamentId,
         if (bookingId != null) 'bookingId': bookingId,
       };
-
-      // Debug logging for match creation
-      print('🔍 MatchService Debug: Request data = $data');
 
       final response = await ApiService.post('/matches', data);
       return response;
