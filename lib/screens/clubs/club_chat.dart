@@ -13,6 +13,7 @@ import '../../models/message_reply.dart';
 import '../../models/message_reaction.dart';
 import '../../services/chat_api_service.dart';
 import '../../services/message_storage_service.dart';
+import '../../services/api_service.dart';
 import '../../services/notification_service.dart';
 import '../../widgets/club_info_dialog.dart';
 import '../../widgets/audio_recording_widget.dart';
@@ -1302,26 +1303,15 @@ class ClubChatScreenState extends State<ClubChatScreen>
   }
 
   void _processSelectedContacts(List<Contact> contacts) {
-    // TODO: Implement contact processing logic
-    // This would typically send invitations to the selected contacts
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Selected ${contacts.length} contact(s) for invitation'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-      ),
-    );
+    // This method will be called when members are successfully added
+    // The actual member addition logic is handled in AddMembersScreen
+    // System message will appear in chat automatically
   }
 
   void _processSelectedSyncedContacts(List<SyncedContact> syncedContacts) {
-    // TODO: Implement synced contact processing logic
-    // This would typically add the selected Duggy users to the club
-    final duggyUsers = syncedContacts.where((c) => c.isDuggyUser).length;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Selected $duggyUsers Duggy user(s) to add to club'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-      ),
-    );
+    // This method will be called when synced contacts are successfully added
+    // The actual member addition logic is handled in AddMembersScreen
+    // System message will appear in chat automatically
   }
 
   /// Find existing message index with smart matching for temp messages

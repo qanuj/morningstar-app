@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/club_message.dart';
+import '../../utils/text_utils.dart';
 import 'base_message_bubble.dart';
 
 /// Emoji message bubble - displays large emojis without background
@@ -43,7 +44,7 @@ class EmojiMessageBubble extends StatelessWidget {
         ],
 
         // Large emoji display
-        Text(message.content, style: TextStyle(fontSize: 48, height: 1.0)),
+        Text(TextUtils.safeEmoji(message.content), style: TextStyle(fontSize: 48, height: 1.0)),
       ],
     );
   }
@@ -55,7 +56,7 @@ class EmojiMessageBubble extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            message.senderName,
+            TextUtils.safeText(message.senderName),
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.bold,

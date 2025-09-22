@@ -12,6 +12,7 @@ import 'emoji_message_bubble.dart';
 import 'cached_match_message_bubble.dart';
 import 'location_message_bubble.dart';
 import 'poll_message_bubble.dart';
+import 'system_message_bubble.dart';
 import 'base_message_bubble.dart';
 
 /// Factory widget that creates the appropriate message bubble based on content type
@@ -169,6 +170,11 @@ class MessageBubbleFactory extends StatelessWidget {
         onViewPoll: () {
           // Poll details viewing is handled internally by the PollMessageBubble
         },
+      );
+    } else if (message.messageType == 'system') {
+      // SYSTEM MESSAGE: Member additions, date groups, and other system events
+      return SystemMessageBubble(
+        message: message,
       );
     } else {
       // TEXT MESSAGE: Images/videos first, then body below

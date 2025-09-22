@@ -10,6 +10,22 @@ import '../../services/api_service.dart';
 import '../../widgets/svg_avatar.dart';
 import '../club_invite_qr_screen.dart';
 
+// Helper function to sanitize text and remove invalid UTF-16 characters
+String sanitizeText(String text) {
+  if (text.isEmpty) return text;
+
+  // Remove invalid Unicode characters and control characters
+  final sanitized = text
+      .replaceAll(
+        RegExp(r'[\u0000-\u001F\u007F-\u009F]'),
+        '',
+      ) // Control characters
+      .replaceAll(RegExp(r'[\uFFF0-\uFFFF]'), '') // Invalid Unicode
+      .replaceAll(RegExp(r'[\uD800-\uDFFF]'), ''); // Unpaired surrogates
+
+  return sanitized.trim();
+}
+
 // Lightweight contact model for caching
 class CachedContact {
   final String id;
@@ -36,8 +52,10 @@ class CachedContact {
 
   factory CachedContact.fromContact(Contact contact) => CachedContact(
     id: contact.id,
-    displayName: contact.displayName,
-    primaryPhone: contact.phones.isNotEmpty ? contact.phones.first.number : '',
+    displayName: sanitizeText(contact.displayName),
+    primaryPhone: contact.phones.isNotEmpty
+        ? sanitizeText(contact.phones.first.number)
+        : '',
   );
 }
 
@@ -65,8 +83,8 @@ class SyncedContact {
 
   factory SyncedContact.fromJson(Map<String, dynamic> json) => SyncedContact(
     userId: json['id'], // API returns 'id' field, not 'userId'
-    name: json['name'],
-    phoneNumber: json['phoneNumber'],
+    name: sanitizeText(json['name'] ?? ''),
+    phoneNumber: sanitizeText(json['phoneNumber'] ?? ''),
     memberId: json['memberId'],
     profilePicture: json['profilePicture'],
     isClubMember: json['isClubMember'] ?? false,
@@ -99,11 +117,11 @@ class AddMembersScreen extends StatefulWidget {
   final Function(List<SyncedContact>)? onSyncedContactsSelected;
 
   const AddMembersScreen({
-    Key? key,
+    super.key,
     required this.club,
     this.onContactsSelected,
     this.onSyncedContactsSelected,
-  }) : super(key: key);
+  });
 
   @override
   AddMembersScreenState createState() => AddMembersScreenState();
@@ -136,7 +154,8 @@ class AddMembersScreenState extends State<AddMembersScreen> {
   static const String _cacheKey = 'cached_contacts_v1';
   static const String _cacheTimestampKey = 'contacts_cache_timestamp';
   static const String _syncedCacheKey = 'synced_contacts_v1';
-  static const String _syncedCacheTimestampKey = 'synced_contacts_cache_timestamp';
+  static const String _syncedCacheTimestampKey =
+      'synced_contacts_cache_timestamp';
   static const int _cacheValidityHours = 24; // Cache valid for 24 hours
 
   @override
@@ -146,7 +165,6 @@ class AddMembersScreenState extends State<AddMembersScreen> {
     // Fallback timeout to ensure loading doesn't hang
     Timer(Duration(seconds: 10), () {
       if (_isLoadingFromCache && mounted) {
-        print('📱 Loading timeout, forcing fresh load...');
         setState(() {
           _isLoadingFromCache = false;
         });
@@ -164,23 +182,19 @@ class AddMembersScreenState extends State<AddMembersScreen> {
 
   Future<void> _loadContactsOptimized() async {
     try {
-      print('⚡ Loading contacts with caching optimization...');
-
       // Step 1: Try to load contacts from cache first
       final cachedContacts = await _loadContactsFromCache();
       if (cachedContacts != null && cachedContacts.isNotEmpty) {
-        print('📱 Loaded ${cachedContacts.length} contacts from cache');
         _displayCachedContacts(cachedContacts);
 
         // Step 2: Try to load synced contacts from cache
         final cachedSyncedContacts = await _loadSyncedContactsFromCache();
         if (cachedSyncedContacts != null && cachedSyncedContacts.isNotEmpty) {
-          print('🔄 Loaded ${cachedSyncedContacts.length} synced contacts from cache');
           setState(() {
             _syncedContacts = cachedSyncedContacts;
             _syncedContactsMap = {
               for (final contact in cachedSyncedContacts)
-                contact.phoneNumber.replaceAll(RegExp(r'[^\d]'), ''): contact
+                contact.phoneNumber.replaceAll(RegExp(r'[^\d]'), ''): contact,
             };
           });
         } else {
@@ -192,8 +206,6 @@ class AddMembersScreenState extends State<AddMembersScreen> {
         _loadFreshContactsInBackground();
         return;
       }
-
-      print('📱 No contacts cache found, loading fresh contacts...');
       // No cache - load directly
       await _loadFreshContacts();
     } catch (e) {
@@ -215,63 +227,46 @@ class AddMembersScreenState extends State<AddMembersScreen> {
 
   Future<List<CachedContact>?> _loadContactsFromCache() async {
     try {
-      print('📱 Attempting to load from cache...');
       final prefs = await SharedPreferences.getInstance();
       final cacheTimestamp = prefs.getInt(_cacheTimestampKey) ?? 0;
       final now = DateTime.now().millisecondsSinceEpoch;
-
-      print('📱 Cache timestamp: $cacheTimestamp, Current: $now');
-
       // Check if cache is still valid
       if (now - cacheTimestamp < _cacheValidityHours * 60 * 60 * 1000) {
         final cachedData = prefs.getString(_cacheKey);
         if (cachedData != null && cachedData.isNotEmpty) {
-          print('📱 Found cached data, parsing...');
           final List<dynamic> jsonList = json.decode(cachedData);
-          final contacts = jsonList.map((json) => CachedContact.fromJson(json)).toList();
-          print('📱 Successfully parsed ${contacts.length} cached contacts');
+          final contacts = jsonList
+              .map((json) => CachedContact.fromJson(json))
+              .toList();
           return contacts;
-        } else {
-          print('📱 Cache data is null or empty');
         }
-      } else {
-        print('📱 Cache is expired');
       }
     } catch (e) {
       print('📱 Cache load error: $e');
     }
-    print('📱 No valid cache found');
     return null;
   }
 
   Future<List<SyncedContact>?> _loadSyncedContactsFromCache() async {
     try {
-      print('🔄 Attempting to load synced contacts from cache...');
       final prefs = await SharedPreferences.getInstance();
       final cacheTimestamp = prefs.getInt(_syncedCacheTimestampKey) ?? 0;
       final now = DateTime.now().millisecondsSinceEpoch;
-
-      print('🔄 Synced cache timestamp: $cacheTimestamp, Current: $now');
 
       // Check if cache is still valid
       if (now - cacheTimestamp < _cacheValidityHours * 60 * 60 * 1000) {
         final cachedData = prefs.getString(_syncedCacheKey);
         if (cachedData != null && cachedData.isNotEmpty) {
-          print('🔄 Found synced cached data, parsing...');
           final List<dynamic> jsonList = json.decode(cachedData);
-          final syncedContacts = jsonList.map((json) => SyncedContact.fromJson(json)).toList();
-          print('🔄 Successfully parsed ${syncedContacts.length} cached synced contacts');
+          final syncedContacts = jsonList
+              .map((json) => SyncedContact.fromJson(json))
+              .toList();
           return syncedContacts;
-        } else {
-          print('🔄 Synced cache data is null or empty');
         }
-      } else {
-        print('🔄 Synced cache is expired');
       }
     } catch (e) {
       print('🔄 Synced cache load error: $e');
     }
-    print('🔄 No valid synced cache found');
     return null;
   }
 
@@ -295,15 +290,16 @@ class AddMembersScreenState extends State<AddMembersScreen> {
 
   Future<void> _loadFreshContacts({bool updateUI = true}) async {
     print('📱 Loading fresh contacts...');
-    List<Contact> contacts = await FlutterContacts.getContacts(
-      withProperties: true,
-    ).timeout(
-      Duration(seconds: 30),
-      onTimeout: () {
-        print('📱 Contact loading timed out');
-        throw TimeoutException('Contact loading timed out', Duration(seconds: 30));
-      },
-    );
+    List<Contact> contacts =
+        await FlutterContacts.getContacts(withProperties: true).timeout(
+          Duration(seconds: 30),
+          onTimeout: () {
+            throw TimeoutException(
+              'Contact loading timed out',
+              Duration(seconds: 30),
+            );
+          },
+        );
 
     // Filter contacts with phone numbers and display names
     contacts = contacts
@@ -341,15 +337,12 @@ class AddMembersScreenState extends State<AddMembersScreen> {
         // Contacts loaded from fresh source
         _isLoadingFromCache = false;
       });
-
-      print('📱 Loaded ${contacts.length} fresh contacts');
     } else {
       // Update contacts map for selection without UI update
       _contactsMap = contactsMap;
       setState(() {
         // Contacts loaded from fresh source
       });
-      print('📱 Updated ${contacts.length} contacts in background');
     }
 
     // After loading contacts, sync them to find Duggy users
@@ -365,22 +358,24 @@ class AddMembersScreenState extends State<AddMembersScreen> {
         _cacheTimestampKey,
         DateTime.now().millisecondsSinceEpoch,
       );
-      print('📱 Cached ${contacts.length} contacts');
     } catch (e) {
       print('📱 Cache save error: $e');
     }
   }
 
-  Future<void> _saveSyncedContactsToCache(List<SyncedContact> syncedContacts) async {
+  Future<void> _saveSyncedContactsToCache(
+    List<SyncedContact> syncedContacts,
+  ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jsonString = json.encode(syncedContacts.map((c) => c.toJson()).toList());
+      final jsonString = json.encode(
+        syncedContacts.map((c) => c.toJson()).toList(),
+      );
       await prefs.setString(_syncedCacheKey, jsonString);
       await prefs.setInt(
         _syncedCacheTimestampKey,
         DateTime.now().millisecondsSinceEpoch,
       );
-      print('🔄 Cached ${syncedContacts.length} synced contacts');
     } catch (e) {
       print('🔄 Synced cache save error: $e');
     }
@@ -413,15 +408,15 @@ class AddMembersScreenState extends State<AddMembersScreen> {
     });
 
     try {
-      print('🔄 Syncing ${_allCachedContacts.length} contacts with Duggy...');
-
       // Prepare contacts for API
       final contactsToSync = _allCachedContacts
           .where((contact) => contact.primaryPhone.isNotEmpty)
-          .map((contact) => {
-                'name': contact.displayName,
-                'phoneNumber': contact.primaryPhone,
-              })
+          .map(
+            (contact) => {
+              'name': contact.displayName,
+              'phoneNumber': contact.primaryPhone,
+            },
+          )
           .toList();
 
       if (contactsToSync.isEmpty) {
@@ -454,15 +449,17 @@ class AddMembersScreenState extends State<AddMembersScreen> {
       // Extract Duggy users from synced contacts
       final duggyUsers = syncedContacts
           .where((contact) => contact.isDuggyUser)
-          .map((contact) => User(
-                id: contact.userId!,
-                name: contact.name,
-                phoneNumber: contact.phoneNumber,
-                profilePicture: contact.profilePicture,
-                role: 'USER',
-                isProfileComplete: true,
-                createdAt: DateTime.now(),
-              ))
+          .map(
+            (contact) => User(
+              id: contact.userId!,
+              name: contact.name,
+              phoneNumber: contact.phoneNumber,
+              profilePicture: contact.profilePicture,
+              role: 'USER',
+              isProfileComplete: true,
+              createdAt: DateTime.now(),
+            ),
+          )
           .toList();
 
       setState(() {
@@ -474,8 +471,6 @@ class AddMembersScreenState extends State<AddMembersScreen> {
 
       // Cache the synced contacts for future use
       await _saveSyncedContactsToCache(syncedContacts);
-
-      print('🔄 Successfully synced ${syncedContacts.length} Duggy users');
     } catch (e) {
       print('❌ Contact sync error: $e');
       setState(() {
@@ -493,11 +488,7 @@ class AddMembersScreenState extends State<AddMembersScreen> {
     }
   }
 
-
   void _filterContacts(String query) {
-    print('🔍 Filtering cached contacts with query: "$query"');
-    print('📱 Total cached contacts: ${_allCachedContacts.length}');
-
     final trimmedQuery = query.trim();
 
     if (trimmedQuery.isEmpty) {
@@ -505,27 +496,31 @@ class AddMembersScreenState extends State<AddMembersScreen> {
         _searchQuery = '';
         _filteredCachedContacts = List.from(_allCachedContacts);
       });
-      print('📱 No query - showing all ${_allCachedContacts.length} contacts');
       return;
     }
 
     final lowercaseQuery = trimmedQuery.toLowerCase();
     final filteredList = _allCachedContacts.where((contact) {
       // Search in name (check if contact name contains the search query)
-      final nameMatch = contact.displayName.toLowerCase().contains(lowercaseQuery);
+      final nameMatch = contact.displayName.toLowerCase().contains(
+        lowercaseQuery,
+      );
 
       // Search in phone number (only if query contains digits)
       bool phoneMatch = false;
       if (RegExp(r'\d').hasMatch(trimmedQuery)) {
-        final cleanPhone = contact.primaryPhone.replaceAll(RegExp(r'[^\d]'), '');
+        final cleanPhone = contact.primaryPhone.replaceAll(
+          RegExp(r'[^\d]'),
+          '',
+        );
         final cleanQuery = trimmedQuery.replaceAll(RegExp(r'[^\d]'), '');
-        phoneMatch = cleanPhone.isNotEmpty && cleanQuery.isNotEmpty && cleanPhone.contains(cleanQuery);
+        phoneMatch =
+            cleanPhone.isNotEmpty &&
+            cleanQuery.isNotEmpty &&
+            cleanPhone.contains(cleanQuery);
       }
 
       final matches = nameMatch || phoneMatch;
-      if (matches) {
-        print('📱 Match: ${contact.displayName} - name:$nameMatch, phone:$phoneMatch');
-      }
       return matches;
     }).toList();
 
@@ -534,12 +529,9 @@ class AddMembersScreenState extends State<AddMembersScreen> {
       _filteredCachedContacts = filteredList;
     });
 
-    print('📱 Query "$trimmedQuery" - filtered to ${_filteredCachedContacts.length} contacts');
-
     // The synced contacts already contain all the information we need
     // No need for separate Duggy user search as contact-sync provides this
   }
-
 
   void _toggleContactSelection(String contactId) {
     setState(() {
@@ -552,14 +544,12 @@ class AddMembersScreenState extends State<AddMembersScreen> {
     HapticFeedback.lightImpact();
   }
 
-
   bool _isContactAlreadyMember(CachedContact contact) {
     if (contact.primaryPhone.isEmpty) return false;
     final cleanPhone = contact.primaryPhone.replaceAll(RegExp(r'[^\d]'), '');
     final syncedContact = _syncedContactsMap[cleanPhone];
     return syncedContact?.isClubMember ?? false;
   }
-
 
   List<Contact> _getSelectedContacts() {
     return _selectedContactIds
@@ -570,7 +560,13 @@ class AddMembersScreenState extends State<AddMembersScreen> {
 
   List<SyncedContact> _getSelectedSyncedContacts() {
     return _selectedSyncedContactIds
-        .map((id) => _syncedContacts.firstWhere((contact) => contact.userId == id || contact.phoneNumber.replaceAll(RegExp(r'[^\d]'), '') == id))
+        .map(
+          (id) => _syncedContacts.firstWhere(
+            (contact) =>
+                contact.userId == id ||
+                contact.phoneNumber.replaceAll(RegExp(r'[^\d]'), '') == id,
+          ),
+        )
         .toList();
   }
 
@@ -647,19 +643,25 @@ class AddMembersScreenState extends State<AddMembersScreen> {
       widget.onContactsSelected!(selectedContacts);
     }
 
-    if (widget.onSyncedContactsSelected != null && selectedSyncedContacts.isNotEmpty) {
+    if (widget.onSyncedContactsSelected != null &&
+        selectedSyncedContacts.isNotEmpty) {
       widget.onSyncedContactsSelected!(selectedSyncedContacts);
     }
 
     // Convert Duggy users to synced contacts format if needed
-    if (selectedDuggyUsers.isNotEmpty && widget.onSyncedContactsSelected != null) {
-      final duggyAsSynced = selectedDuggyUsers.map((user) => SyncedContact(
-        userId: user.id,
-        name: user.name,
-        phoneNumber: user.phoneNumber,
-        profilePicture: user.profilePicture,
-        isClubMember: false,
-      )).toList();
+    if (selectedDuggyUsers.isNotEmpty &&
+        widget.onSyncedContactsSelected != null) {
+      final duggyAsSynced = selectedDuggyUsers
+          .map(
+            (user) => SyncedContact(
+              userId: user.id,
+              name: user.name,
+              phoneNumber: user.phoneNumber,
+              profilePicture: user.profilePicture,
+              isClubMember: false,
+            ),
+          )
+          .toList();
       widget.onSyncedContactsSelected!(duggyAsSynced);
     }
 
@@ -678,9 +680,6 @@ class AddMembersScreenState extends State<AddMembersScreen> {
   // Group cached contacts by first letter
   Map<String, List<CachedContact>> _groupContactsByLetter() {
     final Map<String, List<CachedContact>> grouped = {};
-    print(
-      '📱 Grouping ${_filteredCachedContacts.length} filtered cached contacts',
-    );
     for (final contact in _filteredCachedContacts) {
       final firstLetter = contact.displayName.isNotEmpty
           ? contact.displayName[0].toUpperCase()
@@ -690,9 +689,7 @@ class AddMembersScreenState extends State<AddMembersScreen> {
       }
       grouped[firstLetter]!.add(contact);
     }
-    print(
-      '📱 Grouped into ${grouped.keys.length} letter groups: ${grouped.keys.join(', ')}',
-    );
+
     return grouped;
   }
 
@@ -700,7 +697,6 @@ class AddMembersScreenState extends State<AddMembersScreen> {
   Widget build(BuildContext context) {
     final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
     final groupedContacts = _groupContactsByLetter();
-    print('📱 Building UI with ${groupedContacts.length} groups, search: "$_searchQuery"');
 
     return Scaffold(
       backgroundColor: isDarkTheme ? Color(0xFF121212) : Colors.grey[50],
@@ -741,7 +737,8 @@ class AddMembersScreenState extends State<AddMembersScreen> {
         ),
         centerTitle: true,
         actions: [
-          if (_selectedContactIds.isNotEmpty || _selectedDuggyUserIds.isNotEmpty)
+          if (_selectedContactIds.isNotEmpty ||
+              _selectedDuggyUserIds.isNotEmpty)
             TextButton(
               onPressed: _confirmSelection,
               child: Text(
@@ -873,12 +870,20 @@ class AddMembersScreenState extends State<AddMembersScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Synced Contacts Section (Duggy Users)
-                        if (_searchQuery.isNotEmpty && _duggyUsers.isNotEmpty) ...[
+                        if (_searchQuery.isNotEmpty &&
+                            _duggyUsers.isNotEmpty) ...[
                           Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
                             child: Row(
                               children: [
-                                Icon(Icons.people, color: Color(0xFF06aeef), size: 20),
+                                Icon(
+                                  Icons.people,
+                                  color: Color(0xFF06aeef),
+                                  size: 20,
+                                ),
                                 SizedBox(width: 8),
                                 Text(
                                   'Duggy Users',
@@ -906,19 +911,29 @@ class AddMembersScreenState extends State<AddMembersScreen> {
                             Container(
                               margin: EdgeInsets.symmetric(horizontal: 16),
                               decoration: BoxDecoration(
-                                color: isDarkTheme ? Color(0xFF1e1e1e) : Colors.white,
+                                color: isDarkTheme
+                                    ? Color(0xFF1e1e1e)
+                                    : Colors.white,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Column(
-                                children: _duggyUsers.asMap().entries.map((entry) {
+                                children: _duggyUsers.asMap().entries.map((
+                                  entry,
+                                ) {
                                   final index = entry.key;
                                   final user = entry.value;
-                                  final isSelected = _selectedDuggyUserIds.contains(user.id);
-                                  final isLast = index == _duggyUsers.length - 1;
+                                  final isSelected = _selectedDuggyUserIds
+                                      .contains(user.id);
+                                  final isLast =
+                                      index == _duggyUsers.length - 1;
 
                                   return Column(
                                     children: [
-                                      _buildDuggyUserTile(user, isSelected, _isDuggyUserAlreadyMember(user)),
+                                      _buildDuggyUserTile(
+                                        user,
+                                        isSelected,
+                                        _isDuggyUserAlreadyMember(user),
+                                      ),
                                       if (!isLast)
                                         Divider(
                                           height: 1,
@@ -936,10 +951,17 @@ class AddMembersScreenState extends State<AddMembersScreen> {
                         // Contacts Section Header
                         if (_allCachedContacts.isNotEmpty) ...[
                           Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
                             child: Row(
                               children: [
-                                Icon(Icons.contacts, color: Colors.grey[600], size: 20),
+                                Icon(
+                                  Icons.contacts,
+                                  color: Colors.grey[600],
+                                  size: 20,
+                                ),
                                 SizedBox(width: 8),
                                 Text(
                                   'Contacts',
@@ -1053,7 +1075,11 @@ class AddMembersScreenState extends State<AddMembersScreen> {
     );
   }
 
-  Widget _buildCachedContactTile(CachedContact contact, bool isSelected, bool isDisabled) {
+  Widget _buildCachedContactTile(
+    CachedContact contact,
+    bool isSelected,
+    bool isDisabled,
+  ) {
     final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
     final statusText = _getContactStatusText(contact);
 
@@ -1108,9 +1134,14 @@ class AddMembersScreenState extends State<AddMembersScreen> {
                         ),
                         if (statusText.isNotEmpty)
                           Container(
-                            padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
-                              color: isDisabled ? Colors.grey[300] : Color(0xFF06aeef).withOpacity(0.1),
+                              color: isDisabled
+                                  ? Colors.grey[300]
+                                  : Color(0xFF06aeef).withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
@@ -1118,7 +1149,9 @@ class AddMembersScreenState extends State<AddMembersScreen> {
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w500,
-                                color: isDisabled ? Colors.grey[600] : Color(0xFF06aeef),
+                                color: isDisabled
+                                    ? Colors.grey[600]
+                                    : Color(0xFF06aeef),
                               ),
                             ),
                           ),
@@ -1130,7 +1163,9 @@ class AddMembersScreenState extends State<AddMembersScreen> {
                         contact.primaryPhone,
                         style: TextStyle(
                           fontSize: 14,
-                          color: isDisabled ? Colors.grey[400] : Colors.grey[600],
+                          color: isDisabled
+                              ? Colors.grey[400]
+                              : Colors.grey[600],
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -1159,8 +1194,8 @@ class AddMembersScreenState extends State<AddMembersScreen> {
                 child: isDisabled
                     ? Icon(Icons.close, size: 12, color: Colors.grey[400])
                     : (isSelected
-                        ? Icon(Icons.check, size: 12, color: Colors.white)
-                        : null),
+                          ? Icon(Icons.check, size: 12, color: Colors.white)
+                          : null),
               ),
             ],
           ),
@@ -1215,7 +1250,10 @@ class AddMembersScreenState extends State<AddMembersScreen> {
                           ),
                         ),
                         Container(
-                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: isDisabled
                                 ? Colors.grey[300]
@@ -1227,7 +1265,9 @@ class AddMembersScreenState extends State<AddMembersScreen> {
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w500,
-                              color: isDisabled ? Colors.grey[600] : Color(0xFF06aeef),
+                              color: isDisabled
+                                  ? Colors.grey[600]
+                                  : Color(0xFF06aeef),
                             ),
                           ),
                         ),
@@ -1239,7 +1279,9 @@ class AddMembersScreenState extends State<AddMembersScreen> {
                         user.phoneNumber,
                         style: TextStyle(
                           fontSize: 14,
-                          color: isDisabled ? Colors.grey[400] : Colors.grey[600],
+                          color: isDisabled
+                              ? Colors.grey[400]
+                              : Colors.grey[600],
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -1268,8 +1310,8 @@ class AddMembersScreenState extends State<AddMembersScreen> {
                 child: isDisabled
                     ? Icon(Icons.close, size: 12, color: Colors.grey[400])
                     : (isSelected
-                        ? Icon(Icons.check, size: 12, color: Colors.white)
-                        : null),
+                          ? Icon(Icons.check, size: 12, color: Colors.white)
+                          : null),
               ),
             ],
           ),

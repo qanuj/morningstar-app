@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
+import '../utils/text_utils.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../models/club_message.dart';
@@ -428,13 +430,20 @@ class MessageBubbleWrapper extends StatelessWidget {
 
   /// Get the emoji badge for the user role
   String _getRoleBadgeEmoji(String? role) {
-    switch (role?.toUpperCase()) {
-      case 'OWNER':
-        return '👑'; // Crown emoji
-      case 'ADMIN':
-        return '🛡️'; // Shield emoji
-      default:
-        return '';
+    try {
+      final cleanRole = TextUtils.sanitizeText(role);
+      switch (cleanRole?.toUpperCase()) {
+        case 'OWNER':
+          return '👑'; // Crown emoji
+        case 'ADMIN':
+          return '🛡️'; // Shield emoji
+        default:
+          return '';
+      }
+    } catch (e) {
+      // Fallback for any UTF-16 issues
+      debugPrint('UTF-16 error in role badge: $e');
+      return '';
     }
   }
 }
