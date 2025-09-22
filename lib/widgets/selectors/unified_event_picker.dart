@@ -4,17 +4,16 @@ import '../../models/match.dart';
 import '../../services/match_service.dart';
 import '../../services/practice_service.dart';
 import '../../widgets/event_cards.dart';
-import '../../widgets/custom_app_bar.dart';
 import '../../screens/matches/create_match_screen.dart';
 import '../../screens/practices/create_practice_screen.dart';
 
 enum EventType { match, practice }
 
 /// Unified selector for both matches and practices
-/// Shows different UI based on event type
+/// Shows tabs to switch between event types
 class UnifiedEventPicker extends StatefulWidget {
   final String clubId;
-  final EventType eventType;
+  final EventType initialEventType;
   final ValueChanged<MatchListItem> onEventSelected;
   final String? userRole;
   final String? clubName;
@@ -22,7 +21,7 @@ class UnifiedEventPicker extends StatefulWidget {
   const UnifiedEventPicker({
     super.key,
     required this.clubId,
-    required this.eventType,
+    this.initialEventType = EventType.match,
     required this.onEventSelected,
     this.userRole,
     this.clubName,
@@ -35,7 +34,7 @@ class UnifiedEventPicker extends StatefulWidget {
   static Future<MatchListItem?> showEventPicker({
     required BuildContext context,
     required String clubId,
-    required EventType eventType,
+    EventType initialEventType = EventType.match,
     String? userRole,
     String? clubName,
   }) async {
@@ -43,8 +42,12 @@ class UnifiedEventPicker extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) =>
-          UnifiedEventPickerModal(clubId: clubId, eventType: eventType, userRole: userRole, clubName: clubName),
+      builder: (context) => UnifiedEventPickerModal(
+        clubId: clubId,
+        initialEventType: initialEventType,
+        userRole: userRole,
+        clubName: clubName,
+      ),
     );
   }
 }
@@ -52,14 +55,14 @@ class UnifiedEventPicker extends StatefulWidget {
 // New Modal Widget for Unified Event Picker
 class UnifiedEventPickerModal extends StatefulWidget {
   final String clubId;
-  final EventType eventType;
+  final EventType initialEventType;
   final String? userRole;
   final String? clubName;
 
   const UnifiedEventPickerModal({
     super.key,
     required this.clubId,
-    required this.eventType,
+    this.initialEventType = EventType.match,
     this.userRole,
     this.clubName,
   });
@@ -69,7 +72,8 @@ class UnifiedEventPickerModal extends StatefulWidget {
       _UnifiedEventPickerModalState();
 }
 
-class _UnifiedEventPickerState extends State<UnifiedEventPicker> {
+class _UnifiedEventPickerState extends State<UnifiedEventPicker>
+    with TickerProviderStateMixin {
   final List<MatchListItem> _events = [];
   final ScrollController _scrollController = ScrollController();
   bool _isLoading = false;
@@ -79,6 +83,9 @@ class _UnifiedEventPickerState extends State<UnifiedEventPicker> {
   int _currentOffset = 0;
   static const int _pageSize = 20;
 
+  late TabController _tabController;
+  late EventType _currentEventType;
+
   bool get _canCreateEvent {
     final role = widget.userRole?.toLowerCase();
     return role == 'admin' || role == 'owner';
@@ -87,25 +94,51 @@ class _UnifiedEventPickerState extends State<UnifiedEventPicker> {
   @override
   void initState() {
     super.initState();
+    _currentEventType = widget.initialEventType;
+    _tabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: widget.initialEventType == EventType.match ? 0 : 1,
+    );
+    _tabController.addListener(_onTabChanged);
     _loadEvents();
     _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
+  void _onTabChanged() {
+    // Handle both tap and swipe changes
+    final newEventType = _tabController.index == 0
+        ? EventType.match
+        : EventType.practice;
+    if (newEventType != _currentEventType) {
+      setState(() {
+        _currentEventType = newEventType;
+        _events.clear();
+        _currentOffset = 0;
+        _hasMoreData = true;
+        _error = null;
+      });
+      _loadEvents();
+    }
+  }
+
   String get _title =>
-      widget.eventType == EventType.match ? 'Match' : 'Practice Session';
+      _currentEventType == EventType.match ? 'Match' : 'Practice Session';
   String get _emptyMessage {
     final clubName = widget.clubName ?? 'this club';
-    return widget.eventType == EventType.match
+    return _currentEventType == EventType.match
         ? 'No upcoming matches found for $clubName'
         : 'No upcoming practice sessions found for $clubName';
   }
-  IconData get _headerIcon => widget.eventType == EventType.match
+
+  IconData get _headerIcon => _currentEventType == EventType.match
       ? Icons.sports_cricket
       : Icons.fitness_center;
 
@@ -134,7 +167,7 @@ class _UnifiedEventPickerState extends State<UnifiedEventPicker> {
 
     try {
       List<MatchListItem> events;
-      if (widget.eventType == EventType.match) {
+      if (_currentEventType == EventType.match) {
         events = await MatchService.getMatches(
           clubId: widget.clubId,
           upcomingOnly: true,
@@ -166,7 +199,7 @@ class _UnifiedEventPickerState extends State<UnifiedEventPicker> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = widget.eventType == EventType.match
+          _error = _currentEventType == EventType.match
               ? 'Failed to load matches'
               : 'Failed to load practice sessions';
           _isLoading = false;
@@ -184,7 +217,7 @@ class _UnifiedEventPickerState extends State<UnifiedEventPicker> {
 
     try {
       List<MatchListItem> moreEvents;
-      if (widget.eventType == EventType.match) {
+      if (_currentEventType == EventType.match) {
         moreEvents = await MatchService.getMatches(
           clubId: widget.clubId,
           upcomingOnly: true,
@@ -221,7 +254,7 @@ class _UnifiedEventPickerState extends State<UnifiedEventPicker> {
 
   Future<void> _createNewEvent() async {
     Widget createScreen;
-    if (widget.eventType == EventType.match) {
+    if (_currentEventType == EventType.match) {
       createScreen = CreateMatchScreen(
         onMatchCreated: (match) {
           // Refresh the list after creation
@@ -248,23 +281,40 @@ class _UnifiedEventPickerState extends State<UnifiedEventPicker> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: DuggyAppBar(
-        subtitle: _title,
-        actions: _canCreateEvent ? [
-          IconButton(
-            icon: const Icon(Icons.add),
-            tooltip: widget.eventType == EventType.match
-                ? 'Create Match'
-                : 'Create Practice',
-            onPressed: _createNewEvent,
-          ),
-        ] : null,
+      appBar: AppBar(
+        title: const Text('Select Event'),
+        actions: _canCreateEvent
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.add),
+                  tooltip: _currentEventType == EventType.match
+                      ? 'Create Match'
+                      : 'Create Practice',
+                  onPressed: _createNewEvent,
+                ),
+              ]
+            : null,
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Matches'),
+            Tab(text: 'Practices'),
+          ],
+        ),
       ),
       body: Container(
         color: theme.brightness == Brightness.dark
             ? theme.colorScheme.surface
             : Colors.grey[200],
-        child: SafeArea(child: _buildEventsContent(theme)),
+        child: SafeArea(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildEventsContent(theme), // Matches tab
+              _buildEventsContent(theme), // Practices tab
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -333,7 +383,9 @@ class _UnifiedEventPickerState extends State<UnifiedEventPicker> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
-                        color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                        color: theme.textTheme.bodyMedium?.color?.withOpacity(
+                          0.7,
+                        ),
                         height: 1.4,
                       ),
                       textAlign: TextAlign.center,
@@ -348,7 +400,7 @@ class _UnifiedEventPickerState extends State<UnifiedEventPicker> {
                           onPressed: _createNewEvent,
                           icon: Icon(Icons.add, size: 20),
                           label: Text(
-                            widget.eventType == EventType.match
+                            _currentEventType == EventType.match
                                 ? 'Create Match'
                                 : 'Create Practice',
                             style: TextStyle(
@@ -403,7 +455,7 @@ class _UnifiedEventPickerState extends State<UnifiedEventPicker> {
           }
 
           final event = _events[index];
-          return widget.eventType == EventType.match
+          return _currentEventType == EventType.match
               ? MatchEventCard(
                   match: event,
                   onTap: () {
@@ -424,7 +476,8 @@ class _UnifiedEventPickerState extends State<UnifiedEventPicker> {
   }
 }
 
-class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal> {
+class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal>
+    with TickerProviderStateMixin {
   final List<MatchListItem> _events = [];
   final ScrollController _scrollController = ScrollController();
   bool _isLoading = false;
@@ -434,6 +487,9 @@ class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal> {
   int _currentOffset = 0;
   static const int _pageSize = 20;
 
+  late TabController _tabController;
+  late EventType _currentEventType;
+
   bool get _canCreateEvent {
     final role = widget.userRole?.toLowerCase();
     return role == 'admin' || role == 'owner';
@@ -442,25 +498,51 @@ class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal> {
   @override
   void initState() {
     super.initState();
+    _currentEventType = widget.initialEventType;
+    _tabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: widget.initialEventType == EventType.match ? 0 : 1,
+    );
+    _tabController.addListener(_onTabChanged);
     _loadEvents();
     _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
+  void _onTabChanged() {
+    // Handle both tap and swipe changes
+    final newEventType = _tabController.index == 0
+        ? EventType.match
+        : EventType.practice;
+    if (newEventType != _currentEventType) {
+      setState(() {
+        _currentEventType = newEventType;
+        _events.clear();
+        _currentOffset = 0;
+        _hasMoreData = true;
+        _error = null;
+      });
+      _loadEvents();
+    }
+  }
+
   String get _title =>
-      widget.eventType == EventType.match ? 'Match' : 'Practice Session';
+      _currentEventType == EventType.match ? 'Match' : 'Practice Session';
   String get _emptyMessage {
     final clubName = widget.clubName ?? 'this club';
-    return widget.eventType == EventType.match
+    return _currentEventType == EventType.match
         ? 'No upcoming matches found for $clubName'
         : 'No upcoming practice sessions found for $clubName';
   }
-  IconData get _headerIcon => widget.eventType == EventType.match
+
+  IconData get _headerIcon => _currentEventType == EventType.match
       ? Icons.sports_cricket
       : Icons.fitness_center;
 
@@ -489,7 +571,7 @@ class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal> {
 
     try {
       List<MatchListItem> events;
-      if (widget.eventType == EventType.match) {
+      if (_currentEventType == EventType.match) {
         events = await MatchService.getMatches(
           clubId: widget.clubId,
           upcomingOnly: true,
@@ -521,7 +603,7 @@ class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = widget.eventType == EventType.match
+          _error = _currentEventType == EventType.match
               ? 'Failed to load matches'
               : 'Failed to load practice sessions';
           _isLoading = false;
@@ -539,7 +621,7 @@ class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal> {
 
     try {
       List<MatchListItem> moreEvents;
-      if (widget.eventType == EventType.match) {
+      if (_currentEventType == EventType.match) {
         moreEvents = await MatchService.getMatches(
           clubId: widget.clubId,
           upcomingOnly: true,
@@ -576,7 +658,7 @@ class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal> {
 
   Future<void> _createNewEvent() async {
     Widget createScreen;
-    if (widget.eventType == EventType.match) {
+    if (_currentEventType == EventType.match) {
       createScreen = CreateMatchScreen(
         onMatchCreated: (match) {
           // Refresh the list after creation to show new match
@@ -607,7 +689,7 @@ class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal> {
             CircularProgressIndicator(color: Theme.of(context).primaryColor),
             SizedBox(height: 16),
             Text(
-              'Loading ${widget.eventType == EventType.match ? 'matches' : 'practices'}...',
+              'Loading ${_currentEventType == EventType.match ? 'matches' : 'practices'}...',
             ),
           ],
         ),
@@ -669,7 +751,9 @@ class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal> {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
-                  color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                  color: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.color?.withOpacity(0.7),
                   height: 1.4,
                 ),
                 textAlign: TextAlign.center,
@@ -684,7 +768,7 @@ class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal> {
                     onPressed: _createNewEvent,
                     icon: Icon(Icons.add, size: 20),
                     label: Text(
-                      widget.eventType == EventType.match
+                      _currentEventType == EventType.match
                           ? 'Create Match'
                           : 'Create Practice',
                       style: TextStyle(
@@ -736,7 +820,7 @@ class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal> {
         }
 
         final event = _events[index];
-        return widget.eventType == EventType.match
+        return _currentEventType == EventType.match
             ? MatchEventCard(
                 match: event,
                 onTap: () {
@@ -776,20 +860,14 @@ class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal> {
             ),
           ),
 
-          // Header
+          // Header with title and actions
           Container(
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
-                Icon(
-                  _headerIcon,
-                  color: Theme.of(context).primaryColor,
-                  size: 24,
-                ),
-                SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    _title,
+                    'Select Event',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w600,
@@ -800,7 +878,7 @@ class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal> {
                 if (_canCreateEvent)
                   IconButton(
                     icon: Icon(Icons.add),
-                    tooltip: widget.eventType == EventType.match
+                    tooltip: _currentEventType == EventType.match
                         ? 'Create Match'
                         : 'Create Practice',
                     onPressed: _createNewEvent,
@@ -810,6 +888,18 @@ class _UnifiedEventPickerModalState extends State<UnifiedEventPickerModal> {
                   tooltip: 'Refresh',
                   onPressed: () => _loadEvents(isRefresh: true),
                 ),
+              ],
+            ),
+          ),
+
+          // TabBar
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: TabBar(
+              controller: _tabController,
+              tabs: const [
+                Tab(text: 'Matches'),
+                Tab(text: 'Practices'),
               ],
             ),
           ),

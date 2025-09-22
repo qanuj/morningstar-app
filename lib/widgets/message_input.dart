@@ -25,6 +25,7 @@ class MessageInput extends StatefulWidget {
   static void closeAttachmentMenuIfOpen(GlobalKey<MessageInputState> key) {
     key.currentState?.closeAttachmentMenu();
   }
+
   final TextEditingController messageController;
   final FocusNode textFieldFocusNode;
   final String clubId;
@@ -77,6 +78,7 @@ class MessageInputState extends State<MessageInput> {
       });
     }
   }
+
   final ImagePicker _imagePicker = ImagePicker();
   List<Map<String, dynamic>> _availableUpiApps = [];
 
@@ -483,30 +485,19 @@ class MessageInputState extends State<MessageInput> {
     final selectedMatch = await UnifiedEventPicker.showEventPicker(
       context: context,
       clubId: widget.clubId,
-      eventType: EventType.match,
+      initialEventType: EventType.match,
       userRole: widget.userRole,
       clubName: clubProvider.currentClub?.club.name,
     );
 
     if (selectedMatch != null) {
-      _sendExistingMatchMessage(selectedMatch);
-    }
-
-    widget.textFieldFocusNode.unfocus();
-  }
-
-  void _openPracticePicker() async {
-    final clubProvider = Provider.of<ClubProvider>(context, listen: false);
-    final selectedPractice = await UnifiedEventPicker.showEventPicker(
-      context: context,
-      clubId: widget.clubId,
-      eventType: EventType.practice,
-      userRole: widget.userRole,
-      clubName: clubProvider.currentClub?.club.name,
-    );
-
-    if (selectedPractice != null) {
-      _sendExistingPracticeMessage(selectedPractice);
+      if (selectedMatch.type.toLowerCase() == 'game' ||
+          selectedMatch.type.toLowerCase() == 'match' ||
+          selectedMatch.type.toLowerCase() == 'tournament') {
+        _sendExistingMatchMessage(selectedMatch);
+      } else if (selectedMatch.type.toLowerCase() == 'practice') {
+        _sendExistingPracticeMessage(selectedMatch);
+      }
     }
 
     widget.textFieldFocusNode.unfocus();
@@ -935,7 +926,9 @@ class MessageInputState extends State<MessageInput> {
     final targetHeight = getTargetHeight();
 
     // Debug logging
-    print('🎯 Attachment menu - keyboardHeight: $keyboardHeight, lastKnown: $_lastKnownKeyboardHeight, targetHeight: $targetHeight, isOpen: $_isAttachmentMenuOpen');
+    print(
+      '🎯 Attachment menu - keyboardHeight: $keyboardHeight, lastKnown: $_lastKnownKeyboardHeight, targetHeight: $targetHeight, isOpen: $_isAttachmentMenuOpen',
+    );
 
     return AnimatedContainer(
       duration: Duration(milliseconds: 250),
@@ -952,113 +945,113 @@ class MessageInputState extends State<MessageInput> {
                   mainAxisAlignment:
                       MainAxisAlignment.spaceEvenly, // Distribute space evenly
                   children: [
-                  // First row - Photos, Camera, Location, Contact
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildGridOption(
-                        icon: Icons.photo_library,
-                        iconColor: Color(0xFF2196F3),
-                        title: 'Photos',
-                        onTap: () {
-                          _closeAttachmentMenu();
-                          _pickImages();
-                        },
-                      ),
-                      _buildGridOption(
-                        icon: Icons.camera_alt,
-                        iconColor: Color(0xFF4CAF50),
-                        title: 'Camera',
-                        onTap: () {
-                          _closeAttachmentMenu();
-                          _handleCameraCapture();
-                        },
-                      ),
-                      _buildGridOption(
-                        icon: Icons.location_on,
-                        iconColor: Color(0xFF4CAF50),
-                        title: 'Location',
-                        onTap: () {
-                          _closeAttachmentMenu();
-                          // TODO: Implement location sharing
-                        },
-                      ),
-                      _buildGridOption(
-                        icon: Icons.person,
-                        iconColor: Color(0xFF9E9E9E),
-                        title: 'Contact',
-                        onTap: () {
-                          _closeAttachmentMenu();
-                          // TODO: Implement contact sharing
-                        },
-                      ),
-                    ],
-                  ),
+                    // First row - Photos, Camera, Location, Contact
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _buildGridOption(
+                          icon: Icons.photo_library,
+                          iconColor: Color(0xFF2196F3),
+                          title: 'Photos',
+                          onTap: () {
+                            _closeAttachmentMenu();
+                            _pickImages();
+                          },
+                        ),
+                        _buildGridOption(
+                          icon: Icons.camera_alt,
+                          iconColor: Color(0xFF4CAF50),
+                          title: 'Camera',
+                          onTap: () {
+                            _closeAttachmentMenu();
+                            _handleCameraCapture();
+                          },
+                        ),
+                        _buildGridOption(
+                          icon: Icons.location_on,
+                          iconColor: Color(0xFF4CAF50),
+                          title: 'Location',
+                          onTap: () {
+                            _closeAttachmentMenu();
+                            // TODO: Implement location sharing
+                          },
+                        ),
+                        _buildGridOption(
+                          icon: Icons.person,
+                          iconColor: Color(0xFF9E9E9E),
+                          title: 'Contact',
+                          onTap: () {
+                            _closeAttachmentMenu();
+                            // TODO: Implement contact sharing
+                          },
+                        ),
+                      ],
+                    ),
 
-                  // Second row - Document, Poll, Event, Payment
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildGridOption(
-                        icon: Icons.description,
-                        iconColor: Color(0xFF2196F3),
-                        title: 'Document',
-                        onTap: () {
-                          _closeAttachmentMenu();
-                          _pickDocuments();
-                        },
-                      ),
-                      _buildGridOption(
-                        icon: Icons.poll,
-                        iconColor: Color(0xFFFFC107),
-                        title: 'Poll',
-                        onTap: () {
-                          _closeAttachmentMenu();
-                          // TODO: Implement poll creation
-                        },
-                      ),
-                      _buildGridOption(
-                        icon: Icons.event,
-                        iconColor: Color(0xFFE91E63),
-                        title: 'Event',
-                        onTap: () {
-                          _closeAttachmentMenu();
-                          _openMatchPicker(); // For now, use match picker
-                        },
-                      ),
-                      _buildGridOption(
-                        icon: Icons.currency_rupee,
-                        iconColor: Color(0xFF4CAF50),
-                        title: 'Payment',
-                        onTap: () {
-                          _closeAttachmentMenu();
-                          if (_availableUpiApps.isNotEmpty) {
-                            _openUPIPayment();
-                          }
-                        },
-                      ),
-                    ],
-                  ),
+                    // Second row - Document, Poll, Event, Payment
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _buildGridOption(
+                          icon: Icons.description,
+                          iconColor: Color(0xFF2196F3),
+                          title: 'Document',
+                          onTap: () {
+                            _closeAttachmentMenu();
+                            _pickDocuments();
+                          },
+                        ),
+                        _buildGridOption(
+                          icon: Icons.poll,
+                          iconColor: Color(0xFFFFC107),
+                          title: 'Poll',
+                          onTap: () {
+                            _closeAttachmentMenu();
+                            // TODO: Implement poll creation
+                          },
+                        ),
+                        _buildGridOption(
+                          icon: Icons.event,
+                          iconColor: Color(0xFFE91E63),
+                          title: 'Event',
+                          onTap: () {
+                            _closeAttachmentMenu();
+                            _openMatchPicker(); // For now, use match picker
+                          },
+                        ),
+                        _buildGridOption(
+                          icon: Icons.currency_rupee,
+                          iconColor: Color(0xFF4CAF50),
+                          title: 'Payment',
+                          onTap: () {
+                            _closeAttachmentMenu();
+                            if (_availableUpiApps.isNotEmpty) {
+                              _openUPIPayment();
+                            }
+                          },
+                        ),
+                      ],
+                    ),
 
-                  // Third row - Audio only (removed AI Images as requested)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildGridOption(
-                        icon: Icons.audiotrack,
-                        iconColor: Color(0xFFFF9800),
-                        title: 'Audio',
-                        onTap: () {
-                          _closeAttachmentMenu();
-                          _pickAudioFiles();
-                        },
-                      ),
-                      // Empty spaces to maintain layout
-                      Container(width: 70),
-                      Container(width: 70),
-                      Container(width: 70),
-                    ],
-                  ),
+                    // Third row - Audio only (removed AI Images as requested)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _buildGridOption(
+                          icon: Icons.audiotrack,
+                          iconColor: Color(0xFFFF9800),
+                          title: 'Audio',
+                          onTap: () {
+                            _closeAttachmentMenu();
+                            _pickAudioFiles();
+                          },
+                        ),
+                        // Empty spaces to maintain layout
+                        Container(width: 70),
+                        Container(width: 70),
+                        Container(width: 70),
+                      ],
+                    ),
                   ],
                 ),
               ),
