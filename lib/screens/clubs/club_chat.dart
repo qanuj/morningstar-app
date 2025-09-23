@@ -120,6 +120,8 @@ class ClubChatScreenState extends State<ClubChatScreen>
   bool _allowProgrammaticFocus =
       false; // Flag to control when programmatic focus is allowed
   bool _isModalOpen = false; // Track when modals are open to prevent focus
+  bool _showScrollToBottomButton =
+      false; // Show scroll-to-bottom floating button
 
   @override
   void initState() {
@@ -168,6 +170,9 @@ class ClubChatScreenState extends State<ClubChatScreen>
         // The UI will update naturally when the keyboard appears/disappears
       }
     });
+
+    // Add scroll listener to track scroll position for scroll-to-bottom button
+    _scrollController.addListener(_onScrollChanged);
 
     // Handle shared content if provided
     _handleSharedContent();
@@ -352,6 +357,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
     _bottomRefreshTimer?.cancel();
     _refreshAnimationController.dispose();
     _messageController.dispose();
+    _scrollController.removeListener(_onScrollChanged);
     _scrollController.dispose();
     _textFieldFocusNode.dispose();
 
@@ -1055,7 +1061,8 @@ class ClubChatScreenState extends State<ClubChatScreen>
               club: widget.club,
               onContactsSelected: _processSelectedContacts,
               onSyncedContactsSelected: _processSelectedSyncedContacts,
-              showSuccessToast: false, // No toast in chat, system messages will appear
+              showSuccessToast:
+                  false, // No toast in chat, system messages will appear
             ),
           ),
         );
@@ -1715,6 +1722,25 @@ class ClubChatScreenState extends State<ClubChatScreen>
     }
   }
 
+  /// Track scroll position to show/hide scroll-to-bottom button
+  void _onScrollChanged() {
+    if (!_scrollController.hasClients) return;
+
+    final position = _scrollController.position;
+    final maxScroll = position.maxScrollExtent;
+    final currentScroll = position.pixels;
+
+    // Show button when user has scrolled up more than 200px from bottom
+    final scrollThreshold = 200.0;
+    final shouldShowButton = (maxScroll - currentScroll) > scrollThreshold;
+
+    if (shouldShowButton != _showScrollToBottomButton) {
+      setState(() {
+        _showScrollToBottomButton = shouldShowButton;
+      });
+    }
+  }
+
   Future<void> _triggerAudioRecordingFromPull() async {
     HapticFeedback.heavyImpact();
     debugPrint('🎤 Triggering audio recording from pull gesture');
@@ -1961,6 +1987,28 @@ class ClubChatScreenState extends State<ClubChatScreen>
                     ),
                   ],
                 ),
+              ),
+            ),
+
+          // Floating scroll-to-bottom button
+          if (_showScrollToBottomButton)
+            Positioned(
+              bottom: MediaQuery.of(context).viewInsets.bottom > 0
+                  ? MediaQuery.of(context).viewInsets.bottom +
+                        100 // Position above keyboard
+                  : 120, // Position above message input when keyboard is hidden
+              right: 16,
+              child: FloatingActionButton(
+                mini: true,
+                backgroundColor: Theme.of(context).brightness == Brightness.dark
+                    ? Color(0xFF2A2A2A)
+                    : Colors.white,
+                foregroundColor: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white
+                    : Colors.black87,
+                elevation: 6,
+                onPressed: _scrollToBottom,
+                child: Icon(Icons.keyboard_arrow_down, size: 24),
               ),
             ),
         ],

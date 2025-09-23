@@ -2,7 +2,6 @@ import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 import '../../models/club_message.dart';
 import '../../models/message_status.dart';
-import '../../services/chat_api_service.dart';
 import '../../providers/user_provider.dart';
 import '../svg_avatar.dart';
 import '../inline_reaction_picker.dart';
@@ -533,94 +532,13 @@ class ReactionDetailsSheet extends StatefulWidget {
 }
 
 class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
-  String? _selectedEmojiFilter; // null means "All"
+  String?
+  _selectedEmojiFilter; // null means showing all, string means specific emoji
 
   @override
   void initState() {
     super.initState();
-    _selectedEmojiFilter = null; // Start with "All" selected
-  }
-
-  void _removeReactionAndUpdateUI(
-    BuildContext context,
-    String? emoji,
-    String userId,
-  ) async {
-    if (emoji == null) return;
-
-    // Verify user permission
-    final userProvider = context.read<UserProvider>();
-    final currentUser = userProvider.user;
-
-    if (currentUser == null || userId != currentUser.id) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('You can only remove your own reactions'),
-          duration: Duration(seconds: 2),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    try {
-      // Update UI immediately by calling the callback first (optimistic update)
-      if (widget.onReactionRemoved != null) {
-        debugPrint(
-          '🔄 Calling onReactionRemoved callback for immediate UI update',
-        );
-        widget.onReactionRemoved!(widget.message.id, emoji, userId);
-
-        // Add a small delay to ensure the callback is processed before API call
-        await Future.delayed(Duration(milliseconds: 10));
-      }
-
-      // Make API call to remove the reaction
-      final success = await ChatApiService.removeReaction(
-        widget.message.clubId,
-        widget.message.id,
-      );
-
-      if (!success) {
-        throw Exception('Failed to remove reaction');
-      }
-
-      // Success - no snackbar needed, UI already updated via callback
-      debugPrint('✅ Reaction removed successfully from details drawer');
-    } catch (e) {
-      debugPrint('❌ Error removing reaction from details drawer: $e');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to remove reaction'),
-            duration: Duration(seconds: 2),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  void _showReactionPicker(BuildContext context) {
-    // Show reaction picker overlay without closing the current sheet
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (pickerContext) => Container(
-        height: 80,
-        margin: EdgeInsets.all(16),
-        child: InlineReactionPicker(
-          onReactionSelected: (emoji) {
-            Navigator.pop(pickerContext); // Close picker only
-            if (widget.onReactionAdded != null) {
-              widget.onReactionAdded!(widget.message, emoji);
-            }
-          },
-          onDismiss: () => Navigator.pop(pickerContext),
-          position: Offset(0, 0), // Default position since we're in a modal
-        ),
-      ),
-    );
+    _selectedEmojiFilter = null; // Start with showing all reactions
   }
 
   @override
@@ -665,18 +583,7 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
 
                       SizedBox(width: 8),
 
-                      // All reactions button
-                      _buildFilterButton(
-                        context,
-                        emoji: null,
-                        count: widget.totalReactions,
-                        isSelected: _selectedEmojiFilter == null,
-                        isAllButton: true,
-                      ),
-
-                      SizedBox(width: 8),
-
-                      // Individual emoji filter buttons
+                      // Individual emoji filter buttons (no "All" button)
                       ...widget.groupedReactions.keys.map((emoji) {
                         final count =
                             widget.groupedReactions[emoji]?.length ?? 0;
@@ -706,13 +613,155 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
     );
   }
 
+  void _removeReactionAndUpdateUI(
+    BuildContext context,
+    String? emoji,
+    String userId,
+  ) async {
+    if (emoji == null) return;
+
+    // Verify user permission
+    final userProvider = context.read<UserProvider>();
+    final currentUser = userProvider.user;
+
+    if (currentUser == null || userId != currentUser.id) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('You can only remove your own reactions'),
+          duration: Duration(seconds: 2),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Let the parent component handle the removal with the same API pattern as long press
+    if (widget.onReactionRemoved != null) {
+      widget.onReactionRemoved!(widget.message.id, emoji, userId);
+    }
+
+    // Wait a moment for the API call to complete, then refresh the dialog
+    await Future.delayed(Duration(milliseconds: 300));
+
+    // Close current dialog and reopen with fresh data
+    if (context.mounted) {
+      Navigator.pop(context);
+      // Slight delay to ensure the dialog close animation completes
+      await Future.delayed(Duration(milliseconds: 100));
+      if (context.mounted) {
+        _showReactionDetailsAgain(context);
+      }
+    }
+  }
+
+  void _showReactionPicker(BuildContext context) {
+    // Show reaction picker overlay without closing the current sheet
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (pickerContext) => Container(
+        height: 80,
+        margin: EdgeInsets.all(16),
+        child: InlineReactionPicker(
+          onReactionSelected: (emoji) async {
+            Navigator.pop(pickerContext); // Close picker only
+
+            // Add the reaction using the same API as long press
+            if (widget.onReactionAdded != null) {
+              widget.onReactionAdded!(widget.message, emoji);
+            }
+
+            // Wait a moment for the API call to complete, then refresh the dialog
+            await Future.delayed(Duration(milliseconds: 300));
+
+            // Close current dialog and reopen with fresh data
+            if (context.mounted) {
+              Navigator.pop(context);
+              // Slight delay to ensure the dialog close animation completes
+              await Future.delayed(Duration(milliseconds: 100));
+              if (context.mounted) {
+                _showReactionDetailsAgain(context);
+              }
+            }
+          },
+          onDismiss: () => Navigator.pop(pickerContext),
+          position: Offset(0, 0), // Default position since we're in a modal
+        ),
+      ),
+    );
+  }
+
+  void _showReactionDetailsAgain(BuildContext context) {
+    // Re-show the reaction details with fresh data
+    if (widget.message.reactions.isEmpty) return;
+
+    // Unfocus any text fields to prevent keyboard from appearing
+    FocusScope.of(context).unfocus();
+
+    // Group reactions by emoji and collect user information with emoji data
+    Map<String, List<Map<String, String>>> groupedReactions = {};
+    int totalReactions = 0;
+
+    for (var reaction in widget.message.reactions) {
+      // Handle new format with users array
+      if (reaction.users.isNotEmpty) {
+        totalReactions += reaction.users.length.toInt();
+        List<Map<String, String>> userList = [];
+        for (var user in reaction.users) {
+          final userInfo = {
+            'userId': user.userId,
+            'name': user.name,
+            'profilePicture': user.profilePicture ?? '',
+            'emoji': reaction.emoji,
+          };
+          userList.add(userInfo);
+        }
+        groupedReactions[reaction.emoji] = userList;
+      } else {
+        // Handle old format for backward compatibility
+        totalReactions += 1;
+        final userName = reaction.userName.isNotEmpty
+            ? reaction.userName
+            : 'Unknown User';
+        final userInfo = {
+          'userId': reaction.userId,
+          'name': userName,
+          'profilePicture': '',
+          'emoji': reaction.emoji,
+        };
+
+        if (groupedReactions.containsKey(reaction.emoji)) {
+          groupedReactions[reaction.emoji]!.add(userInfo);
+        } else {
+          groupedReactions[reaction.emoji] = [userInfo];
+        }
+      }
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? Color(0xFF1C1C1C) // Updated dark background for reaction sheet
+          : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => ReactionDetailsSheet(
+        message: widget.message,
+        groupedReactions: groupedReactions,
+        totalReactions: totalReactions,
+        onReactionRemoved: widget.onReactionRemoved,
+        onReactionAdded: widget.onReactionAdded,
+      ),
+    );
+  }
+
   Widget _buildFilterButton(
     BuildContext context, {
     String? emoji,
     required int count,
     required bool isSelected,
     bool isAddButton = false,
-    bool isAllButton = false,
   }) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
@@ -722,7 +771,8 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
           _showReactionPicker(context);
         } else {
           setState(() {
-            _selectedEmojiFilter = isAllButton ? null : emoji;
+            // Toggle filter: if already selected, show all; otherwise filter by this emoji
+            _selectedEmojiFilter = isSelected ? null : emoji;
           });
         }
       },
@@ -751,24 +801,8 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
                 size: 18,
                 color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
               ),
-            ] else if (isAllButton) ...[
-              Text(
-                'All',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: isSelected
-                      ? (isDarkMode
-                            ? Colors.lightBlueAccent
-                            : Color(0xFF003f9b))
-                      : (isDarkMode ? Colors.grey[300] : Colors.grey[700]),
-                ),
-              ),
             ] else ...[
               Text(emoji!, style: TextStyle(fontSize: 18)),
-            ],
-
-            if (!isAddButton) ...[
               SizedBox(width: 4),
               Text(
                 count.toString(),
@@ -800,6 +834,7 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
           // Add emoji info to each user for All view
           final userWithEmoji = Map<String, String>.from(user);
           userWithEmoji['emoji'] = emoji;
+          users.add(userWithEmoji);
         }
       });
     } else {
@@ -871,10 +906,7 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
                       ? userEmoji
                       : _selectedEmojiFilter!;
 
-                  // Close the drawer first for immediate feedback
-                  Navigator.pop(context);
-
-                  // Then remove the reaction
+                  // Remove the reaction directly without closing the dialog
                   _removeReactionAndUpdateUI(context, emojiToRemove, userId);
                 }
               : null,
@@ -888,18 +920,9 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
                   imageUrl: profilePicture.isNotEmpty ? profilePicture : null,
                   size: 44,
                   backgroundColor: Color(0xFF003f9b),
-                  iconColor: Colors.white,
-                  fallbackIcon: Icons.person,
-                  child: profilePicture.isEmpty
-                      ? Text(
-                          userName.isNotEmpty ? userName[0].toUpperCase() : '?',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        )
-                      : null,
+                  fallbackText: userName.isNotEmpty
+                      ? userName[0].toUpperCase()
+                      : '?',
                 ),
 
                 SizedBox(width: 16),
@@ -923,18 +946,7 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
                       ),
                       if (isCurrentUser)
                         Text(
-                          'Click to remove',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color:
-                                Theme.of(context).brightness == Brightness.dark
-                                ? Colors.grey[400]
-                                : Colors.grey[600],
-                          ),
-                        )
-                      else
-                        Text(
-                          'Member',
+                          'Tap to remove',
                           style: TextStyle(
                             fontSize: 14,
                             color:

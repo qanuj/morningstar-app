@@ -71,7 +71,15 @@ class _InlineReactionPickerState extends State<InlineReactionPicker>
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
 
-  final List<String> _quickReactions = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🔥'];
+  final List<String> _quickReactions = [
+    '👍',
+    '❤️',
+    '😂',
+    '😮',
+    '😢',
+    '🙏',
+    '🔥',
+  ];
 
   @override
   void initState() {
@@ -81,21 +89,13 @@ class _InlineReactionPickerState extends State<InlineReactionPicker>
       vsync: this,
     );
 
-    _scaleAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutBack,
-    ));
+    _scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOutBack),
+    );
 
-    _opacityAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOut,
-    ));
+    _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
 
     _animationController.forward();
   }
@@ -133,7 +133,10 @@ class _InlineReactionPickerState extends State<InlineReactionPicker>
               child: Opacity(
                 opacity: _opacityAnimation.value,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: Theme.of(context).brightness == Brightness.dark
                         ? const Color(0xFF2a2f32)
@@ -212,7 +215,9 @@ class _InlineReactionOverlayState extends State<InlineReactionOverlay> {
 
     // Position picker above the message, centered
     final pickerPosition = Offset(
-      position.dx + (size.width / 2) - 140, // Center horizontally (picker is ~280px wide)
+      position.dx +
+          (size.width / 2) -
+          140, // Center horizontally (picker is ~280px wide)
       position.dy - 60, // Position above message
     );
 
@@ -223,9 +228,7 @@ class _InlineReactionOverlayState extends State<InlineReactionOverlay> {
           Positioned.fill(
             child: GestureDetector(
               onTap: _dismissPicker,
-              child: Container(
-                color: Colors.transparent,
-              ),
+              child: Container(color: Colors.transparent),
             ),
           ),
           // Reaction picker
@@ -275,9 +278,16 @@ class _InlineMessageOptionsState extends State<InlineMessageOptions>
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
   late Animation<double> _blurAnimation;
-  late Animation<Offset> _messageSlideAnimation;
 
-  final List<String> _quickReactions = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🔥'];
+  final List<String> _quickReactions = [
+    '👍',
+    '❤️',
+    '😂',
+    '😮',
+    '😢',
+    '🙏',
+    '🔥',
+  ];
 
   @override
   void initState() {
@@ -287,57 +297,22 @@ class _InlineMessageOptionsState extends State<InlineMessageOptions>
       vsync: this,
     );
 
-    _scaleAnimation = Tween<double>(
-      begin: 0.8,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutBack,
-    ));
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOutBack),
+    );
 
-    _opacityAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOut,
-    ));
+    _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
 
-    _blurAnimation = Tween<double>(
-      begin: 0.0,
-      end: 5.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOut,
-    ));
-
-    // Initialize slide animation with default values - will be updated in didChangeDependencies
-    _messageSlideAnimation = Tween<Offset>(
-      begin: Offset.zero,
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutBack,
-    ));
+    _blurAnimation = Tween<double>(begin: 0.0, end: 5.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-
-    // Now we can safely access MediaQuery
-    final screenCenter = MediaQuery.of(context).size.height / 2;
-    final messageCenterY = widget.messagePosition.dy + (widget.messageSize.height / 2);
-    final offsetY = (screenCenter - messageCenterY) / MediaQuery.of(context).size.height;
-
-    _messageSlideAnimation = Tween<Offset>(
-      begin: Offset.zero,
-      end: Offset(0, offsetY),
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutBack,
-    ));
-
     _animationController.forward();
   }
 
@@ -364,7 +339,6 @@ class _InlineMessageOptionsState extends State<InlineMessageOptions>
     Share.share(content, subject: 'Message from Duggy');
   }
 
-
   void _dismiss() {
     _animationController.reverse().then((_) {
       widget.onDismiss();
@@ -374,7 +348,13 @@ class _InlineMessageOptionsState extends State<InlineMessageOptions>
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
-    final screenCenter = Offset(screenSize.width / 2, screenSize.height / 2);
+
+    // Calculate available screen space minus safe area
+
+    final maxWidth = (screenSize.width - 32).clamp(
+      250.0,
+      350.0,
+    ); // Responsive width with margins
 
     return Positioned.fill(
       child: Material(
@@ -389,129 +369,163 @@ class _InlineMessageOptionsState extends State<InlineMessageOptions>
                   child: GestureDetector(
                     onTap: _dismiss,
                     child: Container(
-                      color: Colors.black.withOpacity(0.3 * _opacityAnimation.value),
+                      color: Colors.black.withOpacity(
+                        0.3 * _opacityAnimation.value,
+                      ),
                       child: BackdropFilter(
                         filter: ImageFilter.blur(
                           sigmaX: _blurAnimation.value,
                           sigmaY: _blurAnimation.value,
                         ),
-                        child: Container(
-                          color: Colors.transparent,
-                        ),
+                        child: Container(color: Colors.transparent),
                       ),
                     ),
                   ),
                 ),
 
-                // Centered message with slide animation
-                Center(
-                  child: SlideTransition(
-                    position: _messageSlideAnimation,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Reaction picker above message - only show for non-deleted messages
-                        if (!widget.isDeleted)
-                          Transform.scale(
-                          scale: _scaleAnimation.value,
-                          child: Opacity(
-                            opacity: _opacityAnimation.value,
-                            child: Container(
-                              margin: const EdgeInsets.only(bottom: 16),
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).brightness == Brightness.dark
-                                    ? const Color(0xFF2a2f32)
-                                    : Colors.white,
-                                borderRadius: BorderRadius.circular(25),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.15),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
+                // Positioned content with proper bounds checking
+                Positioned.fill(
+                  child: SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Reaction picker above message - only show for non-deleted messages
+                          if (!widget.isDeleted)
+                            Transform.scale(
+                              scale: _scaleAnimation.value,
+                              child: Opacity(
+                                opacity: _opacityAnimation.value,
+                                child: Container(
+                                  width: maxWidth,
+                                  margin: const EdgeInsets.only(bottom: 16),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 6,
                                   ),
-                                ],
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: _quickReactions.map((emoji) {
-                                  return GestureDetector(
-                                    onTap: () => _selectReaction(emoji),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(8),
-                                      margin: const EdgeInsets.symmetric(horizontal: 2),
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(20),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? const Color(0xFF2a2f32)
+                                        : Colors.white,
+                                    borderRadius: BorderRadius.circular(25),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.15),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
                                       ),
-                                      child: Text(
-                                        emoji,
-                                        style: const TextStyle(fontSize: 20),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceEvenly,
+                                    children: _quickReactions.map((emoji) {
+                                      return Flexible(
+                                        child: GestureDetector(
+                                          onTap: () => _selectReaction(emoji),
+                                          child: Container(
+                                            padding: const EdgeInsets.all(8),
+                                            margin: const EdgeInsets.symmetric(
+                                              horizontal: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                            ),
+                                            child: Text(
+                                              emoji,
+                                              style: const TextStyle(
+                                                fontSize: 20,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                          // The actual message in center
+                          Transform.scale(
+                            scale: _scaleAnimation.value,
+                            child: Opacity(
+                              opacity: _opacityAnimation.value,
+                              child: Container(
+                                width: maxWidth,
+                                child:
+                                    widget.messageWidget ??
+                                    Container(
+                                      width: maxWidth,
+                                      height: widget.messageSize.height.clamp(
+                                        50.0,
+                                        150.0,
+                                      ), // Limit message height
+                                      decoration: BoxDecoration(
+                                        color:
+                                            Theme.of(context).brightness ==
+                                                Brightness.dark
+                                            ? const Color(0xFF2a2f32)
+                                            : Colors.white,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: const Center(
+                                        child: Text(
+                                          'Selected Message',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  );
-                                }).toList(),
                               ),
                             ),
                           ),
-                        ),
 
-                        // The actual message in center
-                        Transform.scale(
-                          scale: _scaleAnimation.value,
-                          child: Opacity(
-                            opacity: _opacityAnimation.value,
-                            child: Container(
-                              width: 300,
-                              child: widget.messageWidget ?? Container(
-                                width: 300,
-                                height: widget.messageSize.height,
-                                color: Theme.of(context).brightness == Brightness.dark
-                                    ? const Color(0xFF2a2f32)
-                                    : Colors.white,
-                                child: const Center(
-                                  child: Text(
-                                    'Selected Message',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w500,
+                          // Options menu below message
+                          Flexible(
+                            child: Transform.scale(
+                              scale: _scaleAnimation.value,
+                              child: Opacity(
+                                opacity: _opacityAnimation.value,
+                                child: Container(
+                                  width: maxWidth,
+                                  margin: const EdgeInsets.only(top: 16),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? const Color(0xFF2a2f32)
+                                        : Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.15),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: SingleChildScrollView(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: _buildMainOptions(),
                                     ),
                                   ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-
-                        // Options menu below message
-                        Transform.scale(
-                          scale: _scaleAnimation.value,
-                          child: Opacity(
-                            opacity: _opacityAnimation.value,
-                            child: Container(
-                              width: 300,
-                              margin: const EdgeInsets.only(top: 16),
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).brightness == Brightness.dark
-                                    ? const Color(0xFF2a2f32)
-                                    : Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.15),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: _buildMainOptions(),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -574,7 +588,6 @@ class _InlineMessageOptionsState extends State<InlineMessageOptions>
     ];
   }
 
-
   Widget _buildOptionTile({
     required IconData icon,
     required String title,
@@ -595,8 +608,8 @@ class _InlineMessageOptionsState extends State<InlineMessageOptions>
                 color: isDestructive
                     ? Colors.red
                     : Theme.of(context).brightness == Brightness.dark
-                        ? Colors.white70
-                        : Colors.black87,
+                    ? Colors.white70
+                    : Colors.black87,
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -607,8 +620,8 @@ class _InlineMessageOptionsState extends State<InlineMessageOptions>
                     color: isDestructive
                         ? Colors.red
                         : Theme.of(context).brightness == Brightness.dark
-                            ? Colors.white
-                            : Colors.black87,
+                        ? Colors.white
+                        : Colors.black87,
                   ),
                 ),
               ),
@@ -619,4 +632,3 @@ class _InlineMessageOptionsState extends State<InlineMessageOptions>
     );
   }
 }
-
