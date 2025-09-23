@@ -435,7 +435,7 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                               GestureDetector(
                                 onTap: () => _showVotingDetailsDialog(
                                   context,
-                                  optionId,
+                                  optionId, // Still pass these for compatibility, but dialog shows all options now
                                   text,
                                 ),
                                 child: _buildAvatarGroup(optionId, votes),
@@ -628,62 +628,171 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
     String optionId,
     String optionText,
   ) {
-    final voters = _getVotersForOption(optionId);
+    final options = pollDetails['options'] as List? ?? [];
+    final question = pollDetails['question']?.toString() ?? widget.message.content;
+
+    // Find the option with the most votes for the star indicator
+    int maxVotes = 0;
+    for (final option in options) {
+      final votes = option['votes'] as int? ?? 0;
+      if (votes > maxVotes) {
+        maxVotes = votes;
+      }
+    }
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Voting Details'),
+          title: Text('Results'),
+          contentPadding: EdgeInsets.fromLTRB(24, 20, 24, 0),
           content: SizedBox(
-            width: 300,
+            width: double.maxFinite,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Option: $optionText',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                // Poll question in a rounded box
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.all(16),
+                  margin: EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    question,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600, 
+                      fontSize: 16,
+                      color: Colors.black87,
+                    ),
+                  ),
                 ),
-                SizedBox(height: 16),
-                Text(
-                  'Voters (${voters.length}):',
-                  style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
-                ),
-                SizedBox(height: 8),
-                SizedBox(
-                  height: 200,
-                  child: voters.isEmpty
-                      ? Center(
-                          child: Text(
-                            'No voters yet',
-                            style: TextStyle(color: Colors.grey, fontSize: 14),
-                          ),
-                        )
-                      : ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: voters.length,
-                          itemBuilder: (context, index) {
-                            final voter = voters[index];
-                            final votedAt = DateTime.tryParse(
-                              voter['votedAt'] ?? '',
-                            );
+                // Options with results
+                Flexible(
+                  child: SizedBox(
+                    height: 400,
+                    child: options.isEmpty
+                        ? Center(
+                            child: Text(
+                              'No poll options available',
+                              style: TextStyle(color: Colors.grey, fontSize: 14),
+                            ),
+                          )
+                        : ListView.separated(
+                            shrinkWrap: true,
+                            itemCount: options.length,
+                            separatorBuilder: (context, index) => SizedBox(height: 20),
+                            itemBuilder: (context, optionIndex) {
+                              final option = options[optionIndex];
+                              final optText = option['text']?.toString() ?? '';
+                              final votes = option['votes'] as int? ?? 0;
+                              final voters = (option['voters'] as List? ?? []).cast<Map<String, dynamic>>();
+                              final isWinning = votes == maxVotes && maxVotes > 0;
 
-                            return ListTile(
-                              leading: SVGAvatar(
-                                imageUrl: voter['profilePicture'],
-                                size: 40,
-                                fallbackText: voter['name']?[0] ?? 'U',
-                              ),
-                              title: Text(voter['name'] ?? 'Unknown User'),
-                              subtitle: Text(
-                                votedAt != null
-                                    ? 'Voted ${_formatVoteTime(votedAt)}'
-                                    : 'Voted recently',
-                              ),
-                            );
-                          },
-                        ),
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Option header in white rounded container
+                                  Container(
+                                    width: double.infinity,
+                                    padding: EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: Colors.grey[200]!),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            optText,
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 16,
+                                              color: Colors.black87,
+                                            ),
+                                          ),
+                                        ),
+                                        Text(
+                                          '$votes vote${votes == 1 ? '' : 's'}',
+                                          style: TextStyle(
+                                            color: Colors.grey[600],
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        if (isWinning) ...[
+                                          SizedBox(width: 6),
+                                          Icon(
+                                            Icons.star,
+                                            color: Colors.amber,
+                                            size: 18,
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+
+                                  // Voters list
+                                  if (voters.isNotEmpty) ...[
+                                    SizedBox(height: 12),
+                                    ...voters.map((voter) {
+                                      final votedAt = DateTime.tryParse(voter['votedAt'] ?? '');
+                                      
+                                      return Padding(
+                                        padding: EdgeInsets.only(bottom: 8, left: 4),
+                                        child: Row(
+                                          children: [
+                                            SVGAvatar(
+                                              imageUrl: voter['profilePicture'],
+                                              size: 40,
+                                              fallbackText: voter['name']?[0] ?? 'U',
+                                            ),
+                                            SizedBox(width: 12),
+                                            Expanded(
+                                              child: Text(
+                                                voter['name'] == 'You' ? 'You' : (voter['name'] ?? 'Unknown User'),
+                                                style: TextStyle(
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: Colors.black87,
+                                                ),
+                                              ),
+                                            ),
+                                            Text(
+                                              votedAt != null 
+                                                ? 'today ${_formatVoteTimeShort(votedAt)}'
+                                                : 'recently',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: Colors.grey[600],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ] else ...[
+                                    SizedBox(height: 12),
+                                    Padding(
+                                      padding: EdgeInsets.only(left: 4),
+                                      child: Text(
+                                        '0 votes',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey[500],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              );
+                            },
+                          ),
+                  ),
                 ),
               ],
             ),
@@ -699,18 +808,28 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
     );
   }
 
-  String _formatVoteTime(DateTime dateTime) {
+  String _formatVoteTimeShort(DateTime dateTime) {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
 
     if (difference.inDays > 0) {
-      return '${difference.inDays} day${difference.inDays == 1 ? '' : 's'} ago';
+      return '${difference.inDays}d ago';
     } else if (difference.inHours > 0) {
-      return '${difference.inHours} hour${difference.inHours == 1 ? '' : 's'} ago';
+      // Format as "2:05 PM" for same day
+      final hour = dateTime.hour;
+      final minute = dateTime.minute;
+      final period = hour >= 12 ? 'PM' : 'AM';
+      final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+      return '${displayHour}:${minute.toString().padLeft(2, '0')} $period';
     } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes} minute${difference.inMinutes == 1 ? '' : 's'} ago';
+      return '${difference.inMinutes}m ago';
     } else {
-      return 'Just now';
+      return 'now';
     }
+  }
+
+  // Legacy method for backward compatibility
+  String _formatVoteTime(DateTime dateTime) {
+    return _formatVoteTimeShort(dateTime);
   }
 }
