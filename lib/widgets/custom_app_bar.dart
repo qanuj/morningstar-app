@@ -347,57 +347,65 @@ class DuggyAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Theme.of(context).primaryColor,
-            Theme.of(context).primaryColorDark,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).primaryColor.withOpacity(0.3),
-            offset: Offset(0, 2),
-            blurRadius: 8,
+    return SafeArea(
+      top: false, // Don't add top safe area padding
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Theme.of(context).primaryColor,
+              Theme.of(context).primaryColorDark,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-        ],
-      ),
-      child: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        leading: Container(
-          width: 40,
-          height: 40,
-          padding: EdgeInsets.all(8),
-          child: DuggyLogo(size: 36, color: Colors.white),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Duggy',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.5,
-              ),
-            ),
-            Text(
-              subtitle,
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.9),
-                fontSize: 12,
-                fontWeight: FontWeight.w400,
-              ),
+          boxShadow: [
+            BoxShadow(
+              color: Theme.of(context).primaryColor.withOpacity(0.3),
+              offset: Offset(0, 2),
+              blurRadius: 8,
             ),
           ],
         ),
-        actions: _buildActions(),
+        child: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          toolbarHeight: 48.0, // Match the preferredSize height
+          titleSpacing: 0, // Remove extra spacing around title
+          automaticallyImplyLeading: false,
+          leading: Container(
+            width: 36,
+            height: 36,
+            padding: EdgeInsets.all(6), // Reduced padding
+            child: DuggyLogo(size: 24, color: Colors.white), // Reduced logo size
+          ),
+          title: Column(
+            mainAxisSize: MainAxisSize.min, // Use minimum space
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Duggy',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18, // Reduced from 24 to fit in 48px height
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                  height: 1.0, // Reduce line height
+                ),
+              ),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.9),
+                  fontSize: 11, // Reduced from 12
+                  fontWeight: FontWeight.w400,
+                  height: 1.0, // Reduce line height
+                ),
+              ),
+            ],
+          ),
+          actions: _buildActions(),
+        ),
       ),
     );
   }
@@ -420,5 +428,8 @@ class DuggyAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   @override
-  Size get preferredSize => Size.fromHeight(kToolbarHeight);
+  Size get preferredSize {
+    // Return just the toolbar height without any status bar padding
+    return const Size.fromHeight(48.0);
+  }
 }

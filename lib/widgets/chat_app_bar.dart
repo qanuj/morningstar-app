@@ -37,17 +37,23 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppBar(
-      backgroundColor: const Color(0xFF003f9b),
-      elevation: 0,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: Colors.white),
-        onPressed: onBackPressed,
+    return SafeArea(
+      top: false, // Don't add top safe area padding
+      child: AppBar(
+        backgroundColor: const Color(0xFF003f9b),
+        elevation: 0,
+        toolbarHeight: 48.0, // Match the preferredSize height
+        titleSpacing: 0, // Remove extra spacing around title
+        automaticallyImplyLeading: false, // Remove automatic leading widget spacing
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: onBackPressed,
+        ),
+        title: isSelectionMode ? _buildSelectionTitle() : _buildNormalTitle(),
+        actions: isSelectionMode
+            ? _buildSelectionActions()
+            : _buildNormalActions(),
       ),
-      title: isSelectionMode ? _buildSelectionTitle() : _buildNormalTitle(),
-      actions: isSelectionMode
-          ? _buildSelectionActions()
-          : _buildNormalActions(),
     );
   }
 
@@ -344,5 +350,8 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+  Size get preferredSize {
+    // Return just the toolbar height without any status bar padding
+    return const Size.fromHeight(48.0);
+  }
 }
