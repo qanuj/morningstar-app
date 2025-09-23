@@ -1998,17 +1998,28 @@ class ClubChatScreenState extends State<ClubChatScreen>
                         100 // Position above keyboard
                   : 120, // Position above message input when keyboard is hidden
               right: 16,
-              child: FloatingActionButton(
-                mini: true,
-                backgroundColor: Theme.of(context).brightness == Brightness.dark
-                    ? Color(0xFF2A2A2A)
-                    : Colors.white,
-                foregroundColor: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white
-                    : Colors.black87,
-                elevation: 6,
-                onPressed: _scrollToBottom,
-                child: Icon(Icons.keyboard_arrow_down, size: 24),
+              child: GestureDetector(
+                onTap: _scrollToBottom,
+                child: Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    Icons.keyboard_arrow_down,
+                    size: 36,
+                    color: Colors.black.withOpacity(0.7),
+                  ),
+                ),
               ),
             ),
         ],
