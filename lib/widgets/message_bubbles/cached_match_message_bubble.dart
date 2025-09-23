@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -11,6 +12,7 @@ import '../../services/message_storage_service.dart';
 import '../svg_avatar.dart';
 import 'base_message_bubble.dart';
 import '../../providers/user_provider.dart';
+import 'glass_header.dart';
 
 /// A cached match message bubble that uses local data and only updates via push notifications
 /// No unnecessary API calls - all data comes from the message content
@@ -390,23 +392,33 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: isCancelled
-          ? _buildCancelledCard(context, matchDetails, cancellationReason, isPractice)
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (!isPractice) ...[
-                  _buildTeamsSection(context, homeTeam, opponentTeam, isCancelled: isCancelled),
-                  SizedBox(height: 18),
-                ],
-                if (isPractice) _buildPracticeHeader(context, isCancelled),
-                _buildInfoSection(context, matchDateTime, venue, isCancelled: isCancelled),
-                SizedBox(height: 18),
-                _buildRsvpSummarySection(context, matchDetails, isCancelled: isCancelled),
-              ],
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header with glass effect background
+        isPractice
+            ? GlassHeader.practice(isCancelled: isCancelled)
+            : GlassHeader.match(isCancelled: isCancelled),
+
+        // Content with padding
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: isCancelled
+              ? _buildCancelledCard(context, matchDetails, cancellationReason, isPractice)
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (!isPractice) ...[
+                      _buildTeamsSection(context, homeTeam, opponentTeam, isCancelled: isCancelled),
+                      SizedBox(height: 18),
+                    ],
+                    _buildInfoSection(context, matchDateTime, venue, isCancelled: isCancelled),
+                    SizedBox(height: 18),
+                    _buildRsvpSummarySection(context, matchDetails, isCancelled: isCancelled),
+                  ],
+                ),
+        ),
+      ],
     );
   }
 
@@ -969,41 +981,78 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
       );
     }
 
+    return Column(
+      children: [
+        _buildRsvpButton(
+          context,
+          label: 'In',
+          status: 'YES',
+          count: counts['YES'] ?? 0,
+          color: Color(0xFF4CAF50),
+          isDisabled: isCancelled,
+        ),
+        _buildRsvpButton(
+          context,
+          label: 'Out',
+          status: 'NO',
+          count: counts['NO'] ?? 0,
+          color: Color(0xFFFF5722),
+          isDisabled: isCancelled,
+        ),
+        _buildRsvpButton(
+          context,
+          label: 'Maybe',
+          status: 'MAYBE',
+          count: counts['MAYBE'] ?? 0,
+          color: Color(0xFFFF9800),
+          isDisabled: isCancelled,
+        ),
+        SizedBox(height: 12),
+        _buildRsvpSummaryLine(context, counts),
+      ],
+    );
+  }
+
+  Widget _buildRsvpSummaryLine(BuildContext context, Map<String, int> counts) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final matchDetails = _getUnifiedMatchDetails;
+
+    final yesCount = counts['YES'] ?? 0;
+    final totalSpots = matchDetails['maxPlayers'] as int? ??
+                      matchDetails['capacity'] as int? ??
+                      matchDetails['spots'] as int? ??
+                      matchDetails['maxParticipants'] as int? ?? 0;
+
+    final confirmedPlayers = matchDetails['confirmedPlayers'] as int? ??
+                            matchDetails['currentParticipants'] as int? ?? 0;
+
+    final waiting = yesCount - confirmedPlayers;
+
+    String summaryText;
+    if (totalSpots > 0) {
+      if (waiting > 0) {
+        summaryText = '$confirmedPlayers of $totalSpots, $waiting waiting';
+      } else {
+        summaryText = '$confirmedPlayers of $totalSpots';
+      }
+    } else {
+      final totalResponses = counts.values.fold(0, (sum, count) => sum + count);
+      summaryText = '$totalResponses ${totalResponses == 1 ? 'response' : 'responses'}';
+    }
+
     return Row(
       children: [
-        Expanded(
-          flex: 5, // 50% of the width
-          child: _buildRsvpButton(
-            context,
-            label: 'In',
-            status: 'YES',
-            count: counts['YES'] ?? 0,
-            color: Color(0xFF4CAF50),
-            isDisabled: isCancelled,
-          ),
+        Icon(
+          Icons.how_to_vote,
+          size: 16,
+          color: isDarkMode ? Colors.white.withOpacity(0.6) : Colors.black.withOpacity(0.6),
         ),
-        SizedBox(width: 8),
-        Expanded(
-          flex: 3, // 30% of the width
-          child: _buildRsvpButton(
-            context,
-            label: 'Out',
-            status: 'NO',
-            count: counts['NO'] ?? 0,
-            color: Color(0xFFFF5722),
-            isDisabled: isCancelled,
-          ),
-        ),
-        SizedBox(width: 8),
-        Expanded(
-          flex: 2, // 20% of the width
-          child: _buildRsvpButton(
-            context,
-            label: 'Maybe',
-            status: 'MAYBE',
-            count: counts['MAYBE'] ?? 0,
-            color: Color(0xFFFF9800),
-            isDisabled: isCancelled,
+        SizedBox(width: 4),
+        Text(
+          summaryText,
+          style: TextStyle(
+            fontSize: 13,
+            color: isDarkMode ? Colors.white.withOpacity(0.6) : Colors.black.withOpacity(0.6),
           ),
         ),
       ],
@@ -1044,70 +1093,158 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     bool isDisabled = false,
   }) {
     final isSelected = _currentRSVPStatus == status;
-    final theme = Theme.of(context);
-    final backgroundColor = isDisabled
-        ? Colors.grey.shade300
-        : isSelected
-            ? color
-            : theme.colorScheme.surfaceVariant.withOpacity(
-                theme.brightness == Brightness.dark ? 0.4 : 0.7,
-              );
-    final foregroundColor = isDisabled
-        ? Colors.grey.shade500
-        : isSelected
-            ? Colors.white
-            : theme.textTheme.labelLarge?.color ?? theme.colorScheme.onSurfaceVariant;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final totalCount = (_statusCountsFromRaw(widget.message.meta?['statusCounts'])?.values.fold(0, (a, b) => a + b)) ?? 0;
+    final percentage = totalCount > 0 ? (count / totalCount * 100) : 0.0;
 
-    return Stack(
-      children: [
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: isDisabled ? null : () => _handleDirectRSVP(context, status),
-            style: ElevatedButton.styleFrom(
-              elevation: isSelected ? 2 : 0,
-              backgroundColor: backgroundColor,
-              foregroundColor: foregroundColor,
-              padding: EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    return Container(
+      margin: EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: isDisabled ? null : () => _handleDirectRSVP(context, status),
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isDisabled
+                ? (isDarkMode ? Colors.grey[800] : Colors.grey[100])
+                : isSelected
+                    ? Color(0xFF003f9b).withOpacity(0.2)
+                    : (isDarkMode ? Colors.grey[800] : Colors.grey[100]),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isDisabled
+                  ? (isDarkMode ? Colors.grey[700]! : Colors.grey[300]!)
+                  : isSelected
+                      ? Color(0xFF003f9b)
+                      : (isDarkMode ? Colors.grey[700]! : Colors.grey[300]!),
+              width: isSelected ? 2 : 1,
             ),
-            child: Text(
-              label,
-              style: TextStyle(fontWeight: FontWeight.w600, letterSpacing: 0.4),
-            ),
+          ),
+          child: Stack(
+            children: [
+              // Progress bar background
+              if (percentage > 0)
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(6),
+                      gradient: LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        stops: [percentage / 100, percentage / 100],
+                        colors: [
+                          Color(0xFF003f9b).withOpacity(0.3),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+              // Option content
+              Row(
+                children: [
+                  // Selection indicator
+                  if (isSelected)
+                    Container(
+                      width: 20,
+                      height: 20,
+                      margin: EdgeInsets.only(right: 12),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Color(0xFF003f9b),
+                      ),
+                      child: Icon(
+                        Icons.check,
+                        color: Colors.white,
+                        size: 14,
+                      ),
+                    ),
+
+                  if (!isSelected)
+                    Container(
+                      width: 20,
+                      height: 20,
+                      margin: EdgeInsets.only(right: 12),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Color(0xFF003f9b),
+                          width: 2,
+                        ),
+                      ),
+                    ),
+
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                        color: isDisabled
+                            ? Colors.grey[500]
+                            : (isDarkMode ? Colors.white.withOpacity(0.87) : Colors.black.withOpacity(0.87)),
+                      ),
+                    ),
+                  ),
+
+                  // Count display
+                  Text(
+                    _formatStatusCount(status, count, totalCount),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF003f9b),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
-        if (count > 0)
-          Positioned(
-            right: 6,
-            top: 6,
-            child: Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: count > 99 ? 6 : 8,
-                vertical: 4,
-              ),
-              decoration: BoxDecoration(
-                color: isSelected ? Colors.white : color,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isSelected ? color : Colors.white,
-                  width: 1.5,
-                ),
-              ),
-              constraints: BoxConstraints(minWidth: 20, minHeight: 20),
-              child: Text(
-                count > 99 ? '99+' : count.toString(),
-                style: TextStyle(
-                  color: isSelected ? color : Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
-      ],
+      ),
     );
+  }
+
+  String _formatStatusCount(String status, int count, int totalCount) {
+    final matchDetails = _getUnifiedMatchDetails;
+    final allCounts = _statusCountsFromRaw(widget.message.meta?['statusCounts']) ??
+        {'YES': 0, 'NO': 0, 'MAYBE': 0};
+
+    final yesCount = allCounts['YES'] ?? 0;
+    final noCount = allCounts['NO'] ?? 0;
+    final maybeCount = allCounts['MAYBE'] ?? 0;
+
+    // Get total spots/capacity
+    final totalSpots = matchDetails['maxPlayers'] as int? ??
+                      matchDetails['capacity'] as int? ??
+                      matchDetails['spots'] as int? ??
+                      matchDetails['maxParticipants'] as int? ?? 0;
+
+    // Get confirmed players (those who are actually confirmed, not just said yes)
+    final confirmedPlayers = matchDetails['confirmedPlayers'] as int? ??
+                            matchDetails['currentParticipants'] as int? ?? 0;
+
+    switch (status) {
+      case 'YES': // In
+        if (totalSpots > 0) {
+          // Calculate waiting: those who said yes but aren't confirmed
+          final waiting = yesCount - confirmedPlayers;
+          if (waiting > 0) {
+            return '$confirmedPlayers of $totalSpots, $waiting waiting';
+          } else {
+            return '$confirmedPlayers of $totalSpots';
+          }
+        } else {
+          return '$yesCount';
+        }
+      case 'NO': // Out
+        return '$noCount';
+      case 'MAYBE': // Maybe
+        return '$maybeCount';
+      default:
+        return '$count';
+    }
   }
 
   void _handleDirectRSVP(BuildContext context, String status) async {
@@ -1237,6 +1374,7 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
       }
     }
   }
+
 
   @override
   void dispose() {

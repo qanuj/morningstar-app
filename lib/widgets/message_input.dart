@@ -7,12 +7,15 @@ import 'dart:io';
 import '../widgets/audio_recording_widget.dart';
 import '../widgets/image_caption_dialog.dart';
 import '../widgets/selectors/unified_event_picker.dart';
+import '../widgets/selectors/poll_picker.dart';
+import '../screens/polls/create_poll_screen.dart';
 import '../models/club_message.dart';
 import '../models/message_status.dart';
 import '../models/message_document.dart';
 import '../models/starred_info.dart';
 import '../models/message_audio.dart';
 import '../models/match.dart';
+import '../models/poll.dart';
 import '../models/link_metadata.dart';
 import '../services/open_graph_service.dart';
 import 'package:provider/provider.dart';
@@ -503,6 +506,20 @@ class MessageInputState extends State<MessageInput> {
     widget.textFieldFocusNode.unfocus();
   }
 
+  void _openPollPicker() async {
+    final selectedPoll = await PollPicker.showPollPicker(
+      context: context,
+      clubId: widget.clubId,
+      title: 'Send Poll to Chat',
+    );
+
+    if (selectedPoll != null) {
+      _sendExistingPollMessage(selectedPoll);
+    }
+
+    widget.textFieldFocusNode.unfocus();
+  }
+
   void _sendExistingPracticeMessage(MatchListItem practice) async {
     final practiceBody =
         '⚽ Practice session: ${practice.opponent?.isNotEmpty == true ? practice.opponent! : 'Practice Session'}';
@@ -551,6 +568,37 @@ class MessageInputState extends State<MessageInput> {
       messageType: 'match',
       matchId: match.id,
       meta: _createCleanMatchMetadata(match),
+      createdAt: DateTime.now(),
+      status: MessageStatus.sending,
+      starred: StarredInfo(isStarred: false),
+      pin: PinInfo(isPinned: false),
+      reactions: const [],
+      deliveredTo: const [],
+      readBy: const [],
+    );
+
+    // Show message immediately in UI
+    widget.onSendMessage(tempMessage);
+
+    // Note: Parent widget will handle the API call based on the messageType
+    // No manual API call needed - this prevents the duplicate sending issue
+  }
+
+  void _sendExistingPollMessage(Poll poll) async {
+    final pollBody = '📊 Poll: ${poll.question}';
+
+    // Create temporary message for immediate UI update
+    final tempMessage = ClubMessage(
+      id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+      clubId: widget.clubId,
+      senderId: 'current_user', // Will be filled by parent
+      senderName: 'You',
+      senderProfilePicture: null,
+      senderRole: 'MEMBER',
+      content: pollBody,
+      messageType: 'poll',
+      pollId: poll.id,
+      meta: _createCleanPollMetadata(poll),
       createdAt: DateTime.now(),
       status: MessageStatus.sending,
       starred: StarredInfo(isStarred: false),
@@ -1015,7 +1063,7 @@ class MessageInputState extends State<MessageInput> {
                             title: 'Poll',
                             onTap: () {
                               _closeAttachmentMenu();
-                              // TODO: Implement poll creation
+                              _openPollPicker();
                             },
                           ),
                           _buildGridOption(
@@ -1227,6 +1275,28 @@ class MessageInputState extends State<MessageInput> {
   }
 
   /// Create clean metadata for match messages (excludes user-specific data)
+  Map<String, dynamic> _createCleanPollMetadata(Poll poll) {
+    final pollData = poll.toJson();
+    // Remove user-specific fields that shouldn't be in shared meta
+    pollData.remove('userVote');
+    // Transform poll data for message bubble format
+    final cleanData = {
+      'question': poll.question,
+      'options': poll.options.map((option) => {
+        'id': option.id,
+        'text': option.text,
+        'votes': option.voteCount,
+      }).toList(),
+      'totalVotes': poll.totalVotes,
+      'hasVoted': false, // Always false for shared messages - each user tracks their own vote
+      'userVotes': [], // Empty for shared messages - each user tracks their own votes
+      'allowMultiple': false, // Can be expanded later
+      'anonymous': false, // Can be expanded later
+      'expiresAt': poll.expiresAt?.toIso8601String(),
+    };
+    return cleanData;
+  }
+
   Map<String, dynamic> _createCleanMatchMetadata(MatchListItem match) {
     final matchData = match.toJson();
     // Remove user-specific fields that shouldn't be in shared meta

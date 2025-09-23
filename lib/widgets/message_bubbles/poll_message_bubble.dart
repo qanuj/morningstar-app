@@ -1,7 +1,10 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../models/club_message.dart';
 import '../../services/chat_api_service.dart';
+import '../../services/poll_service.dart';
 import 'base_message_bubble.dart';
+import 'glass_header.dart';
 
 /// A specialized message bubble for displaying poll messages
 class PollMessageBubble extends StatefulWidget {
@@ -36,6 +39,51 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
   void initState() {
     super.initState();
     pollDetails = widget.message.meta ?? {};
+    // For received polls, fetch fresh data to get current user's voting state
+    if (widget.message.pollId != null && !widget.isOwn) {
+      _fetchFreshPollData();
+    }
+  }
+
+  Future<void> _fetchFreshPollData() async {
+    if (widget.message.pollId == null) return;
+
+    try {
+      // Fetch fresh poll data from the API to get current user's voting state
+      final polls = await PollService.getPolls(
+        clubId: widget.message.clubId,
+        includeExpired: true, // Include expired polls to show results
+      );
+
+      // Find the specific poll
+      final poll = polls.firstWhere(
+        (p) => p.id == widget.message.pollId,
+        orElse: () => throw Exception('Poll not found'),
+      );
+
+      if (mounted) {
+        setState(() {
+          // Update with fresh data that includes current user's voting state
+          pollDetails = {
+            'question': poll.question,
+            'options': poll.options.map((option) => {
+              'id': option.id,
+              'text': option.text,
+              'votes': option.voteCount,
+            }).toList(),
+            'totalVotes': poll.totalVotes,
+            'hasVoted': poll.hasVoted,
+            'userVotes': poll.hasVoted && poll.userVote != null ? [poll.userVote!.pollOptionId] : [],
+            'allowMultiple': false,
+            'anonymous': false,
+            'expiresAt': poll.expiresAt?.toIso8601String(),
+          };
+        });
+      }
+    } catch (e) {
+      print('Failed to fetch fresh poll data: $e');
+      // Keep using the metadata from the message if API call fails
+    }
   }
 
   @override
@@ -45,7 +93,6 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
       isOwn: widget.isOwn,
       isPinned: widget.isPinned,
       isSelected: widget.isSelected,
-      customColor: Color(0xFF9C27B0).withOpacity(0.1),
       showMetaOverlay: true,
       showShadow: true,
       onReactionRemoved: widget.onReactionRemoved,
@@ -70,175 +117,103 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
     
     final isExpired = expiresAt != null && DateTime.now().isAfter(expiresAt);
     
-    return Container(
-      decoration: BoxDecoration(
-        color: Color(0xFF9C27B0).withOpacity(isDarkMode ? 0.2 : 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Color(0xFF9C27B0).withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Stack(
-        children: [
-          Padding(
-            padding: EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Poll header with poll icon
-                Row(
-                  children: [
-                    Container(
-                      padding: EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Color(0xFF9C27B0),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        Icons.poll,
-                        color: Colors.white,
-                        size: 18,
-                      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Poll header with glass effect background
+        GlassHeader.poll(isExpired: isExpired),
+
+        // Poll content with padding
+        Padding(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Poll question
+              Text(
+                question,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: isDarkMode ? Colors.white.withOpacity(0.87) : Colors.black.withOpacity(0.87),
+                ),
+              ),
+
+              SizedBox(height: 12),
+
+              // Poll options
+              ...options.asMap().entries.map((entry) {
+                final index = entry.key;
+                final option = entry.value as Map<String, dynamic>;
+                return _buildPollOption(context, option, index, hasVoted, isExpired, totalVotes, userVotes, allowMultiple);
+              }).toList(),
+
+              SizedBox(height: 12),
+
+              // Poll stats
+              Row(
+                children: [
+                  Icon(
+                    Icons.how_to_vote,
+                    size: 16,
+                    color: isDarkMode ? Colors.white.withOpacity(0.6) : Colors.black.withOpacity(0.6),
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    '$totalVotes ${totalVotes == 1 ? 'vote' : 'votes'}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isDarkMode ? Colors.white.withOpacity(0.6) : Colors.black.withOpacity(0.6),
                     ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  ),
+                  if (anonymous)
+                    Padding(
+                      padding: EdgeInsets.only(left: 12),
+                      child: Row(
                         children: [
+                          Icon(
+                            Icons.visibility_off,
+                            size: 16,
+                            color: isDarkMode ? Colors.white.withOpacity(0.6) : Colors.black.withOpacity(0.6),
+                          ),
+                          SizedBox(width: 4),
                           Text(
-                            'Poll',
+                            'Anonymous',
                             style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF9C27B0),
+                              fontSize: 13,
+                              color: isDarkMode ? Colors.white.withOpacity(0.6) : Colors.black.withOpacity(0.6),
                             ),
                           ),
-                          if (isExpired)
-                            Text(
-                              'Expired',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.red,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-                
-                SizedBox(height: 16),
-                
-                // Poll question
-                Text(
-                  question,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: isDarkMode ? Colors.white.withOpacity(0.87) : Colors.black.withOpacity(0.87),
-                  ),
-                ),
-                
-                SizedBox(height: 12),
-                
-                // Poll options
-                ...options.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final option = entry.value as Map<String, dynamic>;
-                  return _buildPollOption(context, option, index, hasVoted, isExpired, totalVotes, userVotes, allowMultiple);
-                }).toList(),
-                
-                SizedBox(height: 12),
-                
-                // Poll stats
-                Row(
-                  children: [
-                    Icon(
-                      Icons.how_to_vote,
-                      size: 16,
-                      color: isDarkMode ? Colors.white.withOpacity(0.6) : Colors.black.withOpacity(0.6),
-                    ),
-                    SizedBox(width: 4),
-                    Text(
-                      '$totalVotes ${totalVotes == 1 ? 'vote' : 'votes'}',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: isDarkMode ? Colors.white.withOpacity(0.6) : Colors.black.withOpacity(0.6),
-                      ),
-                    ),
-                    if (anonymous)
-                      Padding(
-                        padding: EdgeInsets.only(left: 12),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.visibility_off,
-                              size: 16,
+                  if (expiresAt != null && !isExpired)
+                    Padding(
+                      padding: EdgeInsets.only(left: 12),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.schedule,
+                            size: 16,
+                            color: isDarkMode ? Colors.white.withOpacity(0.6) : Colors.black.withOpacity(0.6),
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            'Expires ${_formatExpiryTime(expiresAt)}',
+                            style: TextStyle(
+                              fontSize: 13,
                               color: isDarkMode ? Colors.white.withOpacity(0.6) : Colors.black.withOpacity(0.6),
                             ),
-                            SizedBox(width: 4),
-                            Text(
-                              'Anonymous',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: isDarkMode ? Colors.white.withOpacity(0.6) : Colors.black.withOpacity(0.6),
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    if (expiresAt != null && !isExpired)
-                      Padding(
-                        padding: EdgeInsets.only(left: 12),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.schedule,
-                              size: 16,
-                              color: isDarkMode ? Colors.white.withOpacity(0.6) : Colors.black.withOpacity(0.6),
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              'Expires ${_formatExpiryTime(expiresAt)}',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: isDarkMode ? Colors.white.withOpacity(0.6) : Colors.black.withOpacity(0.6),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          
-          // View Poll button (top right corner)
-          Positioned(
-            top: 12,
-            right: 12,
-            child: InkWell(
-              onTap: widget.onViewPoll,
-              borderRadius: BorderRadius.circular(20),
-              child: Container(
-                padding: EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Color(0xFF9C27B0).withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Icon(
-                  Icons.bar_chart,
-                  color: Color(0xFF9C27B0),
-                  size: 20,
-                ),
+                    ),
+                ],
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -250,7 +225,7 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
     final isSelected = userVotes.contains(optionId);
     final percentage = totalVotes > 0 ? (votes / totalVotes * 100) : 0.0;
     
-    final canVote = !hasVoted && !isExpired && !isVoting;
+    final canVote = !isExpired && !isVoting;
     
     return Container(
       margin: EdgeInsets.only(bottom: 8),
@@ -262,13 +237,13 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
           decoration: BoxDecoration(
             color: hasVoted 
                 ? (isSelected 
-                    ? Color(0xFF9C27B0).withOpacity(0.2) 
+                    ? Color(0xFF003f9b).withOpacity(0.2) 
                     : (isDarkMode ? Colors.grey[800] : Colors.grey[100]))
                 : (isDarkMode ? Colors.grey[800] : Colors.grey[50]),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: isSelected 
-                  ? Color(0xFF9C27B0) 
+                  ? Color(0xFF003f9b) 
                   : (isDarkMode ? Colors.grey[700]! : Colors.grey[300]!),
               width: isSelected ? 2 : 1,
             ),
@@ -286,7 +261,7 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                         end: Alignment.centerRight,
                         stops: [percentage / 100, percentage / 100],
                         colors: [
-                          Color(0xFF9C27B0).withOpacity(0.3),
+                          Color(0xFF003f9b).withOpacity(0.3),
                           Colors.transparent,
                         ],
                       ),
@@ -306,7 +281,7 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                         shape: allowMultiple ? BoxShape.rectangle : BoxShape.circle,
                         borderRadius: allowMultiple ? BorderRadius.circular(4) : null,
                         border: Border.all(
-                          color: Color(0xFF9C27B0),
+                          color: Color(0xFF003f9b),
                           width: 2,
                         ),
                       ),
@@ -320,7 +295,7 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                       decoration: BoxDecoration(
                         shape: allowMultiple ? BoxShape.rectangle : BoxShape.circle,
                         borderRadius: allowMultiple ? BorderRadius.circular(4) : null,
-                        color: Color(0xFF9C27B0),
+                        color: Color(0xFF003f9b),
                       ),
                       child: Icon(
                         allowMultiple ? Icons.check : Icons.check,
@@ -346,7 +321,7 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF9C27B0),
+                        color: Color(0xFF003f9b),
                       ),
                     ),
                 ],
@@ -359,49 +334,65 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
   }
 
   void _voteForOption(String optionId) async {
-    if (isVoting) return;
-    
+    if (isVoting || widget.message.pollId == null) return;
+
+    // Check if user is changing their vote (clicking the same option they already voted for)
+    final userVotes = pollDetails['userVotes'] as List? ?? [];
+    final hasVoted = pollDetails['hasVoted'] as bool? ?? false;
+    final previousVoteId = hasVoted && userVotes.isNotEmpty ? userVotes.first.toString() : null;
+
+    // If clicking the same option they already voted for, do nothing
+    if (previousVoteId == optionId) return;
+
     setState(() {
       isVoting = true;
     });
 
     try {
-      // Here you would call the API to vote
-      // await ChatApiService.voteInPoll(widget.message.clubId, widget.message.pollId!, optionId);
-      
-      // For now, just simulate a vote locally
-      await Future.delayed(Duration(milliseconds: 500));
-      
+      // Call the actual PollService API
+      await PollService.voteOnPoll(
+        pollId: widget.message.pollId!,
+        optionId: optionId,
+      );
+
       // Update local state
       setState(() {
         final options = pollDetails['options'] as List? ?? [];
+
+        // If changing vote, decrease count for previous option
+        if (hasVoted && previousVoteId != null) {
+          for (var option in options) {
+            if (option['id'] == previousVoteId) {
+              option['votes'] = ((option['votes'] as int? ?? 0) - 1).clamp(0, double.infinity).toInt();
+              break;
+            }
+          }
+        }
+
+        // Increase count for new option
         for (var option in options) {
           if (option['id'] == optionId) {
             option['votes'] = (option['votes'] as int? ?? 0) + 1;
             break;
           }
         }
-        
-        pollDetails['totalVotes'] = (pollDetails['totalVotes'] as int? ?? 0) + 1;
+
+        // Only increase total votes if this is a new vote (not a change)
+        if (!hasVoted) {
+          pollDetails['totalVotes'] = (pollDetails['totalVotes'] as int? ?? 0) + 1;
+        }
+
         pollDetails['hasVoted'] = true;
         pollDetails['userVotes'] = [optionId]; // For single-choice polls
-        
+
         isVoting = false;
       });
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Vote recorded successfully!'),
-            backgroundColor: Color(0xFF9C27B0),
-          ),
-        );
-      }
+
     } catch (e) {
       setState(() {
         isVoting = false;
       });
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
