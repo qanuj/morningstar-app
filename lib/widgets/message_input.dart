@@ -1000,7 +1000,7 @@ class MessageInputState extends State<MessageInput> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // First row - Photos, Camera, Location, Contact
+                      // First row - Photos, Camera, Documents, Audio
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
@@ -1023,32 +1023,6 @@ class MessageInputState extends State<MessageInput> {
                             },
                           ),
                           _buildGridOption(
-                            icon: Icons.location_on,
-                            iconColor: Color(0xFF4CAF50),
-                            title: 'Location',
-                            onTap: () {
-                              _closeAttachmentMenu();
-                              // TODO: Implement location sharing
-                            },
-                          ),
-                          _buildGridOption(
-                            icon: Icons.person,
-                            iconColor: Color(0xFF9E9E9E),
-                            title: 'Contact',
-                            onTap: () {
-                              _closeAttachmentMenu();
-                              // TODO: Implement contact sharing
-                            },
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 8),
-
-                      // Second row - Document, Poll, Event, Payment
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildGridOption(
                             icon: Icons.description,
                             iconColor: Color(0xFF2196F3),
                             title: 'Document',
@@ -1057,6 +1031,23 @@ class MessageInputState extends State<MessageInput> {
                               _pickDocuments();
                             },
                           ),
+                          _buildGridOption(
+                            icon: Icons.audiotrack,
+                            iconColor: Color(0xFFFF9800),
+                            title: 'Audio',
+                            onTap: () {
+                              _closeAttachmentMenu();
+                              _pickAudioFiles();
+                            },
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 16),
+
+                      // Second row - Poll, Match, Payment
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
                           _buildGridOption(
                             icon: Icons.poll,
                             iconColor: Color(0xFFFFC107),
@@ -1067,12 +1058,12 @@ class MessageInputState extends State<MessageInput> {
                             },
                           ),
                           _buildGridOption(
-                            icon: Icons.event,
+                            icon: Icons.sports_cricket,
                             iconColor: Color(0xFFE91E63),
-                            title: 'Event',
+                            title: 'Match',
                             onTap: () {
                               _closeAttachmentMenu();
-                              _openMatchPicker(); // For now, use match picker
+                              _openMatchPicker();
                             },
                           ),
                           _buildGridOption(
@@ -1086,26 +1077,8 @@ class MessageInputState extends State<MessageInput> {
                               }
                             },
                           ),
-                        ],
-                      ),
-
-                      // Third row - Audio only (removed AI Images as requested)
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildGridOption(
-                            icon: Icons.audiotrack,
-                            iconColor: Color(0xFFFF9800),
-                            title: 'Audio',
-                            onTap: () {
-                              _closeAttachmentMenu();
-                              _pickAudioFiles();
-                            },
-                          ),
-                          // Empty spaces to maintain layout
-                          Container(width: 70),
-                          Container(width: 70),
-                          Container(width: 70),
+                          // Empty space for better alignment
+                          SizedBox(width: 60),
                         ],
                       ),
                     ],
@@ -1282,7 +1255,6 @@ class MessageInputState extends State<MessageInput> {
                 ],
               ],
             ),
-
             // Attachment menu (always present but height animated)
             _buildAttachmentMenu(),
           ],

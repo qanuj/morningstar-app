@@ -591,7 +591,7 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
               ? Color(0xFF003f9b)
               : (Theme.of(context).brightness == Brightness.dark
                     ? Colors.white.withOpacity(0.9)
-                    : Colors.grey[700]),
+                    : Colors.black87),
         ),
         iconSize: 28,
       );
