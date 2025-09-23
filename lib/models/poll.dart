@@ -109,18 +109,20 @@ class PollOption {
 class CreatedBy {
   final String id;
   final String name;
+  final String? profilePicture;
 
-  CreatedBy({required this.id, required this.name});
+  CreatedBy({required this.id, required this.name, this.profilePicture});
 
   factory CreatedBy.fromJson(Map<String, dynamic> json) {
     return CreatedBy(
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? 'Unknown User',
+      profilePicture: json['profilePicture']?.toString(),
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {'id': id, 'name': name};
+    return {'id': id, 'name': name, 'profilePicture': profilePicture};
   }
 }
 

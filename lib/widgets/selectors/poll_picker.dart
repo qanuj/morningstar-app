@@ -32,10 +32,7 @@ class PollPicker extends StatefulWidget {
           color: Theme.of(context).cardColor,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        child: PollPickerModal(
-          clubId: clubId,
-          title: title,
-        ),
+        child: PollPickerModal(clubId: clubId, title: title),
       ),
     );
   }
@@ -47,7 +44,8 @@ class PollPicker extends StatefulWidget {
     required this.onCreateNewPoll,
     this.title = 'Send Poll to Chat',
     this.createNewText = 'Create New Poll',
-    this.createNewDescription = 'Open the poll creation screen to set up a new poll.',
+    this.createNewDescription =
+        'Open the poll creation screen to set up a new poll.',
   });
 
   @override
@@ -124,9 +122,7 @@ class _PollPickerState extends State<PollPicker> {
                 ),
               ),
               const SizedBox(height: 12),
-              Expanded(
-                child: _buildPollsContent(theme),
-              ),
+              Expanded(child: _buildPollsContent(theme)),
             ],
           ),
         ),
@@ -154,7 +150,11 @@ class _PollPickerState extends State<PollPicker> {
                   color: theme.colorScheme.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(Icons.add, color: theme.colorScheme.primary, size: 24),
+                child: Icon(
+                  Icons.add,
+                  color: theme.colorScheme.primary,
+                  size: 24,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -163,12 +163,16 @@ class _PollPickerState extends State<PollPicker> {
                   children: [
                     Text(
                       widget.createNewText,
-                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       widget.createNewDescription,
-                      style: theme.textTheme.bodyMedium?.copyWith(color: theme.textTheme.bodySmall?.color),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.textTheme.bodySmall?.color,
+                      ),
                     ),
                   ],
                 ),
@@ -207,24 +211,32 @@ class _PollPickerState extends State<PollPicker> {
       return Center(
         child: Text(
           'No active polls found for this club.',
-          style: theme.textTheme.bodyMedium?.copyWith(color: theme.textTheme.bodySmall?.color),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.textTheme.bodySmall?.color,
+          ),
         ),
       );
     }
 
-    return ListView.separated(
-      itemCount: _polls.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final poll = _polls[index];
-        return _PollListTile(
-          poll: poll,
-          onTap: () {
-            Navigator.of(context).pop();
-            widget.onExistingPollSelected(poll);
-          },
-        );
-      },
+    return Container(
+      color: theme.brightness == Brightness.dark
+          ? Colors.grey[900]
+          : Colors.grey[100],
+      child: ListView.separated(
+        padding: const EdgeInsets.all(8),
+        itemCount: _polls.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (context, index) {
+          final poll = _polls[index];
+          return _PollListTile(
+            poll: poll,
+            onTap: () {
+              Navigator.of(context).pop();
+              widget.onExistingPollSelected(poll);
+            },
+          );
+        },
+      ),
     );
   }
 }
@@ -238,12 +250,15 @@ class _PollListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final localCreated = poll.createdAt.toLocal();
+    final isDarkMode = theme.brightness == Brightness.dark;
 
     return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      elevation: 4,
+      shadowColor: isDarkMode ? Colors.black54 : Colors.black26,
+      color: theme.cardColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -252,17 +267,12 @@ class _PollListTile extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.poll,
-                      color: theme.colorScheme.primary,
-                      size: 20,
-                    ),
+                  SVGAvatar(
+                    imageUrl: poll.createdBy.profilePicture,
+                    size: 40,
+                    fallbackText: poll.createdBy.name.isNotEmpty
+                        ? poll.createdBy.name[0].toUpperCase()
+                        : 'U',
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -273,6 +283,9 @@ class _PollListTile extends StatelessWidget {
                           poll.question,
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w600,
+                            color: isDarkMode
+                                ? Colors.white.withOpacity(0.87)
+                                : Colors.black87,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -281,80 +294,56 @@ class _PollListTile extends StatelessWidget {
                         Text(
                           'by ${poll.createdBy.name}',
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.textTheme.bodySmall?.color,
+                            color: isDarkMode
+                                ? Colors.white.withOpacity(0.6)
+                                : Colors.grey[600],
                           ),
                         ),
                       ],
                     ),
                   ),
+                  const SizedBox(width: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${poll.options.length} options',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
                 ],
               ),
-              const SizedBox(height: 12),
-              Text(
-                '${poll.options.length} options • ${poll.totalVotes} votes',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(
-                    Icons.schedule,
-                    size: 14,
-                    color: theme.textTheme.bodySmall?.color,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Created ${DateFormat('MMM d, h:mma').format(localCreated).toLowerCase()}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.textTheme.bodySmall?.color,
-                    ),
-                  ),
-                  if (poll.expiresAt != null) ...[
-                    const SizedBox(width: 12),
+              if (poll.expiresAt != null) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
                     Icon(
-                      Icons.timer,
-                      size: 14,
-                      color: theme.textTheme.bodySmall?.color,
+                      Icons.timer_outlined,
+                      size: 16,
+                      color: isDarkMode
+                          ? Colors.orange[400]
+                          : Colors.orange[600],
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 6),
                     Text(
-                      'Expires ${DateFormat('MMM d').format(poll.expiresAt!.toLocal())}',
+                      'Expires ${DateFormat('MMM d, h:mma').format(poll.expiresAt!.toLocal()).toLowerCase()}',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.textTheme.bodySmall?.color,
+                        color: isDarkMode
+                            ? Colors.orange[400]
+                            : Colors.orange[600],
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
-                ],
-              ),
-              if (poll.hasVoted) ...[
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.secondary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.check_circle,
-                        size: 14,
-                        color: theme.colorScheme.secondary,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Voted',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.secondary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
               ],
             ],
@@ -370,11 +359,7 @@ class PollPickerModal extends StatefulWidget {
   final String clubId;
   final String title;
 
-  const PollPickerModal({
-    super.key,
-    required this.clubId,
-    required this.title,
-  });
+  const PollPickerModal({super.key, required this.clubId, required this.title});
 
   @override
   State<PollPickerModal> createState() => _PollPickerModalState();
@@ -470,9 +455,7 @@ class _PollPickerModalState extends State<PollPickerModal> {
                 ),
               ),
               const SizedBox(height: 12),
-              Expanded(
-                child: _buildPollsContent(theme),
-              ),
+              Expanded(child: _buildPollsContent(theme)),
             ],
           ),
         ),
@@ -497,7 +480,11 @@ class _PollPickerModalState extends State<PollPickerModal> {
                   color: theme.colorScheme.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(Icons.add, color: theme.colorScheme.primary, size: 24),
+                child: Icon(
+                  Icons.add,
+                  color: theme.colorScheme.primary,
+                  size: 24,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -506,12 +493,16 @@ class _PollPickerModalState extends State<PollPickerModal> {
                   children: [
                     Text(
                       'Create New Poll',
-                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'Open the poll creation screen to set up a new poll.',
-                      style: theme.textTheme.bodyMedium?.copyWith(color: theme.textTheme.bodySmall?.color),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.textTheme.bodySmall?.color,
+                      ),
                     ),
                   ],
                 ),
@@ -550,7 +541,9 @@ class _PollPickerModalState extends State<PollPickerModal> {
       return Center(
         child: Text(
           'No active polls found for this club.',
-          style: theme.textTheme.bodyMedium?.copyWith(color: theme.textTheme.bodySmall?.color),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.textTheme.bodySmall?.color,
+          ),
         ),
       );
     }

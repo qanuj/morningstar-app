@@ -1302,72 +1302,72 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
         child: InkWell(
           onTap: isDisabled ? null : () => _handleDirectRSVP(context, status),
           borderRadius: BorderRadius.circular(8),
-          child: Container(
-            padding: EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: isDisabled
-                    ? [
-                        (isDarkMode ? Colors.grey[800]! : Colors.grey[100]!)
-                            .withOpacity(0.6),
-                        (isDarkMode ? Colors.grey[850]! : Colors.grey[50]!)
-                            .withOpacity(0.6),
-                      ]
-                    : isSelected
-                    ? [
-                        isDarkMode
-                            ? Colors.white.withOpacity(0.3)
-                            : Color(0xFF003f9b).withOpacity(0.3),
-                        isDarkMode
-                            ? Colors.grey[300]!.withOpacity(0.2)
-                            : Color(0xFF06aeef).withOpacity(0.2),
-                      ]
-                    : [
-                        (isDarkMode ? Colors.grey[800]! : Colors.white)
-                            .withOpacity(0.7),
-                        (isDarkMode ? Colors.grey[850]! : Colors.grey[50]!)
-                            .withOpacity(0.7),
-                      ],
-              ),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: isDisabled
-                    ? (isDarkMode ? Colors.grey[700]! : Colors.grey[300]!)
-                    : isSelected
-                    ? (isDarkMode
-                          ? Colors.white.withOpacity(0.8)
-                          : Color(0xFF003f9b))
-                    : (isDarkMode ? Colors.grey[700]! : Colors.grey[300]!),
-                width: 1,
-              ),
-            ),
-            child: Stack(
-              children: [
-                // Progress bar background
-                if (percentage > 0)
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(6),
-                        gradient: LinearGradient(
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                          stops: [percentage / 100, percentage / 100],
-                          colors: [
-                            isDarkMode
-                                ? Colors.white.withOpacity(0.4)
-                                : Color(0xFF003f9b).withOpacity(0.4),
-                            Colors.transparent,
-                          ],
-                        ),
+          child: Stack(
+            children: [
+              // Progress bar background - fills entire container
+              if (percentage > 0)
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      gradient: LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        stops: [percentage / 100, percentage / 100],
+                        colors: [
+                          isDarkMode
+                              ? Colors.white.withOpacity(0.4)
+                              : Color(0xFF003f9b).withOpacity(0.4),
+                          Colors.transparent,
+                        ],
                       ),
                     ),
                   ),
+                ),
 
-                // Option content
-                Center(
+              // Content container with padding
+              Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: isDisabled
+                        ? [
+                            (isDarkMode ? Colors.grey[800]! : Colors.grey[100]!)
+                                .withOpacity(0.6),
+                            (isDarkMode ? Colors.grey[850]! : Colors.grey[50]!)
+                                .withOpacity(0.6),
+                          ]
+                        : isSelected
+                        ? [
+                            isDarkMode
+                                ? Colors.white.withOpacity(0.3)
+                                : Color(0xFF003f9b).withOpacity(0.3),
+                            isDarkMode
+                                ? Colors.grey[300]!.withOpacity(0.2)
+                                : Color(0xFF06aeef).withOpacity(0.2),
+                          ]
+                        : [
+                            (isDarkMode ? Colors.grey[800]! : Colors.white)
+                                .withOpacity(0.7),
+                            (isDarkMode ? Colors.grey[850]! : Colors.grey[50]!)
+                                .withOpacity(0.7),
+                          ],
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isDisabled
+                        ? (isDarkMode ? Colors.grey[700]! : Colors.grey[300]!)
+                        : isSelected
+                        ? (isDarkMode
+                              ? Colors.white.withOpacity(0.8)
+                              : Color(0xFF003f9b))
+                        : (isDarkMode ? Colors.grey[700]! : Colors.grey[300]!),
+                    width: 1,
+                  ),
+                ),
+                child: Center(
                   child: Text(
                     label,
                     style: TextStyle(
@@ -1383,8 +1383,8 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
