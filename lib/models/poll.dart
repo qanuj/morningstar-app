@@ -29,8 +29,12 @@ class Poll {
     return Poll(
       id: json['id']?.toString() ?? '',
       question: json['question']?.toString() ?? '',
-      createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
-      updatedAt: DateTime.parse(json['updatedAt'] ?? DateTime.now().toIso8601String()),
+      createdAt: DateTime.parse(
+        json['createdAt'] ?? DateTime.now().toIso8601String(),
+      ),
+      updatedAt: DateTime.parse(
+        json['updatedAt'] ?? DateTime.now().toIso8601String(),
+      ),
       expiresAt: json['expiresAt'] != null
           ? DateTime.parse(json['expiresAt'])
           : null,
@@ -135,7 +139,9 @@ class UserVote {
     return UserVote(
       id: json['id']?.toString() ?? '',
       pollOptionId: json['pollOptionId']?.toString() ?? '',
-      createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
+      createdAt: DateTime.parse(
+        json['createdAt'] ?? DateTime.now().toIso8601String(),
+      ),
     );
   }
 
@@ -165,8 +171,10 @@ class PollVoter {
     return PollVoter(
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? 'Unknown User',
-      profilePicture: json['profilePicture'],  // Can be null
-      votedAt: DateTime.parse(json['votedAt'] ?? DateTime.now().toIso8601String()),
+      profilePicture: json['profilePicture'], // Can be null
+      votedAt: DateTime.parse(
+        json['votedAt'] ?? DateTime.now().toIso8601String(),
+      ),
     );
   }
 
@@ -191,7 +199,7 @@ class ClubModel {
     return ClubModel(
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? 'Unknown Club',
-      logo: json['logo'],  // Can be null
+      logo: json['logo'], // Can be null
     );
   }
 

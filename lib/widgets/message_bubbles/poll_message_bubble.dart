@@ -379,54 +379,62 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                       // Top row with checkbox and option text
                       Row(
                         children: [
-                          // Always show checkbox if poll not expired
-                          if (!isExpired)
-                            GestureDetector(
-                              onTap: canVote
+                          // Wrap checkbox and text in single GestureDetector for voting
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: canVote && !isExpired
                                   ? () => _voteForOption(optionId)
                                   : null,
-                              child: Container(
-                                width: 20,
-                                height: 20,
-                                margin: EdgeInsets.only(right: 12),
-                                decoration: BoxDecoration(
-                                  shape: allowMultiple
-                                      ? BoxShape.rectangle
-                                      : BoxShape.circle,
-                                  borderRadius: allowMultiple
-                                      ? BorderRadius.circular(4)
-                                      : null,
-                                  color: isSelected
-                                      ? Color(0xFF003f9b)
-                                      : Colors.transparent,
-                                  border: Border.all(
-                                    color: Color(0xFF003f9b),
-                                    width: 2,
-                                  ),
-                                ),
-                                child: isSelected
-                                    ? Icon(
-                                        allowMultiple
-                                            ? Icons.check
-                                            : Icons.check,
-                                        color: Colors.white,
-                                        size: 14,
-                                      )
-                                    : null,
-                              ),
-                            ),
+                              behavior: HitTestBehavior.opaque,
+                              child: Row(
+                                children: [
+                                  // Always show checkbox if poll not expired
+                                  if (!isExpired)
+                                    Container(
+                                      width: 20,
+                                      height: 20,
+                                      margin: EdgeInsets.only(right: 12),
+                                      decoration: BoxDecoration(
+                                        shape: allowMultiple
+                                            ? BoxShape.rectangle
+                                            : BoxShape.circle,
+                                        borderRadius: allowMultiple
+                                            ? BorderRadius.circular(4)
+                                            : null,
+                                        color: isSelected
+                                            ? Color(0xFF003f9b)
+                                            : Colors.transparent,
+                                        border: Border.all(
+                                          color: Color(0xFF003f9b),
+                                          width: 2,
+                                        ),
+                                      ),
+                                      child: isSelected
+                                          ? Icon(
+                                              allowMultiple
+                                                  ? Icons.check
+                                                  : Icons.check,
+                                              color: Colors.white,
+                                              size: 14,
+                                            )
+                                          : null,
+                                    ),
 
-                          Expanded(
-                            child: Text(
-                              text,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: isSelected
-                                    ? FontWeight.w600
-                                    : FontWeight.normal,
-                                color: isDarkMode
-                                    ? Colors.white.withOpacity(0.87)
-                                    : Colors.black.withOpacity(0.87),
+                                  Expanded(
+                                    child: Text(
+                                      text,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w600
+                                            : FontWeight.normal,
+                                        color: isDarkMode
+                                            ? Colors.white.withOpacity(0.87)
+                                            : Colors.black.withOpacity(0.87),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -483,7 +491,9 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
         ? userVotes.first?.toString()
         : null;
 
-    print('Voting Debug: optionId=$optionId, hasVoted=$hasVoted, previousVoteId=$previousVoteId, userVotes=$userVotes');
+    print(
+      'Voting Debug: optionId=$optionId, hasVoted=$hasVoted, previousVoteId=$previousVoteId, userVotes=$userVotes',
+    );
     print('Poll ID: ${widget.message.pollId}');
 
     // If clicking the same option they already voted for, do nothing
@@ -497,9 +507,13 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
     });
 
     try {
-      print('Calling PollService.voteOnPoll with pollId: ${widget.message.pollId}, optionId: $optionId');
-      print('Types: pollId is ${widget.message.pollId.runtimeType}, optionId is ${optionId.runtimeType}');
-      
+      print(
+        'Calling PollService.voteOnPoll with pollId: ${widget.message.pollId}, optionId: $optionId',
+      );
+      print(
+        'Types: pollId is ${widget.message.pollId.runtimeType}, optionId is ${optionId.runtimeType}',
+      );
+
       // Call the PollService API which now returns updated poll data
       Poll updatedPoll;
       try {
@@ -512,9 +526,11 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
         print('API Error details: $apiError');
         throw apiError;
       }
-      
+
       print('Vote successful, got updated poll: ${updatedPoll.question}');
-      print('Updated poll userVote: ${updatedPoll.userVote?.pollOptionId} (type: ${updatedPoll.userVote?.pollOptionId.runtimeType})');
+      print(
+        'Updated poll userVote: ${updatedPoll.userVote?.pollOptionId} (type: ${updatedPoll.userVote?.pollOptionId.runtimeType})',
+      );
 
       // Update local state with the fresh data from API
       setState(() {
@@ -556,11 +572,13 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
       });
 
       print('Vote error: $e');
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to record vote: ${e.toString()}. Please try again.'),
+            content: Text(
+              'Failed to record vote: ${e.toString()}. Please try again.',
+            ),
             backgroundColor: Colors.red,
             duration: Duration(seconds: 4),
           ),

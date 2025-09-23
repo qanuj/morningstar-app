@@ -53,15 +53,15 @@ class PollService {
 
     // Debug the response structure
     print('Vote response: ${response.toString()}');
-    
+
     // The API now returns the updated poll data
     final pollData = response['poll'];
     if (pollData == null) {
       throw Exception('No poll data in response');
     }
-    
+
     print('Poll data: ${pollData.toString()}');
-    
+
     try {
       return Poll.fromJson(pollData);
     } catch (e) {
