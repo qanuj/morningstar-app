@@ -534,7 +534,7 @@ class ReactionDetailsSheet extends StatefulWidget {
 
 class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
   String? _selectedEmojiFilter; // null means "All"
-  
+
   @override
   void initState() {
     super.initState();
@@ -662,9 +662,9 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
                         isSelected: false,
                         isAddButton: true,
                       ),
-                      
+
                       SizedBox(width: 8),
-                      
+
                       // All reactions button
                       _buildFilterButton(
                         context,
@@ -673,12 +673,13 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
                         isSelected: _selectedEmojiFilter == null,
                         isAllButton: true,
                       ),
-                      
+
                       SizedBox(width: 8),
-                      
+
                       // Individual emoji filter buttons
                       ...widget.groupedReactions.keys.map((emoji) {
-                        final count = widget.groupedReactions[emoji]?.length ?? 0;
+                        final count =
+                            widget.groupedReactions[emoji]?.length ?? 0;
                         return Padding(
                           padding: EdgeInsets.only(right: 8),
                           child: _buildFilterButton(
@@ -699,9 +700,7 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
           SizedBox(height: 16),
 
           // Filtered user list
-          Expanded(
-            child: _buildFilteredUserList(context),
-          ),
+          Expanded(child: _buildFilteredUserList(context)),
         ],
       ),
     );
@@ -716,7 +715,7 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
     bool isAllButton = false,
   }) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
+
     return GestureDetector(
       onTap: () {
         if (isAddButton) {
@@ -731,7 +730,9 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
         padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected
-              ? (isDarkMode ? Colors.lightBlueAccent.withOpacity(0.2) : Color(0xFF003f9b).withOpacity(0.1))
+              ? (isDarkMode
+                    ? Colors.lightBlueAccent.withOpacity(0.2)
+                    : Color(0xFF003f9b).withOpacity(0.1))
               : (isDarkMode ? Colors.grey[800] : Colors.grey[100]),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
@@ -757,17 +758,16 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: isSelected
-                      ? (isDarkMode ? Colors.lightBlueAccent : Color(0xFF003f9b))
+                      ? (isDarkMode
+                            ? Colors.lightBlueAccent
+                            : Color(0xFF003f9b))
                       : (isDarkMode ? Colors.grey[300] : Colors.grey[700]),
                 ),
               ),
             ] else ...[
-              Text(
-                emoji!,
-                style: TextStyle(fontSize: 18),
-              ),
+              Text(emoji!, style: TextStyle(fontSize: 18)),
             ],
-            
+
             if (!isAddButton) ...[
               SizedBox(width: 4),
               Text(
@@ -776,7 +776,9 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: isSelected
-                      ? (isDarkMode ? Colors.lightBlueAccent : Color(0xFF003f9b))
+                      ? (isDarkMode
+                            ? Colors.lightBlueAccent
+                            : Color(0xFF003f9b))
                       : (isDarkMode ? Colors.grey[300] : Colors.grey[700]),
                 ),
               ),
@@ -789,7 +791,7 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
 
   Widget _buildFilteredUserList(BuildContext context) {
     List<Map<String, String>> users;
-    
+
     if (_selectedEmojiFilter == null) {
       // Show all users from all emoji reactions
       users = [];
@@ -816,12 +818,10 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
 
       final aIsCurrentUser =
           currentUser != null &&
-          (aUserId == currentUser.id ||
-              aUserName == currentUser.name);
+          (aUserId == currentUser.id || aUserName == currentUser.name);
       final bIsCurrentUser =
           currentUser != null &&
-          (bUserId == currentUser.id ||
-              bUserName == currentUser.name);
+          (bUserId == currentUser.id || bUserName == currentUser.name);
 
       if (aIsCurrentUser && !bIsCurrentUser) return -1;
       if (!aIsCurrentUser && bIsCurrentUser) return 1;
@@ -861,8 +861,7 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
         final currentUser = userProvider.user;
         final isCurrentUser =
             currentUser != null &&
-            (userId == currentUser.id ||
-                userName == currentUser.name);
+            (userId == currentUser.id || userName == currentUser.name);
 
         return GestureDetector(
           onTap: isCurrentUser
@@ -876,35 +875,24 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
                   Navigator.pop(context);
 
                   // Then remove the reaction
-                  _removeReactionAndUpdateUI(
-                    context,
-                    emojiToRemove,
-                    userId,
-                  );
+                  _removeReactionAndUpdateUI(context, emojiToRemove, userId);
                 }
               : null,
           child: Container(
             margin: EdgeInsets.only(bottom: 8),
-            padding: EdgeInsets.symmetric(
-              vertical: 12,
-              horizontal: 16,
-            ),
+            padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
             child: Row(
               children: [
                 // Avatar with SVG support and proper fallback
                 SVGAvatar(
-                  imageUrl: profilePicture.isNotEmpty
-                      ? profilePicture
-                      : null,
+                  imageUrl: profilePicture.isNotEmpty ? profilePicture : null,
                   size: 44,
                   backgroundColor: Color(0xFF003f9b),
                   iconColor: Colors.white,
                   fallbackIcon: Icons.person,
                   child: profilePicture.isEmpty
                       ? Text(
-                          userName.isNotEmpty
-                              ? userName[0].toUpperCase()
-                              : '?',
+                          userName.isNotEmpty ? userName[0].toUpperCase() : '?',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 18,
@@ -924,15 +912,11 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
                       Text(
                         isCurrentUser
                             ? 'You'
-                            : (userName.isNotEmpty
-                                  ? userName
-                                  : 'Unknown User'),
+                            : (userName.isNotEmpty ? userName : 'Unknown User'),
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
-                          color:
-                              Theme.of(context).brightness ==
-                                  Brightness.dark
+                          color: Theme.of(context).brightness == Brightness.dark
                               ? Colors.white.withOpacity(0.9)
                               : Colors.black87,
                         ),
@@ -943,8 +927,7 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
                           style: TextStyle(
                             fontSize: 14,
                             color:
-                                Theme.of(context).brightness ==
-                                    Brightness.dark
+                                Theme.of(context).brightness == Brightness.dark
                                 ? Colors.grey[400]
                                 : Colors.grey[600],
                           ),
@@ -955,8 +938,7 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
                           style: TextStyle(
                             fontSize: 14,
                             color:
-                                Theme.of(context).brightness ==
-                                    Brightness.dark
+                                Theme.of(context).brightness == Brightness.dark
                                 ? Colors.grey[400]
                                 : Colors.grey[600],
                           ),
@@ -967,7 +949,9 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
 
                 // Reaction emoji on the right
                 Text(
-                  _selectedEmojiFilter == null ? userEmoji : _selectedEmojiFilter!,
+                  _selectedEmojiFilter == null
+                      ? userEmoji
+                      : _selectedEmojiFilter!,
                   style: TextStyle(fontSize: 28),
                 ),
               ],

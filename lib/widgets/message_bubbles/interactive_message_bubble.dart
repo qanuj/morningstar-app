@@ -107,8 +107,10 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
   Widget build(BuildContext context) {
     return _MessageOptionsOverlay(
       isOwnMessage: widget.isOwn,
-      onReactionSelected: (emoji) => _handleReactionAdded(_createMessageWithLocalState(), emoji),
-      onReply: () => widget.onReplyToMessage?.call(_createMessageWithLocalState()),
+      onReactionSelected: (emoji) =>
+          _handleReactionAdded(_createMessageWithLocalState(), emoji),
+      onReply: () =>
+          widget.onReplyToMessage?.call(_createMessageWithLocalState()),
       onForward: () => {}, // TODO: implement forward
       onSelectMessage: () => {}, // TODO: implement select
       onCopy: () => _handleCopyMessage(),
@@ -121,24 +123,24 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
       child: GestureDetector(
         onTap: () => _handleMessageTap(context),
         child: MessageBubbleFactory(
-        message: _createMessageWithLocalState(),
-        isOwn: widget.isOwn,
-        isDeleted: widget.message.deleted,
-        isPinned: widget.isPinned,
-        isSelected: widget.isSelected,
-        showSenderInfo: widget.showSenderInfo,
-        isLastFromSender: widget.isLastFromSender,
-        onReactionRemoved: _handleReactionRemoved,
-        onReactionAdded: _handleReactionAdded,
-        onReplyToMessage: _handleReplyToMessage,
-        onToggleStarMessage: _handleToggleStarMessage,
-        onTogglePinMessage: _handleTogglePinMessage,
-        onDeleteMessage: _handleDeleteMessage,
-        onShowMessageInfo: _handleShowMessageInfo,
-        canPinMessages: widget.canPinMessages,
-        canDeleteMessages: widget.canDeleteMessages,
-        isSelectionMode: widget.isSelectionMode,
-      ),
+          message: _createMessageWithLocalState(),
+          isOwn: widget.isOwn,
+          isDeleted: widget.message.deleted,
+          isPinned: widget.isPinned,
+          isSelected: widget.isSelected,
+          showSenderInfo: widget.showSenderInfo,
+          isLastFromSender: widget.isLastFromSender,
+          onReactionRemoved: _handleReactionRemoved,
+          onReactionAdded: _handleReactionAdded,
+          onReplyToMessage: _handleReplyToMessage,
+          onToggleStarMessage: _handleToggleStarMessage,
+          onTogglePinMessage: _handleTogglePinMessage,
+          onDeleteMessage: _handleDeleteMessage,
+          onShowMessageInfo: _handleShowMessageInfo,
+          canPinMessages: widget.canPinMessages,
+          canDeleteMessages: widget.canDeleteMessages,
+          isSelectionMode: widget.isSelectionMode,
+        ),
       ),
     );
   }
@@ -184,7 +186,7 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
       widget.onMessageTap!(widget.message);
       return; // Custom handler takes precedence
     }
-    
+
     // Default behavior - show reaction drawer/options on tap
     // This will be handled by the outer GestureDetector in _MessageOptionsOverlay
   }
@@ -899,9 +901,6 @@ class _MessageOptionsOverlayState extends State<_MessageOptionsOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onLongPress: _showOptions,
-      child: widget.child,
-    );
+    return GestureDetector(onLongPress: _showOptions, child: widget.child);
   }
 }
