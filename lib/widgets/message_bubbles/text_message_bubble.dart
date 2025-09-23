@@ -137,11 +137,7 @@ class TextMessageBubble extends StatelessWidget {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          child: SVGAvatar.image(
-            imageUrl: imageUrl,
-            width: 200,
-            height: 200,
-          ),
+          child: SVGAvatar.image(imageUrl: imageUrl, width: 200, height: 200),
         ),
       ),
     );
@@ -438,6 +434,7 @@ class TextMessageBubble extends StatelessWidget {
         message.content,
         style: TextStyle(
           fontSize: 14,
+          fontWeight: FontWeight.w500,
           color: isOwn
               ? (Theme.of(context).brightness == Brightness.dark
                     ? Colors

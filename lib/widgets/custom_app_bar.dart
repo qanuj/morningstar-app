@@ -233,7 +233,10 @@ class ClubAppBar extends StatelessWidget implements PreferredSizeWidget {
             height: 36,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.3),
+                width: 1,
+              ),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(18),
@@ -276,7 +279,7 @@ class ClubAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   Widget _buildClubLogo() {
     // Check if the URL is an SVG
-    if (clubLogo!.toLowerCase().contains('.svg') || 
+    if (clubLogo!.toLowerCase().contains('.svg') ||
         clubLogo!.toLowerCase().contains('svg?')) {
       return SvgPicture.network(
         clubLogo!,
@@ -305,9 +308,7 @@ class ClubAppBar extends StatelessWidget implements PreferredSizeWidget {
         color: Theme.of(context).primaryColor.withOpacity(0.1),
         child: Center(
           child: Text(
-            clubName.isNotEmpty
-                ? clubName.substring(0, 1).toUpperCase()
-                : 'C',
+            clubName.isNotEmpty ? clubName.substring(0, 1).toUpperCase() : 'C',
             style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -377,7 +378,10 @@ class DuggyAppBar extends StatelessWidget implements PreferredSizeWidget {
             width: 36,
             height: 36,
             padding: EdgeInsets.all(6), // Reduced padding
-            child: DuggyLogo(size: 24, color: Colors.white), // Reduced logo size
+            child: DuggyLogo(
+              size: 24,
+              color: Colors.white,
+            ), // Reduced logo size
           ),
           title: Column(
             mainAxisSize: MainAxisSize.min, // Use minimum space

@@ -44,7 +44,8 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
         elevation: 0,
         toolbarHeight: 48.0, // Match the preferredSize height
         titleSpacing: 0, // Remove extra spacing around title
-        automaticallyImplyLeading: false, // Remove automatic leading widget spacing
+        automaticallyImplyLeading:
+            false, // Remove automatic leading widget spacing
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: onBackPressed,
@@ -92,7 +93,8 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
           child: GestureDetector(
             onTap: () {
               // Check if user is admin or owner
-              if (userRole?.toLowerCase() == 'admin' || userRole?.toLowerCase() == 'owner') {
+              if (userRole?.toLowerCase() == 'admin' ||
+                  userRole?.toLowerCase() == 'owner') {
                 // Show manage club if callback is provided
                 onManageClub?.call();
               } else {
@@ -130,7 +132,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   Widget _buildClubLogo() {
     // Check if the URL is an SVG
-    if (club.logo!.toLowerCase().contains('.svg') || 
+    if (club.logo!.toLowerCase().contains('.svg') ||
         club.logo!.toLowerCase().contains('svg?')) {
       return SvgPicture.network(
         club.logo!,
@@ -236,113 +238,120 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
           icon: const Icon(Icons.more_vert, color: Colors.white),
           onSelected: onMoreOptionSelected,
           tooltip: 'More options',
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           color: Theme.of(context).brightness == Brightness.dark
               ? Color(0xFF2A2A2A)
               : Colors.white,
           elevation: 8,
           itemBuilder: (BuildContext menuContext) {
-          // Build menu items based on role
-          final List<PopupMenuEntry<String>> items = [];
+            // Build menu items based on role
+            final List<PopupMenuEntry<String>> items = [];
 
-          // Add Members - Only for admin/owner
-          if (userRole?.toLowerCase() == 'admin' || userRole?.toLowerCase() == 'owner') {
+            // Add Members - Only for admin/owner
+            if (userRole?.toLowerCase() == 'admin' ||
+                userRole?.toLowerCase() == 'owner') {
+              items.add(
+                PopupMenuItem<String>(
+                  value: 'add_members',
+                  child: Row(
+                    children: [
+                      Icon(Icons.person_add, color: Color(0xFF003f9b)),
+                      SizedBox(width: 12),
+                      Text('Add Members'),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            // Manage Club
             items.add(
               PopupMenuItem<String>(
-                value: 'add_members',
+                value: 'manage_club',
                 child: Row(
                   children: [
-                    Icon(Icons.person_add, color: Color(0xFF003f9b)),
+                    Icon(Icons.settings, color: Color(0xFF003f9b)),
                     SizedBox(width: 12),
-                    Text('Add Members'),
+                    Text('Manage Club'),
                   ],
                 ),
               ),
             );
-          }
 
-          // Manage Club
-          items.add(
-            PopupMenuItem<String>(
-              value: 'manage_club',
-              child: Row(
-                children: [
-                  Icon(Icons.settings, color: Color(0xFF003f9b)),
-                  SizedBox(width: 12),
-                  Text('Manage Club'),
-                ],
+            // Matches
+            items.add(
+              PopupMenuItem<String>(
+                value: 'matches',
+                child: Row(
+                  children: [
+                    Icon(Icons.sports_cricket, color: Color(0xFF003f9b)),
+                    SizedBox(width: 12),
+                    Text('Matches'),
+                  ],
+                ),
               ),
-            ),
-          );
+            );
 
-          // Matches
-          items.add(
-            PopupMenuItem<String>(
-              value: 'matches',
-              child: Row(
-                children: [
-                  Icon(Icons.sports_cricket, color: Color(0xFF003f9b)),
-                  SizedBox(width: 12),
-                  Text('Matches'),
-                ],
+            // Transactions
+            items.add(
+              PopupMenuItem<String>(
+                value: 'transactions',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.account_balance_wallet,
+                      color: Color(0xFF003f9b),
+                    ),
+                    SizedBox(width: 12),
+                    Text('Transactions'),
+                  ],
+                ),
               ),
-            ),
-          );
+            );
 
-          // Transactions
-          items.add(
-            PopupMenuItem<String>(
-              value: 'transactions',
-              child: Row(
-                children: [
-                  Icon(Icons.account_balance_wallet, color: Color(0xFF003f9b)),
-                  SizedBox(width: 12),
-                  Text('Transactions'),
-                ],
+            // Teams
+            items.add(
+              PopupMenuItem<String>(
+                value: 'teams',
+                child: Row(
+                  children: [
+                    Icon(Icons.groups, color: Color(0xFF003f9b)),
+                    SizedBox(width: 12),
+                    Text('Teams'),
+                  ],
+                ),
               ),
-            ),
-          );
+            );
 
-          // Teams
-          items.add(
-            PopupMenuItem<String>(
-              value: 'teams',
-              child: Row(
-                children: [
-                  Icon(Icons.groups, color: Color(0xFF003f9b)),
-                  SizedBox(width: 12),
-                  Text('Teams'),
-                ],
+            // Divider before clear messages
+            items.add(PopupMenuDivider());
+
+            // Clear Messages
+            items.add(
+              PopupMenuItem<String>(
+                value: 'clear_messages',
+                child: Row(
+                  children: [
+                    Icon(Icons.clear_all, color: Colors.red),
+                    SizedBox(width: 12),
+                    Text('Clear Messages', style: TextStyle(color: Colors.red)),
+                  ],
+                ),
               ),
-            ),
-          );
+            );
 
-          // Divider before clear messages
-          items.add(PopupMenuDivider());
-
-          // Clear Messages
-          items.add(
-            PopupMenuItem<String>(
-              value: 'clear_messages',
-              child: Row(
-                children: [
-                  Icon(Icons.clear_all, color: Colors.red),
-                  SizedBox(width: 12),
-                  Text('Clear Messages', style: TextStyle(color: Colors.red)),
-                ],
-              ),
-            ),
-          );
-
-          return items;
-        },
+            return items;
+          },
         ),
       ),
     ];
   }
 
   String _getSubtitleText() {
-    if (userRole?.toLowerCase() == 'admin' || userRole?.toLowerCase() == 'owner') {
+    if (userRole?.toLowerCase() == 'admin' ||
+        userRole?.toLowerCase() == 'owner') {
       return 'tap here to manage club';
     } else {
       return 'tap here for club info';
