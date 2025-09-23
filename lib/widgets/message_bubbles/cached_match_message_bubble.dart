@@ -1603,13 +1603,15 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
   }
 
   Widget _buildViewButton(BuildContext context, {required bool isPractice}) {
-    final matchDetails = _cachedMatchDetails.isNotEmpty ? _cachedMatchDetails : widget.message.meta ?? {};
+    final matchDetails = _cachedMatchDetails.isNotEmpty
+        ? _cachedMatchDetails
+        : widget.message.meta ?? {};
     final counts = _extractStatusCounts(matchDetails);
     final totalRsvps = counts['YES']! + counts['NO']! + counts['MAYBE']!;
-    
+
     // Only show button if there are RSVPs
     if (totalRsvps == 0) return Container();
-    
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -1628,11 +1630,7 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.people,
-                size: 14,
-                color: Color(0xFF003f9b),
-              ),
+              Icon(Icons.people, size: 14, color: Color(0xFF003f9b)),
               SizedBox(width: 4),
               Text(
                 'View RSVPs',
@@ -1650,13 +1648,15 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
   }
 
   void _showRsvpDetailsDialog(BuildContext context, bool isPractice) {
-    final matchDetails = _cachedMatchDetails.isNotEmpty ? _cachedMatchDetails : widget.message.meta ?? {};
+    final matchDetails = _cachedMatchDetails.isNotEmpty
+        ? _cachedMatchDetails
+        : widget.message.meta ?? {};
     final rsvps = matchDetails['rsvps'] as List? ?? [];
     final counts = _extractStatusCounts(matchDetails);
-    
+
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
-    
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -1679,9 +1679,7 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
                   width: double.infinity,
                   padding: EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: isDarkMode 
-                        ? Colors.grey[850]
-                        : Colors.white,
+                    color: isDarkMode ? Colors.grey[850] : Colors.white,
                     borderRadius: BorderRadius.only(
                       topLeft: Radius.circular(20),
                       topRight: Radius.circular(20),
@@ -1697,18 +1695,36 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
                     textAlign: TextAlign.center,
                   ),
                 ),
-                
+
                 // Content
                 Flexible(
                   child: ListView(
                     shrinkWrap: true,
                     padding: EdgeInsets.all(20),
                     children: [
-                      _buildRsvpStatusCard('Going', 'YES', rsvps, counts, isDarkMode),
+                      _buildRsvpStatusCard(
+                        'Going',
+                        'YES',
+                        rsvps,
+                        counts,
+                        isDarkMode,
+                      ),
                       SizedBox(height: 16),
-                      _buildRsvpStatusCard('Not Going', 'NO', rsvps, counts, isDarkMode),
+                      _buildRsvpStatusCard(
+                        'Not Going',
+                        'NO',
+                        rsvps,
+                        counts,
+                        isDarkMode,
+                      ),
                       SizedBox(height: 16),
-                      _buildRsvpStatusCard('Maybe', 'MAYBE', rsvps, counts, isDarkMode),
+                      _buildRsvpStatusCard(
+                        'Maybe',
+                        'MAYBE',
+                        rsvps,
+                        counts,
+                        isDarkMode,
+                      ),
                     ],
                   ),
                 ),
@@ -1720,16 +1736,22 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     );
   }
 
-  Widget _buildRsvpStatusCard(String label, String status, List rsvps, Map<String, int> counts, bool isDarkMode) {
+  Widget _buildRsvpStatusCard(
+    String label,
+    String status,
+    List rsvps,
+    Map<String, int> counts,
+    bool isDarkMode,
+  ) {
     final statusRsvps = rsvps.where((rsvp) {
       if (rsvp is Map<String, dynamic>) {
         return rsvp['status']?.toString().toUpperCase() == status;
       }
       return false;
     }).toList();
-    
+
     final count = counts[status] ?? 0;
-    
+
     return Card(
       elevation: 2,
       color: isDarkMode ? Colors.grey[800] : Colors.white,
@@ -1785,7 +1807,7 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
                   final user = rsvp['user'] as Map<String, dynamic>? ?? {};
                   final name = user['name']?.toString() ?? 'Unknown';
                   final avatarUrl = user['profilePicture']?.toString();
-                  
+
                   return Container(
                     margin: EdgeInsets.only(bottom: 8),
                     child: Row(
