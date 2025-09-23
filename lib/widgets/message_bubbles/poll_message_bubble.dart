@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../models/club_message.dart';
+import '../../models/poll.dart';
 import '../../services/poll_service.dart';
 import '../svg_avatar.dart';
 import 'base_message_bubble.dart';
@@ -297,7 +298,8 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
     final optionId = option['id']?.toString() ?? index.toString();
     final text = option['text']?.toString() ?? '';
     final votes = option['votes'] as int? ?? 0;
-    final isSelected = userVotes.contains(optionId);
+    // Safely check if this option is selected by the user
+    final isSelected = userVotes.any((vote) => vote?.toString() == optionId);
     final percentage = totalVotes > 0 ? (votes / totalVotes * 100) : 0.0;
 
     final canVote = !isExpired && !isVoting;
@@ -468,15 +470,25 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
   void _voteForOption(String optionId) async {
     if (isVoting || widget.message.pollId == null) return;
 
+    // Validate optionId is not null or empty
+    if (optionId.isEmpty) {
+      print('Error: optionId is empty');
+      return;
+    }
+
     // Check if user is clicking the same option they already voted for
     final userVotes = pollDetails['userVotes'] as List? ?? [];
     final hasVoted = pollDetails['hasVoted'] as bool? ?? false;
     final previousVoteId = hasVoted && userVotes.isNotEmpty
-        ? userVotes.first.toString()
+        ? userVotes.first?.toString()
         : null;
+
+    print('Voting Debug: optionId=$optionId, hasVoted=$hasVoted, previousVoteId=$previousVoteId, userVotes=$userVotes');
+    print('Poll ID: ${widget.message.pollId}');
 
     // If clicking the same option they already voted for, do nothing
     if (previousVoteId == optionId) {
+      print('Same option clicked, ignoring');
       return;
     }
 
@@ -485,11 +497,24 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
     });
 
     try {
+      print('Calling PollService.voteOnPoll with pollId: ${widget.message.pollId}, optionId: $optionId');
+      print('Types: pollId is ${widget.message.pollId.runtimeType}, optionId is ${optionId.runtimeType}');
+      
       // Call the PollService API which now returns updated poll data
-      final updatedPoll = await PollService.voteOnPoll(
-        pollId: widget.message.pollId!,
-        optionId: optionId,
-      );
+      Poll updatedPoll;
+      try {
+        updatedPoll = await PollService.voteOnPoll(
+          pollId: widget.message.pollId!,
+          optionId: optionId,
+        );
+        print('Vote API successful');
+      } catch (apiError) {
+        print('API Error details: $apiError');
+        throw apiError;
+      }
+      
+      print('Vote successful, got updated poll: ${updatedPoll.question}');
+      print('Updated poll userVote: ${updatedPoll.userVote?.pollOptionId} (type: ${updatedPoll.userVote?.pollOptionId.runtimeType})');
 
       // Update local state with the fresh data from API
       setState(() {
@@ -530,11 +555,14 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
         isVoting = false;
       });
 
+      print('Vote error: $e');
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to record vote. Please try again.'),
+            content: Text('Failed to record vote: ${e.toString()}. Please try again.'),
             backgroundColor: Colors.red,
+            duration: Duration(seconds: 4),
           ),
         );
       }
@@ -645,15 +673,12 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor: Theme.of(context).brightness == Brightness.light 
-              ? Colors.grey[100] 
+          backgroundColor: Theme.of(context).brightness == Brightness.light
+              ? Colors.grey[100]
               : null,
           title: Text(
             'Results',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             textAlign: TextAlign.center,
           ),
           contentPadding: EdgeInsets.fromLTRB(24, 20, 24, 24),
@@ -691,10 +716,7 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                       ? Center(
                           child: Text(
                             'No poll options available',
-                            style: TextStyle(
-                              color: Colors.grey,
-                              fontSize: 14,
-                            ),
+                            style: TextStyle(color: Colors.grey, fontSize: 14),
                           ),
                         )
                       : ListView.separated(
@@ -708,8 +730,7 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                             final votes = option['votes'] as int? ?? 0;
                             final voters = (option['voters'] as List? ?? [])
                                 .cast<Map<String, dynamic>>();
-                            final isWinning =
-                                votes == maxVotes && maxVotes > 0;
+                            final isWinning = votes == maxVotes && maxVotes > 0;
 
                             return Card(
                               elevation: 3,
@@ -774,7 +795,8 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                                           child: Row(
                                             children: [
                                               SVGAvatar(
-                                                imageUrl: voter['profilePicture'],
+                                                imageUrl:
+                                                    voter['profilePicture'],
                                                 size: 40,
                                                 fallbackText:
                                                     voter['name']?[0] ?? 'U',

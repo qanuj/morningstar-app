@@ -27,19 +27,19 @@ class Poll {
 
   factory Poll.fromJson(Map<String, dynamic> json) {
     return Poll(
-      id: json['id'],
-      question: json['question'],
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
+      id: json['id']?.toString() ?? '',
+      question: json['question']?.toString() ?? '',
+      createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
+      updatedAt: DateTime.parse(json['updatedAt'] ?? DateTime.now().toIso8601String()),
       expiresAt: json['expiresAt'] != null
           ? DateTime.parse(json['expiresAt'])
           : null,
-      options: (json['options'] as List)
+      options: (json['options'] as List? ?? [])
           .map((o) => PollOption.fromJson(o))
           .toList(),
-      createdBy: CreatedBy.fromJson(json['createdBy']),
-      club: ClubModel.fromJson(json['club']),
-      totalVotes: json['_count']['votes'] ?? 0,
+      createdBy: CreatedBy.fromJson(json['createdBy'] ?? {}),
+      club: ClubModel.fromJson(json['club'] ?? {}),
+      totalVotes: json['_count']?['votes'] ?? 0,
       userVote: json['userVote'] != null
           ? UserVote.fromJson(json['userVote'])
           : null,
@@ -79,10 +79,10 @@ class PollOption {
 
   factory PollOption.fromJson(Map<String, dynamic> json) {
     return PollOption(
-      id: json['id'],
-      pollId: json['pollId'],
-      text: json['text'],
-      voteCount: json['_count']['votes'] ?? 0,
+      id: json['id']?.toString() ?? '',
+      pollId: json['pollId']?.toString() ?? '',
+      text: json['text']?.toString() ?? '',
+      voteCount: json['_count']?['votes'] ?? 0,
       voters:
           (json['voters'] as List?)
               ?.map((v) => PollVoter.fromJson(v))
@@ -109,7 +109,10 @@ class CreatedBy {
   CreatedBy({required this.id, required this.name});
 
   factory CreatedBy.fromJson(Map<String, dynamic> json) {
-    return CreatedBy(id: json['id'], name: json['name']);
+    return CreatedBy(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? 'Unknown User',
+    );
   }
 
   Map<String, dynamic> toJson() {
@@ -130,9 +133,9 @@ class UserVote {
 
   factory UserVote.fromJson(Map<String, dynamic> json) {
     return UserVote(
-      id: json['id'],
-      pollOptionId: json['pollOptionId'],
-      createdAt: DateTime.parse(json['createdAt']),
+      id: json['id']?.toString() ?? '',
+      pollOptionId: json['pollOptionId']?.toString() ?? '',
+      createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
     );
   }
 
@@ -160,10 +163,10 @@ class PollVoter {
 
   factory PollVoter.fromJson(Map<String, dynamic> json) {
     return PollVoter(
-      id: json['id'],
-      name: json['name'],
-      profilePicture: json['profilePicture'],
-      votedAt: DateTime.parse(json['votedAt']),
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? 'Unknown User',
+      profilePicture: json['profilePicture'],  // Can be null
+      votedAt: DateTime.parse(json['votedAt'] ?? DateTime.now().toIso8601String()),
     );
   }
 
@@ -185,7 +188,11 @@ class ClubModel {
   ClubModel({required this.id, required this.name, this.logo});
 
   factory ClubModel.fromJson(Map<String, dynamic> json) {
-    return ClubModel(id: json['id'], name: json['name'], logo: json['logo']);
+    return ClubModel(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? 'Unknown Club',
+      logo: json['logo'],  // Can be null
+    );
   }
 
   Map<String, dynamic> toJson() {

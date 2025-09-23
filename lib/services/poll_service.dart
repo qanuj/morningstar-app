@@ -51,7 +51,23 @@ class PollService {
       'optionId': optionId,
     });
 
+    // Debug the response structure
+    print('Vote response: ${response.toString()}');
+    
     // The API now returns the updated poll data
-    return Poll.fromJson(response['poll']);
+    final pollData = response['poll'];
+    if (pollData == null) {
+      throw Exception('No poll data in response');
+    }
+    
+    print('Poll data: ${pollData.toString()}');
+    
+    try {
+      return Poll.fromJson(pollData);
+    } catch (e) {
+      print('Error parsing poll data: $e');
+      print('Poll data keys: ${pollData.keys}');
+      rethrow;
+    }
   }
 }
