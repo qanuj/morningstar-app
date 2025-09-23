@@ -9,6 +9,7 @@ import '../../models/club_message.dart';
 import '../../services/match_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/message_storage_service.dart';
+import '../../screens/matches/match_rsvp_screen.dart';
 import '../svg_avatar.dart';
 import 'base_message_bubble.dart';
 import '../../providers/user_provider.dart';
@@ -1676,203 +1677,16 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     final matchDetails = _cachedMatchDetails.isNotEmpty
         ? _cachedMatchDetails
         : widget.message.meta ?? {};
-    final rsvps = matchDetails['rsvps'] as List? ?? [];
-    final counts = _extractStatusCounts(matchDetails);
 
-    final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          child: Container(
-            constraints: BoxConstraints(
-              maxWidth: 400,
-              maxHeight: MediaQuery.of(context).size.height * 0.8,
-            ),
-            decoration: BoxDecoration(
-              color: isDarkMode ? Color(0xFF1E1E1E) : Color(0xFFF5F5F5),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header
-                Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: isDarkMode ? Colors.grey[850] : Colors.white,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(20),
-                      topRight: Radius.circular(20),
-                    ),
-                  ),
-                  child: Text(
-                    '${isPractice ? 'Practice' : 'Match'} RSVPs',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: isDarkMode ? Colors.white : Colors.black87,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-
-                // Content
-                Flexible(
-                  child: ListView(
-                    shrinkWrap: true,
-                    padding: EdgeInsets.all(20),
-                    children: [
-                      _buildRsvpStatusCard(
-                        'Going',
-                        'YES',
-                        rsvps,
-                        counts,
-                        isDarkMode,
-                      ),
-                      SizedBox(height: 16),
-                      _buildRsvpStatusCard(
-                        'Not Going',
-                        'NO',
-                        rsvps,
-                        counts,
-                        isDarkMode,
-                      ),
-                      SizedBox(height: 16),
-                      _buildRsvpStatusCard(
-                        'Maybe',
-                        'MAYBE',
-                        rsvps,
-                        counts,
-                        isDarkMode,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildRsvpStatusCard(
-    String label,
-    String status,
-    List rsvps,
-    Map<String, int> counts,
-    bool isDarkMode,
-  ) {
-    final statusRsvps = rsvps.where((rsvp) {
-      if (rsvp is Map<String, dynamic>) {
-        return rsvp['status']?.toString().toUpperCase() == status;
-      }
-      return false;
-    }).toList();
-
-    final count = counts[status] ?? 0;
-
-    return Card(
-      elevation: 2,
-      color: isDarkMode ? Colors.grey[800] : Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: _getStatusColor(status),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                SizedBox(width: 12),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: isDarkMode ? Colors.white : Colors.black87,
-                  ),
-                ),
-                Spacer(),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _getStatusColor(status).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    count.toString(),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: _getStatusColor(status),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            if (statusRsvps.isNotEmpty) ...[
-              SizedBox(height: 16),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: statusRsvps.map<Widget>((rsvp) {
-                  final user = rsvp['user'] as Map<String, dynamic>? ?? {};
-                  final name = user['name']?.toString() ?? 'Unknown';
-                  final avatarUrl = user['profilePicture']?.toString();
-
-                  return Container(
-                    margin: EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SVGAvatar(
-                          imageUrl: avatarUrl,
-                          size: 24,
-                          fallbackText: name,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          name,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: isDarkMode ? Colors.white70 : Colors.black87,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-          ],
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => MatchRsvpScreen(
+          matchDetails: matchDetails,
+          isPractice: isPractice,
         ),
       ),
     );
   }
 
-  Color _getStatusColor(String status) {
-    switch (status.toUpperCase()) {
-      case 'YES':
-        return Colors.green;
-      case 'NO':
-        return Colors.red;
-      case 'MAYBE':
-        return Colors.orange;
-      default:
-        return Colors.grey;
-    }
-  }
+
 }
