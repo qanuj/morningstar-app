@@ -5,6 +5,7 @@ import '../../models/message_status.dart';
 import '../../services/chat_api_service.dart';
 import '../../providers/user_provider.dart';
 import '../svg_avatar.dart';
+import '../inline_reaction_picker.dart';
 
 /// Base message bubble that provides the container and meta overlay for all message types
 class BaseMessageBubble extends StatelessWidget {
@@ -383,15 +384,18 @@ class BaseMessageBubble extends StatelessWidget {
                   currentUserId != null &&
                   emojiUsers.any((user) => user['userId'] == currentUserId);
 
-              Widget emojiWidget = Container(
-                padding: EdgeInsets.symmetric(horizontal: 1, vertical: 0),
-                child: Text(
-                  emoji,
-                  style: TextStyle(
-                    fontSize:
-                        22, // Increased from 18 to 22 for better visibility
-                    // Highlight emoji if current user has reacted
-                    color: hasCurrentUserReacted ? Color(0xFF003f9b) : null,
+              Widget emojiWidget = GestureDetector(
+                onTap: () => _showReactionDetails(context),
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 1, vertical: 0),
+                  child: Text(
+                    emoji,
+                    style: TextStyle(
+                      fontSize:
+                          22, // Increased from 18 to 22 for better visibility
+                      // Highlight emoji if current user has reacted
+                      color: hasCurrentUserReacted ? Color(0xFF003f9b) : null,
+                    ),
                   ),
                 ),
               );
@@ -409,14 +413,17 @@ class BaseMessageBubble extends StatelessWidget {
             if (totalCount > 1) ...[
               if (uniqueEmojis.isNotEmpty)
                 SizedBox(width: 4), // Add spacing before total count
-              Text(
-                totalCount.toString(),
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white.withOpacity(0.9)
-                      : Colors.black.withOpacity(0.8),
+              GestureDetector(
+                onTap: () => _showReactionDetails(context),
+                child: Text(
+                  totalCount.toString(),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white.withOpacity(0.9)
+                        : Colors.black.withOpacity(0.8),
+                  ),
                 ),
               ),
             ],
@@ -498,6 +505,7 @@ class BaseMessageBubble extends StatelessWidget {
         groupedReactions: groupedReactions,
         totalReactions: totalReactions,
         onReactionRemoved: onReactionRemoved,
+        onReactionAdded: onReactionAdded,
       ),
     );
   }
@@ -509,6 +517,7 @@ class ReactionDetailsSheet extends StatefulWidget {
   final int totalReactions;
   final Function(String messageId, String emoji, String userId)?
   onReactionRemoved;
+  final Function(ClubMessage message, String emoji)? onReactionAdded;
 
   const ReactionDetailsSheet({
     Key? key,
@@ -516,32 +525,20 @@ class ReactionDetailsSheet extends StatefulWidget {
     required this.groupedReactions,
     required this.totalReactions,
     this.onReactionRemoved,
+    this.onReactionAdded,
   }) : super(key: key);
 
   @override
   State<ReactionDetailsSheet> createState() => _ReactionDetailsSheetState();
 }
 
-class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  late List<String> _tabs;
-
+class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
+  String? _selectedEmojiFilter; // null means "All"
+  
   @override
   void initState() {
     super.initState();
-    // Create tabs: All first, then emoji tabs (excluding All to avoid duplicates)
-    final emojiTabs = widget.groupedReactions.keys
-        .where((key) => key != 'All')
-        .toList();
-    _tabs = ['All', ...emojiTabs];
-    _tabController = TabController(length: _tabs.length, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
+    _selectedEmojiFilter = null; // Start with "All" selected
   }
 
   void _removeReactionAndUpdateUI(
@@ -604,6 +601,28 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
     }
   }
 
+  void _showReactionPicker(BuildContext context) {
+    // Show reaction picker overlay without closing the current sheet
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (pickerContext) => Container(
+        height: 80,
+        margin: EdgeInsets.all(16),
+        child: InlineReactionPicker(
+          onReactionSelected: (emoji) {
+            Navigator.pop(pickerContext); // Close picker only
+            if (widget.onReactionAdded != null) {
+              widget.onReactionAdded!(widget.message, emoji);
+            }
+          },
+          onDismiss: () => Navigator.pop(pickerContext),
+          position: Offset(0, 0), // Default position since we're in a modal
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -625,234 +644,337 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet>
 
           SizedBox(height: 16),
 
-          // Tab bar
-          TabBar(
-            controller: _tabController,
-            isScrollable: true,
-            labelColor: Theme.of(context).brightness == Brightness.dark
-                ? Colors.lightBlueAccent
-                : Color(0xFF003f9b),
-            unselectedLabelColor:
-                Theme.of(context).brightness == Brightness.dark
-                ? Colors.grey[400]
-                : Colors.grey[600],
-            indicatorColor: Theme.of(context).brightness == Brightness.dark
-                ? Colors.lightBlueAccent
-                : Color(0xFF003f9b),
-            labelStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            unselectedLabelStyle: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.normal,
+          // Filter buttons row
+          Container(
+            height: 50,
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      // Add reaction button (first button)
+                      _buildFilterButton(
+                        context,
+                        emoji: null, // Special case for add button
+                        count: 0,
+                        isSelected: false,
+                        isAddButton: true,
+                      ),
+                      
+                      SizedBox(width: 8),
+                      
+                      // All reactions button
+                      _buildFilterButton(
+                        context,
+                        emoji: null,
+                        count: widget.totalReactions,
+                        isSelected: _selectedEmojiFilter == null,
+                        isAllButton: true,
+                      ),
+                      
+                      SizedBox(width: 8),
+                      
+                      // Individual emoji filter buttons
+                      ...widget.groupedReactions.keys.map((emoji) {
+                        final count = widget.groupedReactions[emoji]?.length ?? 0;
+                        return Padding(
+                          padding: EdgeInsets.only(right: 8),
+                          child: _buildFilterButton(
+                            context,
+                            emoji: emoji,
+                            count: count,
+                            isSelected: _selectedEmojiFilter == emoji,
+                          ),
+                        );
+                      }).toList(),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            tabs: _tabs.map((tab) {
-              if (tab == 'All') {
-                return Tab(text: 'All ${widget.totalReactions}');
-              } else {
-                final count = widget.groupedReactions[tab]?.length ?? 0;
-                return Tab(text: '$tab $count');
-              }
-            }).toList(),
           ),
 
-          // Tab content
+          SizedBox(height: 16),
+
+          // Filtered user list
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: _tabs.map((tab) {
-                List<Map<String, String>> users;
-                if (tab == 'All') {
-                  // For All tab, collect all users from all emoji tabs
-                  users = [];
-                  widget.groupedReactions.forEach((emoji, userList) {
-                    if (emoji != 'All') {
-                      for (var user in userList) {
-                        // Add emoji info to each user for All tab
-                        final userWithEmoji = Map<String, String>.from(user);
-                        userWithEmoji['emoji'] = emoji;
-                        users.add(userWithEmoji);
-                      }
-                    }
-                  });
-                } else {
-                  users = widget.groupedReactions[tab] ?? [];
-                }
-
-                // Sort users to put current user first
-                final userProvider = context.watch<UserProvider>();
-                final currentUser = userProvider.user;
-                users.sort((a, b) {
-                  final aUserId = a['userId'] ?? '';
-                  final bUserId = b['userId'] ?? '';
-                  final aUserName = a['name'] ?? '';
-                  final bUserName = b['name'] ?? '';
-
-                  final aIsCurrentUser =
-                      currentUser != null &&
-                      (aUserId == currentUser.id ||
-                          aUserName == currentUser.name);
-                  final bIsCurrentUser =
-                      currentUser != null &&
-                      (bUserId == currentUser.id ||
-                          bUserName == currentUser.name);
-
-                  if (aIsCurrentUser && !bIsCurrentUser) return -1;
-                  if (!aIsCurrentUser && bIsCurrentUser) return 1;
-                  return 0;
-                });
-
-                // Show empty state if no users
-                if (users.isEmpty) {
-                  return Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(32),
-                      child: Text(
-                        'No reactions found',
-                        style: TextStyle(
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? Colors.grey[400]
-                              : Colors.grey[600],
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                  );
-                }
-
-                return ListView.builder(
-                  padding: EdgeInsets.all(16),
-                  itemCount: users.length,
-                  itemBuilder: (context, index) {
-                    final userInfo = users[index];
-                    final userName = userInfo['name'] ?? 'Unknown User';
-                    final profilePicture = userInfo['profilePicture'] ?? '';
-                    final userId = userInfo['userId'] ?? '';
-                    final userEmoji = userInfo['emoji'] ?? '';
-
-                    // Get current user from provider
-                    final userProvider = context.watch<UserProvider>();
-                    final currentUser = userProvider.user;
-                    final isCurrentUser =
-                        currentUser != null &&
-                        (userId == currentUser.id ||
-                            userName == currentUser.name);
-
-                    return GestureDetector(
-                      onTap: isCurrentUser
-                          ? () {
-                              // Use the user's specific emoji for All tab, or current tab emoji
-                              final emojiToRemove = tab == 'All'
-                                  ? userEmoji
-                                  : tab;
-
-                              // Close the drawer first for immediate feedback
-                              Navigator.pop(context);
-
-                              // Then remove the reaction
-                              _removeReactionAndUpdateUI(
-                                context,
-                                emojiToRemove,
-                                userId,
-                              );
-                            }
-                          : null,
-                      child: Container(
-                        margin: EdgeInsets.only(bottom: 8),
-                        padding: EdgeInsets.symmetric(
-                          vertical: 12,
-                          horizontal: 16,
-                        ),
-                        child: Row(
-                          children: [
-                            // Avatar with SVG support and proper fallback
-                            SVGAvatar(
-                              imageUrl: profilePicture.isNotEmpty
-                                  ? profilePicture
-                                  : null,
-                              size: 44,
-                              backgroundColor: Color(0xFF003f9b),
-                              iconColor: Colors.white,
-                              fallbackIcon: Icons.person,
-                              child: profilePicture.isEmpty
-                                  ? Text(
-                                      userName.isNotEmpty
-                                          ? userName[0].toUpperCase()
-                                          : '?',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    )
-                                  : null,
-                            ),
-
-                            SizedBox(width: 16),
-
-                            // User info
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    isCurrentUser
-                                        ? 'You'
-                                        : (userName.isNotEmpty
-                                              ? userName
-                                              : 'Unknown User'),
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w500,
-                                      color:
-                                          Theme.of(context).brightness ==
-                                              Brightness.dark
-                                          ? Colors.white.withOpacity(0.9)
-                                          : Colors.black87,
-                                    ),
-                                  ),
-                                  if (isCurrentUser)
-                                    Text(
-                                      'Click to remove',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color:
-                                            Theme.of(context).brightness ==
-                                                Brightness.dark
-                                            ? Colors.grey[400]
-                                            : Colors.grey[600],
-                                      ),
-                                    )
-                                  else
-                                    Text(
-                                      'Member',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color:
-                                            Theme.of(context).brightness ==
-                                                Brightness.dark
-                                            ? Colors.grey[400]
-                                            : Colors.grey[600],
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-
-                            // Reaction emoji on the right
-                            Text(
-                              tab == 'All' ? userEmoji : tab,
-                              style: TextStyle(fontSize: 28),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                );
-              }).toList(),
-            ),
+            child: _buildFilteredUserList(context),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildFilterButton(
+    BuildContext context, {
+    String? emoji,
+    required int count,
+    required bool isSelected,
+    bool isAddButton = false,
+    bool isAllButton = false,
+  }) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
+    return GestureDetector(
+      onTap: () {
+        if (isAddButton) {
+          _showReactionPicker(context);
+        } else {
+          setState(() {
+            _selectedEmojiFilter = isAllButton ? null : emoji;
+          });
+        }
+      },
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (isDarkMode ? Colors.lightBlueAccent.withOpacity(0.2) : Color(0xFF003f9b).withOpacity(0.1))
+              : (isDarkMode ? Colors.grey[800] : Colors.grey[100]),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? (isDarkMode ? Colors.lightBlueAccent : Color(0xFF003f9b))
+                : (isDarkMode ? Colors.grey[600]! : Colors.grey[300]!),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isAddButton) ...[
+              Icon(
+                Icons.add,
+                size: 18,
+                color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+              ),
+            ] else if (isAllButton) ...[
+              Text(
+                'All',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: isSelected
+                      ? (isDarkMode ? Colors.lightBlueAccent : Color(0xFF003f9b))
+                      : (isDarkMode ? Colors.grey[300] : Colors.grey[700]),
+                ),
+              ),
+            ] else ...[
+              Text(
+                emoji!,
+                style: TextStyle(fontSize: 18),
+              ),
+            ],
+            
+            if (!isAddButton) ...[
+              SizedBox(width: 4),
+              Text(
+                count.toString(),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isSelected
+                      ? (isDarkMode ? Colors.lightBlueAccent : Color(0xFF003f9b))
+                      : (isDarkMode ? Colors.grey[300] : Colors.grey[700]),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilteredUserList(BuildContext context) {
+    List<Map<String, String>> users;
+    
+    if (_selectedEmojiFilter == null) {
+      // Show all users from all emoji reactions
+      users = [];
+      widget.groupedReactions.forEach((emoji, userList) {
+        for (var user in userList) {
+          // Add emoji info to each user for All view
+          final userWithEmoji = Map<String, String>.from(user);
+          userWithEmoji['emoji'] = emoji;
+        }
+      });
+    } else {
+      // Show users for specific emoji filter
+      users = widget.groupedReactions[_selectedEmojiFilter] ?? [];
+    }
+
+    // Sort users to put current user first
+    final userProvider = context.watch<UserProvider>();
+    final currentUser = userProvider.user;
+    users.sort((a, b) {
+      final aUserId = a['userId'] ?? '';
+      final bUserId = b['userId'] ?? '';
+      final aUserName = a['name'] ?? '';
+      final bUserName = b['name'] ?? '';
+
+      final aIsCurrentUser =
+          currentUser != null &&
+          (aUserId == currentUser.id ||
+              aUserName == currentUser.name);
+      final bIsCurrentUser =
+          currentUser != null &&
+          (bUserId == currentUser.id ||
+              bUserName == currentUser.name);
+
+      if (aIsCurrentUser && !bIsCurrentUser) return -1;
+      if (!aIsCurrentUser && bIsCurrentUser) return 1;
+      return 0;
+    });
+
+    // Show empty state if no users
+    if (users.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.all(32),
+          child: Text(
+            'No reactions found',
+            style: TextStyle(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.grey[400]
+                  : Colors.grey[600],
+              fontSize: 16,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: EdgeInsets.all(16),
+      itemCount: users.length,
+      itemBuilder: (context, index) {
+        final userInfo = users[index];
+        final userName = userInfo['name'] ?? 'Unknown User';
+        final profilePicture = userInfo['profilePicture'] ?? '';
+        final userId = userInfo['userId'] ?? '';
+        final userEmoji = userInfo['emoji'] ?? '';
+
+        // Get current user from provider
+        final userProvider = context.watch<UserProvider>();
+        final currentUser = userProvider.user;
+        final isCurrentUser =
+            currentUser != null &&
+            (userId == currentUser.id ||
+                userName == currentUser.name);
+
+        return GestureDetector(
+          onTap: isCurrentUser
+              ? () {
+                  // Use the user's specific emoji for All view, or current filter emoji
+                  final emojiToRemove = _selectedEmojiFilter == null
+                      ? userEmoji
+                      : _selectedEmojiFilter!;
+
+                  // Close the drawer first for immediate feedback
+                  Navigator.pop(context);
+
+                  // Then remove the reaction
+                  _removeReactionAndUpdateUI(
+                    context,
+                    emojiToRemove,
+                    userId,
+                  );
+                }
+              : null,
+          child: Container(
+            margin: EdgeInsets.only(bottom: 8),
+            padding: EdgeInsets.symmetric(
+              vertical: 12,
+              horizontal: 16,
+            ),
+            child: Row(
+              children: [
+                // Avatar with SVG support and proper fallback
+                SVGAvatar(
+                  imageUrl: profilePicture.isNotEmpty
+                      ? profilePicture
+                      : null,
+                  size: 44,
+                  backgroundColor: Color(0xFF003f9b),
+                  iconColor: Colors.white,
+                  fallbackIcon: Icons.person,
+                  child: profilePicture.isEmpty
+                      ? Text(
+                          userName.isNotEmpty
+                              ? userName[0].toUpperCase()
+                              : '?',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        )
+                      : null,
+                ),
+
+                SizedBox(width: 16),
+
+                // User info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isCurrentUser
+                            ? 'You'
+                            : (userName.isNotEmpty
+                                  ? userName
+                                  : 'Unknown User'),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color:
+                              Theme.of(context).brightness ==
+                                  Brightness.dark
+                              ? Colors.white.withOpacity(0.9)
+                              : Colors.black87,
+                        ),
+                      ),
+                      if (isCurrentUser)
+                        Text(
+                          'Click to remove',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color:
+                                Theme.of(context).brightness ==
+                                    Brightness.dark
+                                ? Colors.grey[400]
+                                : Colors.grey[600],
+                          ),
+                        )
+                      else
+                        Text(
+                          'Member',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color:
+                                Theme.of(context).brightness ==
+                                    Brightness.dark
+                                ? Colors.grey[400]
+                                : Colors.grey[600],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+
+                // Reaction emoji on the right
+                Text(
+                  _selectedEmojiFilter == null ? userEmoji : _selectedEmojiFilter!,
+                  style: TextStyle(fontSize: 28),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

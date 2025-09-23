@@ -138,7 +138,7 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
         canPinMessages: widget.canPinMessages,
         canDeleteMessages: widget.canDeleteMessages,
         isSelectionMode: widget.isSelectionMode,
-        ),
+      ),
       ),
     );
   }
@@ -174,14 +174,19 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
       if (widget.onToggleSelection != null) {
         widget.onToggleSelection!(widget.message.id);
       }
+      return; // Don't show options in selection mode
     } else if (widget.message.status == MessageStatus.failed) {
       // Failed messages show retry dialog
       _showRetryDialog(context);
+      return; // Don't show options for failed messages
     } else if (widget.onMessageTap != null) {
       // Custom tap handler
       widget.onMessageTap!(widget.message);
+      return; // Custom handler takes precedence
     }
-    // Removed default behavior - no reaction drawer on tap
+    
+    // Default behavior - show reaction drawer/options on tap
+    // This will be handled by the outer GestureDetector in _MessageOptionsOverlay
   }
 
   // Long press behavior has been replaced with inline reaction picker
