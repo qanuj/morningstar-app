@@ -3,19 +3,13 @@ import 'package:flutter/cupertino.dart';
 import 'dart:io';
 import 'package:intl/intl.dart';
 import '../../models/poll.dart';
-import '../../models/club.dart';
 import '../../services/poll_service.dart';
-import '../../widgets/custom_app_bar.dart';
 
 class CreatePollScreen extends StatefulWidget {
   final String clubId;
   final ValueChanged<Poll>? onPollCreated;
 
-  const CreatePollScreen({
-    super.key,
-    required this.clubId,
-    this.onPollCreated,
-  });
+  const CreatePollScreen({super.key, required this.clubId, this.onPollCreated});
 
   @override
   State<CreatePollScreen> createState() => _CreatePollScreenState();
@@ -34,7 +28,14 @@ class _CreatePollScreenState extends State<CreatePollScreen> {
 
   // Form values
   DateTime? _expiresAt;
-  bool _hasExpiration = false;
+  bool _hasExpiration = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Set default expiry to 2 days from now
+    _expiresAt = DateTime.now().add(const Duration(days: 2));
+  }
 
   @override
   void dispose() {
@@ -56,10 +57,39 @@ class _CreatePollScreenState extends State<CreatePollScreen> {
   }
 
   void _addOption() {
-    if (_optionControllers.length < 6) {
+    if (_optionControllers.length < 10) {
       setState(() {
         _optionControllers.add(TextEditingController());
       });
+    }
+  }
+
+  void _onOptionChanged(int index, String value) {
+    setState(() {});
+
+    // If this is the last option and has text, add a new option
+    if (index == _optionControllers.length - 1 &&
+        value.trim().isNotEmpty &&
+        _optionControllers.length < 10) {
+      _addOption();
+    }
+
+    // If option is empty and we have more than 2 options, consider removing it
+    // But only if it's not one of the first two required options
+    if (value.trim().isEmpty && _optionControllers.length > 2 && index >= 2) {
+      // Check if this is the last option or if there are empty options after this
+      bool hasTextInLaterOptions = false;
+      for (int i = index + 1; i < _optionControllers.length; i++) {
+        if (_optionControllers[i].text.trim().isNotEmpty) {
+          hasTextInLaterOptions = true;
+          break;
+        }
+      }
+
+      // Only remove if there are no non-empty options after this one
+      if (!hasTextInLaterOptions) {
+        _removeOption(index);
+      }
     }
   }
 
@@ -68,24 +98,6 @@ class _CreatePollScreenState extends State<CreatePollScreen> {
       setState(() {
         _optionControllers[index].dispose();
         _optionControllers.removeAt(index);
-      });
-    }
-  }
-
-  void _moveOptionUp(int index) {
-    if (index > 0) {
-      setState(() {
-        final controller = _optionControllers.removeAt(index);
-        _optionControllers.insert(index - 1, controller);
-      });
-    }
-  }
-
-  void _moveOptionDown(int index) {
-    if (index < _optionControllers.length - 1) {
-      setState(() {
-        final controller = _optionControllers.removeAt(index);
-        _optionControllers.insert(index + 1, controller);
       });
     }
   }
@@ -109,18 +121,11 @@ class _CreatePollScreenState extends State<CreatePollScreen> {
       );
 
       if (mounted) {
-        // Call the callback first to send the poll message
+        // Call the callback to send the poll message
         widget.onPollCreated?.call(poll);
 
-        // Then pop the screen with the poll as result
-        Navigator.of(context).pop(poll);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Poll created successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        // Pop the screen to return to chat
+        Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
@@ -160,7 +165,8 @@ class _CreatePollScreenState extends State<CreatePollScreen> {
   }
 
   Future<void> _showCupertinoDatePicker() async {
-    DateTime tempPickedDate = _expiresAt ?? DateTime.now().add(const Duration(days: 7));
+    DateTime tempPickedDate =
+        _expiresAt ?? DateTime.now().add(const Duration(days: 7));
 
     await showModalBottomSheet(
       context: context,
@@ -233,56 +239,70 @@ class _CreatePollScreenState extends State<CreatePollScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Theme.of(context).brightness == Brightness.dark
-          ? Theme.of(context).colorScheme.background
-          : const Color(0xFFF2F2F2),
+      backgroundColor: isDarkMode
+          ? theme.scaffoldBackgroundColor
+          : Colors.grey[50],
       appBar: AppBar(
-        backgroundColor: Theme.of(context).brightness == Brightness.dark
-            ? Theme.of(context).colorScheme.background
-            : const Color(0xFFF2F2F2),
+        backgroundColor: isDarkMode
+            ? theme.scaffoldBackgroundColor
+            : Colors.grey[50],
         elevation: 0,
-        leading: TextButton(
+        leading: IconButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: Text(
-            'Cancel',
-            style: TextStyle(
-              color: Colors.green,
-              fontSize: 16,
-            ),
+          icon: Icon(
+            Icons.arrow_back_ios,
+            color: isDarkMode ? Colors.white : Colors.black,
+            size: 20,
           ),
         ),
         title: Text(
           'Create poll',
           style: TextStyle(
-            color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+            color: isDarkMode ? Colors.white : Colors.black,
             fontSize: 18,
             fontWeight: FontWeight.w600,
           ),
         ),
         centerTitle: true,
         actions: [
-          TextButton(
-            onPressed: _canCreatePoll && !_isLoading ? _createPoll : null,
-            child: _isLoading
-                ? SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        Theme.of(context).colorScheme.primary,
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            child: TextButton(
+              onPressed: _canCreatePoll && !_isLoading ? _createPoll : null,
+              style: TextButton.styleFrom(
+                backgroundColor: _canCreatePoll && !_isLoading
+                    ? theme.colorScheme.primary
+                    : (isDarkMode ? Colors.grey[700] : Colors.grey[300]),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+              child: _isLoading
+                  ? SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : Text(
+                      'Send',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  )
-                : Text(
-                    'Send',
-                    style: TextStyle(
-                      color: _canCreatePoll ? Theme.of(context).colorScheme.primary : Colors.grey,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+            ),
           ),
         ],
       ),
@@ -291,210 +311,169 @@ class _CreatePollScreenState extends State<CreatePollScreen> {
   }
 
   Widget _buildCreatePollForm() {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Question Section
-          _buildSectionLabel('QUESTION'),
-          const SizedBox(height: 12),
-          TextFormField(
-            controller: _questionController,
-            decoration: InputDecoration(
-              hintText: 'Ask question',
-              hintStyle: TextStyle(
-                color: Colors.grey[400],
-                fontSize: 16,
+          _buildSectionCard(
+            title: 'QUESTION',
+            child: Container(
+              width: double.infinity,
+              constraints: const BoxConstraints(minHeight: 60),
+              child: TextFormField(
+                controller: _questionController,
+                decoration: InputDecoration(
+                  hintText: 'What would you like to ask?',
+                  hintStyle: TextStyle(
+                    color: isDarkMode ? Colors.grey[400] : Colors.grey[500],
+                    fontSize: 18,
+                    fontWeight: FontWeight.w400,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                  counterText: '',
+                ),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                  color: isDarkMode ? Colors.white : Colors.black87,
+                  height: 1.4,
+                ),
+                maxLines: null,
+                minLines: 1,
+                maxLength: 200,
+                textInputAction: TextInputAction.next,
+                textCapitalization: TextCapitalization.sentences,
+                onChanged: (_) => setState(() {}),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a question';
+                  }
+                  if (value.trim().length < 5) {
+                    return 'Question must be at least 5 characters';
+                  }
+                  return null;
+                },
               ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              filled: true,
-              fillColor: Colors.white,
-              contentPadding: const EdgeInsets.all(16),
             ),
-            style: const TextStyle(fontSize: 16),
-            maxLines: null,
-            maxLength: null,
-            onChanged: (_) => setState(() {}),
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Please enter a question';
-              }
-              return null;
-            },
           ),
-          const SizedBox(height: 32),
+
+          const SizedBox(height: 24),
 
           // Options Section
-          _buildSectionLabel('OPTIONS'),
-          const SizedBox(height: 12),
-          ...List.generate(_optionControllers.length, (index) {
-            return _buildSimpleOptionField(index);
-          }),
-          const SizedBox(height: 12),
-
-          // Add Option Button
-          if (_optionControllers.length < 6)
-            GestureDetector(
-              onTap: _addOption,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  'Add',
-                  style: TextStyle(
-                    color: Colors.grey[400],
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionLabel(String title) {
-    return Text(
-      title,
-      style: TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w500,
-        color: Colors.grey[600],
-        letterSpacing: 0.5,
-      ),
-    );
-  }
-
-  Widget _buildSimpleOptionField(int index) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          // Reorder controls
-          if (_optionControllers.length > 2)
-            Column(
-              mainAxisSize: MainAxisSize.min,
+          _buildSectionCard(
+            title: 'OPTIONS',
+            child: Column(
               children: [
-                GestureDetector(
-                  onTap: index > 0 ? () => _moveOptionUp(index) : null,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    child: Icon(
-                      Icons.keyboard_arrow_up,
-                      color: index > 0 ? Colors.grey[600] : Colors.grey[300],
-                      size: 20,
-                    ),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: index < _optionControllers.length - 1 ? () => _moveOptionDown(index) : null,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    child: Icon(
-                      Icons.keyboard_arrow_down,
-                      color: index < _optionControllers.length - 1 ? Colors.grey[600] : Colors.grey[300],
-                      size: 20,
-                    ),
-                  ),
+                ReorderableListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _optionControllers.length,
+                  onReorder: (oldIndex, newIndex) {
+                    setState(() {
+                      if (newIndex > oldIndex) {
+                        newIndex -= 1;
+                      }
+                      final controller = _optionControllers.removeAt(oldIndex);
+                      _optionControllers.insert(newIndex, controller);
+                    });
+                  },
+                  itemBuilder: (context, index) {
+                    return _buildDraggableOptionField(index);
+                  },
                 ),
               ],
             ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: TextFormField(
-              controller: _optionControllers[index],
-              decoration: InputDecoration(
-                hintText: 'Add',
-                hintStyle: TextStyle(
-                  color: Colors.grey[400],
-                  fontSize: 16,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.all(16),
-                counterText: '', // Remove character counter
-              ),
-              style: const TextStyle(fontSize: 16),
-              maxLength: 100,
-              onChanged: (value) {
-                // Auto-remove option if text is cleared and we have more than 2 options
-                if (value.trim().isEmpty && _optionControllers.length > 2 && index >= 2) {
-                  _removeOption(index);
-                } else {
-                  setState(() {});
-                }
-              },
-              validator: index < 2
-                  ? (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Required';
-                      }
-                      return null;
-                    }
-                  : null,
-            ),
           ),
-          if (_optionControllers.length > 2 && index >= 2)
-            IconButton(
-              onPressed: () => _removeOption(index),
-              icon: const Icon(Icons.close),
-              color: Colors.grey,
-            ),
+
+          const SizedBox(height: 24),
+
+          // Expiration Section (Optional)
+          _buildExpirationSection(),
         ],
       ),
     );
   }
 
-  Widget _buildOptionField(int index) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+  Widget _buildSectionCard({required String title, required Widget child}) {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDarkMode ? theme.cardColor : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: (isDarkMode ? Colors.black : Colors.grey).withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 16),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDraggableOptionField(int index) {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+
+    return Container(
+      key: ValueKey('option_$index'),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: isDarkMode ? Colors.grey[800] : Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDarkMode ? Colors.grey[700]! : Colors.grey[200]!,
+          width: 1,
+        ),
+      ),
       child: Row(
         children: [
+          // Text field with slight left padding
           Expanded(
             child: TextFormField(
               controller: _optionControllers[index],
               decoration: InputDecoration(
-                hintText: 'Option ${index + 1}',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                hintText: 'Add option',
+                hintStyle: TextStyle(
+                  color: isDarkMode ? Colors.grey[500] : Colors.grey[400],
+                  fontSize: 16,
                 ),
-                filled: true,
-                fillColor: Theme.of(context).colorScheme.surface,
-                prefixIcon: Container(
-                  margin: const EdgeInsets.all(12),
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Center(
-                    child: Text(
-                      '${index + 1}',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.fromLTRB(18, 16, 16, 16),
+                counterText: '',
+              ),
+              style: TextStyle(
+                fontSize: 16,
+                color: isDarkMode ? Colors.white : Colors.black87,
               ),
               maxLength: 100,
-              onChanged: (_) => setState(() {}),
+              onChanged: (value) => _onOptionChanged(index, value),
               validator: index < 2
                   ? (value) {
                       if (value == null || value.trim().isEmpty) {
@@ -505,12 +484,108 @@ class _CreatePollScreenState extends State<CreatePollScreen> {
                   : null,
             ),
           ),
-          if (_optionControllers.length > 2)
-            IconButton(
-              onPressed: () => _removeOption(index),
-              icon: const Icon(Icons.remove_circle_outline),
-              color: Colors.red,
+
+          // Drag handle wrapped in ReorderableDragStartListener
+          ReorderableDragStartListener(
+            index: index,
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              child: Icon(
+                Icons.drag_handle,
+                color: isDarkMode ? Colors.grey[500] : Colors.grey[400],
+                size: 20,
+              ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExpirationSection() {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDarkMode ? theme.cardColor : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: (isDarkMode ? Colors.black : Colors.grey).withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'EXPIRATION',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                  letterSpacing: 0.5,
+                ),
+              ),
+              Switch(
+                value: _hasExpiration,
+                onChanged: (value) {
+                  setState(() {
+                    _hasExpiration = value;
+                    if (!value) {
+                      _expiresAt = null;
+                    }
+                  });
+                },
+                activeColor: theme.colorScheme.primary,
+              ),
+            ],
+          ),
+          if (_hasExpiration) ...[
+            const SizedBox(height: 16),
+            GestureDetector(
+              onTap: _selectExpirationDate,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDarkMode ? Colors.grey[800] : Colors.grey[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDarkMode ? Colors.grey[700]! : Colors.grey[200]!,
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_today,
+                      color: theme.colorScheme.primary,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      _expiresAt != null
+                          ? 'Expires ${DateFormat('MMM d, yyyy').format(_expiresAt!)}'
+                          : 'Select expiration date',
+                      style: TextStyle(
+                        color: isDarkMode ? Colors.white : Colors.black87,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
