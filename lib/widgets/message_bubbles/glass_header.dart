@@ -17,27 +17,49 @@ class GlassHeader extends StatelessWidget {
   });
 
   /// Factory constructor for poll headers
-  factory GlassHeader.poll({bool isExpired = false, Widget? trailing}) {
+  factory GlassHeader.poll({
+    bool isExpired = false,
+    Widget? trailing,
+    required BuildContext context,
+  }) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return GlassHeader(
       title: 'Poll',
-      icon: Icon(Icons.poll, color: Color(0xFF003f9b), size: 20),
+      icon: Icon(
+        Icons.poll,
+        color: isDarkMode ? Colors.white.withOpacity(0.9) : Color(0xFF003f9b),
+        size: 20,
+      ),
       subtitle: isExpired ? 'Expired' : null,
       trailing: trailing,
     );
   }
 
   /// Factory constructor for match headers
-  factory GlassHeader.match({bool isCancelled = false, Widget? trailing}) {
+  factory GlassHeader.match({
+    bool isCancelled = false,
+    Widget? trailing,
+    required BuildContext context,
+  }) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return GlassHeader(
       title: 'Match',
-      icon: Icon(Icons.sports, color: Color(0xFF003f9b), size: 20),
+      icon: Icon(
+        Icons.sports,
+        color: isDarkMode ? Colors.white.withOpacity(0.9) : Color(0xFF003f9b),
+        size: 20,
+      ),
       subtitle: isCancelled ? 'Cancelled' : null,
       trailing: trailing,
     );
   }
 
   /// Factory constructor for practice headers
-  factory GlassHeader.practice({bool isCancelled = false, Widget? trailing}) {
+  factory GlassHeader.practice({
+    bool isCancelled = false,
+    Widget? trailing,
+    required BuildContext context,
+  }) {
     return GlassHeader(
       title: 'Practice',
       icon: Text('🏏', style: TextStyle(fontSize: 20)),
@@ -48,6 +70,8 @@ class GlassHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return ClipRRect(
       borderRadius: BorderRadius.only(
         topLeft: Radius.circular(12),
@@ -61,14 +85,21 @@ class GlassHeader extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Color(0xFF003f9b).withOpacity(0.15),
-                Color(0xFF06aeef).withOpacity(0.10),
-              ],
+              colors: isDarkMode
+                  ? [
+                      Colors.white.withOpacity(0.15),
+                      Colors.grey[300]!.withOpacity(0.10),
+                    ]
+                  : [
+                      Color(0xFF003f9b).withOpacity(0.15),
+                      Color(0xFF06aeef).withOpacity(0.10),
+                    ],
             ),
             border: Border(
               bottom: BorderSide(
-                color: Color(0xFF003f9b).withOpacity(0.2),
+                color: isDarkMode
+                    ? Colors.white.withOpacity(0.2)
+                    : Color(0xFF003f9b).withOpacity(0.2),
                 width: 1,
               ),
             ),
@@ -86,7 +117,9 @@ class GlassHeader extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF003f9b),
+                        color: isDarkMode
+                            ? Colors.white.withOpacity(0.9)
+                            : Color(0xFF003f9b),
                       ),
                     ),
                     if (subtitle != null)

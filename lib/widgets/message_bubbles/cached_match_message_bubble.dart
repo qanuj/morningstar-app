@@ -426,10 +426,12 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
         // Header with glass effect background
         isPractice
             ? GlassHeader.practice(
+                context: context,
                 isCancelled: isCancelled,
                 trailing: _buildViewButton(context, isPractice: true),
               )
             : GlassHeader.match(
+                context: context,
                 isCancelled: isCancelled,
                 trailing: _buildViewButton(context, isPractice: false),
               ),
@@ -1215,7 +1217,9 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
             child: Container(
               padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: Color(0xFF003f9b),
+                color: isDarkMode
+                    ? Colors.white.withOpacity(0.9)
+                    : Color(0xFF003f9b),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
                   color: isDarkMode ? Colors.grey[800]! : Colors.white,
@@ -1226,7 +1230,7 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
               child: Text(
                 count.toString(),
                 style: TextStyle(
-                  color: Colors.white,
+                  color: isDarkMode ? Colors.black87 : Colors.white,
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1313,8 +1317,12 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
                       ]
                     : isSelected
                     ? [
-                        Color(0xFF003f9b).withOpacity(0.3),
-                        Color(0xFF06aeef).withOpacity(0.2),
+                        isDarkMode
+                            ? Colors.white.withOpacity(0.3)
+                            : Color(0xFF003f9b).withOpacity(0.3),
+                        isDarkMode
+                            ? Colors.grey[300]!.withOpacity(0.2)
+                            : Color(0xFF06aeef).withOpacity(0.2),
                       ]
                     : [
                         (isDarkMode ? Colors.grey[800]! : Colors.white)
@@ -1328,7 +1336,9 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
                 color: isDisabled
                     ? (isDarkMode ? Colors.grey[700]! : Colors.grey[300]!)
                     : isSelected
-                    ? Color(0xFF003f9b)
+                    ? (isDarkMode
+                          ? Colors.white.withOpacity(0.8)
+                          : Color(0xFF003f9b))
                     : (isDarkMode ? Colors.grey[700]! : Colors.grey[300]!),
                 width: 1,
               ),
@@ -1346,7 +1356,9 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
                           end: Alignment.centerRight,
                           stops: [percentage / 100, percentage / 100],
                           colors: [
-                            Color(0xFF003f9b).withOpacity(0.4),
+                            isDarkMode
+                                ? Colors.white.withOpacity(0.4)
+                                : Color(0xFF003f9b).withOpacity(0.4),
                             Colors.transparent,
                           ],
                         ),
@@ -1603,6 +1615,7 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
   }
 
   Widget _buildViewButton(BuildContext context, {required bool isPractice}) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final matchDetails = _cachedMatchDetails.isNotEmpty
         ? _cachedMatchDetails
         : widget.message.meta ?? {};
@@ -1620,24 +1633,36 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
         child: Container(
           padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: Color(0xFF003f9b).withOpacity(0.1),
+            color: isDarkMode
+                ? Colors.white.withOpacity(0.1)
+                : Color(0xFF003f9b).withOpacity(0.1),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: Color(0xFF003f9b).withOpacity(0.3),
+              color: isDarkMode
+                  ? Colors.white.withOpacity(0.3)
+                  : Color(0xFF003f9b).withOpacity(0.3),
               width: 1,
             ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.people, size: 14, color: Color(0xFF003f9b)),
+              Icon(
+                Icons.people,
+                size: 14,
+                color: isDarkMode
+                    ? Colors.white.withOpacity(0.9)
+                    : Color(0xFF003f9b),
+              ),
               SizedBox(width: 4),
               Text(
                 'View RSVPs',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFF003f9b),
+                  color: isDarkMode
+                      ? Colors.white.withOpacity(0.9)
+                      : Color(0xFF003f9b),
                 ),
               ),
             ],

@@ -205,10 +205,13 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
       String errorMessage = 'Failed to start recording.';
       if (e.toString().contains('permission')) {
         errorMessage = 'Microphone permission is required to record audio.';
-      } else if (e.toString().contains('busy') || e.toString().contains('occupied')) {
-        errorMessage = 'Microphone is being used by another app. Please close other apps and try again.';
+      } else if (e.toString().contains('busy') ||
+          e.toString().contains('occupied')) {
+        errorMessage =
+            'Microphone is being used by another app. Please close other apps and try again.';
       } else if (e.toString().contains('audio session')) {
-        errorMessage = 'Audio recording is not available. Please restart the app and try again.';
+        errorMessage =
+            'Audio recording is not available. Please restart the app and try again.';
       }
 
       _showErrorDialog(errorMessage);
@@ -587,8 +590,8 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
           color: widget.isComposing
               ? Color(0xFF003f9b)
               : (Theme.of(context).brightness == Brightness.dark
-                    ? Colors.grey[400]
-                    : Colors.grey[600]),
+                    ? Colors.white.withOpacity(0.9)
+                    : Colors.grey[700]),
         ),
         iconSize: 28,
       );

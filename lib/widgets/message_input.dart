@@ -1122,151 +1122,171 @@ class MessageInputState extends State<MessageInput> {
     return SafeArea(
       bottom: true,
       top: false,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Input field row
-          Row(
-            children: [
-              // Check if audio recording is active - if so, show full-width recording interface
-              if (widget.audioRecordingKey.currentState?.isRecording == true ||
-                  widget.audioRecordingKey.currentState?.hasRecording ==
-                      true) ...[
-                // Full-width audio recording interface
-                AudioRecordingWidget(
-                  key: widget.audioRecordingKey,
-                  onAudioRecorded: _sendAudioMessage,
-                  isComposing: _isComposing,
-                  onRecordingStateChanged: () => setState(() {}),
-                ),
-              ] else ...[
-                // Normal input interface
-                // Attachment button (+) or keyboard button
-                IconButton(
-                  onPressed: _isAttachmentMenuOpen
-                      ? _showKeyboard
-                      : _showUploadOptions,
-                  icon: Icon(
-                    _isAttachmentMenuOpen ? Icons.keyboard : Icons.add,
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.grey[400]
-                        : Colors.grey[600],
-                  ),
-                ),
-
-                // Expanded message input area
-                Expanded(
-                  child: TextField(
-                    controller: widget.messageController,
-                    focusNode: widget.textFieldFocusNode,
-                    autofocus: false,
-                    onTap: () {
-                      // Only close attachment menu if it's currently open
-                      // This ensures smooth transitions without interference
-                      if (_isAttachmentMenuOpen) {
-                        print('🎯 TextField tapped, closing attachment menu');
-                        _closeAttachmentMenu();
-                      }
-                    },
-                    decoration: InputDecoration(
-                      hintText: 'Message',
-                      hintStyle: TextStyle(
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.grey[400]
-                            : Colors.grey[600],
-                        fontSize: 22, // Increased for better readability
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.all(
-                          Radius.circular(24),
-                        ), // Slightly reduced for cleaner look
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(20)),
-                        borderSide: BorderSide.none,
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(20)),
-                        borderSide: BorderSide.none,
-                      ),
-                      filled: true,
-                      fillColor: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.grey[800]
-                          : Colors.grey[100],
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical:
-                            6, // Reduced vertical padding for cleaner proportions
-                      ),
-                    ),
-                    style: TextStyle(
-                      fontSize:
-                          22, // Increased for better readability and visual balance
-                      fontWeight:
-                          FontWeight.w400, // Normal weight for clean appearance
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white
-                          : Colors.black87,
-                    ),
-                    maxLines:
-                        4, // Reduced from 5 for cleaner multiline handling
-                    minLines: 1,
-                    textCapitalization: TextCapitalization.sentences,
-                    keyboardType: TextInputType.multiline,
-                    textInputAction: TextInputAction.newline,
-                    keyboardAppearance:
-                        Theme.of(context).brightness == Brightness.dark
-                        ? Brightness.dark
-                        : Brightness.light,
-                    onChanged: _handleTextChanged,
-                  ),
-                ),
-
-                // UPI Payment button - hidden when composing or no UPI apps available
-                if (!_isComposing && _availableUpiApps.isNotEmpty)
-                  IconButton(
-                    onPressed: () => _openUPIPayment(),
-                    icon: Icon(
-                      Icons.currency_rupee,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.grey[400]
-                          : Colors.grey[600],
-                    ),
-                  ),
-
-                // Camera button - hidden when composing
-                if (!_isComposing)
-                  IconButton(
-                    onPressed: _handleCameraCapture,
-                    icon: Icon(
-                      Icons.camera_alt,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.grey[400]
-                          : Colors.grey[600],
-                    ),
-                  ),
-
-                // Send button or audio recording widget
-                if (_isComposing)
-                  IconButton(
-                    onPressed: _sendTextMessage,
-                    icon: const Icon(Icons.send, color: Color(0xFF003f9b)),
-                  )
-                else
+      child: Container(
+        //main container
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: Theme.of(context).brightness == Brightness.dark
+                ? [
+                    Color(0xFF0d1117), // Very dark background
+                    Color(0xFF161b22), // Darker background
+                  ]
+                : [
+                    Color(0xFFe3f2fd), // Light blue shade
+                    Color(0xFFbbdefb), // Slightly darker light blue
+                  ],
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Input field row
+            Row(
+              children: [
+                // Check if audio recording is active - if so, show full-width recording interface
+                if (widget.audioRecordingKey.currentState?.isRecording ==
+                        true ||
+                    widget.audioRecordingKey.currentState?.hasRecording ==
+                        true) ...[
+                  // Full-width audio recording interface
                   AudioRecordingWidget(
                     key: widget.audioRecordingKey,
                     onAudioRecorded: _sendAudioMessage,
                     isComposing: _isComposing,
                     onRecordingStateChanged: () => setState(() {}),
                   ),
-              ],
-            ],
-          ),
+                ] else ...[
+                  // Normal input interface
+                  // Attachment button (+) or keyboard button
+                  IconButton(
+                    onPressed: _isAttachmentMenuOpen
+                        ? _showKeyboard
+                        : _showUploadOptions,
+                    icon: Icon(
+                      _isAttachmentMenuOpen ? Icons.keyboard : Icons.add,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white.withOpacity(0.9)
+                          : Colors.grey[700],
+                    ),
+                  ),
 
-          // Attachment menu (always present but height animated)
-          _buildAttachmentMenu(),
-        ],
+                  // Expanded message input area
+                  Expanded(
+                    child: TextField(
+                      controller: widget.messageController,
+                      focusNode: widget.textFieldFocusNode,
+                      autofocus: false,
+                      onTap: () {
+                        // Only close attachment menu if it's currently open
+                        // This ensures smooth transitions without interference
+                        if (_isAttachmentMenuOpen) {
+                          print('🎯 TextField tapped, closing attachment menu');
+                          _closeAttachmentMenu();
+                        }
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Message',
+                        hintStyle: TextStyle(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.grey[400]
+                              : Colors.grey[600],
+                          fontSize: 22, // Increased for better readability
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.all(
+                            Radius.circular(24),
+                          ), // Slightly reduced for cleaner look
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(20)),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(20)),
+                          borderSide: BorderSide.none,
+                        ),
+                        filled: true,
+                        fillColor:
+                            Theme.of(context).brightness == Brightness.dark
+                            ? Colors.grey[800]
+                            : Colors.grey[100],
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical:
+                              6, // Reduced vertical padding for cleaner proportions
+                        ),
+                      ),
+                      style: TextStyle(
+                        fontSize:
+                            22, // Increased for better readability and visual balance
+                        fontWeight: FontWeight
+                            .w400, // Normal weight for clean appearance
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : Colors.black87,
+                      ),
+                      maxLines:
+                          4, // Reduced from 5 for cleaner multiline handling
+                      minLines: 1,
+                      textCapitalization: TextCapitalization.sentences,
+                      keyboardType: TextInputType.multiline,
+                      textInputAction: TextInputAction.newline,
+                      keyboardAppearance:
+                          Theme.of(context).brightness == Brightness.dark
+                          ? Brightness.dark
+                          : Brightness.light,
+                      onChanged: _handleTextChanged,
+                    ),
+                  ),
+
+                  // UPI Payment button - hidden when composing or no UPI apps available
+                  if (!_isComposing && _availableUpiApps.isNotEmpty)
+                    IconButton(
+                      onPressed: () => _openUPIPayment(),
+                      icon: Icon(
+                        Icons.currency_rupee,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white.withOpacity(0.9)
+                            : Colors.grey[700],
+                      ),
+                    ),
+
+                  // Camera button - hidden when composing
+                  if (!_isComposing)
+                    IconButton(
+                      onPressed: _handleCameraCapture,
+                      icon: Icon(
+                        Icons.camera_alt,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white.withOpacity(0.9)
+                            : Colors.grey[700],
+                      ),
+                    ),
+
+                  // Send button or audio recording widget
+                  if (_isComposing)
+                    IconButton(
+                      onPressed: _sendTextMessage,
+                      icon: const Icon(Icons.send, color: Color(0xFF003f9b)),
+                    )
+                  else
+                    AudioRecordingWidget(
+                      key: widget.audioRecordingKey,
+                      onAudioRecorded: _sendAudioMessage,
+                      isComposing: _isComposing,
+                      onRecordingStateChanged: () => setState(() {}),
+                    ),
+                ],
+              ],
+            ),
+
+            // Attachment menu (always present but height animated)
+            _buildAttachmentMenu(),
+          ],
+        ),
       ),
     );
   }

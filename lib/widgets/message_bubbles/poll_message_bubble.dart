@@ -166,6 +166,7 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
       children: [
         // Poll header with glass effect background
         GlassHeader.poll(
+          context: context,
           isExpired: isExpired,
           trailing: totalVotes > 0
               ? Material(
@@ -183,10 +184,14 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Color(0xFF003f9b).withOpacity(0.1),
+                        color: isDarkMode
+                            ? Colors.white.withOpacity(0.1)
+                            : Color(0xFF003f9b).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: Color(0xFF003f9b).withOpacity(0.3),
+                          color: isDarkMode
+                              ? Colors.white.withOpacity(0.3)
+                              : Color(0xFF003f9b).withOpacity(0.3),
                           width: 1,
                         ),
                       ),
@@ -196,7 +201,9 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                           Icon(
                             Icons.how_to_vote,
                             size: 14,
-                            color: Color(0xFF003f9b),
+                            color: isDarkMode
+                                ? Colors.white.withOpacity(0.9)
+                                : Color(0xFF003f9b),
                           ),
                           SizedBox(width: 4),
                           Text(
@@ -204,7 +211,9 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
-                              color: Color(0xFF003f9b),
+                              color: isDarkMode
+                                  ? Colors.white.withOpacity(0.9)
+                                  : Color(0xFF003f9b),
                             ),
                           ),
                         ],
@@ -371,8 +380,12 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                   colors: hasVoted
                       ? (isSelected
                             ? [
-                                Color(0xFF003f9b).withOpacity(0.3),
-                                Color(0xFF06aeef).withOpacity(0.2),
+                                isDarkMode
+                                    ? Colors.white.withOpacity(0.3)
+                                    : Color(0xFF003f9b).withOpacity(0.3),
+                                isDarkMode
+                                    ? Colors.grey[300]!.withOpacity(0.2)
+                                    : Color(0xFF06aeef).withOpacity(0.2),
                               ]
                             : [
                                 (isDarkMode
@@ -394,7 +407,9 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: isSelected
-                      ? Color(0xFF003f9b)
+                      ? (isDarkMode
+                            ? Colors.white.withOpacity(0.8)
+                            : Color(0xFF003f9b))
                       : (isDarkMode ? Colors.grey[700]! : Colors.grey[300]!),
                   width: 1,
                 ),
@@ -412,7 +427,9 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                             end: Alignment.centerRight,
                             stops: [percentage / 100, percentage / 100],
                             colors: [
-                              Color(0xFF003f9b).withOpacity(0.4),
+                              isDarkMode
+                                  ? Colors.white.withOpacity(0.4)
+                                  : Color(0xFF003f9b).withOpacity(0.4),
                               Colors.transparent,
                             ],
                           ),

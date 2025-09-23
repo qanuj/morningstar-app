@@ -1875,7 +1875,8 @@ class ClubChatScreenState extends State<ClubChatScreen>
                     child: Container(
                       // No padding - input positioned above keyboard
                       decoration: BoxDecoration(
-                        color: isDarkTheme ? Color(0xFF1e2428) : Colors.white,
+                        color: Colors
+                            .transparent, // Let MessageInput gradient show through
                         border: Border(
                           top: BorderSide(
                             color: isDarkTheme
@@ -1919,7 +1920,25 @@ class ClubChatScreenState extends State<ClubChatScreen>
             bottom: keyboardHeight,
             height: MediaQuery.of(context).padding.bottom,
             child: Container(
-              color: isDarkTheme ? Color(0xFF1e2428) : Colors.white,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: isDarkTheme
+                      ? [
+                          Color(
+                            0xFF161b22,
+                          ), // Darker background (continuing gradient)
+                          Color(0xFF0d1117), // Very dark background
+                        ]
+                      : [
+                          Color(
+                            0xFFbbdefb,
+                          ), // Slightly darker light blue (continuing gradient)
+                          Color(0xFFe3f2fd), // Light blue shade
+                        ],
+                ),
+              ),
             ),
           ),
 
