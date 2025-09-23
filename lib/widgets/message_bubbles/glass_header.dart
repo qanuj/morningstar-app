@@ -6,17 +6,20 @@ class GlassHeader extends StatelessWidget {
   final String title;
   final Widget icon;
   final String? subtitle;
+  final Widget? trailing;
 
   const GlassHeader({
     super.key,
     required this.title,
     required this.icon,
     this.subtitle,
+    this.trailing,
   });
 
   /// Factory constructor for poll headers
   factory GlassHeader.poll({
     bool isExpired = false,
+    Widget? trailing,
   }) {
     return GlassHeader(
       title: 'Poll',
@@ -26,6 +29,7 @@ class GlassHeader extends StatelessWidget {
         size: 20,
       ),
       subtitle: isExpired ? 'Expired' : null,
+      trailing: trailing,
     );
   }
 
@@ -113,6 +117,10 @@ class GlassHeader extends StatelessWidget {
                   ],
                 ),
               ),
+              if (trailing != null) ...[
+                SizedBox(width: 12),
+                trailing!,
+              ],
             ],
           ),
         ),
