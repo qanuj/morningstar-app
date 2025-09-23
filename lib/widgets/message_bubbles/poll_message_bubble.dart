@@ -393,51 +393,55 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                       ),
                     ),
                   ),
-                
+
                 // Content container with padding
                 Container(
                   padding: EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: hasVoted
-                      ? (isSelected
-                            ? [
-                                isDarkMode
-                                    ? Colors.white.withOpacity(0.3)
-                                    : Color(0xFF003f9b).withOpacity(0.3),
-                                isDarkMode
-                                    ? Colors.grey[300]!.withOpacity(0.2)
-                                    : Color(0xFF06aeef).withOpacity(0.2),
-                              ]
-                            : [
-                                (isDarkMode
-                                        ? Colors.grey[700]!
-                                        : Colors.grey[100]!)
-                                    .withOpacity(0.8),
-                                (isDarkMode
-                                        ? Colors.grey[800]!
-                                        : Colors.grey[50]!)
-                                    .withOpacity(0.8),
-                              ])
-                      : [
-                          (isDarkMode ? Colors.grey[700]! : Colors.white)
-                              .withOpacity(0.8),
-                          (isDarkMode ? Colors.grey[800]! : Colors.grey[50]!)
-                              .withOpacity(0.8),
-                        ],
-                ),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: isSelected
-                      ? (isDarkMode
-                            ? Colors.white.withOpacity(0.9)
-                            : Color(0xFF003f9b))
-                      : (isDarkMode ? Colors.grey[500]! : Colors.grey[300]!),
-                  width: isDarkMode ? 1.5 : 1,
-                ),
-              ),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: hasVoted
+                          ? (isSelected
+                                ? [
+                                    isDarkMode
+                                        ? Colors.white.withOpacity(0.3)
+                                        : Color(0xFF003f9b).withOpacity(0.3),
+                                    isDarkMode
+                                        ? Colors.grey[300]!.withOpacity(0.2)
+                                        : Color(0xFF06aeef).withOpacity(0.2),
+                                  ]
+                                : [
+                                    (isDarkMode
+                                            ? Colors.grey[700]!
+                                            : Colors.grey[100]!)
+                                        .withOpacity(0.8),
+                                    (isDarkMode
+                                            ? Colors.grey[800]!
+                                            : Colors.grey[50]!)
+                                        .withOpacity(0.8),
+                                  ])
+                          : [
+                              (isDarkMode ? Colors.grey[700]! : Colors.white)
+                                  .withOpacity(0.8),
+                              (isDarkMode
+                                      ? Colors.grey[800]!
+                                      : Colors.grey[50]!)
+                                  .withOpacity(0.8),
+                            ],
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: isSelected
+                          ? (isDarkMode
+                                ? Colors.white.withOpacity(0.9)
+                                : Color(0xFF003f9b))
+                          : (isDarkMode
+                                ? Colors.grey[500]!
+                                : Colors.grey[300]!),
+                      width: isDarkMode ? 1.5 : 1,
+                    ),
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -467,12 +471,14 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                                             ? BorderRadius.circular(4)
                                             : null,
                                         color: isSelected
-                                            ? (isDarkMode 
-                                                ? Colors.white.withOpacity(0.9)
-                                                : Color(0xFF003f9b))
+                                            ? (isDarkMode
+                                                  ? Colors.white.withOpacity(
+                                                      0.9,
+                                                    )
+                                                  : Color(0xFF003f9b))
                                             : Colors.transparent,
                                         border: Border.all(
-                                          color: isDarkMode 
+                                          color: isDarkMode
                                               ? Colors.white.withOpacity(0.8)
                                               : Color(0xFF003f9b),
                                           width: 2,
@@ -483,8 +489,8 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                                               allowMultiple
                                                   ? Icons.check
                                                   : Icons.check,
-                                              color: isDarkMode 
-                                                  ? Colors.black87 
+                                              color: isDarkMode
+                                                  ? Colors.black87
                                                   : Colors.white,
                                               size: 14,
                                             )
