@@ -629,7 +629,7 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
           child: Text(
             displayName,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
               color: isCancelled ? Colors.grey.shade500 : Theme.of(context).textTheme.titleMedium?.color,
               decoration: isCancelled ? TextDecoration.lineThrough : null,
@@ -693,17 +693,18 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
   Widget _buildVsChip(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: theme.colorScheme.primary,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Text(
         'VS',
         style: TextStyle(
           color: theme.colorScheme.onPrimary,
           fontWeight: FontWeight.bold,
-          letterSpacing: 1,
+          fontSize: 12,
+          letterSpacing: 0.5,
         ),
       ),
     );
@@ -809,18 +810,6 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
             label: venue,
             isCancelled: isCancelled,
           ),
-        if (venue.isNotEmpty) SizedBox(height: 8),
-        if (maxParticipants > 0) ...[
-          _buildInfoRow(
-            context,
-            icon: Icons.group,
-            label: '${maxParticipants - confirmedPlayers} spots available ($confirmedPlayers/$maxParticipants)',
-            isCancelled: isCancelled,
-          ),
-          SizedBox(height: 8),
-          _buildProgressBar(confirmedPlayers, maxParticipants),
-          SizedBox(height: 8),
-        ],
       ],
     );
   }
@@ -914,12 +903,17 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     final theme = Theme.of(context);
 
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Icon(
-          icon,
-          size: 16,
-          color: isCancelled ? Colors.grey.shade500 : theme.colorScheme.primary,
+        Container(
+          width: 16,
+          height: 16,
+          alignment: Alignment.center,
+          child: Icon(
+            icon,
+            size: 16,
+            color: isCancelled ? Colors.grey.shade500 : theme.colorScheme.primary,
+          ),
         ),
         SizedBox(width: 10),
         Expanded(
@@ -983,29 +977,41 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
 
     return Column(
       children: [
-        _buildRsvpButton(
-          context,
-          label: 'In',
-          status: 'YES',
-          count: counts['YES'] ?? 0,
-          color: Color(0xFF4CAF50),
-          isDisabled: isCancelled,
-        ),
-        _buildRsvpButton(
-          context,
-          label: 'Out',
-          status: 'NO',
-          count: counts['NO'] ?? 0,
-          color: Color(0xFFFF5722),
-          isDisabled: isCancelled,
-        ),
-        _buildRsvpButton(
-          context,
-          label: 'Maybe',
-          status: 'MAYBE',
-          count: counts['MAYBE'] ?? 0,
-          color: Color(0xFFFF9800),
-          isDisabled: isCancelled,
+        Row(
+          children: [
+            Expanded(
+              child: _buildRsvpButtonWithBadge(
+                context,
+                label: 'In',
+                status: 'YES',
+                count: counts['YES'] ?? 0,
+                color: Color(0xFF4CAF50),
+                isDisabled: isCancelled,
+              ),
+            ),
+            SizedBox(width: 8),
+            Expanded(
+              child: _buildRsvpButtonWithBadge(
+                context,
+                label: 'Out',
+                status: 'NO',
+                count: counts['NO'] ?? 0,
+                color: Color(0xFFFF5722),
+                isDisabled: isCancelled,
+              ),
+            ),
+            SizedBox(width: 8),
+            Expanded(
+              child: _buildRsvpButtonWithBadge(
+                context,
+                label: 'Maybe',
+                status: 'MAYBE',
+                count: counts['MAYBE'] ?? 0,
+                color: Color(0xFFFF9800),
+                isDisabled: isCancelled,
+              ),
+            ),
+          ],
         ),
         SizedBox(height: 12),
         _buildRsvpSummaryLine(context, counts),
@@ -1059,6 +1065,62 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     );
   }
 
+  Widget _buildRsvpButtonWithBadge(
+    BuildContext context, {
+    required String label,
+    required String status,
+    required int count,
+    required Color color,
+    bool isDisabled = false,
+  }) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        _buildRsvpButton(
+          context,
+          label: label,
+          status: status,
+          count: count,
+          color: color,
+          isDisabled: isDisabled,
+        ),
+
+        // Count badge positioned outside top-right
+        if (count > 0)
+          Positioned(
+            top: -6,
+            right: -6,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Color(0xFF003f9b),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isDarkMode ? Colors.grey[800]! : Colors.white,
+                  width: 1,
+                ),
+              ),
+              constraints: BoxConstraints(
+                minWidth: 18,
+                minHeight: 18,
+              ),
+              child: Text(
+                count.toString(),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
   Map<String, int>? _statusCountsFromRaw(dynamic raw) {
     if (raw is Map) {
       final normalized = <String, int>{'YES': 0, 'NO': 0, 'MAYBE': 0};
@@ -1094,112 +1156,95 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
   }) {
     final isSelected = _currentRSVPStatus == status;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final totalCount = (_statusCountsFromRaw(widget.message.meta?['statusCounts'])?.values.fold(0, (a, b) => a + b)) ?? 0;
-    final percentage = totalCount > 0 ? (count / totalCount * 100) : 0.0;
 
-    return Container(
-      margin: EdgeInsets.only(bottom: 8),
-      child: InkWell(
-        onTap: isDisabled ? null : () => _handleDirectRSVP(context, status),
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: isDisabled
-                ? (isDarkMode ? Colors.grey[800] : Colors.grey[100])
-                : isSelected
-                    ? Color(0xFF003f9b).withOpacity(0.2)
-                    : (isDarkMode ? Colors.grey[800] : Colors.grey[100]),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isDisabled
-                  ? (isDarkMode ? Colors.grey[700]! : Colors.grey[300]!)
-                  : isSelected
-                      ? Color(0xFF003f9b)
-                      : (isDarkMode ? Colors.grey[700]! : Colors.grey[300]!),
-              width: isSelected ? 2 : 1,
+    // Calculate progress bar percentage based on confirmed vs total spots (only for "In" button)
+    final matchDetails = _getUnifiedMatchDetails;
+    final totalSpots = matchDetails['maxPlayers'] as int? ??
+                      matchDetails['capacity'] as int? ??
+                      matchDetails['spots'] as int? ??
+                      matchDetails['maxParticipants'] as int? ?? 0;
+    final confirmedPlayers = matchDetails['confirmedPlayers'] as int? ??
+                            matchDetails['currentParticipants'] as int? ?? 0;
+
+    final percentage = (status == 'YES' && totalSpots > 0)
+        ? (confirmedPlayers / totalSpots * 100)
+        : 0.0;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+        child: InkWell(
+          onTap: isDisabled ? null : () => _handleDirectRSVP(context, status),
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: isDisabled
+                    ? [
+                        (isDarkMode ? Colors.grey[800]! : Colors.grey[100]!).withOpacity(0.6),
+                        (isDarkMode ? Colors.grey[850]! : Colors.grey[50]!).withOpacity(0.6),
+                      ]
+                    : isSelected
+                        ? [
+                            Color(0xFF003f9b).withOpacity(0.3),
+                            Color(0xFF06aeef).withOpacity(0.2),
+                          ]
+                        : [
+                            (isDarkMode ? Colors.grey[800]! : Colors.white).withOpacity(0.7),
+                            (isDarkMode ? Colors.grey[850]! : Colors.grey[50]!).withOpacity(0.7),
+                          ],
+              ),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isDisabled
+                    ? (isDarkMode ? Colors.grey[700]! : Colors.grey[300]!)
+                    : isSelected
+                        ? Color(0xFF003f9b)
+                        : (isDarkMode ? Colors.grey[700]! : Colors.grey[300]!),
+                width: 1,
+              ),
             ),
-          ),
-          child: Stack(
-            children: [
-              // Progress bar background
-              if (percentage > 0)
-                Positioned.fill(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(6),
-                      gradient: LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                        stops: [percentage / 100, percentage / 100],
-                        colors: [
-                          Color(0xFF003f9b).withOpacity(0.3),
-                          Colors.transparent,
-                        ],
+            child: Stack(
+              children: [
+                // Progress bar background
+                if (percentage > 0)
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(6),
+                        gradient: LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          stops: [percentage / 100, percentage / 100],
+                          colors: [
+                            Color(0xFF003f9b).withOpacity(0.4),
+                            Colors.transparent,
+                          ],
+                        ),
                       ),
+                    ),
+                  ),
+
+                // Option content
+                Center(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      color: isDisabled
+                          ? Colors.grey[500]
+                          : (isDarkMode ? Colors.white.withOpacity(0.87) : Colors.black.withOpacity(0.87)),
                     ),
                   ),
                 ),
 
-              // Option content
-              Row(
-                children: [
-                  // Selection indicator
-                  if (isSelected)
-                    Container(
-                      width: 20,
-                      height: 20,
-                      margin: EdgeInsets.only(right: 12),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Color(0xFF003f9b),
-                      ),
-                      child: Icon(
-                        Icons.check,
-                        color: Colors.white,
-                        size: 14,
-                      ),
-                    ),
-
-                  if (!isSelected)
-                    Container(
-                      width: 20,
-                      height: 20,
-                      margin: EdgeInsets.only(right: 12),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Color(0xFF003f9b),
-                          width: 2,
-                        ),
-                      ),
-                    ),
-
-                  Expanded(
-                    child: Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                        color: isDisabled
-                            ? Colors.grey[500]
-                            : (isDarkMode ? Colors.white.withOpacity(0.87) : Colors.black.withOpacity(0.87)),
-                      ),
-                    ),
-                  ),
-
-                  // Count display
-                  Text(
-                    _formatStatusCount(status, count, totalCount),
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF003f9b),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -1228,13 +1273,8 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     switch (status) {
       case 'YES': // In
         if (totalSpots > 0) {
-          // Calculate waiting: those who said yes but aren't confirmed
-          final waiting = yesCount - confirmedPlayers;
-          if (waiting > 0) {
-            return '$confirmedPlayers of $totalSpots, $waiting waiting';
-          } else {
-            return '$confirmedPlayers of $totalSpots';
-          }
+          // Compact format for buttons: just show confirmed/total
+          return '$confirmedPlayers/$totalSpots';
         } else {
           return '$yesCount';
         }
