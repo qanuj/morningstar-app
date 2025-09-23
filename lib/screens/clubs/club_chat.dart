@@ -13,7 +13,6 @@ import '../../models/message_reply.dart';
 import '../../models/message_reaction.dart';
 import '../../services/chat_api_service.dart';
 import '../../services/message_storage_service.dart';
-import '../../services/api_service.dart';
 import '../../services/notification_service.dart';
 import '../../widgets/club_info_dialog.dart';
 import '../../widgets/audio_recording_widget.dart';
@@ -1894,21 +1893,15 @@ class ClubChatScreenState extends State<ClubChatScreen>
 
                           // Message Input - Positioned above keyboard (hidden during recording mode)
                           if (!_isInRecordingMode)
-                            Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 8,
-                              ),
-                              child: MessageInput(
-                                key: _messageInputKey,
-                                messageController: _messageController,
-                                textFieldFocusNode: _textFieldFocusNode,
-                                clubId: widget.club.id,
-                                audioRecordingKey: _audioRecordingKey,
-                                onSendMessage: _handleNewMessage,
-                                upiId: widget.club.upiId,
-                                userRole: membership?.role,
-                              ),
+                            MessageInput(
+                              key: _messageInputKey,
+                              messageController: _messageController,
+                              textFieldFocusNode: _textFieldFocusNode,
+                              clubId: widget.club.id,
+                              audioRecordingKey: _audioRecordingKey,
+                              onSendMessage: _handleNewMessage,
+                              upiId: widget.club.upiId,
+                              userRole: membership?.role,
                             ),
                         ],
                       ),

@@ -1174,18 +1174,20 @@ class MessageInputState extends State<MessageInput> {
                         color: Theme.of(context).brightness == Brightness.dark
                             ? Colors.grey[400]
                             : Colors.grey[600],
-                        fontSize: 14,
+                        fontSize: 22, // Increased for better readability
                       ),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(24)),
+                        borderRadius: BorderRadius.all(
+                          Radius.circular(24),
+                        ), // Slightly reduced for cleaner look
                         borderSide: BorderSide.none,
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(24)),
+                        borderRadius: BorderRadius.all(Radius.circular(20)),
                         borderSide: BorderSide.none,
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(24)),
+                        borderRadius: BorderRadius.all(Radius.circular(20)),
                         borderSide: BorderSide.none,
                       ),
                       filled: true,
@@ -1193,17 +1195,22 @@ class MessageInputState extends State<MessageInput> {
                           ? Colors.grey[800]
                           : Colors.grey[100],
                       contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
+                        horizontal: 8,
+                        vertical:
+                            6, // Reduced vertical padding for cleaner proportions
                       ),
                     ),
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize:
+                          22, // Increased for better readability and visual balance
+                      fontWeight:
+                          FontWeight.w400, // Normal weight for clean appearance
                       color: Theme.of(context).brightness == Brightness.dark
                           ? Colors.white
-                          : Colors.black,
+                          : Colors.black87,
                     ),
-                    maxLines: 5,
+                    maxLines:
+                        4, // Reduced from 5 for cleaner multiline handling
                     minLines: 1,
                     textCapitalization: TextCapitalization.sentences,
                     keyboardType: TextInputType.multiline,
@@ -1282,14 +1289,20 @@ class MessageInputState extends State<MessageInput> {
     // Transform poll data for message bubble format
     final cleanData = {
       'question': poll.question,
-      'options': poll.options.map((option) => {
-        'id': option.id,
-        'text': option.text,
-        'votes': option.voteCount,
-      }).toList(),
+      'options': poll.options
+          .map(
+            (option) => {
+              'id': option.id,
+              'text': option.text,
+              'votes': option.voteCount,
+            },
+          )
+          .toList(),
       'totalVotes': poll.totalVotes,
-      'hasVoted': false, // Always false for shared messages - each user tracks their own vote
-      'userVotes': [], // Empty for shared messages - each user tracks their own votes
+      'hasVoted':
+          false, // Always false for shared messages - each user tracks their own vote
+      'userVotes':
+          [], // Empty for shared messages - each user tracks their own votes
       'allowMultiple': false, // Can be expanded later
       'anonymous': false, // Can be expanded later
       'expiresAt': poll.expiresAt?.toIso8601String(),
