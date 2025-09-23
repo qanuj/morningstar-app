@@ -22,7 +22,8 @@ class CachedMatchMessageBubble extends StatefulWidget {
   final bool isPinned;
   final bool isSelected;
   final bool showSenderInfo;
-  final Function(String messageId, String emoji, String userId)? onReactionRemoved;
+  final Function(String messageId, String emoji, String userId)?
+  onReactionRemoved;
   final Function()? onViewMatch;
   final Function()? onRSVP;
 
@@ -39,7 +40,8 @@ class CachedMatchMessageBubble extends StatefulWidget {
   });
 
   @override
-  State<CachedMatchMessageBubble> createState() => _CachedMatchMessageBubbleState();
+  State<CachedMatchMessageBubble> createState() =>
+      _CachedMatchMessageBubbleState();
 }
 
 class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
@@ -94,7 +96,8 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
   void didUpdateWidget(covariant CachedMatchMessageBubble oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    final oldMessageId = oldWidget.message.matchId ?? oldWidget.message.practiceId;
+    final oldMessageId =
+        oldWidget.message.matchId ?? oldWidget.message.practiceId;
     final newMessageId = _getUnifiedMatchId;
 
     final messageIdChanged = oldMessageId != newMessageId;
@@ -127,9 +130,10 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
       if (currentUserId != null) {
         try {
           final userRsvp = rsvps.firstWhere(
-            (rsvp) => rsvp is Map<String, dynamic> &&
-                      rsvp['user'] is Map<String, dynamic> &&
-                      rsvp['user']['id'] == currentUserId,
+            (rsvp) =>
+                rsvp is Map<String, dynamic> &&
+                rsvp['user'] is Map<String, dynamic> &&
+                rsvp['user']['id'] == currentUserId,
           );
           if (userRsvp is Map<String, dynamic>) {
             final status = userRsvp['status'];
@@ -202,7 +206,9 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
       return;
     }
 
-    debugPrint('📲 Received match update push notification for $resolvedMatchId');
+    debugPrint(
+      '📲 Received match update push notification for $resolvedMatchId',
+    );
 
     // Update local cached data from push notification
     final updatedDetails = Map<String, dynamic>.from(_cachedMatchDetails);
@@ -252,7 +258,8 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     // Update confirmed players count
     if (data['confirmedPlayers'] != null) {
       try {
-        final confirmedCount = int.tryParse(data['confirmedPlayers'].toString()) ?? 0;
+        final confirmedCount =
+            int.tryParse(data['confirmedPlayers'].toString()) ?? 0;
         updatedDetails['confirmedPlayers'] = confirmedCount;
       } catch (e) {
         debugPrint('❌ Error parsing confirmedPlayers: $e');
@@ -271,22 +278,29 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
   }
 
   /// Update the message in local cache with new details
-  Future<void> _updateMessageInCache(Map<String, dynamic> updatedDetails) async {
+  Future<void> _updateMessageInCache(
+    Map<String, dynamic> updatedDetails,
+  ) async {
     try {
       // Load current messages from cache
-      final messages = await MessageStorageService.loadMessages(widget.message.clubId);
+      final messages = await MessageStorageService.loadMessages(
+        widget.message.clubId,
+      );
 
       // Find and update the specific message
-      final messageIndex = messages.indexWhere((m) => m.id == widget.message.id);
+      final messageIndex = messages.indexWhere(
+        (m) => m.id == widget.message.id,
+      );
       if (messageIndex != -1) {
-        final updatedMessage = widget.message.copyWith(
-          meta: updatedDetails,
-        );
+        final updatedMessage = widget.message.copyWith(meta: updatedDetails);
 
         messages[messageIndex] = updatedMessage;
 
         // Save back to cache
-        await MessageStorageService.saveMessages(widget.message.clubId, messages);
+        await MessageStorageService.saveMessages(
+          widget.message.clubId,
+          messages,
+        );
         debugPrint('💾 Updated message cache with new match details');
       }
     } catch (e) {
@@ -297,17 +311,21 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
   Map<String, int> _extractStatusCounts(Map<String, dynamic> details) {
     final counts = <String, int>{'YES': 0, 'NO': 0, 'MAYBE': 0};
 
-
     // Try the new practice API structure first (from /api/practice)
-    if (details['currentParticipants'] != null || details['maxParticipants'] != null) {
-      final currentParticipants = (details['currentParticipants'] as num?)?.toInt() ?? 0;
+    if (details['currentParticipants'] != null ||
+        details['maxParticipants'] != null) {
+      final currentParticipants =
+          (details['currentParticipants'] as num?)?.toInt() ?? 0;
       counts['YES'] = currentParticipants;
       return counts;
     }
 
     // Try the older unified meta fields (backward compatibility)
-    if (details['confirmedPlayers'] != null || details['availableSpots'] != null || details['spots'] != null) {
-      final confirmedPlayers = (details['confirmedPlayers'] as num?)?.toInt() ?? 0;
+    if (details['confirmedPlayers'] != null ||
+        details['availableSpots'] != null ||
+        details['spots'] != null) {
+      final confirmedPlayers =
+          (details['confirmedPlayers'] as num?)?.toInt() ?? 0;
       final availableSpots = (details['availableSpots'] as num?)?.toInt() ?? 0;
       final spots = (details['spots'] as num?)?.toInt() ?? 0;
 
@@ -320,7 +338,8 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     // Fallback to old field structure
     final aggregate = details['counts'];
     if (aggregate is Map<String, dynamic>) {
-      counts['YES'] = ((aggregate['confirmed'] as num?)?.toInt() ?? 0) +
+      counts['YES'] =
+          ((aggregate['confirmed'] as num?)?.toInt() ?? 0) +
           ((aggregate['waitlisted'] as num?)?.toInt() ?? 0);
       counts['NO'] = (aggregate['declined'] as num?)?.toInt() ?? 0;
       counts['MAYBE'] = (aggregate['maybe'] as num?)?.toInt() ?? 0;
@@ -331,7 +350,8 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
       if (rsvps is List) {
         for (final rsvp in rsvps) {
           if (rsvp is Map<String, dynamic>) {
-            final status = (rsvp['status']?.toString().toUpperCase() ?? '').trim();
+            final status = (rsvp['status']?.toString().toUpperCase() ?? '')
+                .trim();
             if (counts.containsKey(status)) {
               counts[status] = (counts[status] ?? 0) + 1;
             }
@@ -368,14 +388,20 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     final isPractice = _isTypePractice(matchDetails);
 
     // Extract match information
-    final homeTeam = _safeMapFromData(matchDetails['homeTeam'] ?? matchDetails['team']) ?? {};
+    final homeTeam =
+        _safeMapFromData(matchDetails['homeTeam'] ?? matchDetails['team']) ??
+        {};
     final opponentTeam = _safeMapFromData(matchDetails['opponentTeam']) ?? {};
-    final venue = _safeMapFromData(matchDetails['venue']) ?? (matchDetails['location'] != null ? {'name': matchDetails['location']} : {});
+    final venue =
+        _safeMapFromData(matchDetails['venue']) ??
+        (matchDetails['location'] != null
+            ? {'name': matchDetails['location']}
+            : {});
     final matchDateTime = matchDetails['dateTime'] != null
         ? DateTime.tryParse(matchDetails['dateTime'].toString())
         : (matchDetails['matchDate'] != null
-            ? DateTime.tryParse(matchDetails['matchDate'].toString())
-            : null);
+              ? DateTime.tryParse(matchDetails['matchDate'].toString())
+              : null);
 
     if (matchDetails.isEmpty) {
       return Padding(
@@ -386,7 +412,9 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
               : 'Match details not available',
           style: TextStyle(
             fontSize: 14,
-            color: isDarkMode ? Colors.white.withOpacity(0.87) : Colors.black.withOpacity(0.87),
+            color: isDarkMode
+                ? Colors.white.withOpacity(0.87)
+                : Colors.black.withOpacity(0.87),
           ),
         ),
       );
@@ -397,24 +425,49 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
       children: [
         // Header with glass effect background
         isPractice
-            ? GlassHeader.practice(isCancelled: isCancelled)
-            : GlassHeader.match(isCancelled: isCancelled),
+            ? GlassHeader.practice(
+                isCancelled: isCancelled,
+                trailing: _buildViewButton(context, isPractice: true),
+              )
+            : GlassHeader.match(
+                isCancelled: isCancelled,
+                trailing: _buildViewButton(context, isPractice: false),
+              ),
 
         // Content with padding
         Padding(
           padding: const EdgeInsets.all(16),
           child: isCancelled
-              ? _buildCancelledCard(context, matchDetails, cancellationReason, isPractice)
+              ? _buildCancelledCard(
+                  context,
+                  matchDetails,
+                  cancellationReason,
+                  isPractice,
+                )
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     if (!isPractice) ...[
-                      _buildTeamsSection(context, homeTeam, opponentTeam, isCancelled: isCancelled),
+                      _buildTeamsSection(
+                        context,
+                        homeTeam,
+                        opponentTeam,
+                        isCancelled: isCancelled,
+                      ),
                       SizedBox(height: 18),
                     ],
-                    _buildInfoSection(context, matchDateTime, venue, isCancelled: isCancelled),
+                    _buildInfoSection(
+                      context,
+                      matchDateTime,
+                      venue,
+                      isCancelled: isCancelled,
+                    ),
                     SizedBox(height: 18),
-                    _buildRsvpSummarySection(context, matchDetails, isCancelled: isCancelled),
+                    _buildRsvpSummarySection(
+                      context,
+                      matchDetails,
+                      isCancelled: isCancelled,
+                    ),
                   ],
                 ),
         ),
@@ -476,8 +529,10 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
           if (!isPractice) ...[
             Builder(
               builder: (context) {
-                final homeTeam = _safeMapFromData(matchDetails['homeTeam']) ?? {};
-                final opponentTeam = _safeMapFromData(matchDetails['opponentTeam']) ?? {};
+                final homeTeam =
+                    _safeMapFromData(matchDetails['homeTeam']) ?? {};
+                final opponentTeam =
+                    _safeMapFromData(matchDetails['opponentTeam']) ?? {};
                 return Text(
                   '${homeTeam['name'] ?? 'Home Team'} vs ${opponentTeam['name'] ?? 'Opponent Team'}',
                   style: TextStyle(
@@ -508,19 +563,35 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
           // Date and venue (compact)
           Row(
             children: [
-              Icon(Icons.schedule, size: 14, color: isDarkMode ? Colors.white54 : Colors.black54),
+              Icon(
+                Icons.schedule,
+                size: 14,
+                color: isDarkMode ? Colors.white54 : Colors.black54,
+              ),
               SizedBox(width: 4),
               Text(
-                matchDateTime != null ? _formatMatchDateLabel(matchDateTime) : 'Date TBD',
-                style: TextStyle(fontSize: 12, color: isDarkMode ? Colors.white54 : Colors.black54),
+                matchDateTime != null
+                    ? _formatMatchDateLabel(matchDateTime)
+                    : 'Date TBD',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDarkMode ? Colors.white54 : Colors.black54,
+                ),
               ),
               SizedBox(width: 16),
-              Icon(Icons.location_on, size: 14, color: isDarkMode ? Colors.white54 : Colors.black54),
+              Icon(
+                Icons.location_on,
+                size: 14,
+                color: isDarkMode ? Colors.white54 : Colors.black54,
+              ),
               SizedBox(width: 4),
               Expanded(
                 child: Text(
                   venueName,
-                  style: TextStyle(fontSize: 12, color: isDarkMode ? Colors.white54 : Colors.black54),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDarkMode ? Colors.white54 : Colors.black54,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -551,7 +622,10 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     );
   }
 
-  Widget _buildPracticeHeader(BuildContext context, [bool isCancelled = false]) {
+  Widget _buildPracticeHeader(
+    BuildContext context, [
+    bool isCancelled = false,
+  ]) {
     return Column(
       children: [
         Text(
@@ -559,7 +633,9 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: isCancelled ? Colors.grey.shade500 : Theme.of(context).colorScheme.primary,
+            color: isCancelled
+                ? Colors.grey.shade500
+                : Theme.of(context).colorScheme.primary,
             decoration: isCancelled ? TextDecoration.lineThrough : null,
           ),
           textAlign: TextAlign.center,
@@ -575,8 +651,14 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     Map<String, dynamic> opponentTeam, {
     bool isCancelled = false,
   }) {
-    final homeTeamName = homeTeam['name']?.toString() ?? homeTeam['teamName']?.toString() ?? 'Home Team';
-    final opponentTeamName = opponentTeam['name']?.toString() ?? opponentTeam['teamName']?.toString() ?? 'Away Team';
+    final homeTeamName =
+        homeTeam['name']?.toString() ??
+        homeTeam['teamName']?.toString() ??
+        'Home Team';
+    final opponentTeamName =
+        opponentTeam['name']?.toString() ??
+        opponentTeam['teamName']?.toString() ??
+        'Away Team';
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -631,7 +713,9 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: isCancelled ? Colors.grey.shade500 : Theme.of(context).textTheme.titleMedium?.color,
+              color: isCancelled
+                  ? Colors.grey.shade500
+                  : Theme.of(context).textTheme.titleMedium?.color,
               decoration: isCancelled ? TextDecoration.lineThrough : null,
             ),
             textAlign: TextAlign.center,
@@ -649,7 +733,8 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     if (trimmed.isEmpty) return 'TBD';
     if (trimmed.length <= 20) return trimmed;
 
-    final tokens = trimmed.split(RegExp(r'[^A-Za-z0-9]+'))
+    final tokens = trimmed
+        .split(RegExp(r'[^A-Za-z0-9]+'))
         .where((token) => token.isNotEmpty)
         .toList();
 
@@ -660,7 +745,9 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
 
     final condensed = trimmed.replaceAll(RegExp(r'[^A-Za-z0-9]'), '');
     if (condensed.length >= 3) {
-      return condensed.substring(0, math.min(3, condensed.length)).toUpperCase();
+      return condensed
+          .substring(0, math.min(3, condensed.length))
+          .toUpperCase();
     }
 
     return trimmed.substring(0, math.min(20, trimmed.length));
@@ -671,11 +758,7 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
       width: 56,
       height: 56,
       child: logoUrl != null && logoUrl.isNotEmpty
-          ? SVGAvatar(
-              imageUrl: logoUrl,
-              size: 56,
-              fallbackText: '',
-            )
+          ? SVGAvatar(imageUrl: logoUrl, size: 56, fallbackText: '')
           : Container(
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.primary.withOpacity(0.18),
@@ -720,12 +803,19 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     final isPractice = _isTypePractice(details);
 
     if (isPractice) {
-      return _buildPracticeInfoSection(context, details, isCancelled: isCancelled);
+      return _buildPracticeInfoSection(
+        context,
+        details,
+        isCancelled: isCancelled,
+      );
     }
 
     final venueName = venue['name']?.toString() ?? 'Venue TBD';
     final venueAddress = venue['address']?.toString();
-    final venueDisplay = (venueAddress != null && venueAddress.isNotEmpty && venueAddress != venueName)
+    final venueDisplay =
+        (venueAddress != null &&
+            venueAddress.isNotEmpty &&
+            venueAddress != venueName)
         ? '$venueName • $venueAddress'
         : venueName;
 
@@ -754,23 +844,25 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     Map<String, dynamic> details, {
     bool isCancelled = false,
   }) {
-
     // Handle both old and new field structures
     final date = details['date']?.toString() ?? '';
     final time = details['time']?.toString() ?? '';
 
     final venueMap = _safeMapFromData(details['venue']);
-    final venue = venueMap?['name']?.toString() ??
-                  details['venue']?.toString() ??
-                  details['location']?.toString() ?? '';
+    final venue =
+        venueMap?['name']?.toString() ??
+        details['venue']?.toString() ??
+        details['location']?.toString() ??
+        '';
 
     final duration = details['duration']?.toString() ?? '';
     // Use spots for total capacity (not availableSpots which is remaining spots)
-    final maxParticipants = (details['maxParticipants'] as int?) ??
-                           (details['spots'] as int?) ?? 0;
-    final confirmedPlayers = (details['currentParticipants'] as int?) ??
-                            (details['confirmedPlayers'] as int?) ?? 0;
-
+    final maxParticipants =
+        (details['maxParticipants'] as int?) ?? (details['spots'] as int?) ?? 0;
+    final confirmedPlayers =
+        (details['currentParticipants'] as int?) ??
+        (details['confirmedPlayers'] as int?) ??
+        0;
 
     DateTime? practiceDateTime;
 
@@ -828,7 +920,10 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
           children: [
             Text(
               'Available spots',
-              style: TextStyle(fontSize: 12, color: theme.textTheme.bodySmall?.color),
+              style: TextStyle(
+                fontSize: 12,
+                color: theme.textTheme.bodySmall?.color,
+              ),
             ),
             Text(
               '${max - current} remaining',
@@ -857,7 +952,8 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     final local = dateTime.toLocal();
     final day = local.day;
     final suffix = _ordinalSuffix(day);
-    final dayPart = '${DateFormat('EEE').format(local)}, $day$suffix ${DateFormat('MMM').format(local)}';
+    final dayPart =
+        '${DateFormat('EEE').format(local)}, $day$suffix ${DateFormat('MMM').format(local)}';
     final timePart = DateFormat('h:mma').format(local).toLowerCase();
 
     String result = '$dayPart at $timePart';
@@ -878,8 +974,12 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     try {
       final durationText = duration.toLowerCase().trim();
 
-      final hoursMatch = RegExp(r'(\d+(?:\.\d+)?)\s*(?:hour|hr)s?').firstMatch(durationText);
-      final minutesMatch = RegExp(r'(\d+)\s*(?:minute|min)s?').firstMatch(durationText);
+      final hoursMatch = RegExp(
+        r'(\d+(?:\.\d+)?)\s*(?:hour|hr)s?',
+      ).firstMatch(durationText);
+      final minutesMatch = RegExp(
+        r'(\d+)\s*(?:minute|min)s?',
+      ).firstMatch(durationText);
 
       if (hoursMatch != null) {
         final hours = double.parse(hoursMatch.group(1)!);
@@ -912,7 +1012,9 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
           child: Icon(
             icon,
             size: 16,
-            color: isCancelled ? Colors.grey.shade500 : theme.colorScheme.primary,
+            color: isCancelled
+                ? Colors.grey.shade500
+                : theme.colorScheme.primary,
           ),
         ),
         SizedBox(width: 10),
@@ -922,7 +1024,9 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: isCancelled ? Colors.grey.shade500 : theme.textTheme.bodyLarge?.color,
+              color: isCancelled
+                  ? Colors.grey.shade500
+                  : theme.textTheme.bodyLarge?.color,
               decoration: isCancelled ? TextDecoration.lineThrough : null,
             ),
           ),
@@ -937,7 +1041,8 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     final local = dateTime.toLocal();
     final day = local.day;
     final suffix = _ordinalSuffix(day);
-    final dayPart = '${DateFormat('EEE').format(local)}, $day$suffix ${DateFormat('MMM').format(local)}';
+    final dayPart =
+        '${DateFormat('EEE').format(local)}, $day$suffix ${DateFormat('MMM').format(local)}';
     final timePart = DateFormat('h:mma').format(local).toLowerCase();
     return '$dayPart at $timePart';
   }
@@ -945,10 +1050,14 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
   String _ordinalSuffix(int day) {
     if (day >= 11 && day <= 13) return 'th';
     switch (day % 10) {
-      case 1: return 'st';
-      case 2: return 'nd';
-      case 3: return 'rd';
-      default: return 'th';
+      case 1:
+        return 'st';
+      case 2:
+        return 'nd';
+      case 3:
+        return 'rd';
+      default:
+        return 'th';
     }
   }
 
@@ -957,7 +1066,9 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     Map<String, dynamic> matchDetails, {
     bool isCancelled = false,
   }) {
-    final counts = _statusCountsFromRaw(matchDetails['statusCounts']) ?? _extractStatusCounts(matchDetails);
+    final counts =
+        _statusCountsFromRaw(matchDetails['statusCounts']) ??
+        _extractStatusCounts(matchDetails);
 
     if (isCancelled) {
       return Container(
@@ -1024,13 +1135,17 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     final matchDetails = _getUnifiedMatchDetails;
 
     final yesCount = counts['YES'] ?? 0;
-    final totalSpots = matchDetails['maxPlayers'] as int? ??
-                      matchDetails['capacity'] as int? ??
-                      matchDetails['spots'] as int? ??
-                      matchDetails['maxParticipants'] as int? ?? 0;
+    final totalSpots =
+        matchDetails['maxPlayers'] as int? ??
+        matchDetails['capacity'] as int? ??
+        matchDetails['spots'] as int? ??
+        matchDetails['maxParticipants'] as int? ??
+        0;
 
-    final confirmedPlayers = matchDetails['confirmedPlayers'] as int? ??
-                            matchDetails['currentParticipants'] as int? ?? 0;
+    final confirmedPlayers =
+        matchDetails['confirmedPlayers'] as int? ??
+        matchDetails['currentParticipants'] as int? ??
+        0;
 
     final waiting = yesCount - confirmedPlayers;
 
@@ -1043,7 +1158,8 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
       }
     } else {
       final totalResponses = counts.values.fold(0, (sum, count) => sum + count);
-      summaryText = '$totalResponses ${totalResponses == 1 ? 'response' : 'responses'}';
+      summaryText =
+          '$totalResponses ${totalResponses == 1 ? 'response' : 'responses'}';
     }
 
     return Row(
@@ -1051,14 +1167,18 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
         Icon(
           Icons.how_to_vote,
           size: 16,
-          color: isDarkMode ? Colors.white.withOpacity(0.6) : Colors.black.withOpacity(0.6),
+          color: isDarkMode
+              ? Colors.white.withOpacity(0.6)
+              : Colors.black.withOpacity(0.6),
         ),
         SizedBox(width: 4),
         Text(
           summaryText,
           style: TextStyle(
             fontSize: 13,
-            color: isDarkMode ? Colors.white.withOpacity(0.6) : Colors.black.withOpacity(0.6),
+            color: isDarkMode
+                ? Colors.white.withOpacity(0.6)
+                : Colors.black.withOpacity(0.6),
           ),
         ),
       ],
@@ -1102,10 +1222,7 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
                   width: 1,
                 ),
               ),
-              constraints: BoxConstraints(
-                minWidth: 18,
-                minHeight: 18,
-              ),
+              constraints: BoxConstraints(minWidth: 18, minHeight: 18),
               child: Text(
                 count.toString(),
                 style: TextStyle(
@@ -1159,12 +1276,16 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
 
     // Calculate progress bar percentage based on confirmed vs total spots (only for "In" button)
     final matchDetails = _getUnifiedMatchDetails;
-    final totalSpots = matchDetails['maxPlayers'] as int? ??
-                      matchDetails['capacity'] as int? ??
-                      matchDetails['spots'] as int? ??
-                      matchDetails['maxParticipants'] as int? ?? 0;
-    final confirmedPlayers = matchDetails['confirmedPlayers'] as int? ??
-                            matchDetails['currentParticipants'] as int? ?? 0;
+    final totalSpots =
+        matchDetails['maxPlayers'] as int? ??
+        matchDetails['capacity'] as int? ??
+        matchDetails['spots'] as int? ??
+        matchDetails['maxParticipants'] as int? ??
+        0;
+    final confirmedPlayers =
+        matchDetails['confirmedPlayers'] as int? ??
+        matchDetails['currentParticipants'] as int? ??
+        0;
 
     final percentage = (status == 'YES' && totalSpots > 0)
         ? (confirmedPlayers / totalSpots * 100)
@@ -1185,26 +1306,30 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
                 end: Alignment.bottomRight,
                 colors: isDisabled
                     ? [
-                        (isDarkMode ? Colors.grey[800]! : Colors.grey[100]!).withOpacity(0.6),
-                        (isDarkMode ? Colors.grey[850]! : Colors.grey[50]!).withOpacity(0.6),
+                        (isDarkMode ? Colors.grey[800]! : Colors.grey[100]!)
+                            .withOpacity(0.6),
+                        (isDarkMode ? Colors.grey[850]! : Colors.grey[50]!)
+                            .withOpacity(0.6),
                       ]
                     : isSelected
-                        ? [
-                            Color(0xFF003f9b).withOpacity(0.3),
-                            Color(0xFF06aeef).withOpacity(0.2),
-                          ]
-                        : [
-                            (isDarkMode ? Colors.grey[800]! : Colors.white).withOpacity(0.7),
-                            (isDarkMode ? Colors.grey[850]! : Colors.grey[50]!).withOpacity(0.7),
-                          ],
+                    ? [
+                        Color(0xFF003f9b).withOpacity(0.3),
+                        Color(0xFF06aeef).withOpacity(0.2),
+                      ]
+                    : [
+                        (isDarkMode ? Colors.grey[800]! : Colors.white)
+                            .withOpacity(0.7),
+                        (isDarkMode ? Colors.grey[850]! : Colors.grey[50]!)
+                            .withOpacity(0.7),
+                      ],
               ),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: isDisabled
                     ? (isDarkMode ? Colors.grey[700]! : Colors.grey[300]!)
                     : isSelected
-                        ? Color(0xFF003f9b)
-                        : (isDarkMode ? Colors.grey[700]! : Colors.grey[300]!),
+                    ? Color(0xFF003f9b)
+                    : (isDarkMode ? Colors.grey[700]! : Colors.grey[300]!),
                 width: 1,
               ),
             ),
@@ -1235,14 +1360,17 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
                     label,
                     style: TextStyle(
                       fontSize: 14,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.normal,
                       color: isDisabled
                           ? Colors.grey[500]
-                          : (isDarkMode ? Colors.white.withOpacity(0.87) : Colors.black.withOpacity(0.87)),
+                          : (isDarkMode
+                                ? Colors.white.withOpacity(0.87)
+                                : Colors.black.withOpacity(0.87)),
                     ),
                   ),
                 ),
-
               ],
             ),
           ),
@@ -1253,7 +1381,8 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
 
   String _formatStatusCount(String status, int count, int totalCount) {
     final matchDetails = _getUnifiedMatchDetails;
-    final allCounts = _statusCountsFromRaw(widget.message.meta?['statusCounts']) ??
+    final allCounts =
+        _statusCountsFromRaw(widget.message.meta?['statusCounts']) ??
         {'YES': 0, 'NO': 0, 'MAYBE': 0};
 
     final yesCount = allCounts['YES'] ?? 0;
@@ -1261,14 +1390,18 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     final maybeCount = allCounts['MAYBE'] ?? 0;
 
     // Get total spots/capacity
-    final totalSpots = matchDetails['maxPlayers'] as int? ??
-                      matchDetails['capacity'] as int? ??
-                      matchDetails['spots'] as int? ??
-                      matchDetails['maxParticipants'] as int? ?? 0;
+    final totalSpots =
+        matchDetails['maxPlayers'] as int? ??
+        matchDetails['capacity'] as int? ??
+        matchDetails['spots'] as int? ??
+        matchDetails['maxParticipants'] as int? ??
+        0;
 
     // Get confirmed players (those who are actually confirmed, not just said yes)
-    final confirmedPlayers = matchDetails['confirmedPlayers'] as int? ??
-                            matchDetails['currentParticipants'] as int? ?? 0;
+    final confirmedPlayers =
+        matchDetails['confirmedPlayers'] as int? ??
+        matchDetails['currentParticipants'] as int? ??
+        0;
 
     switch (status) {
       case 'YES': // In
@@ -1294,7 +1427,9 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     if (!_isValidMatchId(messageId)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Unable to RSVP: ${isPractice ? 'Practice' : 'Match'} ID not found'),
+          content: Text(
+            'Unable to RSVP: ${isPractice ? 'Practice' : 'Match'} ID not found',
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -1337,13 +1472,16 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
         if (currentUserId != null) {
           final rsvps = updatedDetails['rsvps'] as List? ?? [];
           final updatedRsvps = List<Map<String, dynamic>>.from(
-            rsvps.map((rsvp) => Map<String, dynamic>.from(rsvp as Map<String, dynamic>))
+            rsvps.map(
+              (rsvp) => Map<String, dynamic>.from(rsvp as Map<String, dynamic>),
+            ),
           );
 
           // Find and update existing RSVP or add new one
           final existingIndex = updatedRsvps.indexWhere(
-            (rsvp) => rsvp['user'] is Map<String, dynamic> &&
-                      rsvp['user']['id'] == currentUserId,
+            (rsvp) =>
+                rsvp['user'] is Map<String, dynamic> &&
+                rsvp['user']['id'] == currentUserId,
           );
 
           if (existingIndex != -1) {
@@ -1361,26 +1499,35 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
 
         // Update counts locally
         if (isPractice) {
-          final confirmedPlayers = updatedDetails['confirmedPlayers'] as int? ?? 0;
+          final confirmedPlayers =
+              updatedDetails['confirmedPlayers'] as int? ?? 0;
           if (previousStatus == null && normalizedStatus == 'YES') {
             updatedDetails['confirmedPlayers'] = confirmedPlayers + 1;
           } else if (previousStatus == 'YES' && normalizedStatus != 'YES') {
-            updatedDetails['confirmedPlayers'] = math.max(0, confirmedPlayers - 1);
+            updatedDetails['confirmedPlayers'] = math.max(
+              0,
+              confirmedPlayers - 1,
+            );
           } else if (previousStatus != 'YES' && normalizedStatus == 'YES') {
             updatedDetails['confirmedPlayers'] = confirmedPlayers + 1;
           }
         } else {
-          final statusCounts = _statusCountsFromRaw(updatedDetails['statusCounts']) ?? _extractStatusCounts(updatedDetails);
+          final statusCounts =
+              _statusCountsFromRaw(updatedDetails['statusCounts']) ??
+              _extractStatusCounts(updatedDetails);
 
-          if (previousStatus != null && statusCounts.containsKey(previousStatus)) {
-            statusCounts[previousStatus] = (statusCounts[previousStatus] ?? 1) - 1;
+          if (previousStatus != null &&
+              statusCounts.containsKey(previousStatus)) {
+            statusCounts[previousStatus] =
+                (statusCounts[previousStatus] ?? 1) - 1;
             if ((statusCounts[previousStatus] ?? 0) < 0) {
               statusCounts[previousStatus] = 0;
             }
           }
 
           if (statusCounts.containsKey(normalizedStatus)) {
-            statusCounts[normalizedStatus] = (statusCounts[normalizedStatus] ?? 0) + 1;
+            statusCounts[normalizedStatus] =
+                (statusCounts[normalizedStatus] ?? 0) + 1;
           }
 
           updatedDetails['statusCounts'] = statusCounts;
@@ -1415,7 +1562,6 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     }
   }
 
-
   @override
   void dispose() {
     _unregisterMatchUpdates();
@@ -1432,21 +1578,254 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
 
   bool _getCancellationStatus(Map<String, dynamic> details) {
     if (details['isCancelled'] == true) return true;
-    if (details['practice'] != null && details['practice']['isCancelled'] == true) return true;
-    if (details['match'] != null && details['match']['isCancelled'] == true) return true;
+    if (details['practice'] != null &&
+        details['practice']['isCancelled'] == true)
+      return true;
+    if (details['match'] != null && details['match']['isCancelled'] == true)
+      return true;
     return false;
   }
 
   String? _getCancellationReason(Map<String, dynamic> details) {
-    if (details['cancellationReason'] is String && details['cancellationReason'].toString().isNotEmpty) {
+    if (details['cancellationReason'] is String &&
+        details['cancellationReason'].toString().isNotEmpty) {
       return details['cancellationReason'].toString();
     }
-    if (details['practice'] != null && details['practice']['cancellationReason'] is String) {
+    if (details['practice'] != null &&
+        details['practice']['cancellationReason'] is String) {
       return details['practice']['cancellationReason'].toString();
     }
-    if (details['match'] != null && details['match']['cancellationReason'] is String) {
+    if (details['match'] != null &&
+        details['match']['cancellationReason'] is String) {
       return details['match']['cancellationReason'].toString();
     }
     return null;
+  }
+
+  Widget _buildViewButton(BuildContext context, {required bool isPractice}) {
+    final matchDetails = _cachedMatchDetails.isNotEmpty ? _cachedMatchDetails : widget.message.meta ?? {};
+    final counts = _extractStatusCounts(matchDetails);
+    final totalRsvps = counts['YES']! + counts['NO']! + counts['MAYBE']!;
+    
+    // Only show button if there are RSVPs
+    if (totalRsvps == 0) return Container();
+    
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => _showRsvpDetailsDialog(context, isPractice),
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: Color(0xFF003f9b).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: Color(0xFF003f9b).withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.people,
+                size: 14,
+                color: Color(0xFF003f9b),
+              ),
+              SizedBox(width: 4),
+              Text(
+                'View RSVPs',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF003f9b),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showRsvpDetailsDialog(BuildContext context, bool isPractice) {
+    final matchDetails = _cachedMatchDetails.isNotEmpty ? _cachedMatchDetails : widget.message.meta ?? {};
+    final rsvps = matchDetails['rsvps'] as List? ?? [];
+    final counts = _extractStatusCounts(matchDetails);
+    
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            constraints: BoxConstraints(
+              maxWidth: 400,
+              maxHeight: MediaQuery.of(context).size.height * 0.8,
+            ),
+            decoration: BoxDecoration(
+              color: isDarkMode ? Color(0xFF1E1E1E) : Color(0xFFF5F5F5),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: isDarkMode 
+                        ? Colors.grey[850]
+                        : Colors.white,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20),
+                    ),
+                  ),
+                  child: Text(
+                    '${isPractice ? 'Practice' : 'Match'} RSVPs',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: isDarkMode ? Colors.white : Colors.black87,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                
+                // Content
+                Flexible(
+                  child: ListView(
+                    shrinkWrap: true,
+                    padding: EdgeInsets.all(20),
+                    children: [
+                      _buildRsvpStatusCard('Going', 'YES', rsvps, counts, isDarkMode),
+                      SizedBox(height: 16),
+                      _buildRsvpStatusCard('Not Going', 'NO', rsvps, counts, isDarkMode),
+                      SizedBox(height: 16),
+                      _buildRsvpStatusCard('Maybe', 'MAYBE', rsvps, counts, isDarkMode),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildRsvpStatusCard(String label, String status, List rsvps, Map<String, int> counts, bool isDarkMode) {
+    final statusRsvps = rsvps.where((rsvp) {
+      if (rsvp is Map<String, dynamic>) {
+        return rsvp['status']?.toString().toUpperCase() == status;
+      }
+      return false;
+    }).toList();
+    
+    final count = counts[status] ?? 0;
+    
+    return Card(
+      elevation: 2,
+      color: isDarkMode ? Colors.grey[800] : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(status),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                SizedBox(width: 12),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: isDarkMode ? Colors.white : Colors.black87,
+                  ),
+                ),
+                Spacer(),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(status).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    count.toString(),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: _getStatusColor(status),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (statusRsvps.isNotEmpty) ...[
+              SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: statusRsvps.map<Widget>((rsvp) {
+                  final user = rsvp['user'] as Map<String, dynamic>? ?? {};
+                  final name = user['name']?.toString() ?? 'Unknown';
+                  final avatarUrl = user['profilePicture']?.toString();
+                  
+                  return Container(
+                    margin: EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SVGAvatar(
+                          imageUrl: avatarUrl,
+                          size: 24,
+                          fallbackText: name,
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          name,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: isDarkMode ? Colors.white70 : Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toUpperCase()) {
+      case 'YES':
+        return Colors.green;
+      case 'NO':
+        return Colors.red;
+      case 'MAYBE':
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
   }
 }

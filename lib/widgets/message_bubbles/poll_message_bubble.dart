@@ -167,49 +167,52 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
         // Poll header with glass effect background
         GlassHeader.poll(
           isExpired: isExpired,
-          trailing: totalVotes > 0 
-            ? Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(20),
-                  onTap: () => _showVotingDetailsDialog(
-                    context,
-                    '', // Empty string since dialog shows all options
-                    'View Votes',
-                  ),
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Color(0xFF003f9b).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: Color(0xFF003f9b).withOpacity(0.3),
-                        width: 1,
-                      ),
+          trailing: totalVotes > 0
+              ? Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () => _showVotingDetailsDialog(
+                      context,
+                      '', // Empty string since dialog shows all options
+                      'View Votes',
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.how_to_vote,
-                          size: 14,
-                          color: Color(0xFF003f9b),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Color(0xFF003f9b).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: Color(0xFF003f9b).withOpacity(0.3),
+                          width: 1,
                         ),
-                        SizedBox(width: 4),
-                        Text(
-                          'View Votes',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.how_to_vote,
+                            size: 14,
                             color: Color(0xFF003f9b),
                           ),
-                        ),
-                      ],
+                          SizedBox(width: 4),
+                          Text(
+                            'View Votes',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF003f9b),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              )
-            : null,
+                )
+              : null,
         ),
 
         // Poll content with padding

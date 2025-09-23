@@ -17,48 +17,32 @@ class GlassHeader extends StatelessWidget {
   });
 
   /// Factory constructor for poll headers
-  factory GlassHeader.poll({
-    bool isExpired = false,
-    Widget? trailing,
-  }) {
+  factory GlassHeader.poll({bool isExpired = false, Widget? trailing}) {
     return GlassHeader(
       title: 'Poll',
-      icon: Icon(
-        Icons.poll,
-        color: Color(0xFF003f9b),
-        size: 20,
-      ),
+      icon: Icon(Icons.poll, color: Color(0xFF003f9b), size: 20),
       subtitle: isExpired ? 'Expired' : null,
       trailing: trailing,
     );
   }
 
   /// Factory constructor for match headers
-  factory GlassHeader.match({
-    bool isCancelled = false,
-  }) {
+  factory GlassHeader.match({bool isCancelled = false, Widget? trailing}) {
     return GlassHeader(
       title: 'Match',
-      icon: Icon(
-        Icons.sports,
-        color: Color(0xFF003f9b),
-        size: 20,
-      ),
+      icon: Icon(Icons.sports, color: Color(0xFF003f9b), size: 20),
       subtitle: isCancelled ? 'Cancelled' : null,
+      trailing: trailing,
     );
   }
 
   /// Factory constructor for practice headers
-  factory GlassHeader.practice({
-    bool isCancelled = false,
-  }) {
+  factory GlassHeader.practice({bool isCancelled = false, Widget? trailing}) {
     return GlassHeader(
       title: 'Practice',
-      icon: Text(
-        '🏏',
-        style: TextStyle(fontSize: 20),
-      ),
+      icon: Text('🏏', style: TextStyle(fontSize: 20)),
       subtitle: isCancelled ? 'Cancelled' : null,
+      trailing: trailing,
     );
   }
 
@@ -117,10 +101,7 @@ class GlassHeader extends StatelessWidget {
                   ],
                 ),
               ),
-              if (trailing != null) ...[
-                SizedBox(width: 12),
-                trailing!,
-              ],
+              if (trailing != null) ...[SizedBox(width: 12), trailing!],
             ],
           ),
         ),
