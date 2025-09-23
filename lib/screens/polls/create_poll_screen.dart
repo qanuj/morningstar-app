@@ -121,11 +121,8 @@ class _CreatePollScreenState extends State<CreatePollScreen> {
       );
 
       if (mounted) {
-        // Call the callback to send the poll message
-        widget.onPollCreated?.call(poll);
-
-        // Pop the screen to return to chat
-        Navigator.of(context).pop();
+        // Pop the screen and return the created poll to the poll picker
+        Navigator.of(context).pop(poll);
       }
     } catch (e) {
       if (mounted) {
@@ -295,7 +292,7 @@ class _CreatePollScreenState extends State<CreatePollScreen> {
                       ),
                     )
                   : Text(
-                      'Send',
+                      'Create',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 16,
