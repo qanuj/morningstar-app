@@ -371,9 +371,33 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
             onTap:
                 null, // Disable container tap, only checkbox will be tappable
             borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
+            child: Stack(
+              children: [
+                // Progress bar background - fills entire container
+                if (hasVoted && percentage > 0)
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        gradient: LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          stops: [percentage / 100, percentage / 100],
+                          colors: [
+                            isDarkMode
+                                ? Colors.white.withOpacity(0.4)
+                                : Color(0xFF003f9b).withOpacity(0.4),
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                
+                // Content container with padding
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -389,56 +413,32 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                               ]
                             : [
                                 (isDarkMode
-                                        ? Colors.grey[800]!
+                                        ? Colors.grey[700]!
                                         : Colors.grey[100]!)
-                                    .withOpacity(0.7),
+                                    .withOpacity(0.8),
                                 (isDarkMode
-                                        ? Colors.grey[850]!
+                                        ? Colors.grey[800]!
                                         : Colors.grey[50]!)
-                                    .withOpacity(0.7),
+                                    .withOpacity(0.8),
                               ])
                       : [
-                          (isDarkMode ? Colors.grey[800]! : Colors.white)
-                              .withOpacity(0.7),
-                          (isDarkMode ? Colors.grey[850]! : Colors.grey[50]!)
-                              .withOpacity(0.7),
+                          (isDarkMode ? Colors.grey[700]! : Colors.white)
+                              .withOpacity(0.8),
+                          (isDarkMode ? Colors.grey[800]! : Colors.grey[50]!)
+                              .withOpacity(0.8),
                         ],
                 ),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: isSelected
                       ? (isDarkMode
-                            ? Colors.white.withOpacity(0.8)
+                            ? Colors.white.withOpacity(0.9)
                             : Color(0xFF003f9b))
-                      : (isDarkMode ? Colors.grey[700]! : Colors.grey[300]!),
-                  width: 1,
+                      : (isDarkMode ? Colors.grey[500]! : Colors.grey[300]!),
+                  width: isDarkMode ? 1.5 : 1,
                 ),
               ),
-              child: Stack(
-                children: [
-                  // Progress bar background
-                  if (hasVoted && percentage > 0)
-                    Positioned.fill(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(6),
-                          gradient: LinearGradient(
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                            stops: [percentage / 100, percentage / 100],
-                            colors: [
-                              isDarkMode
-                                  ? Colors.white.withOpacity(0.4)
-                                  : Color(0xFF003f9b).withOpacity(0.4),
-                              Colors.transparent,
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-
-                  // Option content
-                  Column(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Top row with checkbox and option text
@@ -467,10 +467,14 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                                             ? BorderRadius.circular(4)
                                             : null,
                                         color: isSelected
-                                            ? Color(0xFF003f9b)
+                                            ? (isDarkMode 
+                                                ? Colors.white.withOpacity(0.9)
+                                                : Color(0xFF003f9b))
                                             : Colors.transparent,
                                         border: Border.all(
-                                          color: Color(0xFF003f9b),
+                                          color: isDarkMode 
+                                              ? Colors.white.withOpacity(0.8)
+                                              : Color(0xFF003f9b),
                                           width: 2,
                                         ),
                                       ),
@@ -479,7 +483,9 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                                               allowMultiple
                                                   ? Icons.check
                                                   : Icons.check,
-                                              color: Colors.white,
+                                              color: isDarkMode 
+                                                  ? Colors.black87 
+                                                  : Colors.white,
                                               size: 14,
                                             )
                                           : null,
@@ -523,7 +529,9 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF003f9b),
+                                color: isDarkMode
+                                    ? Colors.white.withOpacity(0.9)
+                                    : Color(0xFF003f9b),
                               ),
                             ),
                           ],
@@ -531,8 +539,8 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),

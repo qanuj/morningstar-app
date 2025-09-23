@@ -1168,7 +1168,7 @@ class MessageInputState extends State<MessageInput> {
                       _isAttachmentMenuOpen ? Icons.keyboard : Icons.add,
                       color: Theme.of(context).brightness == Brightness.dark
                           ? Colors.white.withOpacity(0.9)
-                          : Colors.grey[700],
+                          : Colors.black87,
                     ),
                   ),
 
@@ -1250,7 +1250,7 @@ class MessageInputState extends State<MessageInput> {
                         Icons.currency_rupee,
                         color: Theme.of(context).brightness == Brightness.dark
                             ? Colors.white.withOpacity(0.9)
-                            : Colors.grey[700],
+                            : Colors.black87,
                       ),
                     ),
 
@@ -1262,7 +1262,7 @@ class MessageInputState extends State<MessageInput> {
                         Icons.camera_alt,
                         color: Theme.of(context).brightness == Brightness.dark
                             ? Colors.white.withOpacity(0.9)
-                            : Colors.grey[700],
+                            : Colors.black87,
                       ),
                     ),
 
