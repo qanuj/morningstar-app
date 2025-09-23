@@ -1,7 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../models/club_message.dart';
-import '../../services/chat_api_service.dart';
 import '../../services/poll_service.dart';
 import '../svg_avatar.dart';
 import 'base_message_bubble.dart';
@@ -65,7 +64,7 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
 
       if (mounted) {
         setState(() {
-          // Update with fresh data that includes current user's voting state
+          // Update with fresh data that includes current user's voting state and voters
           pollDetails = {
             'question': poll.question,
             'options': poll.options
@@ -74,6 +73,16 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                     'id': option.id,
                     'text': option.text,
                     'votes': option.voteCount,
+                    'voters': option.voters
+                        .map(
+                          (voter) => {
+                            'id': voter.id,
+                            'name': voter.name,
+                            'profilePicture': voter.profilePicture,
+                            'votedAt': voter.votedAt.toIso8601String(),
+                          },
+                        )
+                        .toList(),
                   },
                 )
                 .toList(),
@@ -92,6 +101,31 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
       print('Failed to fetch fresh poll data: $e');
       // Keep using the metadata from the message if API call fails
     }
+  }
+
+  List<Map<String, dynamic>> _getVotersForOption(String optionId) {
+    // Get voters from poll metadata if available
+    final options = pollDetails['options'] as List? ?? [];
+    final voters = <Map<String, dynamic>>[];
+
+    // Look for voter data in the poll metadata
+    // This data should come from the backend poll service
+    for (final option in options) {
+      if (option['id'] == optionId && option['voters'] != null) {
+        final optionVoters = option['voters'] as List? ?? [];
+        for (final voter in optionVoters) {
+          voters.add({
+            'id': voter['id'],
+            'name': voter['name'],
+            'profilePicture': voter['profilePicture'],
+            'votedAt': voter['votedAt'],
+          });
+        }
+        break;
+      }
+    }
+
+    return voters;
   }
 
   @override
@@ -275,7 +309,8 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
           child: InkWell(
-            onTap: null, // Disable container tap, only checkbox will be tappable
+            onTap:
+                null, // Disable container tap, only checkbox will be tappable
             borderRadius: BorderRadius.circular(8),
             child: Container(
               padding: EdgeInsets.all(12),
@@ -345,7 +380,9 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                           // Always show checkbox if poll not expired
                           if (!isExpired)
                             GestureDetector(
-                              onTap: canVote ? () => _voteForOption(optionId) : null,
+                              onTap: canVote
+                                  ? () => _voteForOption(optionId)
+                                  : null,
                               child: Container(
                                 width: 20,
                                 height: 20,
@@ -357,7 +394,9 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                                   borderRadius: allowMultiple
                                       ? BorderRadius.circular(4)
                                       : null,
-                                  color: isSelected ? Color(0xFF003f9b) : Colors.transparent,
+                                  color: isSelected
+                                      ? Color(0xFF003f9b)
+                                      : Colors.transparent,
                                   border: Border.all(
                                     color: Color(0xFF003f9b),
                                     width: 2,
@@ -365,7 +404,9 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                                 ),
                                 child: isSelected
                                     ? Icon(
-                                        allowMultiple ? Icons.check : Icons.check,
+                                        allowMultiple
+                                            ? Icons.check
+                                            : Icons.check,
                                         color: Colors.white,
                                         size: 14,
                                       )
@@ -392,7 +433,11 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                             // Avatar group first
                             if (votes > 0)
                               GestureDetector(
-                                onTap: () => _showVotingDetailsDialog(context, optionId, text),
+                                onTap: () => _showVotingDetailsDialog(
+                                  context,
+                                  optionId,
+                                  text,
+                                ),
                                 child: _buildAvatarGroup(optionId, votes),
                               ),
 
@@ -409,7 +454,6 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                           ],
                         ],
                       ),
-
                     ],
                   ),
                 ],
@@ -424,7 +468,7 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
   void _voteForOption(String optionId) async {
     if (isVoting || widget.message.pollId == null) return;
 
-    // Check if user is changing their vote (clicking the same option they already voted for)
+    // Check if user is clicking the same option they already voted for
     final userVotes = pollDetails['userVotes'] as List? ?? [];
     final hasVoted = pollDetails['hasVoted'] as bool? ?? false;
     final previousVoteId = hasVoted && userVotes.isNotEmpty
@@ -432,52 +476,53 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
         : null;
 
     // If clicking the same option they already voted for, do nothing
-    if (previousVoteId == optionId) return;
+    if (previousVoteId == optionId) {
+      return;
+    }
 
     setState(() {
       isVoting = true;
     });
 
     try {
-      // Call the actual PollService API
-      await PollService.voteOnPoll(
+      // Call the PollService API which now returns updated poll data
+      final updatedPoll = await PollService.voteOnPoll(
         pollId: widget.message.pollId!,
         optionId: optionId,
       );
 
-      // Update local state
+      // Update local state with the fresh data from API
       setState(() {
-        final options = pollDetails['options'] as List? ?? [];
-
-        // If changing vote, decrease count for previous option
-        if (hasVoted && previousVoteId != null) {
-          for (var option in options) {
-            if (option['id'] == previousVoteId) {
-              option['votes'] = ((option['votes'] as int? ?? 0) - 1)
-                  .clamp(0, double.infinity)
-                  .toInt();
-              break;
-            }
-          }
-        }
-
-        // Increase count for new option
-        for (var option in options) {
-          if (option['id'] == optionId) {
-            option['votes'] = (option['votes'] as int? ?? 0) + 1;
-            break;
-          }
-        }
-
-        // Only increase total votes if this is a new vote (not a change)
-        if (!hasVoted) {
-          pollDetails['totalVotes'] =
-              (pollDetails['totalVotes'] as int? ?? 0) + 1;
-        }
-
-        pollDetails['hasVoted'] = true;
-        pollDetails['userVotes'] = [optionId]; // For single-choice polls
-
+        pollDetails = {
+          'question': updatedPoll.question,
+          'options': updatedPoll.options
+              .map(
+                (option) => {
+                  'id': option.id,
+                  'text': option.text,
+                  'votes': option.voteCount,
+                  'voters': option.voters
+                      .map(
+                        (voter) => {
+                          'id': voter.id,
+                          'name': voter.name,
+                          'profilePicture': voter.profilePicture,
+                          'votedAt': voter.votedAt.toIso8601String(),
+                        },
+                      )
+                      .toList(),
+                },
+              )
+              .toList(),
+          'totalVotes': updatedPoll.totalVotes,
+          'hasVoted': updatedPoll.hasVoted,
+          'userVotes': updatedPoll.hasVoted && updatedPoll.userVote != null
+              ? [updatedPoll.userVote!.pollOptionId]
+              : [],
+          'allowMultiple': false,
+          'anonymous': false,
+          'expiresAt': updatedPoll.expiresAt?.toIso8601String(),
+        };
         isVoting = false;
       });
     } catch (e) {
@@ -512,8 +557,6 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
   }
 
   Widget _buildAvatarGroup(String optionId, int votes) {
-    // For now, show placeholder avatars since we don't have actual user data
-    // In a real implementation, you'd get the actual voters from the poll data
     const maxAvatars = 4;
     final avatarsToShow = votes > maxAvatars ? maxAvatars : votes;
     final remainingCount = votes > maxAvatars ? votes - maxAvatars : 0;
@@ -538,10 +581,24 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                       border: Border.all(color: Colors.white, width: 1),
                     ),
                     child: ClipOval(
-                      child: SVGAvatar(
-                        imageUrl: null, // Placeholder for now, in real app use actual user avatar URL
-                        size: 24,
-                        fallbackText: 'U${i + 1}',
+                      child: Builder(
+                        builder: (context) {
+                          final voters = _getVotersForOption(optionId);
+                          if (voters.length > i) {
+                            final voter = voters[i];
+                            return SVGAvatar(
+                              imageUrl: voter['profilePicture'],
+                              size: 24,
+                              fallbackText: voter['name']?[0] ?? 'U',
+                            );
+                          }
+                          // Fallback to placeholder if no data
+                          return SVGAvatar(
+                            imageUrl: null,
+                            size: 24,
+                            fallbackText: 'U${i + 1}',
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -566,7 +623,13 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
     );
   }
 
-  void _showVotingDetailsDialog(BuildContext context, String optionId, String optionText) {
+  void _showVotingDetailsDialog(
+    BuildContext context,
+    String optionId,
+    String optionText,
+  ) {
+    final voters = _getVotersForOption(optionId);
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -580,39 +643,47 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
               children: [
                 Text(
                   'Option: $optionText',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
                 ),
                 SizedBox(height: 16),
                 Text(
-                  'Voters:',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w500,
-                    fontSize: 14,
-                  ),
+                  'Voters (${voters.length}):',
+                  style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
                 ),
                 SizedBox(height: 8),
-                // For now showing placeholder voter list
-                // In real implementation, you'd get actual voter data
                 SizedBox(
                   height: 200,
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: 3, // Placeholder count
-                    itemBuilder: (context, index) {
-                      return ListTile(
-                        leading: SVGAvatar(
-                          imageUrl: null, // Placeholder for now, in real app use actual user avatar URL
-                          size: 40,
-                          fallbackText: 'U${index + 1}',
+                  child: voters.isEmpty
+                      ? Center(
+                          child: Text(
+                            'No voters yet',
+                            style: TextStyle(color: Colors.grey, fontSize: 14),
+                          ),
+                        )
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: voters.length,
+                          itemBuilder: (context, index) {
+                            final voter = voters[index];
+                            final votedAt = DateTime.tryParse(
+                              voter['votedAt'] ?? '',
+                            );
+
+                            return ListTile(
+                              leading: SVGAvatar(
+                                imageUrl: voter['profilePicture'],
+                                size: 40,
+                                fallbackText: voter['name']?[0] ?? 'U',
+                              ),
+                              title: Text(voter['name'] ?? 'Unknown User'),
+                              subtitle: Text(
+                                votedAt != null
+                                    ? 'Voted ${_formatVoteTime(votedAt)}'
+                                    : 'Voted recently',
+                              ),
+                            );
+                          },
                         ),
-                        title: Text('User ${index + 1}'),
-                        subtitle: Text('Voted today at ${DateTime.now().hour}:${DateTime.now().minute}'),
-                      );
-                    },
-                  ),
                 ),
               ],
             ),
@@ -626,5 +697,20 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
         );
       },
     );
+  }
+
+  String _formatVoteTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inDays > 0) {
+      return '${difference.inDays} day${difference.inDays == 1 ? '' : 's'} ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} hour${difference.inHours == 1 ? '' : 's'} ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} minute${difference.inMinutes == 1 ? '' : 's'} ago';
+    } else {
+      return 'Just now';
+    }
   }
 }

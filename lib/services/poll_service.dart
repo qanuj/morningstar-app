@@ -42,20 +42,16 @@ class PollService {
     return Poll.fromJson(response);
   }
 
-  /// Vote on a poll option
-  static Future<void> voteOnPoll({
+  /// Vote on a poll option and return updated poll data
+  static Future<Poll> voteOnPoll({
     required String pollId,
     required String optionId,
   }) async {
-    await ApiService.post('/polls/$pollId/vote', {
+    final response = await ApiService.post('/polls/$pollId/vote', {
       'optionId': optionId,
     });
-  }
 
-  /// Remove vote from a poll
-  static Future<void> removeVote({
-    required String pollId,
-  }) async {
-    await ApiService.delete('/polls/$pollId/vote');
+    // The API now returns the updated poll data
+    return Poll.fromJson(response['poll']);
   }
 }
