@@ -629,7 +629,8 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
     String optionText,
   ) {
     final options = pollDetails['options'] as List? ?? [];
-    final question = pollDetails['question']?.toString() ?? widget.message.content;
+    final question =
+        pollDetails['question']?.toString() ?? widget.message.content;
 
     // Find the option with the most votes for the star indicator
     int maxVotes = 0;
@@ -664,7 +665,7 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                   child: Text(
                     question,
                     style: TextStyle(
-                      fontWeight: FontWeight.w600, 
+                      fontWeight: FontWeight.w600,
                       fontSize: 16,
                       color: Colors.black87,
                     ),
@@ -678,19 +679,25 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                         ? Center(
                             child: Text(
                               'No poll options available',
-                              style: TextStyle(color: Colors.grey, fontSize: 14),
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 14,
+                              ),
                             ),
                           )
                         : ListView.separated(
                             shrinkWrap: true,
                             itemCount: options.length,
-                            separatorBuilder: (context, index) => SizedBox(height: 20),
+                            separatorBuilder: (context, index) =>
+                                SizedBox(height: 20),
                             itemBuilder: (context, optionIndex) {
                               final option = options[optionIndex];
                               final optText = option['text']?.toString() ?? '';
                               final votes = option['votes'] as int? ?? 0;
-                              final voters = (option['voters'] as List? ?? []).cast<Map<String, dynamic>>();
-                              final isWinning = votes == maxVotes && maxVotes > 0;
+                              final voters = (option['voters'] as List? ?? [])
+                                  .cast<Map<String, dynamic>>();
+                              final isWinning =
+                                  votes == maxVotes && maxVotes > 0;
 
                               return Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -702,7 +709,9 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                                     decoration: BoxDecoration(
                                       color: Colors.white,
                                       borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: Colors.grey[200]!),
+                                      border: Border.all(
+                                        color: Colors.grey[200]!,
+                                      ),
                                     ),
                                     child: Row(
                                       children: [
@@ -740,21 +749,30 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                                   if (voters.isNotEmpty) ...[
                                     SizedBox(height: 12),
                                     ...voters.map((voter) {
-                                      final votedAt = DateTime.tryParse(voter['votedAt'] ?? '');
-                                      
+                                      final votedAt = DateTime.tryParse(
+                                        voter['votedAt'] ?? '',
+                                      );
+
                                       return Padding(
-                                        padding: EdgeInsets.only(bottom: 8, left: 4),
+                                        padding: EdgeInsets.only(
+                                          bottom: 8,
+                                          left: 4,
+                                        ),
                                         child: Row(
                                           children: [
                                             SVGAvatar(
                                               imageUrl: voter['profilePicture'],
                                               size: 40,
-                                              fallbackText: voter['name']?[0] ?? 'U',
+                                              fallbackText:
+                                                  voter['name']?[0] ?? 'U',
                                             ),
                                             SizedBox(width: 12),
                                             Expanded(
                                               child: Text(
-                                                voter['name'] == 'You' ? 'You' : (voter['name'] ?? 'Unknown User'),
+                                                voter['name'] == 'You'
+                                                    ? 'You'
+                                                    : (voter['name'] ??
+                                                          'Unknown User'),
                                                 style: TextStyle(
                                                   fontSize: 15,
                                                   fontWeight: FontWeight.w500,
@@ -763,9 +781,9 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
                                               ),
                                             ),
                                             Text(
-                                              votedAt != null 
-                                                ? 'today ${_formatVoteTimeShort(votedAt)}'
-                                                : 'recently',
+                                              votedAt != null
+                                                  ? 'today ${_formatVoteTimeShort(votedAt)}'
+                                                  : 'recently',
                                               style: TextStyle(
                                                 fontSize: 14,
                                                 color: Colors.grey[600],
