@@ -767,6 +767,4 @@ class _PollMessageBubbleState extends State<PollMessageBubble> {
       ),
     );
   }
-
-
 }

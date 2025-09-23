@@ -137,7 +137,10 @@ class MatchRsvpScreen extends StatelessWidget {
               ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: _getStatusColor(status).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(16),
@@ -216,11 +219,7 @@ class MatchRsvpScreen extends StatelessWidget {
     final noCount = matchDetails['noCount'] as int? ?? 0;
     final maybeCount = matchDetails['maybeCount'] as int? ?? 0;
 
-    return {
-      'YES': yesCount,
-      'NO': noCount,
-      'MAYBE': maybeCount,
-    };
+    return {'YES': yesCount, 'NO': noCount, 'MAYBE': maybeCount};
   }
 
   Color _getStatusColor(String status) {

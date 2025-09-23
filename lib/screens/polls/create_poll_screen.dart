@@ -544,8 +544,12 @@ class _CreatePollScreenState extends State<CreatePollScreen> {
                 },
                 activeColor: theme.colorScheme.primary,
                 activeTrackColor: theme.colorScheme.primary.withOpacity(0.3),
-                inactiveThumbColor: isDarkMode ? Colors.grey[300] : Colors.grey[400],
-                inactiveTrackColor: isDarkMode ? Colors.grey[700] : Colors.grey[300],
+                inactiveThumbColor: isDarkMode
+                    ? Colors.grey[300]
+                    : Colors.grey[400],
+                inactiveTrackColor: isDarkMode
+                    ? Colors.grey[700]
+                    : Colors.grey[300],
               ),
             ],
           ),

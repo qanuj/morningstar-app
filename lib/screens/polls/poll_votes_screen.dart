@@ -66,7 +66,8 @@ class PollVotesScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: (isDarkMode ? Colors.black : Colors.grey).withOpacity(0.1),
+                    color: (isDarkMode ? Colors.black : Colors.grey)
+                        .withOpacity(0.1),
                     blurRadius: 10,
                     offset: const Offset(0, 2),
                   ),
@@ -82,9 +83,9 @@ class PollVotesScreen extends StatelessWidget {
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             // Options with results
             if (options.isEmpty)
               Center(
@@ -92,10 +93,7 @@ class PollVotesScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(40),
                   child: Text(
                     'No poll options available',
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(color: Colors.grey, fontSize: 16),
                   ),
                 ),
               )
@@ -116,7 +114,8 @@ class PollVotesScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: (isDarkMode ? Colors.black : Colors.grey).withOpacity(0.1),
+                        color: (isDarkMode ? Colors.black : Colors.grey)
+                            .withOpacity(0.1),
                         blurRadius: 10,
                         offset: const Offset(0, 2),
                       ),
@@ -134,25 +133,25 @@ class PollVotesScreen extends StatelessWidget {
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 16,
-                                color: isDarkMode ? Colors.white : Colors.black87,
+                                color: isDarkMode
+                                    ? Colors.white
+                                    : Colors.black87,
                               ),
                             ),
                           ),
                           Text(
                             '$votes vote${votes == 1 ? '' : 's'}',
                             style: TextStyle(
-                              color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                              color: isDarkMode
+                                  ? Colors.grey[400]
+                                  : Colors.grey[600],
                               fontSize: 15,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
                           if (isWinning) ...[
                             const SizedBox(width: 6),
-                            Icon(
-                              Icons.star,
-                              color: Colors.amber,
-                              size: 18,
-                            ),
+                            Icon(Icons.star, color: Colors.amber, size: 18),
                           ],
                         ],
                       ),
@@ -163,7 +162,9 @@ class PollVotesScreen extends StatelessWidget {
                         // Add a subtle divider
                         Container(
                           height: 1,
-                          color: isDarkMode ? Colors.grey[700] : Colors.grey[200],
+                          color: isDarkMode
+                              ? Colors.grey[700]
+                              : Colors.grey[200],
                           margin: const EdgeInsets.only(bottom: 12),
                         ),
                         ...voters.map((voter) {
@@ -183,7 +184,8 @@ class PollVotesScreen extends StatelessWidget {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         voter['name'] == 'You'
@@ -192,7 +194,9 @@ class PollVotesScreen extends StatelessWidget {
                                         style: TextStyle(
                                           fontSize: 15,
                                           fontWeight: FontWeight.w500,
-                                          color: isDarkMode ? Colors.white : Colors.black87,
+                                          color: isDarkMode
+                                              ? Colors.white
+                                              : Colors.black87,
                                         ),
                                       ),
                                       const SizedBox(height: 2),
@@ -202,7 +206,9 @@ class PollVotesScreen extends StatelessWidget {
                                             : 'recently',
                                         style: TextStyle(
                                           fontSize: 13,
-                                          color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                                          color: isDarkMode
+                                              ? Colors.grey[400]
+                                              : Colors.grey[600],
                                         ),
                                       ),
                                     ],
@@ -216,14 +222,18 @@ class PollVotesScreen extends StatelessWidget {
                         const SizedBox(height: 8),
                         Container(
                           height: 1,
-                          color: isDarkMode ? Colors.grey[700] : Colors.grey[200],
+                          color: isDarkMode
+                              ? Colors.grey[700]
+                              : Colors.grey[200],
                           margin: const EdgeInsets.only(bottom: 8),
                         ),
                         Text(
                           '0 votes',
                           style: TextStyle(
                             fontSize: 14,
-                            color: isDarkMode ? Colors.grey[400] : Colors.grey[500],
+                            color: isDarkMode
+                                ? Colors.grey[400]
+                                : Colors.grey[500],
                           ),
                         ),
                       ],

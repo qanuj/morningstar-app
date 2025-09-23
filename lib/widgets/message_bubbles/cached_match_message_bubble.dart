@@ -1680,13 +1680,9 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
 
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => MatchRsvpScreen(
-          matchDetails: matchDetails,
-          isPractice: isPractice,
-        ),
+        builder: (context) =>
+            MatchRsvpScreen(matchDetails: matchDetails, isPractice: isPractice),
       ),
     );
   }
-
-
 }
