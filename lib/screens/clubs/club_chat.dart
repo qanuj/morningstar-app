@@ -1625,7 +1625,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
                   ),
                 ],
                 userId: currentUser.id,
-                userName: currentUser.name ?? 'Unknown',
+                userName: currentUser.name,
               ),
             );
           }
@@ -1643,15 +1643,17 @@ class ClubChatScreenState extends State<ClubChatScreen>
       // Make API call to add the reaction
       final reaction = MessageReaction(
         emoji: emoji,
-        users: [ReactionUser(
-          userId: currentUser.id,
-          name: currentUser.name,
-          profilePicture: currentUser.profilePicture,
-        )],
+        users: [
+          ReactionUser(
+            userId: currentUser.id,
+            name: currentUser.name,
+            profilePicture: currentUser.profilePicture,
+          ),
+        ],
         userId: currentUser.id,
         userName: currentUser.name,
       );
-      
+
       final success = await ChatApiService.addReaction(
         widget.club.id,
         message.id,
