@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import '../../providers/user_provider.dart';
 import '../../models/club.dart';
@@ -117,6 +118,10 @@ class ClubChatScreenState extends State<ClubChatScreen>
   bool _isInRecordingMode = false; // True during entire recording flow
   bool _previousFocusState =
       false; // Track previous focus state to prevent unwanted focus changes
+
+  // Scroll position memory
+  bool _shouldRestoreScrollPosition = true;
+  Timer? _scrollSaveTimer;
   bool _allowProgrammaticFocus =
       false; // Flag to control when programmatic focus is allowed
   bool _isModalOpen = false; // Track when modals are open to prevent focus
@@ -126,6 +131,10 @@ class ClubChatScreenState extends State<ClubChatScreen>
   @override
   void initState() {
     super.initState();
+
+    // Ensure background sync service is initialized for authenticated user
+    _initializeBackgroundSync();
+
     // Initialize refresh animation controller
     _refreshAnimationController = AnimationController(
       duration: const Duration(milliseconds: 1000),
@@ -239,10 +248,21 @@ class ClubChatScreenState extends State<ClubChatScreen>
     }
   }
 
+  /// Initialize background sync service for authenticated user
+  Future<void> _initializeBackgroundSync() async {
+    try {
+      debugPrint('🔄 Initializing background sync service...');
+      await BackgroundSyncService.initialize();
+      debugPrint('✅ Background sync service initialized in chat screen');
+    } catch (e) {
+      debugPrint('❌ Failed to initialize background sync service: $e');
+    }
+  }
+
   /// Setup background sync callback for real-time message updates
   void _setupBackgroundSyncCallback() {
     debugPrint(
-      '� Setting up background sync callback for club: ${widget.club.id}',
+      'Setting up background sync callback for club: ${widget.club.id}',
     );
 
     // Set up both background sync and notification service callbacks for redundancy
@@ -299,76 +319,28 @@ class ClubChatScreenState extends State<ClubChatScreen>
     debugPrint('📝 Handling message update: $data');
 
     final messageId = data['messageId'] as String?;
-    final updatedContent = data['messageContent'] as String?;
+    final updateType = data['updateType'] as String?;
 
     if (messageId == null) {
       debugPrint('⚠️ No messageId in update notification');
       return;
     }
 
-    if (updatedContent == null) {
-      debugPrint('⚠️ No updated content in notification');
-      return;
-    }
+    debugPrint('📝 Update type: $updateType for message: $messageId');
 
-    // Find the message in the current list
-    final messageIndex = _messages.indexWhere((msg) => msg.id == messageId);
-    if (messageIndex == -1) {
-      debugPrint('⚠️ Message with ID $messageId not found in current list');
-      // Message not in current view, trigger a full refresh
-      debugPrint('🔄 Message not in view, triggering full refresh...');
-      _loadMessages(forceSync: true);
-      return;
-    }
+    // For reactions, pins, and other updates, trigger a full refresh to get the latest data
+    // This ensures we get the most up-to-date reaction counts, pin status, etc.
+    debugPrint('🔄 Triggering focused refresh for $updateType update...');
+    _loadMessages(forceSync: true);
 
-    // Create a new ClubMessage with updated content
-    final originalMessage = _messages[messageIndex];
-    final updatedMessage = ClubMessage(
-      id: originalMessage.id,
-      clubId: originalMessage.clubId,
-      senderId: originalMessage.senderId,
-      senderName: originalMessage.senderName,
-      senderProfilePicture: originalMessage.senderProfilePicture,
-      senderRole: originalMessage.senderRole,
-      content: updatedContent, // Update the content
-      images: originalMessage.images,
-      document: originalMessage.document,
-      audio: originalMessage.audio,
-      linkMeta: originalMessage.linkMeta,
-      gifUrl: originalMessage.gifUrl,
-      messageType: originalMessage.messageType,
-      createdAt: originalMessage.createdAt,
-      status: originalMessage.status,
-      errorMessage: originalMessage.errorMessage,
-      reactions: originalMessage.reactions,
-      reactionsCount: originalMessage.reactionsCount,
-      replyTo: originalMessage.replyTo,
-      deleted: originalMessage.deleted,
-      deletedBy: originalMessage.deletedBy,
-      starred: originalMessage.starred,
-      matchId: originalMessage.matchId,
-      practiceId: originalMessage.practiceId,
-      meta: originalMessage.meta,
-      pollId: originalMessage.pollId,
-      pin: originalMessage.pin,
-      deliveredAt: originalMessage.deliveredAt,
-      readAt: originalMessage.readAt,
-      deliveredTo: originalMessage.deliveredTo,
-      readBy: originalMessage.readBy,
-    );
-
-    // Update the message in place
-    setState(() {
-      _messages[messageIndex] = updatedMessage;
-    });
-
-    debugPrint('✅ Successfully updated message $messageId content in UI');
+    debugPrint('✅ Triggered refresh for message $messageId $updateType update');
   }
 
   @override
   void dispose() {
     _highlightTimer?.cancel();
     _bottomRefreshTimer?.cancel();
+    _scrollSaveTimer?.cancel();
     _refreshAnimationController.dispose();
     _messageController.dispose();
     _scrollController.removeListener(_onScrollChanged);
@@ -417,13 +389,16 @@ class ClubChatScreenState extends State<ClubChatScreen>
       }
 
       // Fetch only new messages efficiently using enhanced ChatApiService
-      final lastMessageId = cachedMessages.isNotEmpty && !forceSync
-          ? cachedMessages.last.id
+      final lastUpdatedAt = cachedMessages.isNotEmpty && !forceSync
+          ? cachedMessages
+                .map((m) => m.updatedAt ?? m.createdAt)
+                .reduce((a, b) => a.isAfter(b) ? a : b)
+                .toIso8601String()
           : null;
 
       final response = await ChatApiService.getMessagesEfficient(
         widget.club.id,
-        lastMessageId: lastMessageId,
+        lastUpdatedAt: lastUpdatedAt,
         forceFullSync: forceSync,
         limit: 50,
       );
@@ -512,6 +487,9 @@ class ClubChatScreenState extends State<ClubChatScreen>
       // Stop refresh animation
       _refreshAnimationController.stop();
       _refreshAnimationController.reset();
+
+      // Restore scroll position after messages are loaded
+      await _restoreScrollPosition();
     } catch (e) {
       debugPrint('❌ Error in efficient message loading: $e');
 
@@ -539,6 +517,11 @@ class ClubChatScreenState extends State<ClubChatScreen>
       // Stop refresh animation on error
       _refreshAnimationController.stop();
       _refreshAnimationController.reset();
+
+      // Restore scroll position even on error if we have cached messages
+      if (_messages.isNotEmpty) {
+        await _restoreScrollPosition();
+      }
     }
   }
 
@@ -1720,24 +1703,40 @@ class ClubChatScreenState extends State<ClubChatScreen>
       }
     });
 
+    // Disable scroll position restoration when sending new messages
+    _shouldRestoreScrollPosition = false;
+
     // Auto-scroll to bottom after new message is added
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToBottom();
+
+      // Re-enable scroll position restoration after a delay
+      Timer(Duration(seconds: 2), () {
+        _shouldRestoreScrollPosition = true;
+      });
     });
   }
 
   /// Scroll to the bottom of the messages list with animation
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
+      // Temporarily disable scroll position restoration when manually scrolling to bottom
+      _shouldRestoreScrollPosition = false;
+
       _scrollController.animateTo(
         _scrollController.position.maxScrollExtent,
         duration: Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
+
+      // Re-enable scroll position restoration after a delay
+      Timer(Duration(seconds: 2), () {
+        _shouldRestoreScrollPosition = true;
+      });
     }
   }
 
-  /// Track scroll position to show/hide scroll-to-bottom button
+  /// Track scroll position to show/hide scroll-to-bottom button and save position
   void _onScrollChanged() {
     if (!_scrollController.hasClients) return;
 
@@ -1753,6 +1752,85 @@ class ClubChatScreenState extends State<ClubChatScreen>
       setState(() {
         _showScrollToBottomButton = shouldShowButton;
       });
+    }
+
+    // Save scroll position with debouncing to avoid excessive saves
+    _saveScrollPosition();
+  }
+
+  /// Save scroll position to SharedPreferences with debouncing
+  void _saveScrollPosition() {
+    _scrollSaveTimer?.cancel();
+    _scrollSaveTimer = Timer(Duration(milliseconds: 500), () async {
+      if (!_scrollController.hasClients) return;
+
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final scrollKey = 'scroll_position_${widget.club.id}';
+        final position = _scrollController.position.pixels;
+        final maxScroll = _scrollController.position.maxScrollExtent;
+
+        // If user is at the very bottom (within 50px), clear the saved position
+        // This ensures when they return, they start at the bottom with new messages
+        if (maxScroll - position < 50) {
+          await prefs.remove(scrollKey);
+          debugPrint(
+            '🗑️ Cleared scroll position (user at bottom) for club ${widget.club.id}',
+          );
+        } else {
+          await prefs.setDouble(scrollKey, position);
+          debugPrint(
+            '💾 Saved scroll position: $position for club ${widget.club.id}',
+          );
+        }
+      } catch (e) {
+        debugPrint('❌ Failed to save scroll position: $e');
+      }
+    });
+  }
+
+  /// Restore scroll position from SharedPreferences
+  Future<void> _restoreScrollPosition() async {
+    if (!_shouldRestoreScrollPosition || !_scrollController.hasClients) return;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final scrollKey = 'scroll_position_${widget.club.id}';
+      final savedPosition = prefs.getDouble(scrollKey);
+
+      if (savedPosition != null) {
+        // Use WidgetsBinding to ensure the scroll happens after the widget is built
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scrollController.hasClients && mounted) {
+            final maxScroll = _scrollController.position.maxScrollExtent;
+            final currentScroll = _scrollController.position.pixels;
+
+            // Don't restore if user is already near the bottom (within 200px)
+            // This prevents restoration when refreshing while at the bottom
+            final isNearBottom = (maxScroll - currentScroll) < 200;
+            if (isNearBottom) {
+              debugPrint('📍 User is near bottom, skipping scroll restoration');
+              return;
+            }
+
+            final targetPosition = savedPosition > maxScroll
+                ? maxScroll
+                : savedPosition;
+
+            _scrollController.animateTo(
+              targetPosition,
+              duration: Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
+
+            debugPrint(
+              '📍 Restored scroll position: $targetPosition for club ${widget.club.id}',
+            );
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to restore scroll position: $e');
     }
   }
 
@@ -1806,8 +1884,34 @@ class ClubChatScreenState extends State<ClubChatScreen>
             : null,
         onExitSelectionMode: _exitSelectionMode,
         onDeleteSelectedMessages: _deleteSelectedMessages,
-        onRefreshMessages: () {
-          debugPrint('🔄 App bar refresh pressed, fetching new messages...');
+        onRefreshMessages: () async {
+          debugPrint(
+            '🔄 App bar refresh pressed, triggering background sync...',
+          );
+
+          // First ensure background sync is initialized
+          if (!BackgroundSyncService.getSyncStatus()['isInitialized']) {
+            debugPrint(
+              '⚠️ Background sync not initialized, initializing now...',
+            );
+            await _initializeBackgroundSync();
+          }
+
+          // Trigger background sync to get latest messages
+          try {
+            await BackgroundSyncService.triggerSync();
+            debugPrint('✅ Background sync triggered successfully');
+          } catch (e) {
+            debugPrint('❌ Background sync failed: $e');
+          }
+
+          // Debug the sync status and show detailed info
+          final syncStatus = BackgroundSyncService.getSyncStatus();
+          debugPrint('📊 Sync Status: $syncStatus');
+          BackgroundSyncService.debugReactionSync();
+
+          // Then refresh the UI
+          debugPrint('🔄 Refreshing UI messages...');
           _loadMessages(forceSync: false);
         },
         onMoreOptionSelected: _handleMoreOptionSelected,

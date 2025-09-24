@@ -1,6 +1,7 @@
 // Test file for background sync with updatedAt functionality
 // Run this in your Flutter app console to test the new functionality
 
+import 'dart:async';
 import 'package:duggy/services/background_sync_service.dart';
 import 'package:duggy/services/chat_api_service.dart';
 
@@ -55,5 +56,52 @@ void testBackgroundSyncWithUpdatedAt() async {
   print('🏁 Background sync test completed');
 }
 
-// Usage: Call this function in your Flutter app
+// Test reaction sync debugging
+void testReactionSync() {
+  print('\n=== REACTION SYNC DEBUG TEST ===');
+  BackgroundSyncService.debugReactionSync();
+
+  // Get sync status
+  final status = BackgroundSyncService.getSyncStatus();
+  print('\n🔄 Current sync status: $status');
+
+  // Trigger manual sync
+  BackgroundSyncService.triggerSync()
+      .then((_) {
+        print('✅ Manual sync triggered');
+      })
+      .catchError((error) {
+        print('❌ Manual sync failed: $error');
+      });
+
+  print('\n📱 Now add a reaction on another device and watch for updates...');
+  print('================================\n');
+}
+
+// Test reaction sync with specific club
+void testReactionSyncForClub(String clubId) {
+  print('\n=== REACTION SYNC TEST FOR CLUB: $clubId ===');
+  BackgroundSyncService.debugReactionSync();
+
+  // Force sync for specific club
+  BackgroundSyncService.triggerSync().then((_) {
+    print('✅ Sync triggered for club: $clubId');
+    print('� Add a reaction now and watch console for updates...');
+  });
+
+  // Set up a timer to check for updates
+  Timer.periodic(Duration(seconds: 2), (timer) {
+    print('⏰ Checking for reaction updates... (${timer.tick})');
+    if (timer.tick >= 30) {
+      // Stop after 1 minute
+      timer.cancel();
+      print('⏹️ Stopped monitoring reaction updates');
+    }
+  });
+
+  print('================================\n');
+}
+
+// Usage: Call these functions in your Flutter app
 // testBackgroundSyncWithUpdatedAt();
+// testReactionSync();

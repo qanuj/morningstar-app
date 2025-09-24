@@ -194,13 +194,29 @@ class BackgroundSyncService {
           );
         }
 
-        // Handle special message types
-        await _handleSpecialMessageTypes(clubId, message);
+        // Check if this is an updated message (updatedAt different from createdAt)
+        final isMessageUpdate =
+            message.updatedAt != null &&
+            message.updatedAt!.isAfter(message.createdAt);
 
-        // Trigger club message callback
-        if (_messageCallbacks.containsKey(clubId)) {
-          final messageData = _messageToCallbackData(message);
-          _messageCallbacks[clubId]!(messageData);
+        print(
+          '📝 Message ${message.id}: createdAt=${message.createdAt}, updatedAt=${message.updatedAt}, isUpdate=$isMessageUpdate',
+        );
+
+        if (isMessageUpdate) {
+          print('🔄 Handling message update for: ${message.id}');
+          // Handle as message update (reactions, pins, edits)
+          await _handleMessageUpdate(clubId, message);
+        } else {
+          print('📨 Handling new message: ${message.id}');
+          // Handle special message types for new messages
+          await _handleSpecialMessageTypes(clubId, message);
+
+          // Trigger club message callback for new messages
+          if (_messageCallbacks.containsKey(clubId)) {
+            final messageData = _messageToCallbackData(message);
+            _messageCallbacks[clubId]!(messageData);
+          }
         }
       } catch (e) {
         print('❌ Error processing message ${message.id}: $e');
@@ -305,14 +321,44 @@ class BackgroundSyncService {
     // Check for reactions
     if (message.reactions.isNotEmpty) {
       print('😀 Processing message with reactions: ${message.id}');
+      print('😀 Reaction count: ${message.reactions.length}');
+      print(
+        '😀 Reactions: ${message.reactions.map((r) => '${r.emoji}:${r.count}').join(', ')}',
+      );
+
+      // Trigger callback with reaction update flag
+      if (_messageCallbacks.containsKey(clubId)) {
+        print('📞 Triggering reaction callback for club: $clubId');
+        final reactionData = _messageToCallbackData(message);
+        reactionData['isUpdate'] = true;
+        reactionData['updateType'] = 'reaction';
+        _messageCallbacks[clubId]!(reactionData);
+      } else {
+        print('⚠️ No message callback registered for club: $clubId');
+      }
     }
 
     // Check for pinned status
     if (message.pin.isPinned) {
       print('📌 Processing pinned message: ${message.id}');
+
+      // Trigger callback with pin update flag
+      if (_messageCallbacks.containsKey(clubId)) {
+        final pinData = _messageToCallbackData(message);
+        pinData['isUpdate'] = true;
+        pinData['updateType'] = 'pin';
+        _messageCallbacks[clubId]!(pinData);
+      }
     }
 
-    // Check for edited status - assume edited if different from original
+    // For any other message update, trigger a general update
+    if (_messageCallbacks.containsKey(clubId)) {
+      final updateData = _messageToCallbackData(message);
+      updateData['isUpdate'] = true;
+      updateData['updateType'] = 'general';
+      _messageCallbacks[clubId]!(updateData);
+    }
+
     print('✏️ Processing message update: ${message.id}');
   }
 
@@ -460,5 +506,14 @@ class BackgroundSyncService {
         'matchUpdates': _matchCallbacks.keys.toList(),
       },
     };
+  }
+
+  /// Debug method to test reaction updates
+  static void debugReactionSync() {
+    print('🧪 Debug Reaction Sync Status:');
+    final status = getSyncStatus();
+    print('📊 Sync Status: $status');
+    print('🔄 Active callbacks: ${status['activeCallbacks']}');
+    print('⏰ Last updated times: ${status['lastUpdatedAtTimes']}');
   }
 }

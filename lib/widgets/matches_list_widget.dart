@@ -65,7 +65,10 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
   void dispose() {
     // Clean up notification subscriptions
     for (final matchId in _subscribedMatchIds) {
-      NotificationService.removeMatchUpdateCallback(matchId, _handleMatchUpdate);
+      NotificationService.removeMatchUpdateCallback(
+        matchId,
+        _handleMatchUpdate,
+      );
     }
     _subscribedMatchIds.clear();
 
@@ -795,7 +798,8 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
           selectedRole: selectedRole,
           isConfirmed: status == 'YES', // Optimistic assumption
           waitlistPosition: null, // Will be updated from API response if needed
-          teamId: match.userRsvp?.teamId, // Preserve existing teamId if available
+          teamId:
+              match.userRsvp?.teamId, // Preserve existing teamId if available
         );
 
         // Create updated match with optimistic RSVP info
@@ -879,7 +883,8 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
                 confirmedPlayers: currentMatch.confirmedPlayers,
                 userRsvp: MatchRSVPSimple.fromJson(actualRsvp),
                 team: currentMatch.team, // Preserve team data
-                opponentTeam: currentMatch.opponentTeam, // Preserve opponent team data
+                opponentTeam:
+                    currentMatch.opponentTeam, // Preserve opponent team data
               );
               _matches[matchIndex] = updatedMatch;
             }
@@ -933,7 +938,8 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
             confirmedPlayers: currentMatch.confirmedPlayers,
             userRsvp: match.userRsvp, // Revert to original state
             team: currentMatch.team, // Preserve team data
-            opponentTeam: currentMatch.opponentTeam, // Preserve opponent team data
+            opponentTeam:
+                currentMatch.opponentTeam, // Preserve opponent team data
           );
           _matches[matchIndex] = revertedMatch;
         }
@@ -1063,7 +1069,10 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
   void _subscribeToMatchUpdates() {
     for (final match in _matches) {
       if (!_subscribedMatchIds.contains(match.id)) {
-        NotificationService.addMatchUpdateCallback(match.id, _handleMatchUpdate);
+        NotificationService.addMatchUpdateCallback(
+          match.id,
+          _handleMatchUpdate,
+        );
         _subscribedMatchIds.add(match.id);
         print('🔔 Subscribed to match updates: ${match.id}');
       }
@@ -1089,7 +1098,8 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
     try {
       // Parse the updated RSVP data
       final rsvpsData = data['rsvps'];
-      final confirmedPlayers = int.tryParse(data['confirmedPlayers']?.toString() ?? '0') ?? 0;
+      final confirmedPlayers =
+          int.tryParse(data['confirmedPlayers']?.toString() ?? '0') ?? 0;
 
       if (rsvpsData != null) {
         setState(() {
@@ -1112,8 +1122,12 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
             rsvpAfterDate: currentMatch.rsvpAfterDate,
             rsvpBeforeDate: currentMatch.rsvpBeforeDate,
             notifyMembers: currentMatch.notifyMembers,
-            isCancelled: bool.tryParse(data['isCancelled']?.toString() ?? 'false') ?? currentMatch.isCancelled,
-            cancellationReason: data['cancellationReason']?.toString() ?? currentMatch.cancellationReason,
+            isCancelled:
+                bool.tryParse(data['isCancelled']?.toString() ?? 'false') ??
+                currentMatch.isCancelled,
+            cancellationReason:
+                data['cancellationReason']?.toString() ??
+                currentMatch.cancellationReason,
             isSquadReleased: currentMatch.isSquadReleased,
             totalExpensed: currentMatch.totalExpensed,
             paidAmount: currentMatch.paidAmount,
@@ -1129,7 +1143,9 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
           );
         });
 
-        print('✅ Updated match $matchId with $confirmedPlayers confirmed players');
+        print(
+          '✅ Updated match $matchId with $confirmedPlayers confirmed players',
+        );
       }
     } catch (e) {
       print('❌ Error updating match $matchId: $e');

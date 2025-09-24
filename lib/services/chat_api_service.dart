@@ -26,7 +26,6 @@ class ChatApiService {
   /// Fetch messages efficiently with sync support (Telegram-style)
   static Future<Map<String, dynamic>?> getMessagesEfficient(
     String clubId, {
-    String? lastMessageId,
     String? lastUpdatedAt,
     bool forceFullSync = false,
     int limit = 50,
@@ -36,10 +35,6 @@ class ChatApiService {
         'syncMode': forceFullSync ? 'full' : 'incremental',
         'limit': limit.toString(),
       };
-
-      if (lastMessageId != null && !forceFullSync) {
-        queryParams['lastMessageId'] = lastMessageId;
-      }
 
       if (lastUpdatedAt != null && !forceFullSync) {
         queryParams['lastUpdatedAt'] = lastUpdatedAt;
