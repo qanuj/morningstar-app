@@ -51,6 +51,7 @@ class MessageBubbleWrapper extends StatelessWidget {
   // Message interaction callbacks - only keep onReactionRemoved for BaseMessageBubble compatibility
   final Function(String messageId, String emoji, String userId)?
   onReactionRemoved;
+  final Function(ClubMessage message, String emoji)? onReactionAdded;
   final bool canPinMessages;
   final bool canDeleteMessages;
   final List<Map<String, dynamic>> clubMembers;
@@ -83,6 +84,7 @@ class MessageBubbleWrapper extends StatelessWidget {
     this.onRetryMessage,
     this.pendingUploads,
     this.onReactionRemoved,
+    this.onReactionAdded,
     this.canPinMessages = false,
     this.canDeleteMessages = false,
     this.clubMembers = const [],
@@ -267,6 +269,7 @@ class MessageBubbleWrapper extends StatelessWidget {
       isLastFromSender: isLastFromSender,
       clubMembers: clubMembers,
       onReactionRemoved: onReactionRemoved,
+      onReactionAdded: onReactionAdded,
       onToggleSelection: (messageId) {
         onToggleSelection(messageId);
       },
