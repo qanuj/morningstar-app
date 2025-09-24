@@ -72,8 +72,10 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
 
   Map<String, dynamic>? _safeMapFromData(dynamic value) {
     if (value is Map<String, dynamic>) {
+      // If it's already a map, return it as is
       return value;
     } else if (value is String && value.isNotEmpty) {
+      // If it's a string, wrap it in a name field
       return {'name': value};
     }
     return null;
@@ -395,9 +397,8 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     final opponentTeam = _safeMapFromData(matchDetails['opponentTeam']) ?? {};
     final venue =
         _safeMapFromData(matchDetails['venue']) ??
-        (matchDetails['location'] != null
-            ? {'name': matchDetails['location']}
-            : {});
+        _safeMapFromData(matchDetails['location']) ??
+        {};
     final matchDateTime = matchDetails['dateTime'] != null
         ? DateTime.tryParse(matchDetails['dateTime'].toString())
         : (matchDetails['matchDate'] != null
@@ -485,7 +486,9 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     bool isPractice,
   ) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final venue = _safeMapFromData(matchDetails['venue']) ?? {};
+    final venue = _safeMapFromData(matchDetails['venue']) ??
+        _safeMapFromData(matchDetails['location']) ??
+        {};
     final venueName = venue['name']?.toString() ?? 'Venue TBD';
 
     final matchDateTime = matchDetails['dateTime'] != null
@@ -851,12 +854,10 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     final date = details['date']?.toString() ?? '';
     final time = details['time']?.toString() ?? '';
 
-    final venueMap = _safeMapFromData(details['venue']);
-    final venue =
-        venueMap?['name']?.toString() ??
-        details['venue']?.toString() ??
-        details['location']?.toString() ??
-        '';
+    final venueMap = _safeMapFromData(details['venue']) ??
+        _safeMapFromData(details['location']) ??
+        {};
+    final venue = venueMap['name']?.toString() ?? 'Venue TBD';
 
     final duration = details['duration']?.toString() ?? '';
     // Use spots for total capacity (not availableSpots which is remaining spots)
