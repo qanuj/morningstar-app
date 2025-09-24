@@ -4,6 +4,7 @@ import '../../models/message_status.dart';
 import 'base_message_bubble.dart';
 import '../image_gallery_screen.dart';
 import '../svg_avatar.dart';
+import '../tappable_mention_text.dart';
 
 /// Text message bubble - renders images/videos first, then text body below
 class TextMessageBubble extends StatelessWidget {
@@ -36,6 +37,7 @@ class TextMessageBubble extends StatelessWidget {
       isSelected: isSelected,
       showShadow: true,
       isLastFromSender: isLastFromSender,
+      overlayBottomPosition: -2, // Move timestamp slightly down
       content: _buildContent(context),
       onReactionRemoved: onReactionRemoved,
     );
@@ -387,35 +389,38 @@ class TextMessageBubble extends StatelessWidget {
   }
 
   Widget _buildSenderInfo(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          message.senderName,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Color(0xFF06aeef)
-                : Color(0xFF003f9b),
+    return Padding(
+      padding: EdgeInsets.only(left: 4), // Add left padding for sender name
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            message.senderName,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Color(0xFF06aeef)
+                  : Color(0xFF003f9b),
+            ),
           ),
-        ),
-        // Role icon for Admin and Owner only
-        if (message.senderRole != null &&
-            (message.senderRole!.toUpperCase() == 'ADMIN' ||
-                message.senderRole!.toUpperCase() == 'OWNER')) ...[
-          SizedBox(width: 4),
-          Icon(
-            message.senderRole!.toUpperCase() == 'OWNER'
-                ? Icons.star
-                : Icons.shield,
-            size: 12,
-            color: message.senderRole!.toUpperCase() == 'OWNER'
-                ? Colors.orange
-                : Colors.purple,
-          ),
+          // Role icon for Admin and Owner only
+          if (message.senderRole != null &&
+              (message.senderRole!.toUpperCase() == 'ADMIN' ||
+                  message.senderRole!.toUpperCase() == 'OWNER')) ...[
+            SizedBox(width: 4),
+            Icon(
+              message.senderRole!.toUpperCase() == 'OWNER'
+                  ? Icons.star
+                  : Icons.shield,
+              size: 12,
+              color: message.senderRole!.toUpperCase() == 'OWNER'
+                  ? Colors.orange
+                  : Colors.purple,
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 
@@ -430,8 +435,9 @@ class TextMessageBubble extends StatelessWidget {
             ? 0
             : 4, // Remove bottom padding for last message to allow shadow space
       ),
-      child: Text(
-        message.content,
+      child: TappableMentionText(
+        text: message.content,
+        mentions: message.mentions,
         style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w500,

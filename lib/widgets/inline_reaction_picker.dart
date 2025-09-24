@@ -156,14 +156,18 @@ class _InlineReactionPickerState extends State<InlineReactionPicker>
                       return GestureDetector(
                         onTap: () => _selectReaction(emoji),
                         child: Container(
-                          padding: const EdgeInsets.all(8),
+                          width: 36, // Fixed width for perfect circle
+                          height: 36, // Fixed height for perfect circle
                           margin: const EdgeInsets.symmetric(horizontal: 2),
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
+                            shape: BoxShape
+                                .circle, // Use circle shape instead of borderRadius
                           ),
-                          child: Text(
-                            emoji,
-                            style: const TextStyle(fontSize: 20),
+                          child: Center(
+                            child: Text(
+                              emoji,
+                              style: const TextStyle(fontSize: 20),
+                            ),
                           ),
                         ),
                       );
@@ -427,18 +431,23 @@ class _InlineMessageOptionsState extends State<InlineMessageOptions>
                                         child: GestureDetector(
                                           onTap: () => _selectReaction(emoji),
                                           child: Container(
-                                            padding: const EdgeInsets.all(8),
+                                            width:
+                                                36, // Fixed width for perfect circle
+                                            height:
+                                                36, // Fixed height for perfect circle
                                             margin: const EdgeInsets.symmetric(
                                               horizontal: 2,
                                             ),
                                             decoration: BoxDecoration(
-                                              borderRadius:
-                                                  BorderRadius.circular(20),
+                                              shape: BoxShape
+                                                  .circle, // Use circle shape instead of borderRadius
                                             ),
-                                            child: Text(
-                                              emoji,
-                                              style: const TextStyle(
-                                                fontSize: 20,
+                                            child: Center(
+                                              child: Text(
+                                                emoji,
+                                                style: const TextStyle(
+                                                  fontSize: 20,
+                                                ),
                                               ),
                                             ),
                                           ),
