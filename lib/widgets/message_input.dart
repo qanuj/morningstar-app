@@ -42,7 +42,7 @@ class MessageInput extends StatefulWidget {
   // Simplified callbacks - only what's needed
   final Function(ClubMessage) onSendMessage;
   final VoidCallback? onAttachmentMenuClose;
-  
+
   // Mention callbacks for external drawer handling
   final Function(bool, List<Mention>, String, bool)? onMentionStateChanged;
 
@@ -74,8 +74,6 @@ class MessageInputState extends State<MessageInput> {
   bool _isLoadingMentions = false;
   String _currentMentionQuery = '';
   late final MentionableTextFieldController _mentionableController;
-
-
 
   /// Closes the attachment menu if it's open
   void closeAttachmentMenu() {
@@ -121,7 +119,7 @@ class MessageInputState extends State<MessageInput> {
     });
     _notifyMentionStateChanged();
   }
-  
+
   void _notifyMentionStateChanged() {
     widget.onMentionStateChanged?.call(
       _showMentionOverlay,
@@ -137,7 +135,9 @@ class MessageInputState extends State<MessageInput> {
     // Use the controller to handle mention selection
     _mentionableController.selectMentionExternal(mention);
 
-    print('🔍 After selectMentionExternal, current text: ${_mentionableController.text}');
+    print(
+      '🔍 After selectMentionExternal, current text: ${_mentionableController.text}',
+    );
 
     // Then close the overlay
     setState(() {
@@ -154,7 +154,7 @@ class MessageInputState extends State<MessageInput> {
   Future<void> _searchMentions(String query) async {
     try {
       print('🔍 Searching mentions for: "$query"');
-      
+
       // Use the new centralized caching system with case-insensitive search
       final response = await ChatApiService.searchMembers(
         widget.clubId,
@@ -162,12 +162,16 @@ class MessageInputState extends State<MessageInput> {
         limit: 4, // Reduced for compact display
       );
 
-      final mentions = response.map((member) => Mention(
-        id: member['id'],
-        name: member['name'],
-        profilePicture: member['profilePicture'],
-        role: member['role'],
-      )).toList();
+      final mentions = response
+          .map(
+            (member) => Mention(
+              id: member['id'],
+              name: member['name'],
+              profilePicture: member['profilePicture'],
+              role: member['role'],
+            ),
+          )
+          .toList();
 
       if (mounted) {
         setState(() {
@@ -187,7 +191,6 @@ class MessageInputState extends State<MessageInput> {
       }
     }
   }
-
 
   // Link preview state
   List<LinkMetadata> _linkMetadata = [];
@@ -218,11 +221,15 @@ class MessageInputState extends State<MessageInput> {
   /// Preload members cache for faster mention suggestions
   void _preloadMembersCache() {
     // Run in background without blocking UI
-    ChatApiService.getAllMembers(widget.clubId).then((members) {
-      print('📋 Preloaded ${members.length} members for club ${widget.clubId}');
-    }).catchError((error) {
-      print('⚠️ Failed to preload members cache: $error');
-    });
+    ChatApiService.getAllMembers(widget.clubId)
+        .then((members) {
+          print(
+            '📋 Preloaded ${members.length} members for club ${widget.clubId}',
+          );
+        })
+        .catchError((error) {
+          print('⚠️ Failed to preload members cache: $error');
+        });
   }
 
   @override
@@ -360,31 +367,34 @@ class MessageInputState extends State<MessageInput> {
 
     // Extract mentions from the mentionable text field
     final mentions = <MentionedUser>[];
-    
+
     // Get the display text (with mentions formatted for UI)
     String displayText = text;
-    
+
     // Extract mentions from the text using regex
     final mentionRegex = RegExp(r'@\[([^:]+):([^\]]+)\]');
     final mentionMatches = mentionRegex.allMatches(text);
-    
+
     for (final match in mentionMatches) {
       final userId = match.group(1);
       final userName = match.group(2);
-      
+
       if (userId != null && userName != null) {
-        mentions.add(MentionedUser(
-          id: userId,
-          name: userName,
-          role: 'MEMBER', // Default role
-        ));
+        mentions.add(
+          MentionedUser(
+            id: userId,
+            name: userName,
+            role: 'MEMBER', // Default role
+          ),
+        );
       }
     }
-    
+
     // Replace mention format with display format for UI
     displayText = text.replaceAllMapped(
       mentionRegex,
-      (match) => '@${match.group(2)}', // Show @Username instead of @[id:username]
+      (match) =>
+          '@${match.group(2)}', // Show @Username instead of @[id:username]
     );
 
     print('📝 Sending message with ${mentions.length} mentions');
@@ -1265,9 +1275,9 @@ class MessageInputState extends State<MessageInput> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-        bottom: true,
-        top: false,
-        child: Container(
+      bottom: true,
+      top: false,
+      child: Container(
         //main container
         decoration: BoxDecoration(
           gradient: LinearGradient(

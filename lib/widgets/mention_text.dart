@@ -31,8 +31,8 @@ class MentionText extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final defaultMentionColor = mentionColor ?? theme.colorScheme.primary;
-    final defaultMentionBgColor = mentionBackgroundColor ??
-        theme.colorScheme.primary.withOpacity(0.1);
+    final defaultMentionBgColor =
+        mentionBackgroundColor ?? theme.colorScheme.primary.withOpacity(0.1);
 
     // Create a map of user IDs to user data for quick lookup
     final mentionMap = <String, MentionedUser>{};
@@ -51,14 +51,9 @@ class MentionText extends StatelessWidget {
     );
 
     if (selectable) {
-      return SelectableText.rich(
-        TextSpan(children: spans),
-        style: style,
-      );
+      return SelectableText.rich(TextSpan(children: spans), style: style);
     } else {
-      return RichText(
-        text: TextSpan(children: spans),
-      );
+      return RichText(text: TextSpan(children: spans));
     }
   }
 
@@ -79,10 +74,7 @@ class MentionText extends StatelessWidget {
       // Add text before the mention
       if (match.start > lastEnd) {
         final beforeText = text.substring(lastEnd, match.start);
-        spans.add(TextSpan(
-          text: beforeText,
-          style: defaultStyle,
-        ));
+        spans.add(TextSpan(text: beforeText, style: defaultStyle));
       }
 
       // Extract mention data
@@ -91,14 +83,16 @@ class MentionText extends StatelessWidget {
       final mentionUser = mentionMap[userId];
 
       // Create mention span
-      spans.add(_createMentionSpan(
-        userName,
-        mentionUser,
-        defaultStyle,
-        mentionColor,
-        mentionBgColor,
-        context,
-      ));
+      spans.add(
+        _createMentionSpan(
+          userName,
+          mentionUser,
+          defaultStyle,
+          mentionColor,
+          mentionBgColor,
+          context,
+        ),
+      );
 
       lastEnd = match.end;
     }
@@ -106,10 +100,7 @@ class MentionText extends StatelessWidget {
     // Add remaining text after the last mention
     if (lastEnd < text.length) {
       final remainingText = text.substring(lastEnd);
-      spans.add(TextSpan(
-        text: remainingText,
-        style: defaultStyle,
-      ));
+      spans.add(TextSpan(text: remainingText, style: defaultStyle));
     }
 
     return spans;
@@ -131,8 +122,7 @@ class MentionText extends StatelessWidget {
         backgroundColor: mentionBgColor,
       ),
       recognizer: mentionUser != null && onMentionTap != null
-          ? (TapGestureRecognizer()
-            ..onTap = () => onMentionTap!(mentionUser))
+          ? (TapGestureRecognizer()..onTap = () => onMentionTap!(mentionUser))
           : null,
     );
   }

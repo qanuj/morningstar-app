@@ -25,7 +25,8 @@ class MentionSuggestionOverlay extends StatefulWidget {
   });
 
   @override
-  State<MentionSuggestionOverlay> createState() => _MentionSuggestionOverlayState();
+  State<MentionSuggestionOverlay> createState() =>
+      _MentionSuggestionOverlayState();
 }
 
 class _MentionSuggestionOverlayState extends State<MentionSuggestionOverlay>
@@ -42,21 +43,20 @@ class _MentionSuggestionOverlayState extends State<MentionSuggestionOverlay>
       vsync: this,
     );
 
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOut,
-    ));
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 1.0), // Start from fully below
-      end: Offset.zero, // Slide to normal position
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutCubic, // Smoother drawer-like animation
-    ));
+    _slideAnimation =
+        Tween<Offset>(
+          begin: const Offset(0, 1.0), // Start from fully below
+          end: Offset.zero, // Slide to normal position
+        ).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic, // Smoother drawer-like animation
+          ),
+        );
 
     _animationController.forward();
   }
@@ -108,10 +108,7 @@ class _MentionSuggestionOverlayState extends State<MentionSuggestionOverlay>
           SizedBox(width: 12),
           Text(
             'Searching members...',
-            style: TextStyle(
-              color: Colors.grey,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: Colors.grey, fontSize: 14),
           ),
         ],
       ),
@@ -124,20 +121,13 @@ class _MentionSuggestionOverlayState extends State<MentionSuggestionOverlay>
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          Icon(
-            Icons.search_off,
-            color: Colors.grey[400],
-            size: 20,
-          ),
+          Icon(Icons.search_off, color: Colors.grey[400], size: 20),
           const SizedBox(width: 12),
           Text(
             widget.currentQuery.isEmpty
                 ? 'Type a name to mention someone'
                 : 'No members found',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 14,
-            ),
+            style: TextStyle(color: Colors.grey[600], fontSize: 14),
           ),
         ],
       ),
@@ -189,7 +179,10 @@ class _MentionSuggestionOverlayState extends State<MentionSuggestionOverlay>
         },
         borderRadius: BorderRadius.circular(8), // Add visual feedback
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6), // More compact padding
+          padding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 6,
+          ), // More compact padding
           child: Row(
             children: [
               // SVG Avatar with fallback
@@ -257,10 +250,7 @@ class _MentionSuggestionOverlayState extends State<MentionSuggestionOverlay>
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12), // Rounded on all sides
-                border: Border.all(
-                  color: Colors.grey[300]!,
-                  width: 1,
-                ),
+                border: Border.all(color: Colors.grey[300]!, width: 1),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.2),
@@ -272,83 +262,92 @@ class _MentionSuggestionOverlayState extends State<MentionSuggestionOverlay>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                // Drawer Handle and Header
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Drawer handle
-                    Container(
-                      margin: const EdgeInsets.only(top: 8, bottom: 4),
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(2),
+                  // Drawer Handle and Header
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Drawer handle
+                      Container(
+                        margin: const EdgeInsets.only(top: 8, bottom: 4),
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
-                    ),
-                    // Header
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[50],
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.alternate_email,
-                            size: 16,
-                            color: Colors.grey[600],
+                      // Header
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[50],
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(12),
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              widget.currentQuery.isNotEmpty
-                                  ? 'Mentioning "${widget.currentQuery}"'
-                                  : 'Mention someone',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.grey[700],
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.alternate_email,
+                              size: 16,
+                              color: Colors.grey[600],
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                widget.currentQuery.isNotEmpty
+                                    ? 'Mentioning "${widget.currentQuery}"'
+                                    : 'Mention someone',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.grey[700],
+                                ),
                               ),
                             ),
-                          ),
-                          if (widget.onDismiss != null)
-                            GestureDetector(
-                              onTap: widget.onDismiss,
-                              child: Icon(
-                                Icons.close,
-                                size: 16,
-                                color: Colors.grey[600],
+                            if (widget.onDismiss != null)
+                              GestureDetector(
+                                onTap: widget.onDismiss,
+                                child: Icon(
+                                  Icons.close,
+                                  size: 16,
+                                  color: Colors.grey[600],
+                                ),
                               ),
-                            ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
 
-                // Content - Scrollable drawer area
-                Expanded(
-                  child: widget.isLoading
-                      ? _buildLoadingState()
-                      : widget.suggestions.isEmpty
-                          ? _buildEmptyState()
-                          : Scrollbar(
-                              thumbVisibility: true, // Always show scrollbar
-                              child: ListView.builder(
-                                shrinkWrap: false, // Allow full scrolling
-                                physics: const BouncingScrollPhysics(),
-                                itemCount: widget.suggestions.length, // Show all suggestions
-                                padding: const EdgeInsets.symmetric(vertical: 4),
-                                itemBuilder: (context, index) {
-                                  return _buildMentionItem(widget.suggestions[index]);
-                                },
-                              ),
+                  // Content - Scrollable drawer area
+                  Expanded(
+                    child: widget.isLoading
+                        ? _buildLoadingState()
+                        : widget.suggestions.isEmpty
+                        ? _buildEmptyState()
+                        : Scrollbar(
+                            thumbVisibility: true, // Always show scrollbar
+                            child: ListView.builder(
+                              shrinkWrap: false, // Allow full scrolling
+                              physics: const BouncingScrollPhysics(),
+                              itemCount: widget
+                                  .suggestions
+                                  .length, // Show all suggestions
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              itemBuilder: (context, index) {
+                                return _buildMentionItem(
+                                  widget.suggestions[index],
+                                );
+                              },
                             ),
-                ),
-              ],
-            ),
+                          ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

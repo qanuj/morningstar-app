@@ -14,49 +14,47 @@ class ClubDetailScreen extends StatefulWidget {
   _ClubDetailScreenState createState() => _ClubDetailScreenState();
 }
 
-class _ClubDetailScreenState extends State<ClubDetailScreen> 
+class _ClubDetailScreenState extends State<ClubDetailScreen>
     with TickerProviderStateMixin {
   late AnimationController _headerAnimationController;
   late AnimationController _contentAnimationController;
   late Animation<double> _headerAnimation;
   late Animation<double> _contentAnimation;
   late ScrollController _scrollController;
-  
+
   bool _isHeaderCollapsed = false;
 
   @override
   void initState() {
     super.initState();
-    
+
     _headerAnimationController = AnimationController(
       duration: Duration(milliseconds: 300),
       vsync: this,
     );
-    
+
     _contentAnimationController = AnimationController(
       duration: Duration(milliseconds: 600),
       vsync: this,
     );
-    
-    _headerAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _headerAnimationController,
-      curve: Curves.easeInOut,
-    ));
-    
-    _contentAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _contentAnimationController,
-      curve: Curves.easeOutCubic,
-    ));
-    
+
+    _headerAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _headerAnimationController,
+        curve: Curves.easeInOut,
+      ),
+    );
+
+    _contentAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _contentAnimationController,
+        curve: Curves.easeOutCubic,
+      ),
+    );
+
     _scrollController = ScrollController();
     _scrollController.addListener(_onScroll);
-    
+
     // Start animations
     _headerAnimationController.forward();
     _contentAnimationController.forward();
@@ -65,7 +63,7 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
   void _onScroll() {
     final scrollOffset = _scrollController.offset;
     final shouldCollapse = scrollOffset > 100;
-    
+
     if (shouldCollapse != _isHeaderCollapsed) {
       setState(() {
         _isHeaderCollapsed = shouldCollapse;
@@ -85,7 +83,7 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
   Widget build(BuildContext context) {
     final club = widget.membership.club;
     final membership = widget.membership;
-    
+
     return Scaffold(
       body: CustomScrollView(
         controller: _scrollController,
@@ -102,16 +100,16 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
               title: AnimatedBuilder(
                 animation: _headerAnimation,
                 builder: (context, child) {
-                  return _isHeaderCollapsed 
-                    ? Text(
-                        club.name,
-                        style: TextStyle(
-                          color: AppTheme.surfaceColor,
-                          fontWeight: FontWeight.w400,
-                          fontSize: 12,
-                        ),
-                      )
-                    : SizedBox();
+                  return _isHeaderCollapsed
+                      ? Text(
+                          club.name,
+                          style: TextStyle(
+                            color: AppTheme.surfaceColor,
+                            fontWeight: FontWeight.w400,
+                            fontSize: 12,
+                          ),
+                        )
+                      : SizedBox();
                 },
               ),
             ),
@@ -129,7 +127,8 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
             actions: [
               Consumer<ClubProvider>(
                 builder: (context, clubProvider, child) {
-                  final isCurrentClub = clubProvider.currentClub?.club.id == club.id;
+                  final isCurrentClub =
+                      clubProvider.currentClub?.club.id == club.id;
                   if (!isCurrentClub) {
                     return Container(
                       margin: EdgeInsets.all(8),
@@ -163,7 +162,7 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
               ),
             ],
           ),
-          
+
           // Content
           SliverToBoxAdapter(
             child: AnimatedBuilder(
@@ -209,7 +208,7 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
               ),
             ),
           ),
-          
+
           // Content
           Positioned.fill(
             child: SafeArea(
@@ -242,7 +241,7 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
                       ),
                     ),
                     SizedBox(height: 16),
-                    
+
                     // Club Name with Badges
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -282,20 +281,26 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
                         ],
                       ],
                     ),
-                    
+
                     // Location
                     if (club.city != null || club.state != null) ...[
                       SizedBox(height: 8),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.location_on, color: Colors.white70, size: 16),
+                          Icon(
+                            Icons.location_on,
+                            color: Colors.white70,
+                            size: 16,
+                          ),
                           SizedBox(width: 4),
                           Flexible(
                             child: Text(
-                              [club.city, club.state, club.country]
-                                  .where((e) => e != null)
-                                  .join(', '),
+                              [
+                                club.city,
+                                club.state,
+                                club.country,
+                              ].where((e) => e != null).join(', '),
                               style: TextStyle(
                                 color: Colors.white70,
                                 fontSize: 12,
@@ -306,7 +311,7 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
                         ],
                       ),
                     ],
-                    
+
                     // Description Preview
                     if (club.description != null) ...[
                       SizedBox(height: 12),
@@ -322,7 +327,7 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
-                    
+
                     SizedBox(height: 24),
                   ],
                 ),
@@ -355,7 +360,7 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          
+
           Padding(
             padding: EdgeInsets.all(24),
             child: Column(
@@ -364,19 +369,19 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
                 // My Membership Section
                 _buildMembershipSection(membership),
                 SizedBox(height: 32),
-                
+
                 // Quick Stats
                 _buildQuickStats(membership),
                 SizedBox(height: 32),
-                
+
                 // Club Information
                 _buildClubInfoSection(club),
                 SizedBox(height: 32),
-                
+
                 // Contact Information
                 _buildContactSection(club),
                 SizedBox(height: 32),
-                
+
                 // Membership Details
                 _buildMembershipDetailsSection(club),
                 SizedBox(height: 32),
@@ -434,10 +439,7 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
                     ),
                     Text(
                       'Your role and status in this club',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
                   ],
                 ),
@@ -445,7 +447,7 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
             ],
           ),
           SizedBox(height: 20),
-          
+
           // Status Badge
           Container(
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -453,37 +455,42 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
               color: membership.approved ? Colors.green[50] : Colors.orange[50],
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: membership.approved ? Colors.green[200]! : Colors.orange[200]!,
+                color: membership.approved
+                    ? Colors.green[200]!
+                    : Colors.orange[200]!,
               ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  membership.approved ? Icons.check_circle : Icons.hourglass_empty,
-                  color: membership.approved ? Colors.green[600] : Colors.orange[600],
+                  membership.approved
+                      ? Icons.check_circle
+                      : Icons.hourglass_empty,
+                  color: membership.approved
+                      ? Colors.green[600]
+                      : Colors.orange[600],
                   size: 20,
                 ),
                 SizedBox(width: 8),
                 Text(
                   membership.approved ? 'Active Member' : 'Pending Approval',
                   style: TextStyle(
-                    color: membership.approved ? Colors.green[700] : Colors.orange[700],
+                    color: membership.approved
+                        ? Colors.green[700]
+                        : Colors.orange[700],
                     fontWeight: FontWeight.w400,
                   ),
                 ),
               ],
             ),
           ),
-          
+
           if (!membership.approved) ...[
             SizedBox(height: 12),
             Text(
               'Your membership is awaiting approval from the club admin. You\'ll be notified once approved.',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 12,
-              ),
+              style: TextStyle(color: Colors.grey[600], fontSize: 12),
             ),
           ],
         ],
@@ -566,7 +573,12 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
     );
   }
 
-  Widget _buildStatCard(String label, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -599,108 +611,97 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
               color: Colors.grey[800],
             ),
           ),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
-          ),
+          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
         ],
       ),
     );
   }
 
   Widget _buildClubInfoSection(Club club) {
-    return _buildSection(
-      'Club Information',
-      Icons.info_outline,
-      [
-        if (club.description != null)
-          _buildInfoTile(
-            'About',
-            club.description!,
-            Icons.description,
-            isExpandable: true,
-          ),
-        if (club.city != null || club.state != null)
-          _buildInfoTile(
-            'Location',
-            [club.city, club.state, club.country]
-                .where((e) => e != null)
-                .join(', '),
-            Icons.location_on,
-          ),
-      ],
-    );
+    return _buildSection('Club Information', Icons.info_outline, [
+      if (club.description != null)
+        _buildInfoTile(
+          'About',
+          club.description!,
+          Icons.description,
+          isExpandable: true,
+        ),
+      if (club.city != null || club.state != null)
+        _buildInfoTile(
+          'Location',
+          [
+            club.city,
+            club.state,
+            club.country,
+          ].where((e) => e != null).join(', '),
+          Icons.location_on,
+        ),
+    ]);
   }
 
   Widget _buildContactSection(Club club) {
     final contacts = <Widget>[];
-    
+
     if (club.contactEmail != null) {
-      contacts.add(_buildInfoTile(
-        'Email',
-        club.contactEmail!,
-        Icons.email,
-        isCopyable: true,
-      ));
+      contacts.add(
+        _buildInfoTile(
+          'Email',
+          club.contactEmail!,
+          Icons.email,
+          isCopyable: true,
+        ),
+      );
     }
-    
+
     if (club.contactPhone != null) {
-      contacts.add(_buildInfoTile(
-        'Phone',
-        club.contactPhone!,
-        Icons.phone,
-        isCopyable: true,
-      ));
+      contacts.add(
+        _buildInfoTile(
+          'Phone',
+          club.contactPhone!,
+          Icons.phone,
+          isCopyable: true,
+        ),
+      );
     }
-    
+
     if (club.upiId != null) {
-      contacts.add(_buildInfoTile(
-        'UPI ID',
-        club.upiId!,
-        Icons.payment,
-        isCopyable: true,
-      ));
+      contacts.add(
+        _buildInfoTile('UPI ID', club.upiId!, Icons.payment, isCopyable: true),
+      );
     }
-    
+
     if (contacts.isEmpty) return SizedBox();
-    
-    return _buildSection(
-      'Contact Information',
-      Icons.contact_phone,
-      contacts,
-    );
+
+    return _buildSection('Contact Information', Icons.contact_phone, contacts);
   }
 
   Widget _buildMembershipDetailsSection(Club club) {
     final details = <Widget>[];
-    
+
     if (club.membershipFee > 0) {
-      details.add(_buildInfoTile(
-        'Membership Fee',
-        '₹${club.membershipFee.toStringAsFixed(0)}',
-        Icons.attach_money,
-      ));
+      details.add(
+        _buildInfoTile(
+          'Membership Fee',
+          '₹${club.membershipFee.toStringAsFixed(0)}',
+          Icons.attach_money,
+        ),
+      );
     }
-    
+
     if (club.membershipFeeDescription != null) {
-      details.add(_buildInfoTile(
-        'Fee Description',
-        club.membershipFeeDescription!,
-        Icons.description,
-        isExpandable: true,
-      ));
+      details.add(
+        _buildInfoTile(
+          'Fee Description',
+          club.membershipFeeDescription!,
+          Icons.description,
+          isExpandable: true,
+        ),
+      );
     }
-    
+
     if (details.isEmpty) return SizedBox();
-    
-    return _buildSection(
-      'Membership Details',
-      Icons.card_membership,
-      details,
-    );
+
+    return _buildSection('Membership Details', Icons.card_membership, details);
   }
 
   Widget _buildSection(String title, IconData icon, List<Widget> children) {
@@ -728,11 +729,7 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
                   color: AppTheme.cricketGreen.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  icon,
-                  color: AppTheme.cricketGreen,
-                  size: 24,
-                ),
+                child: Icon(icon, color: AppTheme.cricketGreen, size: 24),
               ),
               SizedBox(width: 16),
               Text(

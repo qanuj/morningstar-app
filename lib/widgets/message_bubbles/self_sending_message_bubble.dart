@@ -528,10 +528,14 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
         if (currentMessage.replyTo != null)
           'replyToId': currentMessage.replyTo!.messageId,
         if (currentMessage.mentions.isNotEmpty)
-          'mentions': currentMessage.mentions.map((mention) => mention.id).toList(),
+          'mentions': currentMessage.mentions
+              .map((mention) => mention.id)
+              .toList(),
       };
 
-      print('📝 SelfSendingMessageBubble: Sending message with ${currentMessage.mentions.length} mentions');
+      print(
+        '📝 SelfSendingMessageBubble: Sending message with ${currentMessage.mentions.length} mentions',
+      );
       if (currentMessage.mentions.isNotEmpty) {
         for (final mention in currentMessage.mentions) {
           print('   - @${mention.name} (${mention.id})');

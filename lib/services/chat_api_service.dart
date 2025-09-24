@@ -13,7 +13,9 @@ class ChatApiService {
   // Static cache for club members
   static final Map<String, List<Map<String, dynamic>>> _membersCache = {};
   static final Map<String, DateTime> _cacheTimestamps = {};
-  static const Duration _cacheValidDuration = Duration(minutes: 10); // Cache valid for 10 minutes
+  static const Duration _cacheValidDuration = Duration(
+    minutes: 10,
+  ); // Cache valid for 10 minutes
 
   // Member caching and search operations
 
@@ -39,7 +41,7 @@ class ChatApiService {
       if (response['members'] != null) {
         final members = (response['members'] as List<dynamic>)
             .cast<Map<String, dynamic>>();
-        
+
         // Transform members to the format expected by mentions
         final transformedMembers = members.map((member) {
           final user = member['user'] as Map<String, dynamic>;
@@ -55,7 +57,9 @@ class ChatApiService {
         _membersCache[cacheKey] = transformedMembers;
         _cacheTimestamps[cacheKey] = DateTime.now();
 
-        print('📋 Cached ${transformedMembers.length} members for club $clubId');
+        print(
+          '📋 Cached ${transformedMembers.length} members for club $clubId',
+        );
         return transformedMembers;
       }
 
@@ -81,7 +85,9 @@ class ChatApiService {
   }
 
   /// Force refresh members cache for a specific club
-  static Future<List<Map<String, dynamic>>> refreshMembersCache(String clubId) async {
+  static Future<List<Map<String, dynamic>>> refreshMembersCache(
+    String clubId,
+  ) async {
     clearMembersCache(clubId);
     return await getAllMembers(clubId);
   }
@@ -582,21 +588,25 @@ class ChatApiService {
       }
 
       final searchQuery = query.trim().toLowerCase();
-      print('🔍 Searching ${allMembers.length} cached members for: "$searchQuery"');
+      print(
+        '🔍 Searching ${allMembers.length} cached members for: "$searchQuery"',
+      );
 
       // Case-insensitive search on name (supports @anuj matching Anuj)
       final filteredMembers = allMembers.where((member) {
         final name = (member['name'] as String? ?? '').toLowerCase();
         final matchesName = name.contains(searchQuery);
-        
+
         if (matchesName) {
           print('✅ Match found: "${member['name']}" contains "$searchQuery"');
         }
-        
+
         return matchesName;
       }).toList();
 
-      print('🔍 Found ${filteredMembers.length} matching members out of ${allMembers.length} total');
+      print(
+        '🔍 Found ${filteredMembers.length} matching members out of ${allMembers.length} total',
+      );
       return filteredMembers.take(limit).toList();
     } catch (e) {
       print('❌ Error searching members for mentions: $e');
@@ -613,9 +623,7 @@ class ChatApiService {
   }) async {
     try {
       print('🔄 Falling back to API search for club $clubId');
-      final queryParams = <String, String>{
-        'limit': limit.toString(),
-      };
+      final queryParams = <String, String>{'limit': limit.toString()};
 
       if (query != null && query.isNotEmpty) {
         queryParams['query'] = query;

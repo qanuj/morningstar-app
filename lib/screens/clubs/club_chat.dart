@@ -153,7 +153,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
     _loadPersistentStatusFlags();
     // Load messages (cache-first approach)
     _loadMessages();
-    
+
     // Preload members cache for faster mention search
     _preloadMembersCache();
 
@@ -1745,7 +1745,12 @@ class ClubChatScreenState extends State<ClubChatScreen>
   }
 
   /// Handle mention state changes from MessageInput
-  void _onMentionStateChanged(bool showOverlay, List<Mention> suggestions, String query, bool isLoading) {
+  void _onMentionStateChanged(
+    bool showOverlay,
+    List<Mention> suggestions,
+    String query,
+    bool isLoading,
+  ) {
     setState(() {
       _showMentionDrawer = showOverlay;
       _mentionSuggestions = suggestions;
@@ -1763,11 +1768,15 @@ class ClubChatScreenState extends State<ClubChatScreen>
   /// Preload members cache for faster mention suggestions
   void _preloadMembersCache() {
     // Import ChatApiService if not already imported
-    ChatApiService.getAllMembers(widget.club.id).then((members) {
-      print('📋 Preloaded ${members.length} members for club ${widget.club.name}');
-    }).catchError((error) {
-      print('⚠️ Failed to preload members cache: $error');
-    });
+    ChatApiService.getAllMembers(widget.club.id)
+        .then((members) {
+          print(
+            '📋 Preloaded ${members.length} members for club ${widget.club.name}',
+          );
+        })
+        .catchError((error) {
+          print('⚠️ Failed to preload members cache: $error');
+        });
   }
 
   /// Scroll to the bottom of the messages list with animation
@@ -2012,32 +2021,35 @@ class ClubChatScreenState extends State<ClubChatScreen>
                               final startY = details.localPosition.dy;
                               final widgetHeight = context.size?.height ?? 0;
                               final bottom30Percent =
-                                  widgetHeight * 0.7; // 70% from top = bottom 30%
+                                  widgetHeight *
+                                  0.7; // 70% from top = bottom 30%
 
                               setState(() {
-                                _canActivateRecording = startY > bottom30Percent;
+                                _canActivateRecording =
+                                    startY > bottom30Percent;
                               });
 
                               debugPrint(
-                          '🎯 Pan gesture started at ${startY}px, bottom 30% starts at ${bottom30Percent}px, can activate: $_canActivateRecording',
-                        );
-                      },
-                      onPanEnd: (details) {
-                        // Reset recording activation when pan gesture ends
-                        setState(() {
-                          _canActivateRecording = false;
-                        });
-                        debugPrint(
-                          '🎯 Pan gesture ended, recording activation reset',
-                        );
-                      },
-                      onTap: () {
-                        // Close attachment menu when user taps on chat area
-                        _messageInputKey.currentState?.closeAttachmentMenu();
-                        // Close keyboard when tapping in messages area
-                        FocusScope.of(context).unfocus();
-                      },
-                      behavior: HitTestBehavior.opaque,
+                                '🎯 Pan gesture started at ${startY}px, bottom 30% starts at ${bottom30Percent}px, can activate: $_canActivateRecording',
+                              );
+                            },
+                            onPanEnd: (details) {
+                              // Reset recording activation when pan gesture ends
+                              setState(() {
+                                _canActivateRecording = false;
+                              });
+                              debugPrint(
+                                '🎯 Pan gesture ended, recording activation reset',
+                              );
+                            },
+                            onTap: () {
+                              // Close attachment menu when user taps on chat area
+                              _messageInputKey.currentState
+                                  ?.closeAttachmentMenu();
+                              // Close keyboard when tapping in messages area
+                              FocusScope.of(context).unfocus();
+                            },
+                            behavior: HitTestBehavior.opaque,
                             child: _error != null
                                 ? _buildErrorState(_error!)
                                 : _messages.isEmpty
@@ -2045,13 +2057,13 @@ class ClubChatScreenState extends State<ClubChatScreen>
                                 : _buildMessagesList(),
                           ),
                         ),
-                        
+
                         // Mention drawer area - positioned between messages and input
                         _buildMentionDrawer(),
                       ],
                     ),
                   ),
-                  
+
                   // Footer with reply preview and input - positioned above keyboard
                   Transform.translate(
                     offset: Offset(0, -keyboardHeight),
@@ -2632,10 +2644,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
     }
 
     return Container(
-      constraints: BoxConstraints(
-        maxHeight: 200,
-        minHeight: 0,
-      ),
+      constraints: BoxConstraints(maxHeight: 200, minHeight: 0),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         border: Border(
@@ -2664,11 +2673,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.alternate_email,
-                  size: 16,
-                  color: Colors.grey[600],
-                ),
+                Icon(Icons.alternate_email, size: 16, color: Colors.grey[600]),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -2685,7 +2690,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
               ],
             ),
           ),
-          
+
           // Content area
           Expanded(
             child: _isLoadingMentions
@@ -2696,48 +2701,51 @@ class ClubChatScreenState extends State<ClubChatScreen>
                     ),
                   )
                 : _mentionSuggestions.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Text(
-                            'No members found',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 14,
-                            ),
+                ? Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text(
+                        'No members found',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: _mentionSuggestions.length,
+                    padding: EdgeInsets.symmetric(vertical: 4),
+                    itemBuilder: (context, index) {
+                      final mention = _mentionSuggestions[index];
+                      return ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
+                        leading: SVGAvatar.small(
+                          imageUrl: mention.profilePicture,
+                          backgroundColor: Colors.grey[300],
+                          iconColor: Colors.black87,
+                          fallbackIcon: Icons.person,
+                        ),
+                        title: Text(
+                          mention.name,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                      )
-                    : ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: _mentionSuggestions.length,
-                        padding: EdgeInsets.symmetric(vertical: 4),
-                        itemBuilder: (context, index) {
-                          final mention = _mentionSuggestions[index];
-                          return ListTile(
-                            dense: true,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                            leading: SVGAvatar.small(
-                              imageUrl: mention.profilePicture,
-                              backgroundColor: Colors.grey[300],
-                              iconColor: Colors.black87,
-                              fallbackIcon: Icons.person,
-                            ),
-                            title: Text(
-                              mention.name,
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                            ),
-                            subtitle: Text(
-                              mention.role.toUpperCase(),
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                            onTap: () => _onMentionSelected(mention),
-                          );
-                        },
-                      ),
+                        subtitle: Text(
+                          mention.role.toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        onTap: () => _onMentionSelected(mention),
+                      );
+                    },
+                  ),
           ),
         ],
       ),
