@@ -486,7 +486,8 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     bool isPractice,
   ) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final venue = _safeMapFromData(matchDetails['venue']) ??
+    final venue =
+        _safeMapFromData(matchDetails['venue']) ??
         _safeMapFromData(matchDetails['location']) ??
         {};
     final venueName = venue['name']?.toString() ?? 'Venue TBD';
@@ -854,7 +855,8 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
     final date = details['date']?.toString() ?? '';
     final time = details['time']?.toString() ?? '';
 
-    final venueMap = _safeMapFromData(details['venue']) ??
+    final venueMap =
+        _safeMapFromData(details['venue']) ??
         _safeMapFromData(details['location']) ??
         {};
     final venue = venueMap['name']?.toString() ?? 'Venue TBD';

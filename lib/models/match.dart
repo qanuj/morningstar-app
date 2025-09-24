@@ -62,12 +62,25 @@ class MatchListItem {
     this.opponentTeam,
   });
 
+  /// Extract location name from either string or object format
+  static String _extractLocationName(dynamic location) {
+    if (location == null) return '';
+    
+    if (location is String) {
+      return location;
+    } else if (location is Map<String, dynamic>) {
+      return location['name']?.toString() ?? location['address']?.toString() ?? '';
+    }
+    
+    return location.toString();
+  }
+
   factory MatchListItem.fromJson(Map<String, dynamic> json) {
     return MatchListItem(
       id: json['id'] ?? '',
       clubId: json['club']?['id'] ?? '', // Extract from club object
       type: json['type'] ?? '',
-      location: json['location'] ?? '',
+      location: _extractLocationName(json['location']),
       opponent: json['opponent'] ?? json['opponentClub']?['name'], // Use opponent or opponentClub name
       notes: json['notes'],
       spots: json['spots'] ?? 13,
