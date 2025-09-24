@@ -176,7 +176,9 @@ class MessageInputState extends State<MessageInput> {
               role: member['role'],
             ),
           )
-          .where((mention) => mention.id != currentUserId) // Filter out current user
+          .where(
+            (mention) => mention.id != currentUserId,
+          ) // Filter out current user
           .toList();
 
       if (mounted) {
