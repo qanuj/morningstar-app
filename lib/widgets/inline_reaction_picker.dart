@@ -133,23 +133,6 @@ class _InlineReactionPickerState extends State<InlineReactionPicker>
               child: Opacity(
                 opacity: _opacityAnimation.value,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? const Color(0xFF2a2f32)
-                        : Colors.white,
-                    borderRadius: BorderRadius.circular(25),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.15),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: _quickReactions.map((emoji) {
@@ -158,10 +141,21 @@ class _InlineReactionPickerState extends State<InlineReactionPicker>
                         child: Container(
                           width: 36, // Fixed width for perfect circle
                           height: 36, // Fixed height for perfect circle
-                          margin: const EdgeInsets.symmetric(horizontal: 2),
+                          margin: const EdgeInsets.symmetric(horizontal: 3),
                           decoration: BoxDecoration(
-                            shape: BoxShape
-                                .circle, // Use circle shape instead of borderRadius
+                            shape: BoxShape.circle,
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                ? const Color(0xFF3a3f42)
+                                : const Color(0xFFF5F5F5),
+                            border: Border.all(
+                              color:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? const Color(0xFF4a4f52)
+                                  : const Color(0xFFE0E0E0),
+                              width: 1,
+                            ),
                           ),
                           child: Center(
                             child: Text(
@@ -406,7 +400,6 @@ class _InlineMessageOptionsState extends State<InlineMessageOptions>
                                   margin: const EdgeInsets.only(bottom: 16),
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 8,
-                                    vertical: 6,
                                   ),
                                   decoration: BoxDecoration(
                                     color:
@@ -439,14 +432,30 @@ class _InlineMessageOptionsState extends State<InlineMessageOptions>
                                               horizontal: 2,
                                             ),
                                             decoration: BoxDecoration(
-                                              shape: BoxShape
-                                                  .circle, // Use circle shape instead of borderRadius
+                                              shape: BoxShape.circle,
+                                              color:
+                                                  Theme.of(
+                                                        context,
+                                                      ).brightness ==
+                                                      Brightness.dark
+                                                  ? const Color(0xFF3a3f42)
+                                                  : const Color(0xFFF5F5F5),
+                                              border: Border.all(
+                                                color:
+                                                    Theme.of(
+                                                          context,
+                                                        ).brightness ==
+                                                        Brightness.dark
+                                                    ? const Color(0xFF4a4f52)
+                                                    : const Color(0xFFE0E0E0),
+                                                width: 1,
+                                              ),
                                             ),
                                             child: Center(
                                               child: Text(
                                                 emoji,
                                                 style: const TextStyle(
-                                                  fontSize: 20,
+                                                  fontSize: 18,
                                                 ),
                                               ),
                                             ),

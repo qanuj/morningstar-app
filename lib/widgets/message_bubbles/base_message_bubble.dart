@@ -654,13 +654,12 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
         margin: EdgeInsets.all(16),
         child: InlineReactionPicker(
           onReactionSelected: (emoji) async {
-            Navigator.pop(pickerContext); // Close picker only
-
             // Add the reaction using the same API as long press
             if (widget.onReactionAdded != null) {
               widget.onReactionAdded!(widget.message, emoji);
             }
 
+            //TODO: Add reaction to local state immediately for instant feedback
             // Wait a moment for the API call to complete, then refresh the dialog
             await Future.delayed(Duration(milliseconds: 300));
 
@@ -669,9 +668,6 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
               Navigator.pop(context);
               // Slight delay to ensure the dialog close animation completes
               await Future.delayed(Duration(milliseconds: 100));
-              if (context.mounted) {
-                _showReactionDetailsAgain(context);
-              }
             }
           },
           onDismiss: () => Navigator.pop(pickerContext),
