@@ -75,9 +75,6 @@ class BaseMessageBubble extends StatelessWidget {
                 : BoxDecoration(
                     color: _getBubbleColor(context),
                     borderRadius: _getBorderRadius(),
-                    border: message.status == MessageStatus.failed
-                        ? Border.all(color: Colors.red, width: 1)
-                        : null,
                     boxShadow: [
                       // WhatsApp-style shadow
                       BoxShadow(
@@ -189,12 +186,6 @@ class BaseMessageBubble extends StatelessWidget {
       return Color(0xFF003f9b).withOpacity(0.3);
     }
 
-    if (message.status == MessageStatus.failed) {
-      return Theme.of(context).brightness == Brightness.dark
-          ? Colors.red[800]!
-          : Colors.red.withOpacity(0.7);
-    }
-
     return isOwn
         ? (Theme.of(context).brightness == Brightness.dark
               ? Color(0xFF0066CC) // Brighter blue for sender in dark mode
@@ -256,7 +247,7 @@ class BaseMessageBubble extends StatelessWidget {
   }
 
   Widget _buildStatusIcon(Color iconColor) {
-    IconData icon;
+    IconData? icon;
     Color finalIconColor = iconColor;
 
     switch (message.status) {
@@ -274,9 +265,8 @@ class BaseMessageBubble extends StatelessWidget {
         finalIconColor = Colors.green;
         break;
       case MessageStatus.failed:
-        icon = Icons.error_outline;
-        finalIconColor = Colors.red;
-        break;
+        // No icon for failed messages - error icon will be shown outside the bubble
+        return SizedBox.shrink();
     }
 
     if (message.id == 'cmezzje2t0001nwzh0x8qrcd5') {
@@ -286,7 +276,7 @@ class BaseMessageBubble extends StatelessWidget {
       );
     }
 
-    return Icon(icon, size: 10, color: finalIconColor);
+    return Icon(icon!, size: 10, color: finalIconColor);
   }
 
   bool _shouldUseColumnLayout() {

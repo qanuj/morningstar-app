@@ -1445,6 +1445,32 @@ class ClubChatScreenState extends State<ClubChatScreen>
     // They will be cleaned up when message is successfully sent or manually deleted
   }
 
+  void _handleRetryMessage(String messageId) {
+    debugPrint('🔄 Retrying message: $messageId');
+
+    // Find the message in our list
+    final messageIndex = _messages.indexWhere((msg) => msg.id == messageId);
+    if (messageIndex == -1) {
+      debugPrint('❌ Message not found for retry: $messageId');
+      return;
+    }
+
+    final message = _messages[messageIndex];
+
+    // Reset the message status to sending and trigger retry
+    final retryMessage = message.copyWith(
+      status: MessageStatus.sending,
+      errorMessage: null,
+    );
+
+    setState(() {
+      _messages[messageIndex] = retryMessage;
+    });
+
+    // Call the message updated callback to trigger actual retry logic
+    _handleMessageUpdated(message, retryMessage);
+  }
+
   /// Handle reaction removal directly from the message bubble
   Future<void> _handleReactionRemoved(
     String messageId,
@@ -2323,6 +2349,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
                         onSlideEnd: _handleSlideEnd,
                         onMessageUpdated: _handleMessageUpdated,
                         onMessageFailed: _handleMessageFailed,
+                        onRetryMessage: _handleRetryMessage,
                         onReactionRemoved: _handleReactionRemoved,
                         canPinMessages: _cachedCanPinMessages ?? false,
                         canDeleteMessages:

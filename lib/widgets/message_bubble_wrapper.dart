@@ -43,6 +43,7 @@ class MessageBubbleWrapper extends StatelessWidget {
   final Function(ClubMessage oldMessage, ClubMessage newMessage)?
   onMessageUpdated;
   final Function(String messageId)? onMessageFailed;
+  final Function(String messageId)? onRetryMessage;
 
   // Pending uploads for self-sending messages
   final List<PlatformFile>? pendingUploads;
@@ -79,6 +80,7 @@ class MessageBubbleWrapper extends StatelessWidget {
     // Removed message option callbacks
     this.onMessageUpdated,
     this.onMessageFailed,
+    this.onRetryMessage,
     this.pendingUploads,
     this.onReactionRemoved,
     this.canPinMessages = false,
@@ -111,138 +113,155 @@ class MessageBubbleWrapper extends StatelessWidget {
             mainAxisAlignment: isOwn
                 ? MainAxisAlignment.end
                 : MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               if (!isOwn && isLastFromSender) _buildSenderAvatar(context),
               if (!isOwn && !isLastFromSender) const SizedBox(width: 34),
 
+              // Message bubble column
               Flexible(
-                child: Container(
-                  constraints: BoxConstraints(
-                    maxWidth: MediaQuery.of(context).size.width * 0.75,
-                  ),
-                  child: Stack(
-                    children: [
-                      // Reply icon background (shown during slide)
-                      if (isSliding && slidingMessageId == message.id)
-                        Positioned(
-                          left: 10,
-                          top: 0,
-                          bottom: 0,
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 100),
-                            width: 50,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF06aeef).withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(25),
-                            ),
-                            alignment: Alignment.center,
-                            child: AnimatedScale(
-                              scale: slideOffset > 40.0 ? 1.2 : 1.0,
-                              duration: const Duration(milliseconds: 100),
-                              child: Icon(
-                                Icons.reply,
-                                color: const Color(
-                                  0xFF06aeef,
-                                ).withOpacity(slideOffset > 40.0 ? 1.0 : 0.7),
-                                size: slideOffset > 40.0 ? 32 : 28,
+                    child: Container(
+                      constraints: BoxConstraints(
+                        maxWidth:
+                            MediaQuery.of(context).size.width *
+                            0.65, // Reduced width to make room for error icon
+                      ),
+                      child: Stack(
+                        children: [
+                          // Reply icon background (shown during slide)
+                          if (isSliding && slidingMessageId == message.id)
+                            Positioned(
+                              left: 10,
+                              top: 0,
+                              bottom: 0,
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 100),
+                                width: 50,
+                                decoration: BoxDecoration(
+                                  color: const Color(
+                                    0xFF06aeef,
+                                  ).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(25),
+                                ),
+                                alignment: Alignment.center,
+                                child: AnimatedScale(
+                                  scale: slideOffset > 40.0 ? 1.2 : 1.0,
+                                  duration: const Duration(milliseconds: 100),
+                                  child: Icon(
+                                    Icons.reply,
+                                    color: const Color(0xFF06aeef).withOpacity(
+                                      slideOffset > 40.0 ? 1.0 : 0.7,
+                                    ),
+                                    size: slideOffset > 40.0 ? 32 : 28,
+                                  ),
+                                ),
                               ),
+                            ),
+
+                          // Message content with slide animation
+                          Transform.translate(
+                            offset: Offset(
+                              slidingMessageId == message.id
+                                  ? slideOffset
+                                  : 0.0,
+                              0.0,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: isOwn
+                                  ? CrossAxisAlignment.end
+                                  : CrossAxisAlignment.start,
+                              children: [
+                                // Reply info (if this message is a reply)
+                                if (message.replyTo != null) ...[
+                                  _buildReplyInfo(
+                                    context,
+                                    message.replyTo!,
+                                    isOwn,
+                                  ),
+                                ] else if (message.content.isNotEmpty) ...[
+                                  // Debug: Log when a message has no reply
+                                  Builder(
+                                    builder: (context) {
+                                      return SizedBox.shrink();
+                                    },
+                                  ),
+                                ],
+
+                                GestureDetector(
+                                  // Gesture handling moved to individual bubbles
+                                  onPanUpdate:
+                                      (isSelectionMode || message.deleted)
+                                      ? null
+                                      : (details) => onSlideUpdate(
+                                          details,
+                                          message,
+                                          isOwn,
+                                        ),
+                                  onPanEnd: (isSelectionMode || message.deleted)
+                                      ? null
+                                      : (details) =>
+                                            onSlideEnd(details, message, isOwn),
+                                  child:
+                                      (message.status ==
+                                              MessageStatus.sending ||
+                                          message.status ==
+                                              MessageStatus.failed)
+                                      ? SelfSendingMessageBubble(
+                                          message: message,
+                                          isOwn: isOwn,
+                                          isPinned: isCurrentlyPinned(message),
+                                          isDeleted: message.deleted,
+                                          isSelected: selectedMessageIds
+                                              .contains(message.id),
+                                          showSenderInfo:
+                                              isFirstFromSender ||
+                                              isLastFromSender,
+                                          clubId: clubId,
+                                          pendingUploads: pendingUploads,
+                                          onMessageUpdated: onMessageUpdated,
+                                          onMessageFailed: onMessageFailed,
+                                        )
+                                      : _buildInteractiveMessage(isOwn),
+                                ),
+                              ],
                             ),
                           ),
-                        ),
-
-                      // Message content with slide animation
-                      Transform.translate(
-                        offset: Offset(
-                          slidingMessageId == message.id ? slideOffset : 0.0,
-                          0.0,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: isOwn
-                              ? CrossAxisAlignment.end
-                              : CrossAxisAlignment.start,
-                          children: [
-                            // Reply info (if this message is a reply)
-                            if (message.replyTo != null) ...[
-                              _buildReplyInfo(context, message.replyTo!, isOwn),
-                            ] else if (message.content.isNotEmpty) ...[
-                              // Debug: Log when a message has no reply
-                              Builder(
-                                builder: (context) {
-                                  return SizedBox.shrink();
-                                },
-                              ),
-                            ],
-
-                            GestureDetector(
-                              // Gesture handling moved to individual bubbles
-                              onPanUpdate: (isSelectionMode || message.deleted)
-                                  ? null
-                                  : (details) =>
-                                        onSlideUpdate(details, message, isOwn),
-                              onPanEnd: (isSelectionMode || message.deleted)
-                                  ? null
-                                  : (details) =>
-                                        onSlideEnd(details, message, isOwn),
-                              child: message.status == MessageStatus.sending
-                                  ? SelfSendingMessageBubble(
-                                      message: message,
-                                      isOwn: isOwn,
-                                      isPinned: isCurrentlyPinned(message),
-                                      isDeleted: message.deleted,
-                                      isSelected: selectedMessageIds.contains(
-                                        message.id,
-                                      ),
-                                      showSenderInfo: isFirstFromSender || isLastFromSender,
-                                      clubId: clubId,
-                                      pendingUploads: pendingUploads,
-                                      onMessageUpdated: onMessageUpdated,
-                                      onMessageFailed: onMessageFailed,
-                                    )
-                                  : _buildInteractiveMessage(isOwn),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          // Error message display below the bubble
-          if (message.status == MessageStatus.failed)
-            Container(
-              margin: EdgeInsets.only(
-                top: 4,
-                left: isOwn ? 60 : 40,
-                right: isOwn ? 40 : 60,
-              ),
-              child: Row(
-                mainAxisAlignment: isOwn
-                    ? MainAxisAlignment.end
-                    : MainAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    size: 16,
-                    color: Colors.red.withOpacity(0.7),
-                  ),
-                  const SizedBox(width: 4),
-                  Flexible(
-                    child: Text(
-                      'Failed to send. Tap to retry.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.red.withOpacity(0.7),
-                        fontStyle: FontStyle.italic,
+                        ],
                       ),
                     ),
                   ),
-                ],
-              ),
-            ),
+
+              // Error icon column (only shown for failed messages)
+              if (message.status == MessageStatus.failed)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8.0),
+                  child: Transform.translate(
+                    offset: Offset(
+                      slidingMessageId == message.id
+                          ? (isOwn ? -slideOffset : slideOffset)
+                          : 0.0,
+                      0.0,
+                    ),
+                    child: GestureDetector(
+                      onTap: () => onRetryMessage?.call(message.id),
+                      child: Container(
+                        width: 18,
+                        height: 18,
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.8),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.info_outline,
+                          size: 12,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
     );

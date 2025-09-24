@@ -1000,38 +1000,6 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
                 ? _handleRetry
                 : null,
           ),
-          // Show error message for failed sends
-          if (currentMessage.status == MessageStatus.failed &&
-              currentMessage.errorMessage != null)
-            Container(
-              margin: EdgeInsets.only(
-                top: 4,
-                left: widget.isOwn ? 60 : 40,
-                right: widget.isOwn ? 40 : 60,
-              ),
-              child: Row(
-                mainAxisAlignment: widget.isOwn
-                    ? MainAxisAlignment.end
-                    : MainAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    size: 16,
-                    color: Colors.red.withOpacity(0.7),
-                  ),
-                  const SizedBox(width: 4),
-                  Flexible(
-                    child: Text(
-                      currentMessage.errorMessage!,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.red.withOpacity(0.8),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
         ],
       ),
     );
