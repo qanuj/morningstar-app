@@ -1558,10 +1558,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
   }
 
   /// Handle reaction addition directly from the message bubble
-  Future<void> _handleReactionAdded(
-    ClubMessage message,
-    String emoji,
-  ) async {
+  Future<void> _handleReactionAdded(ClubMessage message, String emoji) async {
     debugPrint(
       '🚀 _handleReactionAdded called: messageId=${message.id}, emoji=$emoji',
     );
@@ -1586,41 +1583,51 @@ class ClubChatScreenState extends State<ClubChatScreen>
 
         // Check if user already has this emoji reaction
         final existingReactionIndex = updatedReactions.indexWhere(
-          (r) => r.emoji == emoji && r.users.any((u) => u.userId == currentUser.id),
+          (r) =>
+              r.emoji == emoji &&
+              r.users.any((u) => u.userId == currentUser.id),
         );
 
         if (existingReactionIndex != -1) {
           // User already has this reaction - toggle it off (remove)
           final existingReaction = updatedReactions[existingReactionIndex];
           existingReaction.users.removeWhere((u) => u.userId == currentUser.id);
-          
+
           // Remove the reaction completely if no users left
           if (existingReaction.users.isEmpty) {
             updatedReactions.removeAt(existingReactionIndex);
           }
         } else {
           // Add new reaction or add user to existing emoji reaction
-          final existingEmojiIndex = updatedReactions.indexWhere((r) => r.emoji == emoji);
-          
+          final existingEmojiIndex = updatedReactions.indexWhere(
+            (r) => r.emoji == emoji,
+          );
+
           if (existingEmojiIndex != -1) {
             // Add user to existing emoji reaction
-            updatedReactions[existingEmojiIndex].users.add(ReactionUser(
-              userId: currentUser.id,
-              name: currentUser.name ?? 'Unknown',
-              profilePicture: currentUser.profilePicture,
-            ));
-          } else {
-            // Create new reaction
-            updatedReactions.add(MessageReaction(
-              emoji: emoji,
-              users: [ReactionUser(
+            updatedReactions[existingEmojiIndex].users.add(
+              ReactionUser(
                 userId: currentUser.id,
                 name: currentUser.name ?? 'Unknown',
                 profilePicture: currentUser.profilePicture,
-              )],
-              userId: currentUser.id,
-              userName: currentUser.name ?? 'Unknown',
-            ));
+              ),
+            );
+          } else {
+            // Create new reaction
+            updatedReactions.add(
+              MessageReaction(
+                emoji: emoji,
+                users: [
+                  ReactionUser(
+                    userId: currentUser.id,
+                    name: currentUser.name,
+                    profilePicture: currentUser.profilePicture,
+                  ),
+                ],
+                userId: currentUser.id,
+                userName: currentUser.name ?? 'Unknown',
+              ),
+            );
           }
         }
 
@@ -1634,10 +1641,21 @@ class ClubChatScreenState extends State<ClubChatScreen>
 
     try {
       // Make API call to add the reaction
+      final reaction = MessageReaction(
+        emoji: emoji,
+        users: [ReactionUser(
+          userId: currentUser.id,
+          name: currentUser.name,
+          profilePicture: currentUser.profilePicture,
+        )],
+        userId: currentUser.id,
+        userName: currentUser.name,
+      );
+      
       final success = await ChatApiService.addReaction(
         widget.club.id,
         message.id,
-        emoji,
+        reaction,
       );
 
       if (!success) {
