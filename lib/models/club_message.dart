@@ -6,6 +6,7 @@ import 'link_metadata.dart';
 import 'message_reaction.dart';
 import 'message_reply.dart';
 import 'starred_info.dart';
+import 'mention.dart';
 
 class PinInfo {
   final bool isPinned;
@@ -66,6 +67,19 @@ class ClubMessage {
   // Read receipts and delivery status arrays
   final List<Map<String, dynamic>> deliveredTo;
   final List<Map<String, dynamic>> readBy;
+  // Mention fields
+  final List<MentionedUser>? _mentions;
+  final bool? _hasMentions;
+  final bool? _mentionsCurrentUser;
+
+  /// Get mentions list, never null
+  List<MentionedUser> get mentions => _mentions ?? [];
+
+  /// Get hasMentions flag
+  bool get hasMentions => _hasMentions ?? false;
+
+  /// Get mentionsCurrentUser flag
+  bool get mentionsCurrentUser => _mentionsCurrentUser ?? false;
 
   ClubMessage({
     required this.id,
@@ -100,7 +114,12 @@ class ClubMessage {
     required this.pin,
     this.deliveredTo = const [],
     this.readBy = const [],
-  });
+    List<MentionedUser>? mentions,
+    bool? hasMentions,
+    bool? mentionsCurrentUser,
+  }) : _mentions = mentions ?? [],
+       _hasMentions = hasMentions ?? false,
+       _mentionsCurrentUser = mentionsCurrentUser ?? false;
 
   ClubMessage copyWith({
     MessageStatus? status,
@@ -127,6 +146,9 @@ class ClubMessage {
     DateTime? updatedAt,
     List<Map<String, dynamic>>? deliveredTo,
     List<Map<String, dynamic>>? readBy,
+    List<MentionedUser>? mentions,
+    bool? hasMentions,
+    bool? mentionsCurrentUser,
   }) {
     return ClubMessage(
       id: id,
@@ -161,6 +183,9 @@ class ClubMessage {
       readAt: readAt ?? this.readAt,
       deliveredTo: deliveredTo ?? this.deliveredTo,
       readBy: readBy ?? this.readBy,
+      mentions: mentions ?? _mentions,
+      hasMentions: hasMentions ?? _hasMentions,
+      mentionsCurrentUser: mentionsCurrentUser ?? _mentionsCurrentUser,
     );
   }
 
@@ -545,6 +570,33 @@ class ClubMessage {
           .toList();
     }
 
+    // Parse mentions with defensive programming
+    List<MentionedUser> mentions = [];
+    bool hasMentions = false;
+    bool mentionsCurrentUser = false;
+
+    try {
+      if (json['mentions'] is List && (json['mentions'] as List).isNotEmpty) {
+        mentions = (json['mentions'] as List)
+            .where((mentionData) => mentionData is Map<String, dynamic>)
+            .map((mentionData) => MentionedUser.fromJson(mentionData as Map<String, dynamic>))
+            .toList();
+        hasMentions = mentions.isNotEmpty;
+      }
+    } catch (e) {
+      print('❌ Error parsing mentions in ClubMessage.fromJson: $e');
+      mentions = [];
+      hasMentions = false;
+    }
+
+    if (json['hasMentions'] is bool) {
+      hasMentions = json['hasMentions'] as bool;
+    }
+
+    if (json['mentionsCurrentUser'] is bool) {
+      mentionsCurrentUser = json['mentionsCurrentUser'] as bool;
+    }
+
     return ClubMessage(
       id: json['messageId'] ?? json['id'] ?? '',
       clubId: json['clubId'] ?? '',
@@ -597,6 +649,9 @@ class ClubMessage {
               : null),
       deliveredTo: deliveredToList,
       readBy: readByList,
+      mentions: mentions,
+      hasMentions: hasMentions,
+      mentionsCurrentUser: mentionsCurrentUser,
     );
   }
 

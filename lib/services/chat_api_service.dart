@@ -10,6 +10,82 @@ class ChatApiService {
   // Private constructor to prevent instantiation
   ChatApiService._();
 
+  // Static cache for club members
+  static final Map<String, List<Map<String, dynamic>>> _membersCache = {};
+  static final Map<String, DateTime> _cacheTimestamps = {};
+  static const Duration _cacheValidDuration = Duration(minutes: 10); // Cache valid for 10 minutes
+
+  // Member caching and search operations
+
+  /// Fetch and cache all club members
+  static Future<List<Map<String, dynamic>>> getAllMembers(String clubId) async {
+    try {
+      // Check if we have valid cached data
+      final cacheKey = clubId;
+      final cachedMembers = _membersCache[cacheKey];
+      final cacheTimestamp = _cacheTimestamps[cacheKey];
+
+      if (cachedMembers != null && cacheTimestamp != null) {
+        final now = DateTime.now();
+        if (now.difference(cacheTimestamp) < _cacheValidDuration) {
+          print('📋 Using cached members for club $clubId');
+          return cachedMembers;
+        }
+      }
+
+      print('📋 Fetching all members for club $clubId from API');
+      final response = await ApiService.get('/clubs/$clubId/members');
+
+      if (response['members'] != null) {
+        final members = (response['members'] as List<dynamic>)
+            .cast<Map<String, dynamic>>();
+        
+        // Transform members to the format expected by mentions
+        final transformedMembers = members.map((member) {
+          final user = member['user'] as Map<String, dynamic>;
+          return {
+            'id': user['id'],
+            'name': user['name'],
+            'profilePicture': user['profilePicture'],
+            'role': member['role'],
+          };
+        }).toList();
+
+        // Cache the transformed data
+        _membersCache[cacheKey] = transformedMembers;
+        _cacheTimestamps[cacheKey] = DateTime.now();
+
+        print('📋 Cached ${transformedMembers.length} members for club $clubId');
+        return transformedMembers;
+      }
+
+      return [];
+    } catch (e) {
+      print('❌ Error fetching all members for club $clubId: $e');
+      return [];
+    }
+  }
+
+  /// Clear cache for a specific club
+  static void clearMembersCache(String clubId) {
+    _membersCache.remove(clubId);
+    _cacheTimestamps.remove(clubId);
+    print('🗑️ Cleared members cache for club $clubId');
+  }
+
+  /// Clear all members cache
+  static void clearAllMembersCache() {
+    _membersCache.clear();
+    _cacheTimestamps.clear();
+    print('🗑️ Cleared all members cache');
+  }
+
+  /// Force refresh members cache for a specific club
+  static Future<List<Map<String, dynamic>>> refreshMembersCache(String clubId) async {
+    clearMembersCache(clubId);
+    return await getAllMembers(clubId);
+  }
+
   // Message Operations
 
   /// Fetch messages for a conversation/club
@@ -487,6 +563,78 @@ class ChatApiService {
     } catch (e) {
       print('❌ Error restoring messages: $e');
       return false;
+    }
+  }
+
+  /// Search club members for @mention suggestions
+  static Future<List<Map<String, dynamic>>> searchMembers(
+    String clubId, {
+    String? query,
+    int limit = 10,
+  }) async {
+    try {
+      // Get all members from cache (will fetch if not cached or expired)
+      final allMembers = await getAllMembers(clubId);
+
+      // If no query provided, return first N members
+      if (query == null || query.trim().isEmpty) {
+        return allMembers.take(limit).toList();
+      }
+
+      final searchQuery = query.trim().toLowerCase();
+      print('🔍 Searching ${allMembers.length} cached members for: "$searchQuery"');
+
+      // Case-insensitive search on name (supports @anuj matching Anuj)
+      final filteredMembers = allMembers.where((member) {
+        final name = (member['name'] as String? ?? '').toLowerCase();
+        final matchesName = name.contains(searchQuery);
+        
+        if (matchesName) {
+          print('✅ Match found: "${member['name']}" contains "$searchQuery"');
+        }
+        
+        return matchesName;
+      }).toList();
+
+      print('🔍 Found ${filteredMembers.length} matching members out of ${allMembers.length} total');
+      return filteredMembers.take(limit).toList();
+    } catch (e) {
+      print('❌ Error searching members for mentions: $e');
+      // Fallback to API search if local search fails
+      return _fallbackApiSearch(clubId, query: query, limit: limit);
+    }
+  }
+
+  /// Fallback to API search if local search fails
+  static Future<List<Map<String, dynamic>>> _fallbackApiSearch(
+    String clubId, {
+    String? query,
+    int limit = 10,
+  }) async {
+    try {
+      print('🔄 Falling back to API search for club $clubId');
+      final queryParams = <String, String>{
+        'limit': limit.toString(),
+      };
+
+      if (query != null && query.isNotEmpty) {
+        queryParams['query'] = query;
+      }
+
+      final response = await ApiService.get(
+        '/clubs/$clubId/members/search',
+        queryParams: queryParams,
+      );
+
+      if (response['success'] == true) {
+        final members = response['members'] as List<dynamic>;
+        return members.cast<Map<String, dynamic>>();
+      }
+
+      return [];
+    } catch (e) {
+      print('❌ Error in fallback API search: $e');
+      return [];
     }
   }
 }

@@ -8,7 +8,8 @@ import '../widgets/audio_recording_widget.dart';
 import '../widgets/image_caption_dialog.dart';
 import '../widgets/selectors/unified_event_picker.dart';
 import '../widgets/selectors/poll_picker.dart';
-import '../screens/polls/create_poll_screen.dart';
+import '../widgets/mentionable_text_field.dart';
+
 import '../models/club_message.dart';
 import '../models/message_status.dart';
 import '../models/message_document.dart';
@@ -17,7 +18,9 @@ import '../models/message_audio.dart';
 import '../models/match.dart';
 import '../models/poll.dart';
 import '../models/link_metadata.dart';
+import '../models/mention.dart';
 import '../services/open_graph_service.dart';
+import '../services/chat_api_service.dart';
 import 'package:provider/provider.dart';
 import '../providers/club_provider.dart';
 
@@ -39,6 +42,9 @@ class MessageInput extends StatefulWidget {
   // Simplified callbacks - only what's needed
   final Function(ClubMessage) onSendMessage;
   final VoidCallback? onAttachmentMenuClose;
+  
+  // Mention callbacks for external drawer handling
+  final Function(bool, List<Mention>, String, bool)? onMentionStateChanged;
 
   const MessageInput({
     super.key,
@@ -50,6 +56,7 @@ class MessageInput extends StatefulWidget {
     this.onAttachmentMenuClose,
     this.upiId,
     this.userRole,
+    this.onMentionStateChanged,
   });
 
   @override
@@ -60,6 +67,15 @@ class MessageInputState extends State<MessageInput> {
   bool _isComposing = false;
   bool _isAttachmentMenuOpen = false;
   double _lastKnownKeyboardHeight = 0.0;
+
+  // Mention related state
+  List<Mention> _mentionSuggestions = [];
+  bool _showMentionOverlay = false;
+  bool _isLoadingMentions = false;
+  String _currentMentionQuery = '';
+  late final MentionableTextFieldController _mentionableController;
+
+
 
   /// Closes the attachment menu if it's open
   void closeAttachmentMenu() {
@@ -85,26 +101,153 @@ class MessageInputState extends State<MessageInput> {
   final ImagePicker _imagePicker = ImagePicker();
   List<Map<String, dynamic>> _availableUpiApps = [];
 
+  // Mention handling methods
+  void _handleMentionTriggered(String query) {
+    setState(() {
+      _currentMentionQuery = query;
+      _showMentionOverlay = true;
+      _isLoadingMentions = true;
+    });
+    _searchMentions(query);
+    _notifyMentionStateChanged();
+  }
+
+  void _handleMentionCancelled() {
+    setState(() {
+      _showMentionOverlay = false;
+      _mentionSuggestions.clear();
+      _currentMentionQuery = '';
+      _isLoadingMentions = false;
+    });
+    _notifyMentionStateChanged();
+  }
+  
+  void _notifyMentionStateChanged() {
+    widget.onMentionStateChanged?.call(
+      _showMentionOverlay,
+      _mentionSuggestions,
+      _currentMentionQuery,
+      _isLoadingMentions,
+    );
+  }
+
+  void handleMentionSelected(Mention mention) {
+    print('🔍 handleMentionSelected called with: ${mention.name}');
+
+    // Use the controller to handle mention selection
+    _mentionableController.selectMentionExternal(mention);
+
+    print('🔍 After selectMentionExternal, current text: ${_mentionableController.text}');
+
+    // Then close the overlay
+    setState(() {
+      _showMentionOverlay = false;
+      _mentionSuggestions.clear();
+      _currentMentionQuery = '';
+      _isLoadingMentions = false;
+    });
+    _notifyMentionStateChanged();
+
+    print('🔍 Overlay closed, final text: ${_mentionableController.text}');
+  }
+
+  Future<void> _searchMentions(String query) async {
+    try {
+      print('🔍 Searching mentions for: "$query"');
+      
+      // Use the new centralized caching system with case-insensitive search
+      final response = await ChatApiService.searchMembers(
+        widget.clubId,
+        query: query,
+        limit: 4, // Reduced for compact display
+      );
+
+      final mentions = response.map((member) => Mention(
+        id: member['id'],
+        name: member['name'],
+        profilePicture: member['profilePicture'],
+        role: member['role'],
+      )).toList();
+
+      if (mounted) {
+        setState(() {
+          _mentionSuggestions = mentions;
+          _isLoadingMentions = false;
+        });
+        _notifyMentionStateChanged();
+      }
+    } catch (e) {
+      print('❌ Error searching mentions: $e');
+      if (mounted) {
+        setState(() {
+          _mentionSuggestions.clear();
+          _isLoadingMentions = false;
+        });
+        _notifyMentionStateChanged();
+      }
+    }
+  }
+
+
   // Link preview state
   List<LinkMetadata> _linkMetadata = [];
-  bool _isLoadingLinkPreview = false;
   String? _lastProcessedText;
 
   @override
   void initState() {
     super.initState();
+    _mentionableController = MentionableTextFieldController();
+    // Initialize with the same text as the original controller
+    _mentionableController.text = widget.messageController.text;
+
+    // Keep controllers synchronized
+    _mentionableController.addListener(_syncFromMentionableController);
+    widget.messageController.addListener(_syncFromOriginalController);
+
     if (widget.upiId != null && widget.upiId!.isNotEmpty) {
       _checkAvailableUpiApps();
     }
 
     // Listen for focus changes to close attachment menu when keyboard opens
     widget.textFieldFocusNode.addListener(_onFocusChange);
+
+    // Preload members cache for faster mention search
+    _preloadMembersCache();
+  }
+
+  /// Preload members cache for faster mention suggestions
+  void _preloadMembersCache() {
+    // Run in background without blocking UI
+    ChatApiService.getAllMembers(widget.clubId).then((members) {
+      print('📋 Preloaded ${members.length} members for club ${widget.clubId}');
+    }).catchError((error) {
+      print('⚠️ Failed to preload members cache: $error');
+    });
   }
 
   @override
   void dispose() {
     widget.textFieldFocusNode.removeListener(_onFocusChange);
+    _mentionableController.removeListener(_syncFromMentionableController);
+    widget.messageController.removeListener(_syncFromOriginalController);
     super.dispose();
+  }
+
+  // Synchronization methods to keep both controllers in sync
+  void _syncFromMentionableController() {
+    if (_mentionableController.text != widget.messageController.text) {
+      widget.messageController.value = widget.messageController.value.copyWith(
+        text: _mentionableController.text,
+      );
+    }
+  }
+
+  void _syncFromOriginalController() {
+    if (widget.messageController.text != _mentionableController.text) {
+      _mentionableController.value = _mentionableController.value.copyWith(
+        text: widget.messageController.text,
+      );
+    }
   }
 
   void _onFocusChange() {
@@ -143,7 +286,6 @@ class MessageInputState extends State<MessageInput> {
       if (_linkMetadata.isNotEmpty) {
         setState(() {
           _linkMetadata.clear();
-          _isLoadingLinkPreview = false;
         });
       }
       return;
@@ -161,7 +303,6 @@ class MessageInputState extends State<MessageInput> {
       if (_linkMetadata.isNotEmpty) {
         setState(() {
           _linkMetadata.clear();
-          _isLoadingLinkPreview = false;
         });
       }
       return;
@@ -175,29 +316,23 @@ class MessageInputState extends State<MessageInput> {
       return;
     }
 
-    // Start loading indicator
-    setState(() {
-      _isLoadingLinkPreview = true;
-    });
+    // Start loading indicator - metadata will be fetched
 
     try {
       final metadata = await _fetchLinkMetadata(url);
       if (metadata != null && _lastProcessedText == text) {
         setState(() {
           _linkMetadata = [metadata];
-          _isLoadingLinkPreview = false;
         });
       } else {
         setState(() {
           _linkMetadata.clear();
-          _isLoadingLinkPreview = false;
         });
       }
     } catch (e) {
       print('❌ Error fetching link metadata: $e');
       setState(() {
         _linkMetadata.clear();
-        _isLoadingLinkPreview = false;
       });
     }
   }
@@ -220,10 +355,44 @@ class MessageInputState extends State<MessageInput> {
   }
 
   void _sendTextMessage() {
-    final text = widget.messageController.text.trim();
+    final text = _mentionableController.text.trim();
     if (text.isEmpty) return;
 
-    // Create temp message with link metadata if available
+    // Extract mentions from the mentionable text field
+    final mentions = <MentionedUser>[];
+    
+    // Get the display text (with mentions formatted for UI)
+    String displayText = text;
+    
+    // Extract mentions from the text using regex
+    final mentionRegex = RegExp(r'@\[([^:]+):([^\]]+)\]');
+    final mentionMatches = mentionRegex.allMatches(text);
+    
+    for (final match in mentionMatches) {
+      final userId = match.group(1);
+      final userName = match.group(2);
+      
+      if (userId != null && userName != null) {
+        mentions.add(MentionedUser(
+          id: userId,
+          name: userName,
+          role: 'MEMBER', // Default role
+        ));
+      }
+    }
+    
+    // Replace mention format with display format for UI
+    displayText = text.replaceAllMapped(
+      mentionRegex,
+      (match) => '@${match.group(2)}', // Show @Username instead of @[id:username]
+    );
+
+    print('📝 Sending message with ${mentions.length} mentions');
+    for (final mention in mentions) {
+      print('   - @${mention.name} (${mention.id})');
+    }
+
+    // Create temp message with link metadata and mentions
     final tempMessage = ClubMessage(
       id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
       clubId: widget.clubId,
@@ -231,20 +400,23 @@ class MessageInputState extends State<MessageInput> {
       senderName: 'You',
       senderProfilePicture: null,
       senderRole: 'MEMBER',
-      content: text,
+      content: displayText, // Use display text for UI
       messageType: _linkMetadata.isNotEmpty ? 'link' : 'text',
       linkMeta: _linkMetadata, // Include parsed link metadata
       createdAt: DateTime.now(),
       status: MessageStatus.sending,
       starred: StarredInfo(isStarred: false),
       pin: PinInfo(isPinned: false),
+      mentions: mentions, // Include extracted mentions
+      hasMentions: mentions.isNotEmpty,
     );
 
+    _mentionableController.clear();
+    // Also clear the original controller to keep them in sync
     widget.messageController.clear();
     setState(() {
       _isComposing = false;
       _linkMetadata.clear();
-      _isLoadingLinkPreview = false;
       _lastProcessedText = null;
     });
 
@@ -1093,9 +1265,9 @@ class MessageInputState extends State<MessageInput> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      bottom: true,
-      top: false,
-      child: Container(
+        bottom: true,
+        top: false,
+        child: Container(
         //main container
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -1145,12 +1317,17 @@ class MessageInputState extends State<MessageInput> {
                     ),
                   ),
 
-                  // Expanded message input area
+                  // Expanded message input area with mention support
                   Expanded(
-                    child: TextField(
-                      controller: widget.messageController,
+                    child: MentionableTextField(
+                      controller: _mentionableController,
                       focusNode: widget.textFieldFocusNode,
                       autofocus: false,
+                      mentionSuggestions: _mentionSuggestions,
+                      showMentionOverlay: _showMentionOverlay,
+                      onMentionTriggered: _handleMentionTriggered,
+                      onMentionCancelled: _handleMentionCancelled,
+                      // onMentionSelected removed to avoid circular callback
                       onTap: () {
                         // Only close attachment menu if it's currently open
                         // This ensures smooth transitions without interference
@@ -1205,12 +1382,7 @@ class MessageInputState extends State<MessageInput> {
                           4, // Reduced from 5 for cleaner multiline handling
                       minLines: 1,
                       textCapitalization: TextCapitalization.sentences,
-                      keyboardType: TextInputType.multiline,
                       textInputAction: TextInputAction.newline,
-                      keyboardAppearance:
-                          Theme.of(context).brightness == Brightness.dark
-                          ? Brightness.dark
-                          : Brightness.light,
                       onChanged: _handleTextChanged,
                     ),
                   ),

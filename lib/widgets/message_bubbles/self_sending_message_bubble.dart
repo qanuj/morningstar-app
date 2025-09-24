@@ -527,7 +527,16 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
         'content': contentMap,
         if (currentMessage.replyTo != null)
           'replyToId': currentMessage.replyTo!.messageId,
+        if (currentMessage.mentions.isNotEmpty)
+          'mentions': currentMessage.mentions.map((mention) => mention.id).toList(),
       };
+
+      print('📝 SelfSendingMessageBubble: Sending message with ${currentMessage.mentions.length} mentions');
+      if (currentMessage.mentions.isNotEmpty) {
+        for (final mention in currentMessage.mentions) {
+          print('   - @${mention.name} (${mention.id})');
+        }
+      }
 
       // Send to API using the unified sendMessage method
       Map<String, dynamic>? response = await ChatApiService.sendMessage(

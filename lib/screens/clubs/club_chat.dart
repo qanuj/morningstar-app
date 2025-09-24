@@ -12,6 +12,7 @@ import '../../models/club_message.dart';
 import '../../models/message_status.dart';
 import '../../models/message_reply.dart';
 import '../../models/message_reaction.dart';
+import '../../models/mention.dart';
 import '../../services/chat_api_service.dart';
 import '../../services/message_storage_service.dart';
 import '../../services/notification_service.dart';
@@ -24,6 +25,7 @@ import '../../widgets/chat_app_bar.dart';
 import '../../widgets/message_bubble_wrapper.dart';
 import '../../widgets/message_input.dart';
 import '../../widgets/chat_header.dart';
+import '../../widgets/svg_avatar.dart';
 import '../manage/manage_club.dart';
 import '../manage/club_matches.dart';
 import '../manage/club_transactions.dart';
@@ -128,6 +130,12 @@ class ClubChatScreenState extends State<ClubChatScreen>
   bool _showScrollToBottomButton =
       false; // Show scroll-to-bottom floating button
 
+  // Mention drawer state
+  bool _showMentionDrawer = false;
+  List<Mention> _mentionSuggestions = [];
+  String _currentMentionQuery = '';
+  bool _isLoadingMentions = false;
+
   @override
   void initState() {
     super.initState();
@@ -145,6 +153,9 @@ class ClubChatScreenState extends State<ClubChatScreen>
     _loadPersistentStatusFlags();
     // Load messages (cache-first approach)
     _loadMessages();
+    
+    // Preload members cache for faster mention search
+    _preloadMembersCache();
 
     // Setup push notification callback instead of polling
     _setupBackgroundSyncCallback();
@@ -1698,6 +1709,10 @@ class ClubChatScreenState extends State<ClubChatScreen>
       deliveredAt: tempMessage.deliveredAt,
       readAt: tempMessage.readAt,
       replyTo: _replyingTo, // Add reply if replying
+      // ✅ MENTION FIELDS - Ensure non-null values with defensive programming
+      mentions: tempMessage.mentions ?? [],
+      hasMentions: tempMessage.hasMentions ?? false,
+      mentionsCurrentUser: tempMessage.mentionsCurrentUser ?? false,
     );
 
     // Clear reply state
@@ -1726,6 +1741,32 @@ class ClubChatScreenState extends State<ClubChatScreen>
       Timer(Duration(seconds: 2), () {
         _shouldRestoreScrollPosition = true;
       });
+    });
+  }
+
+  /// Handle mention state changes from MessageInput
+  void _onMentionStateChanged(bool showOverlay, List<Mention> suggestions, String query, bool isLoading) {
+    setState(() {
+      _showMentionDrawer = showOverlay;
+      _mentionSuggestions = suggestions;
+      _currentMentionQuery = query;
+      _isLoadingMentions = isLoading;
+    });
+  }
+
+  /// Handle mention selection in drawer
+  void _onMentionSelected(Mention mention) {
+    // Call the public method on MessageInput
+    _messageInputKey.currentState?.handleMentionSelected(mention);
+  }
+
+  /// Preload members cache for faster mention suggestions
+  void _preloadMembersCache() {
+    // Import ChatApiService if not already imported
+    ChatApiService.getAllMembers(widget.club.id).then((members) {
+      print('📋 Preloaded ${members.length} members for club ${widget.club.name}');
+    }).catchError((error) {
+      print('⚠️ Failed to preload members cache: $error');
     });
   }
 
@@ -1961,19 +2002,23 @@ class ClubChatScreenState extends State<ClubChatScreen>
                 children: [
                   // Messages List - Takes all available space above input
                   Expanded(
-                    child: GestureDetector(
-                      onPanStart: (details) {
-                        // Track where the pan/scroll gesture starts
-                        final startY = details.localPosition.dy;
-                        final widgetHeight = context.size?.height ?? 0;
-                        final bottom30Percent =
-                            widgetHeight * 0.7; // 70% from top = bottom 30%
+                    child: Column(
+                      children: [
+                        // Main messages list
+                        Expanded(
+                          child: GestureDetector(
+                            onPanStart: (details) {
+                              // Track where the pan/scroll gesture starts
+                              final startY = details.localPosition.dy;
+                              final widgetHeight = context.size?.height ?? 0;
+                              final bottom30Percent =
+                                  widgetHeight * 0.7; // 70% from top = bottom 30%
 
-                        setState(() {
-                          _canActivateRecording = startY > bottom30Percent;
-                        });
+                              setState(() {
+                                _canActivateRecording = startY > bottom30Percent;
+                              });
 
-                        debugPrint(
+                              debugPrint(
                           '🎯 Pan gesture started at ${startY}px, bottom 30% starts at ${bottom30Percent}px, can activate: $_canActivateRecording',
                         );
                       },
@@ -1993,14 +2038,20 @@ class ClubChatScreenState extends State<ClubChatScreen>
                         FocusScope.of(context).unfocus();
                       },
                       behavior: HitTestBehavior.opaque,
-                      child: _error != null
-                          ? _buildErrorState(_error!)
-                          : _messages.isEmpty
-                          ? _buildEmptyState()
-                          : _buildMessagesList(),
+                            child: _error != null
+                                ? _buildErrorState(_error!)
+                                : _messages.isEmpty
+                                ? _buildEmptyState()
+                                : _buildMessagesList(),
+                          ),
+                        ),
+                        
+                        // Mention drawer area - positioned between messages and input
+                        _buildMentionDrawer(),
+                      ],
                     ),
                   ),
-
+                  
                   // Footer with reply preview and input - positioned above keyboard
                   Transform.translate(
                     offset: Offset(0, -keyboardHeight),
@@ -2035,6 +2086,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
                               onSendMessage: _handleNewMessage,
                               upiId: widget.club.upiId,
                               userRole: membership?.role,
+                              onMentionStateChanged: _onMentionStateChanged,
                             ),
                         ],
                       ),
@@ -2569,6 +2621,125 @@ class ClubChatScreenState extends State<ClubChatScreen>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildMentionDrawer() {
+    // Only show if mention drawer is active and has suggestions
+    if (!_showMentionDrawer) {
+      return SizedBox.shrink();
+    }
+
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: 200,
+        minHeight: 0,
+      ),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        border: Border(
+          top: BorderSide(
+            color: Theme.of(context).dividerColor.withOpacity(0.3),
+            width: 0.5,
+          ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with mention query
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.grey[800]?.withOpacity(0.3)
+                  : Colors.grey[50],
+              border: Border(
+                bottom: BorderSide(
+                  color: Theme.of(context).dividerColor.withOpacity(0.2),
+                  width: 0.5,
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.alternate_email,
+                  size: 16,
+                  color: Colors.grey[600],
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _currentMentionQuery.isNotEmpty
+                        ? 'Mentioning "${_currentMentionQuery}"'
+                        : 'Mention someone',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Content area
+          Expanded(
+            child: _isLoadingMentions
+                ? Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : _mentionSuggestions.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Text(
+                            'No members found',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: _mentionSuggestions.length,
+                        padding: EdgeInsets.symmetric(vertical: 4),
+                        itemBuilder: (context, index) {
+                          final mention = _mentionSuggestions[index];
+                          return ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                            leading: SVGAvatar.small(
+                              imageUrl: mention.profilePicture,
+                              backgroundColor: Colors.grey[300],
+                              iconColor: Colors.black87,
+                              fallbackIcon: Icons.person,
+                            ),
+                            title: Text(
+                              mention.name,
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                            ),
+                            subtitle: Text(
+                              mention.role.toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            onTap: () => _onMentionSelected(mention),
+                          );
+                        },
+                      ),
+          ),
+        ],
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../models/club.dart';
 import '../../providers/club_provider.dart';
 import '../../utils/theme.dart';
+import '../../widgets/svg_avatar.dart';
 
 class ClubDetailScreen extends StatefulWidget {
   final ClubMembership membership;
@@ -231,15 +232,13 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
                           ),
                         ],
                       ),
-                      child: CircleAvatar(
-                        radius: 50,
+                      child: SVGAvatar.extraLarge(
+                        imageUrl: club.logo,
                         backgroundColor: Colors.white,
-                        backgroundImage: club.logo != null 
-                          ? NetworkImage(club.logo!)
-                          : null,
-                        child: club.logo == null
-                          ? Icon(Icons.sports_cricket, size: 50, color: AppTheme.cricketGreen)
-                          : null,
+                        iconColor: AppTheme.cricketGreen,
+                        fallbackIcon: Icons.sports_cricket,
+                        showBorder: true,
+                        borderColor: Colors.grey.withOpacity(0.2),
                       ),
                     ),
                     SizedBox(height: 16),
