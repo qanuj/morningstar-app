@@ -189,7 +189,6 @@ class ClubMessage {
     String? matchId;
     String? practiceId;
     String? pollId;
-    Map<String, dynamic>? meta;
 
     // Check for deleted message
     bool isDeleted = false;
@@ -311,31 +310,18 @@ class ClubMessage {
       }
 
       // Extract type-specific data from content for new message types
-      if (content is Map<String, dynamic>) {
-        if (messageType == 'match') {
-          // Extract match-specific fields from content
-          matchId = content['matchId'] as String?;
-          meta =
-              _safeMapFromJson(content['meta']) ??
-              _safeMapFromJson(content['matchDetails']);
-        } else if (messageType == 'practice') {
-          // Extract practice-specific fields from content
-          practiceId = content['practiceId'] as String?;
-          meta =
-              _safeMapFromJson(content['meta']) ??
-              _safeMapFromJson(content['practiceDetails']);
-        } else if (messageType == 'location') {
-          // Extract location-specific fields from content
-          meta =
-              _safeMapFromJson(content['meta']) ??
-              _safeMapFromJson(content['locationDetails']);
-        } else if (messageType == 'poll') {
-          // Extract poll-specific fields from content
-          pollId = content['pollId'] as String?;
-          meta =
-              _safeMapFromJson(content['meta']) ??
-              _safeMapFromJson(content['pollDetails']);
-        }
+      if (messageType == 'match') {
+        // Extract match-specific fields from content
+        matchId = content['matchId'] as String?;
+        // Meta is now a top-level field in the response
+      } else if (messageType == 'practice') {
+        // Extract practice-specific fields from content
+        practiceId = content['practiceId'] as String?;
+        // Meta is now a top-level field in the response
+      } else if (messageType == 'poll') {
+        // Extract poll-specific fields from content
+        pollId = content['pollId'] as String?;
+        // Meta is now a top-level field in the response
       }
 
       // Parse images array (as URLs) - for text messages and other non-link types
@@ -590,13 +576,8 @@ class ClubMessage {
       matchId: matchId ?? (json['matchId'] as String?),
       practiceId: practiceId ?? (json['practiceId'] as String?),
       pollId: pollId ?? (json['pollId'] as String?),
-      meta:
-          meta ??
-          _safeMapFromJson(json['meta']) ??
-          _safeMapFromJson(json['matchDetails']) ??
-          _safeMapFromJson(json['practiceDetails']) ??
-          _safeMapFromJson(json['locationDetails']) ??
-          _safeMapFromJson(json['pollDetails']),
+      // Meta is now a top-level field in the message response
+      meta: _safeMapFromJson(json['meta']),
       pin: PinInfo(
         isPinned: isPinned,
         pinStart: pinStart,

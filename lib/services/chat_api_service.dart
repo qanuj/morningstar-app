@@ -88,7 +88,7 @@ class ChatApiService {
           'type': 'practice',
           'body': content['body'] ?? ' ',
           'practiceId': content['practiceId'],
-          'meta': content['practiceDetails'] ?? content['meta'],
+          // meta is now a top-level read-only field, don't send in content
         };
         break;
 
@@ -97,7 +97,7 @@ class ChatApiService {
           'type': 'match',
           'body': content['body'] ?? ' ',
           'matchId': content['matchId'],
-          'meta': content['matchDetails'] ?? content['meta'],
+          // meta is now a top-level read-only field, don't send in content
         };
         break;
 
@@ -106,7 +106,7 @@ class ChatApiService {
           'type': 'poll',
           'body': content['body'] ?? ' ',
           'pollId': content['pollId'],
-          'meta': content['pollDetails'] ?? content['meta'],
+          // meta is now a top-level read-only field, don't send in content
         };
         break;
 
@@ -114,7 +114,7 @@ class ChatApiService {
         contentMap = {
           'type': 'location',
           'body': content['body'] ?? ' ',
-          'meta': content['locationDetails'] ?? content['meta'],
+          // meta is now a top-level read-only field, don't send in content
         };
         break;
 

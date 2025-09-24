@@ -434,10 +434,14 @@ class ClubChatScreenState extends State<ClubChatScreen>
             final oldMessage = currentMessages[existingIndex];
             currentMessages[existingIndex] = newMessage;
             hasUpdates = true;
-            
+
             debugPrint('🔄 Updated existing message: ${newMessage.id}');
-            debugPrint('   Reactions: ${oldMessage.reactions.length} → ${newMessage.reactions.length}');
-            debugPrint('   Pin: ${oldMessage.pin.isPinned} → ${newMessage.pin.isPinned}');
+            debugPrint(
+              '   Reactions: ${oldMessage.reactions.length} → ${newMessage.reactions.length}',
+            );
+            debugPrint(
+              '   Pin: ${oldMessage.pin.isPinned} → ${newMessage.pin.isPinned}',
+            );
           } else {
             // Add new message - this is a true addition
             currentMessages.add(newMessage);

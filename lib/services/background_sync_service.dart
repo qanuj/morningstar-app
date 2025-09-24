@@ -59,13 +59,18 @@ class BackgroundSyncService {
 
     final interval = _isAppActive ? _activeSyncInterval : _syncInterval;
     _syncTimer = Timer.periodic(interval, (timer) async {
+      print(
+        '⏰ Background sync timer tick (${timer.tick}) - isActive: $_isAppActive',
+      );
       if (!_isSyncing) {
         await _performSync();
+      } else {
+        print('⏸️ Sync already in progress, skipping tick ${timer.tick}');
       }
     });
 
     print(
-      '🔄 Background sync timer started with ${interval.inSeconds}s interval',
+      '🔄 Background sync timer started with ${interval.inSeconds}s interval (active: $_isAppActive)',
     );
   }
 
@@ -123,6 +128,10 @@ class BackgroundSyncService {
       final lastSyncTime = _lastSyncTimes[clubId];
       final lastUpdatedAt = _lastUpdatedAtTimes[clubId];
 
+      print(
+        '🔄 Syncing club $clubId with lastUpdatedAt: ${lastUpdatedAt?.toIso8601String()}',
+      );
+
       // Use efficient message fetching with updatedAt timestamp
       final response = await ChatApiService.getMessagesEfficient(
         clubId,
@@ -131,18 +140,23 @@ class BackgroundSyncService {
         limit: 50, // Increased limit since we're using updatedAt filtering
       );
 
-      if (response == null || response['success'] != true) {
-        print('⚠️ Failed to sync messages for club $clubId');
+      print(
+        '📡 Background sync response for $clubId: ${response != null ? 'received' : 'null'}',
+      );
+
+      if (response == null) {
+        print('⚠️ Failed to sync messages for club $clubId - null response');
         return;
       }
 
-      final messagesData = response['data'];
-      if (messagesData?['messages'] == null) {
-        print('ℹ️ No new messages for club $clubId');
+      // Check if response has messages (same structure as club_chat.dart)
+      final messagesData = response['messages'];
+      if (messagesData == null) {
+        print('ℹ️ No messages data for club $clubId');
         return;
       }
 
-      final newMessages = (messagesData['messages'] as List)
+      final newMessages = (messagesData as List)
           .map((m) => ClubMessage.fromJson(m))
           .toList();
 
@@ -255,15 +269,44 @@ class BackgroundSyncService {
     String clubId,
     ClubMessage message,
   ) async {
+    print('🏏 Processing match message: ${message.id}');
+
+    // Extract match data from meta field
+    final meta = message.meta;
+    if (meta != null && meta.containsKey('matchData')) {
+      final matchData = meta['matchData'];
+      print('🏏 Match Data: $matchData');
+
+      // Check for match detail updates (time, venue, status changes)
+      final hasMatchUpdates =
+          meta.containsKey('venue') ||
+          meta.containsKey('datetime') ||
+          meta.containsKey('status') ||
+          meta.containsKey('opponent');
+
+      if (hasMatchUpdates) {
+        print('🏏 Detected match details update: ${message.id}');
+
+        // Trigger message callback with match update
+        if (_messageCallbacks.containsKey(clubId)) {
+          final callbackData = _messageToCallbackData(message);
+          callbackData['isUpdate'] = true;
+          callbackData['updateType'] = 'match_details';
+          callbackData['matchData'] = matchData;
+          _messageCallbacks[clubId]!(callbackData);
+        }
+      }
+    }
+
     final matchId = message.matchId;
     if (matchId != null) {
       // Trigger match update callbacks
       final callbacks = _matchCallbacks[matchId];
       if (callbacks != null) {
-        final matchData = _messageToCallbackData(message);
+        final matchCallbackData = _messageToCallbackData(message);
         for (final callback in callbacks) {
           try {
-            callback(matchData);
+            callback(matchCallbackData);
           } catch (e) {
             print('❌ Error in match callback: $e');
           }
@@ -277,8 +320,35 @@ class BackgroundSyncService {
     String clubId,
     ClubMessage message,
   ) async {
-    // Similar to match handling but for practice sessions
     print('🏃 Processing practice message: ${message.id}');
+
+    // Extract practice data from meta field
+    final meta = message.meta;
+    if (meta != null && meta.containsKey('practiceData')) {
+      final practiceData = meta['practiceData'];
+      print('🏃 Practice Data: $practiceData');
+
+      // Check for practice detail updates (time, venue, status changes)
+      final hasPracticeUpdates =
+          meta.containsKey('venue') ||
+          meta.containsKey('datetime') ||
+          meta.containsKey('status') ||
+          meta.containsKey('rsvpData');
+
+      if (hasPracticeUpdates) {
+        print('🏃 Detected practice details update: ${message.id}');
+
+        // Trigger message callback with practice update
+        if (_messageCallbacks.containsKey(clubId)) {
+          final callbackData = _messageToCallbackData(message);
+          callbackData['isUpdate'] = true;
+          callbackData['updateType'] = 'practice_details';
+          callbackData['practiceData'] = practiceData;
+          callbackData['rsvpData'] = meta['rsvpData'];
+          _messageCallbacks[clubId]!(callbackData);
+        }
+      }
+    }
   }
 
   /// Handle poll messages
@@ -287,6 +357,29 @@ class BackgroundSyncService {
     ClubMessage message,
   ) async {
     print('📊 Processing poll message: ${message.id}');
+
+    // Extract poll data from meta field
+    final meta = message.meta;
+    if (meta != null && meta.containsKey('pollData')) {
+      final pollData = meta['pollData'];
+      print('📊 Poll Data: $pollData');
+
+      // Check for vote updates
+      if (meta.containsKey('votes') || meta.containsKey('voteCounts')) {
+        print('🗳️ Detected vote update in poll: ${message.id}');
+
+        // Trigger message callback with vote update
+        if (_messageCallbacks.containsKey(clubId)) {
+          final callbackData = _messageToCallbackData(message);
+          callbackData['isUpdate'] = true;
+          callbackData['updateType'] = 'vote';
+          callbackData['pollData'] = pollData;
+          callbackData['votes'] = meta['votes'];
+          callbackData['voteCounts'] = meta['voteCounts'];
+          _messageCallbacks[clubId]!(callbackData);
+        }
+      }
+    }
   }
 
   /// Handle RSVP updates
@@ -294,6 +387,24 @@ class BackgroundSyncService {
     String clubId,
     ClubMessage message,
   ) async {
+    print('📋 Processing RSVP update for message: ${message.id}');
+
+    // Extract RSVP data from meta field
+    final meta = message.meta;
+    if (meta != null && meta.containsKey('rsvpData')) {
+      final rsvpData = meta['rsvpData'];
+      print('📋 RSVP Data: $rsvpData');
+
+      // Trigger message callback with RSVP update
+      if (_messageCallbacks.containsKey(clubId)) {
+        final callbackData = _messageToCallbackData(message);
+        callbackData['isUpdate'] = true;
+        callbackData['updateType'] = 'rsvp';
+        callbackData['rsvpData'] = rsvpData;
+        _messageCallbacks[clubId]!(callbackData);
+      }
+    }
+
     final matchId = message.matchId;
     if (matchId != null) {
       // Trigger match RSVP callbacks
@@ -313,11 +424,14 @@ class BackgroundSyncService {
     }
   }
 
-  /// Handle general message updates (reactions, pins, edits)
+  /// Handle general message updates (reactions, pins, edits, meta changes)
   static Future<void> _handleMessageUpdate(
     String clubId,
     ClubMessage message,
   ) async {
+    bool hasUpdates = false;
+    String updateType = 'general';
+
     // Check for reactions
     if (message.reactions.isNotEmpty) {
       print('😀 Processing message with reactions: ${message.id}');
@@ -325,46 +439,95 @@ class BackgroundSyncService {
       print(
         '😀 Reactions: ${message.reactions.map((r) => '${r.emoji}:${r.count}').join(', ')}',
       );
-
-      // Trigger callback with reaction update flag
-      if (_messageCallbacks.containsKey(clubId)) {
-        print('📞 Triggering reaction callback for club: $clubId');
-        final reactionData = _messageToCallbackData(message);
-        reactionData['isUpdate'] = true;
-        reactionData['updateType'] = 'reaction';
-        _messageCallbacks[clubId]!(reactionData);
-      } else {
-        print('⚠️ No message callback registered for club: $clubId');
-      }
+      hasUpdates = true;
+      updateType = 'reaction';
     }
 
     // Check for pinned status
     if (message.pin.isPinned) {
       print('📌 Processing pinned message: ${message.id}');
+      hasUpdates = true;
+      updateType = 'pin';
+    }
 
-      // Trigger callback with pin update flag
-      if (_messageCallbacks.containsKey(clubId)) {
-        final pinData = _messageToCallbackData(message);
-        pinData['isUpdate'] = true;
-        pinData['updateType'] = 'pin';
-        _messageCallbacks[clubId]!(pinData);
+    // Check for meta field updates (votes, RSVPs, match details)
+    if (message.meta != null && message.meta!.isNotEmpty) {
+      print('� Processing meta field update for message: ${message.id}');
+      print('📊 Meta data: ${message.meta}');
+
+      // Detect specific meta update types
+      if (message.messageType == 'poll' || message.pollId != null) {
+        print('🗳️ Poll vote update detected');
+        hasUpdates = true;
+        updateType = 'poll_vote';
+      } else if (message.messageType == 'match' || message.matchId != null) {
+        // Check for RSVP updates in match meta
+        final rsvps = message.meta!['rsvps'];
+        final matchDetails = message.meta!['match'];
+
+        if (rsvps != null) {
+          print('✋ Match RSVP update detected');
+          print('✋ RSVP data: $rsvps');
+          hasUpdates = true;
+          updateType = 'match_rsvp';
+        }
+
+        if (matchDetails != null) {
+          print('⚽ Match details update detected');
+          print('⚽ Match data: $matchDetails');
+          hasUpdates = true;
+          updateType = 'match_details';
+        }
+      } else if (message.messageType == 'practice' ||
+          message.practiceId != null) {
+        // Check for practice RSVP updates
+        final rsvps = message.meta!['rsvps'];
+        final practiceDetails = message.meta!['practice'];
+
+        if (rsvps != null) {
+          print('🏃 Practice RSVP update detected');
+          print('🏃 RSVP data: $rsvps');
+          hasUpdates = true;
+          updateType = 'practice_rsvp';
+        }
+
+        if (practiceDetails != null) {
+          print('🏃 Practice details update detected');
+          hasUpdates = true;
+          updateType = 'practice_details';
+        }
+      } else {
+        print('📝 General meta field update detected');
+        hasUpdates = true;
+        updateType = 'meta_update';
       }
     }
 
-    // For any other message update, trigger a general update
-    if (_messageCallbacks.containsKey(clubId)) {
+    // Trigger callback if there are any updates
+    if (hasUpdates && _messageCallbacks.containsKey(clubId)) {
+      print('📞 Triggering $updateType callback for club: $clubId');
       final updateData = _messageToCallbackData(message);
       updateData['isUpdate'] = true;
-      updateData['updateType'] = 'general';
+      updateData['updateType'] = updateType;
+
+      // Include meta data in callback for client processing
+      if (message.meta != null) {
+        updateData['meta'] = message.meta;
+      }
+
       _messageCallbacks[clubId]!(updateData);
+    } else if (!hasUpdates) {
+      print('ℹ️ No significant updates detected for message: ${message.id}');
+    } else {
+      print('⚠️ No message callback registered for club: $clubId');
     }
 
-    print('✏️ Processing message update: ${message.id}');
+    print('✏️ Processed message update: ${message.id} (type: $updateType)');
   }
 
   /// Convert ClubMessage to callback data format for compatibility
   static Map<String, dynamic> _messageToCallbackData(ClubMessage message) {
-    return {
+    final callbackData = {
       'type': 'club_message',
       'clubId': message.clubId,
       'messageId': message.id,
@@ -373,10 +536,38 @@ class BackgroundSyncService {
       'senderId': message.senderId,
       'createdAt': message.createdAt.toIso8601String(),
       'content': message.content,
+      'messageType': message.messageType,
       'reactions': message.reactions.map((r) => r.toJson()).toList(),
       'isPinned': message.pin.isPinned,
-      'isEdited': false, // Add logic to determine if edited
+      'isEdited':
+          message.updatedAt != null &&
+          message.updatedAt!.isAfter(message.createdAt),
     };
+
+    // Include meta field if present
+    if (message.meta != null && message.meta!.isNotEmpty) {
+      callbackData['meta'] = message.meta;
+    }
+
+    // Include related IDs for specific message types
+    if (message.matchId != null) {
+      callbackData['matchId'] = message.matchId;
+    }
+
+    if (message.practiceId != null) {
+      callbackData['practiceId'] = message.practiceId;
+    }
+
+    if (message.pollId != null) {
+      callbackData['pollId'] = message.pollId;
+    }
+
+    // Include updatedAt timestamp for sync tracking
+    if (message.updatedAt != null) {
+      callbackData['updatedAt'] = message.updatedAt!.toIso8601String();
+    }
+
+    return callbackData;
   }
 
   /// Get display text for a message based on its type and content
@@ -426,6 +617,21 @@ class BackgroundSyncService {
     Function(Map<String, dynamic>) callback,
   ) {
     _messageCallbacks[clubId] = callback;
+
+    // Initialize sync tracking for this club if not already present
+    if (!_lastSyncTimes.containsKey(clubId)) {
+      _lastSyncTimes[clubId] = DateTime.now();
+      print('🔄 Initialized sync tracking for club: $clubId');
+    }
+
+    // Start background sync immediately for this club if service is initialized
+    if (_isInitialized) {
+      print('🚀 Triggering immediate sync for newly registered club: $clubId');
+      _syncClubMessages(clubId).catchError((e) {
+        print('❌ Error in immediate sync for club $clubId: $e');
+      });
+    }
+
     print('✅ Club message callback registered for background sync: $clubId');
   }
 
