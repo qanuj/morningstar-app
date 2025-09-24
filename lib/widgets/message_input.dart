@@ -362,15 +362,16 @@ class MessageInputState extends State<MessageInput> {
   }
 
   void _sendTextMessage() {
-    final internalText = _mentionableController.internalText.trim();
+    final text = _mentionableController.text.trim();
 
-    if (internalText.isEmpty)
-      return; // Extract mentions from the internal text field (contains @[id:name] format)
+    if (text.isEmpty) return;
+
+    // Extract mentions from the text field (contains @[id:name] format)
     final mentions = <MentionedUser>[];
 
-    // Extract mentions from the internal text using regex
+    // Extract mentions from the text using regex
     final mentionRegex = RegExp(r'@\[([^:]+):([^\]]+)\]');
-    final mentionMatches = mentionRegex.allMatches(internalText);
+    final mentionMatches = mentionRegex.allMatches(text);
 
     for (final match in mentionMatches) {
       final userId = match.group(1);
@@ -388,7 +389,7 @@ class MessageInputState extends State<MessageInput> {
     }
 
     // Create display text by replacing mention format for UI
-    final finalDisplayText = internalText.replaceAllMapped(
+    final finalDisplayText = text.replaceAllMapped(
       mentionRegex,
       (match) =>
           '@${match.group(2)}', // Show @Username instead of @[id:username]
@@ -1349,7 +1350,7 @@ class MessageInputState extends State<MessageInput> {
                           color: Theme.of(context).brightness == Brightness.dark
                               ? Colors.grey[400]
                               : Colors.grey[600],
-                          fontSize: 22, // Increased for better readability
+                          fontSize: 16, // Reduced for better proportions
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.all(
@@ -1377,8 +1378,7 @@ class MessageInputState extends State<MessageInput> {
                         ),
                       ),
                       style: TextStyle(
-                        fontSize:
-                            22, // Increased for better readability and visual balance
+                        fontSize: 16, // Reduced for better proportions
                         fontWeight: FontWeight
                             .w400, // Normal weight for clean appearance
                         color: Theme.of(context).brightness == Brightness.dark

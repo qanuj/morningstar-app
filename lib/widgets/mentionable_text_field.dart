@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../models/mention.dart';
 
-/// Controller for handling mention selections from external sources
+/// Controller for handling mention selections and styling
 class MentionableTextFieldController extends TextEditingController {
   _MentionableTextFieldState? _state;
-  String _internalText = '';
 
   void _attachState(_MentionableTextFieldState state) {
     _state = state;
@@ -13,26 +11,6 @@ class MentionableTextFieldController extends TextEditingController {
 
   void _detachState() {
     _state = null;
-  }
-
-  /// Get the internal text with mention formatting for API submission
-  String get internalText => _internalText.isEmpty ? text : _internalText;
-
-  /// Set internal text and update display text
-  void setInternalText(String internal) {
-    _internalText = internal;
-    final displayText = _convertToDisplayText(internal);
-    value = TextEditingValue(
-      text: displayText,
-      selection: TextSelection.collapsed(offset: displayText.length),
-    );
-  }
-
-  String _convertToDisplayText(String internal) {
-    return internal.replaceAllMapped(
-      RegExp(r'@\[([^:]+):([^\]]+)\]'),
-      (match) => '@${match.group(2)}', // Show @userName
-    );
   }
 
   /// Select a mention from external sources (like overlay)
@@ -44,6 +22,130 @@ class MentionableTextFieldController extends TextEditingController {
     }
     print('🎯 Calling _state.selectMention');
     _state?.selectMention(mention);
+  }
+
+  @override
+  TextSpan buildTextSpan({
+    BuildContext? context,
+    TextStyle? style,
+    bool? withComposing,
+  }) {
+    final children = <InlineSpan>[];
+
+    // Get theme-aware mention colors
+    final isDark = context != null
+        ? Theme.of(context).brightness == Brightness.dark
+        : false;
+
+    final mentionColor = isDark
+        ? Color(0xFF64B5F6) // Light blue for dark mode
+        : Color(0xFF1976D2); // Darker blue for light mode
+
+    // Get default text color from theme
+    final defaultTextColor = context != null
+        ? (isDark ? Colors.white : Colors.black87)
+        : Colors.black87;
+
+    // Create base style with proper defaults
+    final baseStyle = (style ?? TextStyle()).copyWith(
+      color: style?.color ?? defaultTextColor,
+      fontSize: style?.fontSize ?? 16,
+    );
+
+    // Pattern to match both completed mentions @[id:name] and partial mentions @username
+    final completedMentionPattern = RegExp(r'@\[([^:]+):([^\]]+)\]');
+    final partialMentionPattern = RegExp(r'@(\w+)');
+
+    if (text.isEmpty) {
+      return TextSpan(text: text, style: baseStyle);
+    }
+
+    // Debug logging
+    print('🎨 buildTextSpan called with text: "$text"');
+    final completedMentions = completedMentionPattern.allMatches(text);
+    print('🎨 Found ${completedMentions.length} completed mentions');
+    for (final match in completedMentions) {
+      print('🎨 Completed mention: ${match.group(0)} -> id: ${match.group(1)}, name: ${match.group(2)}');
+    }
+
+    // First handle completed mentions @[id:name]
+    String workingText = text;
+    final mentionReplacements = <String, String>{};
+    int replacementCounter = 0;
+
+    // Replace completed mentions with temporary placeholders
+    workingText = workingText.replaceAllMapped(completedMentionPattern, (
+      match,
+    ) {
+      final placeholder = '__MENTION_${replacementCounter++}__';
+      final userName = match.group(2)!;
+      mentionReplacements[placeholder] = '@$userName';
+      print('🎨 Replacing "${match.group(0)}" with placeholder "$placeholder" -> display "@$userName"');
+      return placeholder;
+    });
+
+    print('🎨 Working text after replacements: "$workingText"');
+    print('🎨 Mention replacements: $mentionReplacements');
+
+    // Use a different approach to split and preserve matched parts
+    final splitPattern = RegExp(r'(__MENTION_\d+__|@\w+)');
+    final parts = <String>[];
+    int lastEnd = 0;
+
+    for (final match in splitPattern.allMatches(workingText)) {
+      // Add text before the match
+      if (match.start > lastEnd) {
+        parts.add(workingText.substring(lastEnd, match.start));
+      }
+      // Add the matched part
+      parts.add(match.group(0)!);
+      lastEnd = match.end;
+    }
+
+    // Add remaining text after the last match
+    if (lastEnd < workingText.length) {
+      parts.add(workingText.substring(lastEnd));
+    }
+
+    print('🎨 Split parts: $parts');
+
+    for (int i = 0; i < parts.length; i++) {
+      final part = parts[i];
+
+      if (part.isEmpty) continue;
+
+      if (mentionReplacements.containsKey(part)) {
+        // This is a completed mention - style it in blue with bold
+        print('🎨 Styling completed mention: "$part" -> "${mentionReplacements[part]}"');
+        children.add(
+          TextSpan(
+            text: mentionReplacements[part]!,
+            style: baseStyle.copyWith(
+              color: mentionColor,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        );
+      } else if (partialMentionPattern.hasMatch(part)) {
+        // This is a partial mention like @anuj - style it in lighter blue
+        print('🎨 Styling partial mention: "$part"');
+        children.add(
+          TextSpan(
+            text: part,
+            style: baseStyle.copyWith(
+              color: mentionColor.withOpacity(0.7),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        );
+      } else {
+        // Regular text
+        print('🎨 Adding regular text: "$part"');
+        children.add(TextSpan(text: part, style: baseStyle));
+      }
+    }
+
+    return TextSpan(style: baseStyle, children: children);
   }
 }
 
@@ -219,14 +321,12 @@ class _MentionableTextFieldState extends State<MentionableTextField> {
       return;
     }
 
-    final currentText = widget.controller.internalText;
-    final displayText = widget.controller.text;
+    final currentText = widget.controller.text;
     final selection = widget.controller.selection;
-    print('🎯 Current internal text: "$currentText"');
-    print('🎯 Current display text: "$displayText"');
+    print('🎯 Current text: "$currentText"');
     print('🎯 Selection: ${selection.start}-${selection.end}');
 
-    // Replace @query with @[userId:userName] for both internal and display
+    // Replace @query with @[userId:userName]
     final mentionText = '@[${mention.id}:${mention.name}]';
     final beforeMention = currentText.substring(0, _mentionStartIndex);
     final afterMention = currentText.substring(selection.start);
@@ -234,8 +334,11 @@ class _MentionableTextFieldState extends State<MentionableTextField> {
     final newText = beforeMention + mentionText + afterMention;
     final newCursorPosition = beforeMention.length + mentionText.length;
 
-    // Update both internal and display text with the formatted mention
-    widget.controller._internalText = newText;
+    print('🎯 Mention format created: "$mentionText"');
+    print('🎯 Before: "$beforeMention", After: "$afterMention"');
+    print('🎯 Final text will be: "$newText"');
+
+    // Update text with the formatted mention
     widget.controller.value = TextEditingValue(
       text: newText,
       selection: TextSelection.collapsed(offset: newCursorPosition),
@@ -243,6 +346,7 @@ class _MentionableTextFieldState extends State<MentionableTextField> {
 
     print('🎯 Mention inserted: "$newText"');
     print('🎯 New cursor position: $newCursorPosition');
+    print('🎯 Controller text after update: "${widget.controller.text}"');
 
     _cancelMentioning();
     widget.onMentionSelected?.call(mention);
@@ -287,113 +391,26 @@ class _MentionableTextFieldState extends State<MentionableTextField> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        // The actual TextField (transparent text)
-        TextField(
-          controller: widget.controller,
-          focusNode: _focusNode,
-          maxLines: widget.maxLines,
-          minLines: widget.minLines,
-          style: widget.style?.copyWith(
-            color: Colors.transparent,
-          ), // Make text transparent
-          decoration: widget.decoration,
-          enabled: widget.enabled,
-          autofocus: widget.autofocus,
-          textCapitalization: widget.textCapitalization,
-          textInputAction: widget.textInputAction,
-          onChanged: (value) {
-            // Sync internal text when user types
-            _syncInternalText(value);
-            // Call the external onChanged if provided
-            widget.onChanged?.call(value);
-          },
-          onTap: () {
-            widget.onTap?.call();
-          },
-          onSubmitted: widget.onSubmitted,
-        ),
-
-        // Rich text overlay for styled display
-        Positioned.fill(
-          child: IgnorePointer(
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              alignment: Alignment.centerLeft,
-              child: _buildStyledText(context),
-            ),
-          ),
-        ),
-      ],
+    return TextField(
+      controller: widget.controller,
+      focusNode: _focusNode,
+      maxLines: widget.maxLines,
+      minLines: widget.minLines,
+      style: widget.style,
+      decoration: widget.decoration,
+      enabled: widget.enabled,
+      autofocus: widget.autofocus,
+      textCapitalization: widget.textCapitalization,
+      textInputAction: widget.textInputAction,
+      onChanged: (value) {
+        // Call the external onChanged if provided
+        widget.onChanged?.call(value);
+      },
+      onTap: () {
+        widget.onTap?.call();
+      },
+      onSubmitted: widget.onSubmitted,
     );
-  }
-
-  void _syncInternalText(String displayText) {
-    // When user types normal text, sync it to internal text
-    // The displayText now contains the formatted mentions, so just keep it as is
-    widget.controller._internalText = displayText;
-  }
-
-  Widget _buildStyledText(BuildContext context) {
-    final text = widget.controller.text;
-    final mentionColor = Color(0xFF003f9b); // Brand dark blue
-
-    // Parse text and create spans
-    final spans = <TextSpan>[];
-    final regex = RegExp(r'@\[([^:]+):([^\]]+)\]|(@\w+)');
-    int lastEnd = 0;
-
-    for (final match in regex.allMatches(text)) {
-      // Add text before mention
-      if (match.start > lastEnd) {
-        spans.add(
-          TextSpan(
-            text: text.substring(lastEnd, match.start),
-            style: widget.style,
-          ),
-        );
-      }
-
-      // Add mention span
-      if (match.group(2) != null) {
-        // Formatted mention @[id:name]
-        spans.add(
-          TextSpan(
-            text: '@${match.group(2)}',
-            style: (widget.style ?? TextStyle()).copyWith(
-              color: mentionColor,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        );
-      } else if (match.group(3) != null) {
-        // Simple @username mention
-        spans.add(
-          TextSpan(
-            text: match.group(3)!,
-            style: (widget.style ?? TextStyle()).copyWith(
-              color: mentionColor,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        );
-      }
-
-      lastEnd = match.end;
-    }
-
-    // Add remaining text
-    if (lastEnd < text.length) {
-      spans.add(TextSpan(text: text.substring(lastEnd), style: widget.style));
-    }
-
-    // If no mentions found, show all text normally
-    if (spans.isEmpty) {
-      spans.add(TextSpan(text: text, style: widget.style));
-    }
-
-    return RichText(text: TextSpan(children: spans));
   }
 }
 
