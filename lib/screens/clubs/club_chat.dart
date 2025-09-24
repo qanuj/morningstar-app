@@ -14,6 +14,7 @@ import '../../models/message_reaction.dart';
 import '../../services/chat_api_service.dart';
 import '../../services/message_storage_service.dart';
 import '../../services/notification_service.dart';
+import '../../services/background_sync_service.dart';
 import '../../widgets/club_info_dialog.dart';
 import '../../widgets/audio_recording_widget.dart';
 import '../../widgets/pinned_messages_section.dart';
@@ -137,7 +138,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
     _loadMessages();
 
     // Setup push notification callback instead of polling
-    _setupPushNotificationCallback();
+    _setupBackgroundSyncCallback();
 
     // Add focus listener to scroll to bottom when keyboard opens
     _textFieldFocusNode.addListener(() {
@@ -238,45 +239,59 @@ class ClubChatScreenState extends State<ClubChatScreen>
     }
   }
 
-  /// Setup push notification callback for real-time message updates
-  void _setupPushNotificationCallback() {
+  /// Setup background sync callback for real-time message updates
+  void _setupBackgroundSyncCallback() {
     debugPrint(
-      '🔔 Setting up push notification callback for club: ${widget.club.id}',
+      '� Setting up background sync callback for club: ${widget.club.id}',
     );
+
+    // Set up both background sync and notification service callbacks for redundancy
+    BackgroundSyncService.setClubMessageCallback(widget.club.id, (
+      Map<String, dynamic> data,
+    ) {
+      debugPrint('🔄 Received background sync data: $data');
+      _handleRealtimeMessage(data);
+    });
 
     NotificationService.setClubMessageCallback(widget.club.id, (
       Map<String, dynamic> data,
     ) {
       debugPrint('💬 Received push notification data: $data');
-
-      // Check if this is a message update notification
-      final isUpdate = data['isUpdate'] == true;
-      final messageId = data['messageId'] as String?;
-
-      if (isUpdate && messageId != null) {
-        debugPrint(
-          '📝 Received message update notification for message: $messageId',
-        );
-        // Handle message update by patching the specific message
-        _handleMessageUpdate(data);
-      } else {
-        // This is a new message notification - refresh normally
-        debugPrint(
-          '✅ Push notification received for current club, refreshing messages',
-        );
-
-        // Use a slight delay to ensure the server has processed the message
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted) {
-            debugPrint('🔄 Callback triggered: Refreshing messages now...');
-            // Force a fresh sync to ensure we get the new message
-            _loadMessages(forceSync: true);
-          } else {
-            debugPrint('⚠️ Widget not mounted, skipping message refresh');
-          }
-        });
-      }
+      _handleRealtimeMessage(data);
     });
+  }
+
+  /// Handle real-time message updates from both background sync and push notifications
+  void _handleRealtimeMessage(Map<String, dynamic> data) {
+    debugPrint('🔄 Handling real-time message: $data');
+
+    // Check if this is a message update notification
+    final isUpdate = data['isUpdate'] == true;
+    final messageId = data['messageId'] as String?;
+
+    if (isUpdate && messageId != null) {
+      debugPrint(
+        '📝 Received message update notification for message: $messageId',
+      );
+      // Handle message update by patching the specific message
+      _handleMessageUpdate(data);
+    } else {
+      // This is a new message notification - refresh normally
+      debugPrint(
+        '✅ Real-time message received for current club, refreshing messages',
+      );
+
+      // Use a slight delay to ensure the server has processed the message
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          debugPrint('🔄 Callback triggered: Refreshing messages now...');
+          // Force a fresh sync to ensure we get the new message
+          _loadMessages(forceSync: true);
+        } else {
+          debugPrint('⚠️ Widget not mounted, skipping message refresh');
+        }
+      });
+    }
   }
 
   /// Handle message update notifications by patching the specific message
@@ -360,8 +375,9 @@ class ClubChatScreenState extends State<ClubChatScreen>
     _scrollController.dispose();
     _textFieldFocusNode.dispose();
 
-    // Clear push notification callback for this club
+    // Clear message callbacks for this club
     NotificationService.clearClubMessageCallback(widget.club.id);
+    BackgroundSyncService.clearClubMessageCallback(widget.club.id);
 
     super.dispose();
   }

@@ -9,7 +9,9 @@ import 'providers/theme_provider.dart';
 import 'providers/conversation_provider.dart';
 import 'screens/auth/splash.dart';
 import 'screens/shared/share_target_screen.dart';
+import 'services/auth_service.dart';
 import 'services/notification_service.dart';
+import 'services/background_sync_service.dart';
 import 'services/share_handler_service.dart';
 import 'services/api_service.dart';
 import 'utils/theme.dart';
@@ -38,10 +40,13 @@ void main() async {
     await NotificationService.initialize();
     print('✅ NotificationService initialized successfully');
 
+    // Initialize Background Sync Service for real-time updates
+    await BackgroundSyncService.initialize();
+    print('✅ BackgroundSyncService initialized successfully');
+
     // Initialize Share Handler Service
     ShareHandlerService().initialize();
     print('✅ ShareHandlerService initialized successfully');
-
   } catch (e) {
     print('❌ Failed to initialize services: $e');
   }
@@ -58,8 +63,10 @@ Future<void> _configureImageCache() async {
   await CachedNetworkImage.evictFromCache('dummy'); // Initialize cache manager
 
   // Set global image cache configuration
-  PaintingBinding.instance.imageCache.maximumSize = 100; // Reduce from default 1000
-  PaintingBinding.instance.imageCache.maximumSizeBytes = 50 << 20; // 50MB instead of 100MB
+  PaintingBinding.instance.imageCache.maximumSize =
+      100; // Reduce from default 1000
+  PaintingBinding.instance.imageCache.maximumSizeBytes =
+      50 << 20; // 50MB instead of 100MB
 }
 
 class MyApp extends StatefulWidget {
@@ -67,7 +74,7 @@ class MyApp extends StatefulWidget {
   MyAppState createState() => MyAppState();
 }
 
-class MyAppState extends State<MyApp> {
+class MyAppState extends State<MyApp> with WidgetsBindingObserver {
   late ThemeProvider _themeProvider;
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   StreamSubscription? _sharedContentSubscription;
@@ -78,49 +85,82 @@ class MyAppState extends State<MyApp> {
     _themeProvider = ThemeProvider();
     _themeProvider.init();
     _setupSharedContentListener();
+
+    // Add lifecycle observer for background sync
+    WidgetsBinding.instance.addObserver(this);
   }
 
   void _setupSharedContentListener() {
-    _sharedContentSubscription = ShareHandlerService().sharedContentStream.listen(
-      (sharedContent) {
-        print('📤 Received shared content: ${sharedContent.type.name}');
-        
-        // Navigate to ShareTargetScreen when content is shared
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          final navigator = _navigatorKey.currentState;
-          if (navigator != null) {
-            // Check if ShareTargetScreen is already on top
-            bool isShareTargetVisible = false;
-            navigator.popUntil((route) {
-              if (route.settings.name == '/share_target' || 
-                  route.toString().contains('ShareTargetScreen')) {
-                isShareTargetVisible = true;
-              }
-              return true;
-            });
-            
-            // Only navigate if ShareTargetScreen is not already visible
-            if (!isShareTargetVisible) {
-              navigator.push(
-                MaterialPageRoute(
-                  builder: (context) => ShareTargetScreen(
-                    sharedContent: sharedContent,
+    _sharedContentSubscription = ShareHandlerService().sharedContentStream
+        .listen((sharedContent) {
+          print('📤 Received shared content: ${sharedContent.type.name}');
+
+          // Navigate to ShareTargetScreen when content is shared
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            final navigator = _navigatorKey.currentState;
+            if (navigator != null) {
+              // Check if ShareTargetScreen is already on top
+              bool isShareTargetVisible = false;
+              navigator.popUntil((route) {
+                if (route.settings.name == '/share_target' ||
+                    route.toString().contains('ShareTargetScreen')) {
+                  isShareTargetVisible = true;
+                }
+                return true;
+              });
+
+              // Only navigate if ShareTargetScreen is not already visible
+              if (!isShareTargetVisible) {
+                navigator.push(
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        ShareTargetScreen(sharedContent: sharedContent),
+                    settings: const RouteSettings(name: '/share_target'),
                   ),
-                  settings: const RouteSettings(name: '/share_target'),
-                ),
-              );
+                );
+              }
             }
-          }
+          });
         });
-      },
-    );
   }
 
   @override
   void dispose() {
     _sharedContentSubscription?.cancel();
     ShareHandlerService().dispose();
+    WidgetsBinding.instance.removeObserver(this);
+    BackgroundSyncService.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    switch (state) {
+      case AppLifecycleState.resumed:
+        // App is active - use faster sync interval
+        BackgroundSyncService.setAppActiveState(true);
+        // Trigger immediate sync when app becomes active
+        BackgroundSyncService.triggerSync();
+        break;
+
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+        // App is backgrounded - use slower sync interval
+        BackgroundSyncService.setAppActiveState(false);
+        break;
+
+      case AppLifecycleState.detached:
+        // App is being terminated - stop sync service
+        BackgroundSyncService.stop();
+        break;
+
+      case AppLifecycleState.hidden:
+        // App is hidden but still running - use slower sync
+        BackgroundSyncService.setAppActiveState(false);
+        break;
+    }
   }
 
   @override
@@ -134,11 +174,15 @@ class MyAppState extends State<MyApp> {
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
-          // Set club provider reference for notifications after context is available
+          // Set club provider reference for notifications and background sync after context is available
           WidgetsBinding.instance.addPostFrameCallback((_) {
             try {
-              final clubProvider = Provider.of<ClubProvider>(context, listen: false);
+              final clubProvider = Provider.of<ClubProvider>(
+                context,
+                listen: false,
+              );
               NotificationService.setClubProvider(clubProvider);
+              BackgroundSyncService.setClubProvider(clubProvider);
             } catch (e) {
               print('⚠️ Failed to set club provider reference: $e');
             }

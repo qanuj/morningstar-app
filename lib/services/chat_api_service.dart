@@ -27,6 +27,7 @@ class ChatApiService {
   static Future<Map<String, dynamic>?> getMessagesEfficient(
     String clubId, {
     String? lastMessageId,
+    String? lastUpdatedAt,
     bool forceFullSync = false,
     int limit = 50,
   }) async {
@@ -38,6 +39,10 @@ class ChatApiService {
 
       if (lastMessageId != null && !forceFullSync) {
         queryParams['lastMessageId'] = lastMessageId;
+      }
+
+      if (lastUpdatedAt != null && !forceFullSync) {
+        queryParams['lastUpdatedAt'] = lastUpdatedAt;
       }
 
       final response = await ApiService.get(

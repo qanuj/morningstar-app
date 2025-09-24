@@ -41,6 +41,7 @@ class ClubMessage {
   final String?
   messageType; // 'text', 'image', 'link', 'emoji', 'gif', 'document', 'audio', 'match'
   final DateTime createdAt;
+  final DateTime? updatedAt;
   final MessageStatus status;
   final String? errorMessage;
   final List<MessageReaction> reactions;
@@ -81,6 +82,7 @@ class ClubMessage {
     this.gifUrl,
     this.messageType,
     required this.createdAt,
+    this.updatedAt,
     this.status = MessageStatus.sent,
     this.errorMessage,
     this.reactions = const [],
@@ -122,6 +124,7 @@ class ClubMessage {
     PinInfo? pin,
     DateTime? deliveredAt,
     DateTime? readAt,
+    DateTime? updatedAt,
     List<Map<String, dynamic>>? deliveredTo,
     List<Map<String, dynamic>>? readBy,
   }) {
@@ -140,6 +143,7 @@ class ClubMessage {
       gifUrl: gifUrl ?? this.gifUrl,
       messageType: messageType ?? this.messageType,
       createdAt: createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
       status: status ?? this.status,
       errorMessage: errorMessage ?? this.errorMessage,
       reactions: reactions ?? this.reactions,
@@ -572,6 +576,9 @@ class ClubMessage {
       createdAt: DateTime.parse(
         json['createdAt'] ?? DateTime.now().toIso8601String(),
       ).toLocal(),
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'] as String).toLocal()
+          : null,
       status: messageStatus, // Use the parsed status
       errorMessage: json['errorMessage'],
       reactions: reactions,
