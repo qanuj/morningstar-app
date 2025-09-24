@@ -1856,9 +1856,9 @@ class ClubChatScreenState extends State<ClubChatScreen>
       readAt: tempMessage.readAt,
       replyTo: _replyingTo, // Add reply if replying
       // ✅ MENTION FIELDS - Ensure non-null values with defensive programming
-      mentions: tempMessage.mentions ?? [],
-      hasMentions: tempMessage.hasMentions ?? false,
-      mentionsCurrentUser: tempMessage.mentionsCurrentUser ?? false,
+      mentions: tempMessage.mentions,
+      hasMentions: tempMessage.hasMentions,
+      mentionsCurrentUser: tempMessage.mentionsCurrentUser,
     );
 
     // Clear reply state
@@ -2471,6 +2471,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
                         onMessageFailed: _handleMessageFailed,
                         onRetryMessage: _handleRetryMessage,
                         onReactionRemoved: _handleReactionRemoved,
+                        onReactionAdded: _handleReactionAdded,
                         canPinMessages: _cachedCanPinMessages ?? false,
                         canDeleteMessages:
                             true, // Any user can delete messages (local cache only)
