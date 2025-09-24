@@ -65,7 +65,9 @@ class MentionableTextFieldController extends TextEditingController {
     final completedMentions = completedMentionPattern.allMatches(text);
     print('🎨 Found ${completedMentions.length} completed mentions');
     for (final match in completedMentions) {
-      print('🎨 Completed mention: ${match.group(0)} -> id: ${match.group(1)}, name: ${match.group(2)}');
+      print(
+        '🎨 Completed mention: ${match.group(0)} -> id: ${match.group(1)}, name: ${match.group(2)}',
+      );
     }
 
     // First handle completed mentions @[id:name]
@@ -80,7 +82,9 @@ class MentionableTextFieldController extends TextEditingController {
       final placeholder = '__MENTION_${replacementCounter++}__';
       final userName = match.group(2)!;
       mentionReplacements[placeholder] = '@$userName';
-      print('🎨 Replacing "${match.group(0)}" with placeholder "$placeholder" -> display "@$userName"');
+      print(
+        '🎨 Replacing "${match.group(0)}" with placeholder "$placeholder" -> display "@$userName"',
+      );
       return placeholder;
     });
 
@@ -116,7 +120,9 @@ class MentionableTextFieldController extends TextEditingController {
 
       if (mentionReplacements.containsKey(part)) {
         // This is a completed mention - style it in blue with bold
-        print('🎨 Styling completed mention: "$part" -> "${mentionReplacements[part]}"');
+        print(
+          '🎨 Styling completed mention: "$part" -> "${mentionReplacements[part]}"',
+        );
         children.add(
           TextSpan(
             text: mentionReplacements[part]!,
