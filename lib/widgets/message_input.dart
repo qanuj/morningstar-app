@@ -362,18 +362,17 @@ class MessageInputState extends State<MessageInput> {
   }
 
   void _sendTextMessage() {
-    final text = _mentionableController.text.trim();
-    if (text.isEmpty) return;
+    final internalText = _mentionableController.internalText.trim();
+    final displayText = _mentionableController.text.trim();
+    
+    if (internalText.isEmpty) return;
 
-    // Extract mentions from the mentionable text field
+    // Extract mentions from the internal text field (contains @[id:name] format)
     final mentions = <MentionedUser>[];
 
-    // Get the display text (with mentions formatted for UI)
-    String displayText = text;
-
-    // Extract mentions from the text using regex
+    // Extract mentions from the internal text using regex
     final mentionRegex = RegExp(r'@\[([^:]+):([^\]]+)\]');
-    final mentionMatches = mentionRegex.allMatches(text);
+    final mentionMatches = mentionRegex.allMatches(internalText);
 
     for (final match in mentionMatches) {
       final userId = match.group(1);

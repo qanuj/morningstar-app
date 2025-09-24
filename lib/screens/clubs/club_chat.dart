@@ -2057,51 +2057,55 @@ class ClubChatScreenState extends State<ClubChatScreen>
                                 : _buildMessagesList(),
                           ),
                         ),
-
-                        // Mention drawer area - positioned between messages and input
-                        _buildMentionDrawer(),
                       ],
                     ),
                   ),
 
-                  // Footer with reply preview and input - positioned above keyboard
+                  // Footer with mention drawer, reply preview and input - positioned above keyboard
                   Transform.translate(
                     offset: Offset(0, -keyboardHeight),
-                    child: Container(
-                      // No padding - input positioned above keyboard
-                      decoration: BoxDecoration(
-                        color: Colors
-                            .transparent, // Let MessageInput gradient show through
-                        border: Border(
-                          top: BorderSide(
-                            color: isDarkTheme
-                                ? Colors.grey[700]!.withOpacity(0.3)
-                                : Colors.grey[300]!.withOpacity(0.5),
-                            width: 0.5,
+                    child: Column(
+                      children: [
+                        // Mention drawer area - positioned above input
+                        _buildMentionDrawer(),
+                        
+                        Container(
+                          // No padding - input positioned above keyboard
+                          decoration: BoxDecoration(
+                            color: Colors
+                                .transparent, // Let MessageInput gradient show through
+                            border: Border(
+                              top: BorderSide(
+                                color: isDarkTheme
+                                    ? Colors.grey[700]!.withOpacity(0.3)
+                                    : Colors.grey[300]!.withOpacity(0.5),
+                                width: 0.5,
+                              ),
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Reply preview (if replying to a message)
+                              if (_replyingTo != null) _buildReplyPreview(),
+
+                              // Message Input - Positioned above keyboard (hidden during recording mode)
+                              if (!_isInRecordingMode)
+                                MessageInput(
+                                  key: _messageInputKey,
+                                  messageController: _messageController,
+                                  textFieldFocusNode: _textFieldFocusNode,
+                                  clubId: widget.club.id,
+                                  audioRecordingKey: _audioRecordingKey,
+                                  onSendMessage: _handleNewMessage,
+                                  upiId: widget.club.upiId,
+                                  userRole: membership?.role,
+                                  onMentionStateChanged: _onMentionStateChanged,
+                                ),
+                            ],
                           ),
                         ),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Reply preview (if replying to a message)
-                          if (_replyingTo != null) _buildReplyPreview(),
-
-                          // Message Input - Positioned above keyboard (hidden during recording mode)
-                          if (!_isInRecordingMode)
-                            MessageInput(
-                              key: _messageInputKey,
-                              messageController: _messageController,
-                              textFieldFocusNode: _textFieldFocusNode,
-                              clubId: widget.club.id,
-                              audioRecordingKey: _audioRecordingKey,
-                              onSendMessage: _handleNewMessage,
-                              upiId: widget.club.upiId,
-                              userRole: membership?.role,
-                              onMentionStateChanged: _onMentionStateChanged,
-                            ),
-                        ],
-                      ),
+                      ],
                     ),
                   ),
                 ],
