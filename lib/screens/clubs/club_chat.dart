@@ -2068,7 +2068,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
                       children: [
                         // Mention drawer area - positioned above input
                         _buildMentionDrawer(),
-                        
+
                         Container(
                           // No padding - input positioned above keyboard
                           decoration: BoxDecoration(

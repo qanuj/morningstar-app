@@ -363,11 +363,9 @@ class MessageInputState extends State<MessageInput> {
 
   void _sendTextMessage() {
     final internalText = _mentionableController.internalText.trim();
-    final displayText = _mentionableController.text.trim();
-    
-    if (internalText.isEmpty) return;
 
-    // Extract mentions from the internal text field (contains @[id:name] format)
+    if (internalText.isEmpty)
+      return; // Extract mentions from the internal text field (contains @[id:name] format)
     final mentions = <MentionedUser>[];
 
     // Extract mentions from the internal text using regex
@@ -389,8 +387,8 @@ class MessageInputState extends State<MessageInput> {
       }
     }
 
-    // Replace mention format with display format for UI
-    displayText = text.replaceAllMapped(
+    // Create display text by replacing mention format for UI
+    final finalDisplayText = internalText.replaceAllMapped(
       mentionRegex,
       (match) =>
           '@${match.group(2)}', // Show @Username instead of @[id:username]
@@ -409,7 +407,7 @@ class MessageInputState extends State<MessageInput> {
       senderName: 'You',
       senderProfilePicture: null,
       senderRole: 'MEMBER',
-      content: displayText, // Use display text for UI
+      content: finalDisplayText, // Use display text for UI
       messageType: _linkMetadata.isNotEmpty ? 'link' : 'text',
       linkMeta: _linkMetadata, // Include parsed link metadata
       createdAt: DateTime.now(),

@@ -208,10 +208,14 @@ class _MentionableTextFieldState extends State<MentionableTextField> {
 
   void selectMention(Mention mention) {
     print('🎯 selectMention called with: ${mention.name}');
-    print('🎯 _isMentioning: $_isMentioning, _mentionStartIndex: $_mentionStartIndex');
+    print(
+      '🎯 _isMentioning: $_isMentioning, _mentionStartIndex: $_mentionStartIndex',
+    );
 
     if (!_isMentioning || _mentionStartIndex == -1) {
-      print('❌ Cannot select mention - not in mentioning state or invalid start index');
+      print(
+        '❌ Cannot select mention - not in mentioning state or invalid start index',
+      );
       return;
     }
 
@@ -255,11 +259,13 @@ class _MentionableTextFieldState extends State<MentionableTextField> {
       final userName = match.group(2);
 
       if (userId != null && userName != null) {
-        mentions.add(Mention(
-          id: userId,
-          name: userName,
-          role: 'MEMBER', // Default role, can be enhanced
-        ));
+        mentions.add(
+          Mention(
+            id: userId,
+            name: userName,
+            role: 'MEMBER', // Default role, can be enhanced
+          ),
+        );
       }
     }
 
@@ -289,7 +295,9 @@ class _MentionableTextFieldState extends State<MentionableTextField> {
           focusNode: _focusNode,
           maxLines: widget.maxLines,
           minLines: widget.minLines,
-          style: widget.style?.copyWith(color: Colors.transparent), // Make text transparent
+          style: widget.style?.copyWith(
+            color: Colors.transparent,
+          ), // Make text transparent
           decoration: widget.decoration,
           enabled: widget.enabled,
           autofocus: widget.autofocus,
@@ -306,7 +314,7 @@ class _MentionableTextFieldState extends State<MentionableTextField> {
           },
           onSubmitted: widget.onSubmitted,
         ),
-        
+
         // Rich text overlay for styled display
         Positioned.fill(
           child: IgnorePointer(
@@ -330,7 +338,7 @@ class _MentionableTextFieldState extends State<MentionableTextField> {
   Widget _buildStyledText(BuildContext context) {
     final text = widget.controller.text;
     final mentionColor = Color(0xFF003f9b); // Brand dark blue
-    
+
     // Parse text and create spans
     final spans = <TextSpan>[];
     final regex = RegExp(r'@\[([^:]+):([^\]]+)\]|(@\w+)');
@@ -339,31 +347,37 @@ class _MentionableTextFieldState extends State<MentionableTextField> {
     for (final match in regex.allMatches(text)) {
       // Add text before mention
       if (match.start > lastEnd) {
-        spans.add(TextSpan(
-          text: text.substring(lastEnd, match.start),
-          style: widget.style,
-        ));
+        spans.add(
+          TextSpan(
+            text: text.substring(lastEnd, match.start),
+            style: widget.style,
+          ),
+        );
       }
 
       // Add mention span
       if (match.group(2) != null) {
         // Formatted mention @[id:name]
-        spans.add(TextSpan(
-          text: '@${match.group(2)}',
-          style: (widget.style ?? TextStyle()).copyWith(
-            color: mentionColor,
-            fontWeight: FontWeight.w600,
+        spans.add(
+          TextSpan(
+            text: '@${match.group(2)}',
+            style: (widget.style ?? TextStyle()).copyWith(
+              color: mentionColor,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ));
+        );
       } else if (match.group(3) != null) {
         // Simple @username mention
-        spans.add(TextSpan(
-          text: match.group(3)!,
-          style: (widget.style ?? TextStyle()).copyWith(
-            color: mentionColor,
-            fontWeight: FontWeight.w600,
+        spans.add(
+          TextSpan(
+            text: match.group(3)!,
+            style: (widget.style ?? TextStyle()).copyWith(
+              color: mentionColor,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ));
+        );
       }
 
       lastEnd = match.end;
@@ -371,23 +385,15 @@ class _MentionableTextFieldState extends State<MentionableTextField> {
 
     // Add remaining text
     if (lastEnd < text.length) {
-      spans.add(TextSpan(
-        text: text.substring(lastEnd),
-        style: widget.style,
-      ));
+      spans.add(TextSpan(text: text.substring(lastEnd), style: widget.style));
     }
 
     // If no mentions found, show all text normally
     if (spans.isEmpty) {
-      spans.add(TextSpan(
-        text: text,
-        style: widget.style,
-      ));
+      spans.add(TextSpan(text: text, style: widget.style));
     }
 
-    return RichText(
-      text: TextSpan(children: spans),
-    );
+    return RichText(text: TextSpan(children: spans));
   }
 }
 
