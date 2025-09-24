@@ -276,7 +276,7 @@ class BaseMessageBubble extends StatelessWidget {
       );
     }
 
-    return Icon(icon!, size: 10, color: finalIconColor);
+    return Icon(icon, size: 10, color: finalIconColor);
   }
 
   bool _shouldUseColumnLayout() {
