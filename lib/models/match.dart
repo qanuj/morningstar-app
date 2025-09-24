@@ -65,13 +65,15 @@ class MatchListItem {
   /// Extract location name from either string or object format
   static String _extractLocationName(dynamic location) {
     if (location == null) return '';
-    
+
     if (location is String) {
       return location;
     } else if (location is Map<String, dynamic>) {
-      return location['name']?.toString() ?? location['address']?.toString() ?? '';
+      return location['name']?.toString() ??
+          location['address']?.toString() ??
+          '';
     }
-    
+
     return location.toString();
   }
 
@@ -81,15 +83,25 @@ class MatchListItem {
       clubId: json['club']?['id'] ?? '', // Extract from club object
       type: json['type'] ?? '',
       location: _extractLocationName(json['location']),
-      opponent: json['opponent'] ?? json['opponentClub']?['name'], // Use opponent or opponentClub name
+      opponent:
+          json['opponent'] ??
+          json['opponentClub']?['name'], // Use opponent or opponentClub name
       notes: json['notes'],
       spots: json['spots'] ?? 13,
       matchDate: DateTime.parse(json['matchDate']),
-      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now(),
-      updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : DateTime.now(),
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'])
+          : DateTime.now(),
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'])
+          : DateTime.now(),
       hideUntilRSVP: json['hideUntilRSVP'] ?? false,
-      rsvpAfterDate: json['rsvpAfterDate'] != null ? DateTime.parse(json['rsvpAfterDate']) : null,
-      rsvpBeforeDate: json['rsvpBeforeDate'] != null ? DateTime.parse(json['rsvpBeforeDate']) : null,
+      rsvpAfterDate: json['rsvpAfterDate'] != null
+          ? DateTime.parse(json['rsvpAfterDate'])
+          : null,
+      rsvpBeforeDate: json['rsvpBeforeDate'] != null
+          ? DateTime.parse(json['rsvpBeforeDate'])
+          : null,
       notifyMembers: json['notifyMembers'] ?? true,
       isCancelled: json['isCancelled'] ?? false,
       cancellationReason: json['cancellationReason'],
@@ -101,13 +113,19 @@ class MatchListItem {
       canRsvp: json['canRsvp'] ?? true,
       availableSpots: json['availableSpots'] ?? (json['spots'] ?? 13),
       confirmedPlayers: json['confirmedPlayers'] ?? 0,
-      userRsvp: json['userRsvp'] != null ? MatchRSVPSimple.fromJson(json['userRsvp']) : null,
-      rsvps: (json['rsvps'] as List?)
-          ?.whereType<Map<String, dynamic>>()
-          .map(MatchRSVP.fromJson)
-          .toList() ?? const [],
+      userRsvp: json['userRsvp'] != null
+          ? MatchRSVPSimple.fromJson(json['userRsvp'])
+          : null,
+      rsvps:
+          (json['rsvps'] as List?)
+              ?.whereType<Map<String, dynamic>>()
+              .map(MatchRSVP.fromJson)
+              .toList() ??
+          const [],
       team: json['team'] != null ? Team.fromJson(json['team']) : null,
-      opponentTeam: json['opponentTeam'] != null ? Team.fromJson(json['opponentTeam']) : null,
+      opponentTeam: json['opponentTeam'] != null
+          ? Team.fromJson(json['opponentTeam'])
+          : null,
     );
   }
 
@@ -190,11 +208,7 @@ class ClubModel {
   final String name;
   final String? logo;
 
-  ClubModel({
-    required this.id,
-    required this.name,
-    this.logo,
-  });
+  ClubModel({required this.id, required this.name, this.logo});
 
   factory ClubModel.fromJson(Map<String, dynamic> json) {
     return ClubModel(
@@ -205,10 +219,6 @@ class ClubModel {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'logo': logo,
-    };
+    return {'id': id, 'name': name, 'logo': logo};
   }
 }
