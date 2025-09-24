@@ -23,6 +23,7 @@ import '../services/open_graph_service.dart';
 import '../services/chat_api_service.dart';
 import 'package:provider/provider.dart';
 import '../providers/club_provider.dart';
+import '../providers/user_provider.dart';
 
 /// A comprehensive self-contained message input widget for chat functionality
 /// Handles text input, file attachments, camera capture, and audio recording
@@ -155,6 +156,10 @@ class MessageInputState extends State<MessageInput> {
     try {
       print('🔍 Searching mentions for: "$query"');
 
+      // Get current user ID to filter out self
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final currentUserId = userProvider.user?.id;
+
       // Use the new centralized caching system with case-insensitive search
       final response = await ChatApiService.searchMembers(
         widget.clubId,
@@ -171,6 +176,7 @@ class MessageInputState extends State<MessageInput> {
               role: member['role'],
             ),
           )
+          .where((mention) => mention.id != currentUserId) // Filter out current user
           .toList();
 
       if (mounted) {
