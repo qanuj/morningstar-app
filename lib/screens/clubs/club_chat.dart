@@ -421,31 +421,39 @@ class ClubChatScreenState extends State<ClubChatScreen>
         // Use existing messages as base to avoid rebuilding all widgets
         List<ClubMessage> currentMessages = List.from(_messages);
         bool hasNewAdditions = false;
+        bool hasUpdates = false;
 
-        // Only add truly new messages (avoid duplicates with smart matching)
+        // Process new/updated messages (avoid duplicates with smart matching)
         for (final newMessage in newMessages) {
           final existingIndex = _findExistingMessageIndex(
             currentMessages,
             newMessage,
           );
           if (existingIndex != -1) {
-            // Update existing message (replace temp with real message)
+            // Update existing message (reactions, pins, status changes, etc.)
+            final oldMessage = currentMessages[existingIndex];
             currentMessages[existingIndex] = newMessage;
+            hasUpdates = true;
+            
+            debugPrint('🔄 Updated existing message: ${newMessage.id}');
+            debugPrint('   Reactions: ${oldMessage.reactions.length} → ${newMessage.reactions.length}');
+            debugPrint('   Pin: ${oldMessage.pin.isPinned} → ${newMessage.pin.isPinned}');
           } else {
             // Add new message - this is a true addition
             currentMessages.add(newMessage);
             hasNewAdditions = true;
+            debugPrint('➕ Added new message: ${newMessage.id}');
           }
         }
 
-        // Only sort and setState if there are actual new additions
-        if (hasNewAdditions) {
+        // Update UI if there are any changes (new additions OR updates)
+        if (hasNewAdditions || hasUpdates) {
           // Sort by creation time
           currentMessages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
           // Update state with incremental changes
           debugPrint(
-            '📱 Updating UI state with ${currentMessages.length} messages',
+            '📱 Updating UI state with ${currentMessages.length} messages (${hasNewAdditions ? 'new' : ''}${hasNewAdditions && hasUpdates ? '+' : ''}${hasUpdates ? 'updated' : ''})',
           );
           setState(() {
             _messages = currentMessages;
@@ -453,8 +461,8 @@ class ClubChatScreenState extends State<ClubChatScreen>
           });
           debugPrint('✅ UI state updated successfully');
         } else {
-          // No new messages, just update loading state
-          debugPrint('ℹ️ No new messages found, just updating loading state');
+          // No changes at all, just update loading state
+          debugPrint('ℹ️ No changes found, just updating loading state');
           setState(() {
             _isLoading = false;
           });
