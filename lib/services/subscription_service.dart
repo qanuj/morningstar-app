@@ -23,11 +23,13 @@ class SubscriptionService {
   List<ProductDetails> _products = [];
   bool _isAvailable = false;
   bool _purchasePending = false;
+  bool _purchaseCancelled = false;
   String? _queryProductError;
 
   // Getters
   bool get isAvailable => _isAvailable;
   bool get purchasePending => _purchasePending;
+  bool get purchaseCancelled => _purchaseCancelled;
   List<ProductDetails> get products => _products;
   String? get queryProductError => _queryProductError;
 
@@ -123,6 +125,8 @@ class SubscriptionService {
 
     try {
       _purchasePending = true;
+      _purchaseCancelled =
+          false; // Reset cancellation flag on new purchase attempt
       print('Purchase pending set to true');
 
       if (Platform.isIOS) {
@@ -163,6 +167,8 @@ class SubscriptionService {
         _purchasePending = true;
       } else {
         _purchasePending = false;
+        _purchaseCancelled =
+            false; // Reset cancellation flag when purchase completes
 
         if (purchaseDetails.status == PurchaseStatus.error) {
           print('PURCHASE ERROR: ${purchaseDetails.error}');
@@ -198,6 +204,17 @@ class SubscriptionService {
 
   void _handleError(IAPError error) {
     debugPrint('Purchase failed: ${error.message}');
+    debugPrint('Error code: ${error.code}');
+
+    // Check if this is a user cancellation
+    if (error.code == 'user_cancelled' ||
+        error.code == 'payment_cancelled' ||
+        error.message.toLowerCase().contains('cancelled') ||
+        error.message.toLowerCase().contains('canceled')) {
+      debugPrint('User cancelled the purchase');
+      _purchaseCancelled = true;
+    }
+
     // Handle purchase errors - show user-friendly messages
   }
 

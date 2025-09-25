@@ -8,8 +8,10 @@ import 'dart:convert';
 import '../../widgets/custom_app_bar.dart';
 import '../../services/api_service.dart';
 import '../../services/subscription_service.dart';
+import '../../services/file_upload_service.dart';
 import '../../providers/club_provider.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:file_picker/file_picker.dart';
 
 class CreateClubScreen extends StatefulWidget {
   const CreateClubScreen({super.key});
@@ -35,6 +37,9 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
   List<ProductDetails> _availablePlans = [];
   bool _loadingPlans = true;
   final SubscriptionService _subscriptionService = SubscriptionService();
+
+  // Processing status
+  String _processingStatus = 'Creating your club...';
 
   @override
   void initState() {
@@ -259,11 +264,58 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: DuggyAppBar(subtitle: 'Create Club'),
-      body: _buildStepContent(),
+    return WillPopScope(
+      onWillPop: () async {
+        await _onBackPressed();
+        return true;
+      },
+      child: Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        appBar: DuggyAppBar(subtitle: 'Create Club'),
+        body: _buildStepContent(),
+      ),
     );
+  }
+
+  Future<void> _onBackPressed() async {
+    // If user is in processing step, prevent going back unless they confirm
+    if (_currentStep == CreateClubStep.processing) {
+      final shouldCancel = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: Text('Cancel Club Creation?'),
+          content: Text(
+            'Your club is being created. Are you sure you want to cancel? This will stop the process and clear your data.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text('Continue Creating'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text('Cancel Creation'),
+            ),
+          ],
+        ),
+      );
+
+      if (shouldCancel == true) {
+        print('User cancelled club creation during processing');
+        await _clearCachedClubData();
+        setState(() {
+          _isProcessing = false;
+          _currentStep = CreateClubStep.confirmation;
+          _processingStatus = 'Creating your club...';
+        });
+      }
+      return;
+    }
+
+    // Clear cache when user exits the club creation flow
+    print('User exiting club creation, clearing cached data...');
+    await _clearCachedClubData();
   }
 
   Widget _buildStepContent() {
@@ -681,7 +733,7 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
           CircularProgressIndicator(color: Theme.of(context).primaryColor),
           SizedBox(height: 24),
           Text(
-            'Creating your club...',
+            _processingStatus,
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
           ),
           SizedBox(height: 8),
@@ -931,6 +983,42 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
     }
   }
 
+  /// Upload club logo if selected and return the uploaded URL
+  Future<String?> _uploadClubLogo() async {
+    if (_clubLogoFile == null) {
+      print('No logo file selected to upload');
+      return null;
+    }
+
+    try {
+      print('Uploading club logo: ${_clubLogoFile!.path}');
+      
+      // Convert File to PlatformFile for upload service
+      final bytes = await _clubLogoFile!.readAsBytes();
+      final fileName = _clubLogoFile!.path.split('/').last;
+      
+      final platformFile = PlatformFile(
+        name: fileName,
+        size: bytes.length,
+        bytes: bytes,
+        path: _clubLogoFile!.path,
+      );
+
+      final uploadedUrl = await FileUploadService.uploadFile(platformFile);
+      
+      if (uploadedUrl != null) {
+        print('Club logo uploaded successfully: $uploadedUrl');
+        return uploadedUrl;
+      } else {
+        print('Failed to upload club logo');
+        return null;
+      }
+    } catch (e) {
+      print('Error uploading club logo: $e');
+      return null;
+    }
+  }
+
   /// Get subscription data from recent purchase for database storage
   Future<Map<String, dynamic>?> _getSubscriptionData() async {
     if (_selectedPlanId == null) return null;
@@ -1072,10 +1160,35 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
       print('Verifying subscription for plan: ${_selectedPlan?.id}');
       print('Environment: Sandbox/Testing Mode');
 
+      setState(() {
+        _processingStatus = 'Verifying subscription...';
+      });
+
       final subscriptionVerified = await _verifySubscription();
       print('Subscription verification result: $subscriptionVerified');
 
       if (!subscriptionVerified) {
+        // Check if the issue was payment cancellation
+        if (_subscriptionService.purchaseCancelled) {
+          print('CLUB CREATION CANCELLED: User cancelled payment');
+          // Show user-friendly cancellation message and return to previous step
+          if (mounted) {
+            setState(() {
+              _isProcessing = false;
+              _currentStep = CreateClubStep.confirmation;
+            });
+            
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Club creation cancelled. You can try again anytime.'),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+          return; // Exit early, don't proceed with club creation
+        }
+
         print('ERROR: Subscription verification failed');
 
         // In sandbox mode, be more lenient - just log the issue and proceed
@@ -1090,7 +1203,33 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
       // Give a small delay to ensure subscription is fully processed
       await Future.delayed(Duration(seconds: 1));
 
-      // Step 2: Prepare club data with subscription details
+      // Step 2: Upload club logo if selected
+      String? logoUrl;
+      if (_clubLogoFile != null) {
+        setState(() {
+          _processingStatus = 'Uploading club logo...';
+        });
+        
+        print('Uploading club logo before creating club...');
+        logoUrl = await _uploadClubLogo();
+        if (logoUrl == null) {
+          print('WARNING: Logo upload failed, proceeding without logo');
+          // Show warning to user but continue with club creation
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Logo upload failed, but club will be created without logo'),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        } else {
+          print('Logo uploaded successfully: $logoUrl');
+        }
+      }
+
+      // Step 3: Prepare club data with subscription details and logo
       final subscriptionData = await _getSubscriptionData();
 
       final clubData = {
@@ -1102,6 +1241,8 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
         'membershipFee': 0,
         'membershipFeeCurrency': 'INR',
         'upiIdCurrency': 'INR',
+        // Include logo URL if uploaded successfully
+        if (logoUrl != null) 'logoUrl': logoUrl,
         // Convert mobile product ID to server plan key
         if (_selectedPlanId != null)
           'planKey': _getServerPlanKey(_selectedPlanId!),
@@ -1113,7 +1254,11 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
       print('Club data: $clubData');
       print('API endpoint: /clubs');
 
-      // Step 3: Create club via API (with subscription already verified)
+      // Step 4: Create club via API (with subscription already verified and logo uploaded)
+      setState(() {
+        _processingStatus = 'Creating club...';
+      });
+      
       try {
         final response = await ApiService.post('/clubs', clubData);
         print('SUCCESS: Club creation API response: $response');
@@ -1130,6 +1275,10 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
         // Clear cached clubs data to ensure fresh load
         await ApiService.clearClubsCache();
         print('Cleared clubs cache');
+
+        setState(() {
+          _processingStatus = 'Finalizing club setup...';
+        });
 
         // Refresh clubs cache to get the new club (include pending in case of timing issues)
         final clubProvider = Provider.of<ClubProvider>(context, listen: false);
@@ -1208,6 +1357,10 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
       print('Error message: $e');
       print('Stack trace: ${StackTrace.current}');
 
+      // Clear cached club data on any club creation error
+      print('Clearing cached club data due to club creation error...');
+      await _clearCachedClubData();
+
       if (mounted) {
         setState(() {
           _isProcessing = false;
@@ -1216,8 +1369,12 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
 
         String errorMessage = 'Failed to create club. Please try again.';
 
+        // Check if this was a payment cancellation first
+        if (_subscriptionService.purchaseCancelled) {
+          errorMessage = 'Club creation cancelled. You can try again anytime.';
+        }
         // Parse error response if it's an API error
-        if (e.toString().contains('CLUB_LIMIT_REACHED')) {
+        else if (e.toString().contains('CLUB_LIMIT_REACHED')) {
           errorMessage =
               'You can only create one club per subscription. You already have an active club.';
         } else if (e.toString().contains('SUBSCRIPTION_REQUIRED')) {
@@ -1246,10 +1403,16 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
 
         print('Showing error message: $errorMessage');
 
+        // Use different colors for different types of messages
+        Color backgroundColor = Colors.red;
+        if (_subscriptionService.purchaseCancelled) {
+          backgroundColor = Colors.orange; // More neutral color for cancellation
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMessage),
-            backgroundColor: Colors.red,
+            backgroundColor: backgroundColor,
             duration: Duration(seconds: 4),
           ),
         );
@@ -1338,7 +1501,20 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
       print('Purchase attempt result: $purchaseResult');
 
       if (!purchaseResult) {
-        print('ERROR: Purchase failed for plan: $_selectedPlanId');
+        // Check if the purchase was specifically cancelled by the user
+        final wasCancelled = _subscriptionService.purchaseCancelled;
+        
+        if (wasCancelled) {
+          print('PAYMENT CANCELLED: User cancelled the purchase for plan: $_selectedPlanId');
+          print('Clearing cached club data due to payment cancellation...');
+        } else {
+          print('ERROR: Purchase failed for plan: $_selectedPlanId');
+          print('Clearing cached club data due to payment failure...');
+        }
+        
+        // Clear cached club data when payment fails or is cancelled
+        await _clearCachedClubData();
+        
         return false;
       }
 
