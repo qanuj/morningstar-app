@@ -1012,7 +1012,7 @@ class TransactionsScreenState extends State<TransactionsScreen> {
     final hasMultipleClubs = userClubCount > 1;
 
     return Padding(
-      padding: EdgeInsets.all(8),
+      padding: EdgeInsets.all(6), // Reduced padding from 8 to 6
       child: Column(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
@@ -1023,20 +1023,20 @@ class TransactionsScreenState extends State<TransactionsScreen> {
               if (club['logo'] != null) ...[
                 SVGAvatar(
                   imageUrl: club['logo'],
-                  size: 24,
+                  size: 22, // Reduced from 24 to 22
                   backgroundColor: Theme.of(
                     context,
                   ).colorScheme.primary.withOpacity(0.1),
                   fallbackIcon: Icons.account_balance,
-                  iconSize: 12,
+                  iconSize: 11, // Reduced from 12 to 11
                 ),
-                SizedBox(width: 8),
+                SizedBox(width: 6), // Reduced from 8 to 6
               ],
               Expanded(
                 child: Text(
                   club['name'],
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 13, // Reduced from 14 to 13
                     fontWeight: FontWeight.w600,
                     color: Theme.of(context).colorScheme.onSurface,
                   ),
@@ -1056,12 +1056,12 @@ class TransactionsScreenState extends State<TransactionsScreen> {
                     _applyFilters();
                   },
                   child: Padding(
-                    padding: EdgeInsets.all(4),
+                    padding: EdgeInsets.all(3), // Reduced from 4 to 3
                     child: Icon(
                       _selectedClubId == club['id']
                           ? Icons.push_pin
                           : Icons.push_pin_outlined,
-                      size: 16,
+                      size: 15, // Reduced from 16 to 15
                       color: _selectedClubId == club['id']
                           ? Theme.of(context).colorScheme.primary
                           : Theme.of(
@@ -1072,79 +1072,91 @@ class TransactionsScreenState extends State<TransactionsScreen> {
                 ),
             ],
           ),
-          SizedBox(height: 4),
+          SizedBox(height: 2), // Reduced from 4 to 2
 
           // Balance Amount
-          Text(
-            _formatCurrencyAmount(club['balance'], club['currency']),
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: club['balance'] >= 0
-                  ? AppTheme.successGreen
-                  : AppTheme.errorRed,
+          Flexible( // Wrapped in Flexible to prevent overflow
+            child: Text(
+              _formatCurrencyAmount(club['balance'], club['currency']),
+              style: TextStyle(
+                fontSize: 20, // Reduced from 22 to 20
+                fontWeight: FontWeight.w700,
+                color: club['balance'] >= 0
+                    ? AppTheme.successGreen
+                    : AppTheme.errorRed,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           Text(
             club['id'] == 'all' ? 'Total Balance' : 'Club Balance',
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 9, // Reduced from 10 to 9
               color: Theme.of(context).textTheme.bodyMedium?.color,
             ),
           ),
-          SizedBox(height: 4),
+          SizedBox(height: 2), // Reduced from 4 to 2
 
           // Credits and Debits Row
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  children: [
-                    Text(
-                      _formatCurrencyAmount(club['credits'], club['currency']),
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.successGreen,
+          Flexible( // Wrapped in Flexible to prevent overflow
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min, // Added to minimize space
+                    children: [
+                      Text(
+                        _formatCurrencyAmount(club['credits'], club['currency']),
+                        style: TextStyle(
+                          fontSize: 11, // Reduced from 12 to 11
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.successGreen,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    Text(
-                      'Credits',
-                      style: TextStyle(
-                        fontSize: 9,
-                        color: Theme.of(context).textTheme.bodySmall?.color,
+                      Text(
+                        'Credits',
+                        style: TextStyle(
+                          fontSize: 8, // Reduced from 9 to 8
+                          color: Theme.of(context).textTheme.bodySmall?.color,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              Container(
-                width: 1,
-                height: 20,
-                color: Theme.of(context).dividerColor.withOpacity(0.3),
-              ),
-              Expanded(
-                child: Column(
-                  children: [
-                    Text(
-                      _formatCurrencyAmount(club['debits'], club['currency']),
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.errorRed,
-                      ),
-                    ),
-                    Text(
-                      'Debits',
-                      style: TextStyle(
-                        fontSize: 9,
-                        color: Theme.of(context).textTheme.bodySmall?.color,
-                      ),
-                    ),
-                  ],
+                Container(
+                  width: 1,
+                  height: 18, // Reduced from 20 to 18
+                  color: Theme.of(context).dividerColor.withOpacity(0.3),
                 ),
-              ),
-            ],
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min, // Added to minimize space
+                    children: [
+                      Text(
+                        _formatCurrencyAmount(club['debits'], club['currency']),
+                        style: TextStyle(
+                          fontSize: 11, // Reduced from 12 to 11
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.errorRed,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        'Debits',
+                        style: TextStyle(
+                          fontSize: 8, // Reduced from 9 to 8
+                          color: Theme.of(context).textTheme.bodySmall?.color,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

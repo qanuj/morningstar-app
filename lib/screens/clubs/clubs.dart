@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:io';
 import '../../providers/club_provider.dart';
 import '../../models/club.dart';
 import '../../widgets/custom_app_bar.dart';
@@ -16,19 +17,55 @@ class ClubsScreen extends StatefulWidget {
 
 class ClubsScreenState extends State<ClubsScreen> {
   bool _isLoading = false;
+  bool _hasOwnedClubs = false;
+  bool _checkingOwnership = false;
 
   @override
   void initState() {
     super.initState();
+    _checkingOwnership = true;
     // Load clubs using cache first for faster startup
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<ClubProvider>(context, listen: false).loadClubs();
+      _checkUserOwnedClubs();
     });
+  }
+
+  Future<void> _checkUserOwnedClubs() async {
+    if (!Platform.isIOS && !Platform.isAndroid) {
+      setState(() {
+        _checkingOwnership = false;
+        _hasOwnedClubs = false;
+      });
+      return;
+    }
+
+    try {
+      final clubProvider = Provider.of<ClubProvider>(context, listen: false);
+      await clubProvider.loadClubs(); // Ensure clubs are loaded
+
+      // Check if user owns any clubs
+      bool hasOwnedClubs = clubProvider.clubs.any(
+        (membership) => membership.role == 'OWNER',
+      );
+
+      setState(() {
+        _hasOwnedClubs = hasOwnedClubs;
+        _checkingOwnership = false;
+      });
+    } catch (e) {
+      print('Error checking user owned clubs: $e');
+      setState(() {
+        _checkingOwnership = false;
+        _hasOwnedClubs = false;
+      });
+    }
   }
 
   Future<void> _loadClubs() async {
     setState(() => _isLoading = true);
     await Provider.of<ClubProvider>(context, listen: false).refreshClubs();
+    await _checkUserOwnedClubs();
     setState(() => _isLoading = false);
   }
 
@@ -39,11 +76,29 @@ class ClubsScreenState extends State<ClubsScreen> {
       appBar: DuggyAppBar(
         subtitle: 'Clubs',
         actions: [
-          IconButton(
-            icon: Icon(Icons.add),
-            onPressed: _showCreateClubDialog,
-            tooltip: 'Create new club',
-          ),
+          if (_checkingOwnership)
+            Padding(
+              padding: EdgeInsets.all(16),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Theme.of(context).primaryColor,
+                ),
+              ),
+            )
+          else if (!_hasOwnedClubs)
+            TextButton(
+              onPressed: _navigateToCreateClub,
+              child: Text(
+                'Run Club?',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
         ],
       ),
       body: Consumer<ClubProvider>(
@@ -67,135 +122,150 @@ class ClubsScreenState extends State<ClubsScreen> {
                       physics: AlwaysScrollableScrollPhysics(),
                       child: Container(
                         height: MediaQuery.of(context).size.height - 200,
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              padding: EdgeInsets.all(32),
-                              decoration: BoxDecoration(
-                                color: Theme.of(
-                                  context,
-                                ).primaryColor.withOpacity(0.1),
-                                shape: BoxShape.circle,
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: EdgeInsets.all(32),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(
+                                    context,
+                                  ).primaryColor.withOpacity(0.1),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.groups_outlined,
+                                  size: 64,
+                                  color: Theme.of(context).primaryColor,
+                                ),
                               ),
-                              child: Icon(
-                                Icons.groups_outlined,
-                                size: 64,
-                                color: Theme.of(context).primaryColor,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            Text(
-                              'No clubs found',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w600,
-                                color: Theme.of(
-                                  context,
-                                ).textTheme.titleLarge?.color,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 32),
-                              child: Text(
-                                'You are not a member of any cricket club yet. Create your own club or ask your club admin to invite you.',
+                              const SizedBox(height: 24),
+                              Text(
+                                'No clubs found',
                                 style: TextStyle(
-                                  fontSize: 16,
-                                  color: Theme.of(context).textTheme.bodyMedium?.color,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-
-                            const SizedBox(height: 16),
-
-                            // Club Owner Note
-                            Container(
-                              margin: EdgeInsets.symmetric(horizontal: 24),
-                              padding: EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).primaryColor.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: Theme.of(context).primaryColor.withOpacity(0.2),
-                                  width: 1,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(
+                                    context,
+                                  ).textTheme.titleLarge?.color,
                                 ),
                               ),
-                              child: Row(
+                              const SizedBox(height: 12),
+                              Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 32),
+                                child: Text(
+                                  'You are not a member of any cricket club yet. Create your own club or ask your club admin to invite you.',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Theme.of(
+                                      context,
+                                    ).textTheme.bodyMedium?.color,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+
+                              const SizedBox(height: 16),
+
+                              // Club Owner Note
+                              Container(
+                                margin: EdgeInsets.symmetric(horizontal: 24),
+                                padding: EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(
+                                    context,
+                                  ).primaryColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Theme.of(
+                                      context,
+                                    ).primaryColor.withOpacity(0.2),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.lightbulb_outline,
+                                      size: 20,
+                                      color: Theme.of(context).primaryColor,
+                                    ),
+                                    SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        'Club Owner? Create your club to manage members, matches, and more.',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Theme.of(context).primaryColor,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 32),
+
+                              // Create Club Button
+                              ElevatedButton.icon(
+                                onPressed: _showCreateClubDialog,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Theme.of(
+                                    context,
+                                  ).primaryColor,
+                                  foregroundColor: Colors.white,
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 24,
+                                    vertical: 12,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  elevation: 2,
+                                ),
+                                icon: Icon(Icons.add, size: 20),
+                                label: Text(
+                                  'Create New Club',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(height: 24),
+
+                              // Pull to refresh hint
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Icon(
-                                    Icons.lightbulb_outline,
-                                    size: 20,
-                                    color: Theme.of(context).primaryColor,
+                                    Icons.refresh,
+                                    size: 16,
+                                    color: Theme.of(
+                                      context,
+                                    ).primaryColor.withOpacity(0.7),
                                   ),
-                                  SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      'Club Owner? Create your club to manage members, matches, and more.',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Theme.of(context).primaryColor,
-                                        fontWeight: FontWeight.w500,
-                                      ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Pull down to refresh',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Theme.of(
+                                        context,
+                                      ).primaryColor.withOpacity(0.7),
+                                      fontStyle: FontStyle.italic,
                                     ),
                                   ),
                                 ],
                               ),
-                            ),
-                            const SizedBox(height: 32),
-
-                            // Create Club Button
-                            ElevatedButton.icon(
-                              onPressed: _showCreateClubDialog,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Theme.of(context).primaryColor,
-                                foregroundColor: Colors.white,
-                                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                elevation: 2,
-                              ),
-                              icon: Icon(Icons.add, size: 20),
-                              label: Text(
-                                'Create New Club',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-
-                            const SizedBox(height: 24),
-
-                            // Pull to refresh hint
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.refresh,
-                                  size: 16,
-                                  color: Theme.of(context).primaryColor.withOpacity(0.7),
-                                ),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Pull down to refresh',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Theme.of(context).primaryColor.withOpacity(0.7),
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                )
+                  )
                 : Container(
                     color: Theme.of(context).brightness == Brightness.dark
                         ? Theme.of(context).colorScheme.surface
@@ -284,11 +354,7 @@ class ClubsScreenState extends State<ClubsScreen> {
                             width: 2,
                           ),
                         ),
-                        child: Icon(
-                          Icons.circle,
-                          color: Colors.red,
-                          size: 10,
-                        ),
+                        child: Icon(Icons.circle, color: Colors.red, size: 10),
                       ),
                     ),
                 ],
@@ -325,7 +391,9 @@ class ClubsScreenState extends State<ClubsScreen> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 13,
-                          color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.8),
+                          color: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium?.color?.withOpacity(0.8),
                           height: 1.2,
                         ),
                       )
@@ -383,7 +451,9 @@ class ClubsScreenState extends State<ClubsScreen> {
                         _formatMessageTime(club.latestMessage!.createdAt),
                         style: TextStyle(
                           fontSize: 12,
-                          color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6),
+                          color: Theme.of(
+                            context,
+                          ).textTheme.bodySmall?.color?.withOpacity(0.6),
                         ),
                       ),
                     SizedBox(height: 4),
@@ -424,13 +494,22 @@ class ClubsScreenState extends State<ClubsScreen> {
     ).push(MaterialPageRoute(builder: (context) => CreateClubScreen()));
   }
 
+  void _navigateToCreateClub() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => CreateClubScreen()));
+  }
 
   String _formatMessageTime(DateTime messageTime) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final messageDate = DateTime(messageTime.year, messageTime.month, messageTime.day);
+    final messageDate = DateTime(
+      messageTime.year,
+      messageTime.month,
+      messageTime.day,
+    );
     final yesterday = today.subtract(Duration(days: 1));
-    
+
     final difference = now.difference(messageTime);
 
     if (messageDate == today) {
@@ -445,7 +524,15 @@ class ClubsScreenState extends State<ClubsScreen> {
       return 'Yesterday';
     } else if (difference.inDays <= 7) {
       // Within the last week - show day name
-      final weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      final weekdays = [
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday',
+        'Sunday',
+      ];
       return weekdays[messageTime.weekday - 1];
     } else {
       // More than a week ago - show date in MM-dd-YYYY format
@@ -455,5 +542,4 @@ class ClubsScreenState extends State<ClubsScreen> {
       return '$month-$day-$year';
     }
   }
-
 }

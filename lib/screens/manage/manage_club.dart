@@ -10,6 +10,8 @@ import 'club_settings.dart';
 import 'club_matches.dart';
 import 'club_teams_screen.dart';
 import '../club_invite_qr_screen.dart';
+import '../clubs/subscription_management_screen.dart';
+import '../../services/api_service.dart';
 
 class ManageClubScreen extends StatefulWidget {
   final Club club;
@@ -26,6 +28,9 @@ class ManageClubScreen extends StatefulWidget {
 }
 
 class ManageClubScreenState extends State<ManageClubScreen> {
+  Map<String, dynamic>? _subscriptionData;
+  bool _loadingSubscription = true;
+
   @override
   void initState() {
     super.initState();
@@ -33,6 +38,7 @@ class ManageClubScreenState extends State<ManageClubScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final clubProvider = Provider.of<ClubProvider>(context, listen: false);
       clubProvider.refreshClubs();
+      _loadSubscriptionData();
     });
   }
 
@@ -41,11 +47,29 @@ class ManageClubScreenState extends State<ManageClubScreen> {
     await clubProvider.refreshClubs();
   }
 
+  Future<void> _loadSubscriptionData() async {
+    try {
+      final response = await ApiService.get(
+        '/clubs/${widget.club.id}/subscription',
+      );
+      setState(() {
+        _subscriptionData = response;
+        _loadingSubscription = false;
+      });
+    } catch (e) {
+      setState(() {
+        _loadingSubscription = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Check if user is admin or owner
-    final isAdminOrOwner = widget.membership.role.toLowerCase() == 'admin' ||
-                          widget.membership.role.toLowerCase() == 'owner';
+    final isAdminOrOwner =
+        widget.membership.role.toLowerCase() == 'admin' ||
+        widget.membership.role.toLowerCase() == 'owner';
+    final isOwner = widget.membership.role.toLowerCase() == 'owner';
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -268,6 +292,12 @@ class ManageClubScreenState extends State<ManageClubScreen> {
 
                     SizedBox(height: 16),
 
+                    // Subscription Card - Only for owners
+                    if (isOwner) ...[
+                      _buildSubscriptionCard(),
+                      SizedBox(height: 16),
+                    ],
+
                     // Management Options List
                     Card(
                       elevation: 3,
@@ -281,7 +311,8 @@ class ManageClubScreenState extends State<ManageClubScreen> {
                             _buildExpandableSection(
                               icon: Icons.people_outline,
                               title: 'Members',
-                              subtitle: 'Manage club members, balances & points',
+                              subtitle:
+                                  'Manage club members, balances & points',
                               onTap: () {
                                 Navigator.of(context).push(
                                   MaterialPageRoute(
@@ -463,6 +494,181 @@ class ManageClubScreenState extends State<ManageClubScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => ClubInviteQRScreen(club: club)),
+    );
+  }
+
+  Widget _buildSubscriptionCard() {
+    if (_loadingSubscription) {
+      return Card(
+        elevation: 3,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 16),
+              Text(
+                'Loading subscription...',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_subscriptionData == null) {
+      return SizedBox.shrink();
+    }
+
+    final responseData = _subscriptionData!;
+    final subscription = responseData['subscription'] ?? {};
+    final currentPlan = responseData['currentPlan'] ?? {};
+    final memberUsage = responseData['memberUsage'] ?? {};
+
+    final currentMembers = memberUsage['current'] ?? 0;
+    final maxMembers = memberUsage['limit'] ?? 100;
+    final planName = currentPlan['name'] ?? 'Unknown Plan';
+    final status = subscription['status'] ?? 'Unknown';
+    final isActive = status.toLowerCase() == 'active';
+
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: InkWell(
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) =>
+                  SubscriptionManagementScreen(specificClubId: widget.club.id),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.card_membership_outlined,
+                    color: Theme.of(context).primaryColor,
+                    size: 24,
+                  ),
+                  SizedBox(width: 12),
+                  Text(
+                    'Subscription',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                  Spacer(),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isActive
+                          ? Colors.green.withOpacity(0.1)
+                          : Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      status.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isActive
+                            ? Colors.green[700]
+                            : Colors.orange[700],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Plan',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(
+                              context,
+                            ).textTheme.bodyMedium?.color,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          planName,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Member Usage',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(
+                              context,
+                            ).textTheme.bodyMedium?.color,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          '$currentMembers/$maxMembers',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: maxMembers > 0 ? currentMembers / maxMembers : 0,
+                  backgroundColor: Colors.grey[300],
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    currentMembers / maxMembers > 0.8
+                        ? Colors.orange
+                        : Theme.of(context).primaryColor,
+                  ),
+                  minHeight: 8,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
