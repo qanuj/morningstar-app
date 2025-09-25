@@ -294,7 +294,8 @@ class ProfileScreenState extends State<ProfileScreen> {
                               onTap: () {
                                 Navigator.of(context).push(
                                   MaterialPageRoute(
-                                    builder: (context) => const ShareTestScreen(),
+                                    builder: (context) =>
+                                        const ShareTestScreen(),
                                   ),
                                 );
                               },
@@ -306,7 +307,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                               ).dividerColor.withOpacity(0.3),
                             ),
                           ],
-                          
+
                           // Personal Information Section
                           _buildExpandableSection(
                             icon: Icons.person_outline,
@@ -381,8 +382,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                               onTap: () {
                                 Navigator.of(context).push(
                                   MaterialPageRoute(
-                                    builder: (context) =>
-                                        NetworkTimingScreen(),
+                                    builder: (context) => NetworkTimingScreen(),
                                   ),
                                 );
                               },
