@@ -10,7 +10,6 @@ import '../clubs/clubs.dart';
 import '../matches/matches.dart';
 import '../wallet/transactions.dart';
 import '../settings/profile.dart';
-import '../../debug/share_test_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -116,36 +115,7 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         },
       ),
-      // Admin tools floating action button (admin only)
-      floatingActionButton: Consumer<UserProvider>(
-        builder: (context, userProvider, child) {
-          final isAdmin = userProvider.user?.role.toUpperCase() == 'ADMIN';
 
-          // Only show admin tools for admin users
-          if (isAdmin) {
-            return FloatingActionButton(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const ShareTestScreen(),
-                  ),
-                );
-              },
-              backgroundColor: Colors.grey[700],
-              tooltip: 'Admin Tools',
-              heroTag: "admin_tools",
-              child: const Icon(
-                LucideIcons.settings,
-                color: Colors.white,
-                size: 20,
-              ),
-            );
-          }
-
-          // No floating action button for regular users
-          return const SizedBox.shrink();
-        },
-      ),
     );
   }
 }

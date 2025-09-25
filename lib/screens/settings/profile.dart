@@ -15,6 +15,7 @@ import '../auth/login.dart';
 import 'notification_settings_screen.dart';
 import 'edit_profile.dart';
 import '../debug/network_timing_screen.dart';
+import '../../debug/share_test_screen.dart';
 import '../../config/app_config.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -284,6 +285,28 @@ class ProfileScreenState extends State<ProfileScreen> {
                       margin: EdgeInsets.zero,
                       child: Column(
                         children: [
+                          // Admin Tools Section (admin only)
+                          if (user.role.toUpperCase() == 'ADMIN') ...[
+                            _buildExpandableSection(
+                              icon: Icons.admin_panel_settings,
+                              title: 'Admin Tools',
+                              isExpanded: false,
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (context) => const ShareTestScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                            Divider(
+                              height: 1,
+                              color: Theme.of(
+                                context,
+                              ).dividerColor.withOpacity(0.3),
+                            ),
+                          ],
+                          
                           // Personal Information Section
                           _buildExpandableSection(
                             icon: Icons.person_outline,
