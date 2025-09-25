@@ -8,12 +8,15 @@ import '../../providers/user_provider.dart';
 import '../../providers/club_provider.dart';
 import '../../widgets/duggy_logo.dart';
 import '../shared/home.dart';
-import 'collect_name_screen.dart';
 
 class OTPScreen extends StatefulWidget {
   final String phoneNumber;
+  final bool userExists;
 
-  OTPScreen({required this.phoneNumber});
+  OTPScreen({
+    required this.phoneNumber,
+    this.userExists = true, // default to true for backward compatibility
+  });
 
   @override
   _OTPScreenState createState() => _OTPScreenState();
@@ -22,21 +25,41 @@ class OTPScreen extends StatefulWidget {
 class _OTPScreenState extends State<OTPScreen> {
   final _otpController = TextEditingController();
   final _otpFocusNode = FocusNode();
+  final _nameController = TextEditingController();
+  final _nameFocusNode = FocusNode();
   bool _isLoading = false;
+  bool _hasOtpError = false;
+  bool _nameSubmitted = false; // Track if name has been submitted for new users
   int _remainingTime = 0;
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    // Auto-focus the OTP input field when screen loads
+    // Auto-focus the appropriate field based on user status and name submission
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _otpFocusNode.requestFocus();
+      if (!widget.userExists && !_nameSubmitted) {
+        _nameFocusNode.requestFocus();
+      } else {
+        _otpFocusNode.requestFocus();
+      }
     });
 
     // Listen to text changes and auto-verify when 6 digits are entered
     _otpController.addListener(() {
+      // Reset error state when user starts typing
+      if (_hasOtpError && _otpController.text.isNotEmpty) {
+        setState(() {
+          _hasOtpError = false;
+        });
+      }
+
       if (_otpController.text.length == 6 && !_isLoading) {
+        // For new users, only auto-verify if name has been submitted
+        if (!widget.userExists && !_nameSubmitted) {
+          // Don't auto-verify, user needs to submit name first
+          return;
+        }
         _verifyOTP();
       }
     });
@@ -46,8 +69,35 @@ class _OTPScreenState extends State<OTPScreen> {
   void dispose() {
     _otpController.dispose();
     _otpFocusNode.dispose();
+    _nameController.dispose();
+    _nameFocusNode.dispose();
     _timer?.cancel();
     super.dispose();
+  }
+
+  void _submitName() {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Please enter your name')));
+      return;
+    }
+    if (name.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Name must be at least 2 characters long')),
+      );
+      return;
+    }
+
+    setState(() {
+      _nameSubmitted = true;
+    });
+
+    // Focus OTP field after name is submitted
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _otpFocusNode.requestFocus();
+    });
   }
 
   void _startCountdown(int seconds) {
@@ -130,25 +180,34 @@ class _OTPScreenState extends State<OTPScreen> {
       return;
     }
 
+    // Validate name field for new users
+    if (!widget.userExists && !_nameSubmitted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Please submit your name first')));
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
-      final response = await ApiService.post('/auth/sms', {
-        'phoneNumber': widget.phoneNumber,
-        'otp': otp,
-      });
+      final requestBody = {'phoneNumber': widget.phoneNumber, 'otp': otp};
+
+      // Include name for new users
+      if (!widget.userExists) {
+        requestBody['name'] = _nameController.text.trim();
+      }
+
+      final response = await ApiService.post('/auth/sms', requestBody);
 
       // Set token first so we can make authenticated API calls
       await ApiService.setToken(response['token']);
 
       // Get user and clubs data from the API after successful login
-      Map<String, dynamic>? userData;
-      List<Map<String, dynamic>>? clubsData;
-      bool isNewUser = false;
-
       try {
         // Fetch user data from /auth/me
         final userResponse = await ApiService.get('/auth/me');
+        Map<String, dynamic>? userData;
         if (userResponse.containsKey('data') && userResponse['data'] != null) {
           userData = userResponse['data'];
         } else if (userResponse.containsKey('user') &&
@@ -158,56 +217,36 @@ class _OTPScreenState extends State<OTPScreen> {
           userData = userResponse;
         }
 
-        // Check if user has a name - if not, they're a new user
-        if (userData != null &&
-            (userData['name'] == null ||
-             userData['name'].toString().trim().isEmpty)) {
-          isNewUser = true;
+        // Fetch clubs data from /my/clubs
+        final clubsResponse = await ApiService.get('/my/clubs');
+        final data = clubsResponse['data'];
+        List<Map<String, dynamic>>? clubsData;
+        if (data is List) {
+          clubsData = List<Map<String, dynamic>>.from(data);
+        } else if (data is Map) {
+          clubsData = [Map<String, dynamic>.from(data)];
         }
 
-        if (!isNewUser) {
-          // Fetch clubs data from /my/clubs for existing users
-          final clubsResponse = await ApiService.get('/my/clubs');
-          final data = clubsResponse['data'];
-          if (data is List) {
-            clubsData = List<Map<String, dynamic>>.from(data);
-          } else if (data is Map) {
-            clubsData = [Map<String, dynamic>.from(data)];
-          }
-
-          // Update ApiService with the fetched data
-          await ApiService.setToken(
-            response['token'],
-            userData: userData,
-            clubsData: clubsData,
-          );
-        }
+        // Update ApiService with the fetched data
+        await ApiService.setToken(
+          response['token'],
+          userData: userData,
+          clubsData: clubsData,
+        );
       } catch (e) {
         debugPrint('Error fetching user/clubs data: $e');
         // Continue with login even if additional data fetch fails
       }
 
-      if (isNewUser) {
-        // Navigate to name collection screen for new users
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (_) => CollectNameScreen(
-              phoneNumber: widget.phoneNumber,
-              token: response['token'],
-            ),
-          ),
-          (route) => false,
-        );
-      } else {
-        // Load data from cached sources in providers for existing users
-        await Provider.of<UserProvider>(context, listen: false).loadUser();
-        await Provider.of<ClubProvider>(context, listen: false).loadClubs();
+      // Load data from cached sources in providers
+      await Provider.of<UserProvider>(context, listen: false).loadUser();
+      await Provider.of<ClubProvider>(context, listen: false).loadClubs();
 
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => HomeScreen()),
-          (route) => false,
-        );
-      }
+      // Navigate to home screen
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => HomeScreen()),
+        (route) => false,
+      );
     } catch (e) {
       String errorMessage;
       Duration snackBarDuration = Duration(seconds: 4);
@@ -257,6 +296,10 @@ class _OTPScreenState extends State<OTPScreen> {
           duration: snackBarDuration,
         ),
       );
+      // Set error state for OTP field styling
+      setState(() {
+        _hasOtpError = true;
+      });
       // Clear the OTP field on error so user can re-enter
       _otpController.clear();
     }
@@ -320,7 +363,11 @@ class _OTPScreenState extends State<OTPScreen> {
                   SizedBox(height: 8),
 
                   Text(
-                    'Enter the 6-digit code sent to your phone',
+                    widget.userExists
+                        ? 'Enter the 6-digit code sent to your phone'
+                        : _nameSubmitted
+                        ? 'Enter the 6-digit code sent to your phone'
+                        : 'First, enter your name to create your account',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 14,
@@ -330,89 +377,255 @@ class _OTPScreenState extends State<OTPScreen> {
 
                   SizedBox(height: 32),
 
-                  // OTP Input Field - compact like login
-                  TextField(
-                    controller: _otpController,
-                    focusNode: _otpFocusNode,
-                    keyboardType: TextInputType.number,
-                    maxLength: 6,
-                    textAlign: TextAlign.center,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: 8,
-                      color: theme.textTheme.bodyLarge?.color,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: '6-digit code',
-                      hintText: '000000',
-                      labelStyle: TextStyle(
-                        color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  // Name field for new users (only show if name not submitted)
+                  if (!widget.userExists && !_nameSubmitted) ...[
+                    TextField(
+                      controller: _nameController,
+                      focusNode: _nameFocusNode,
+                      keyboardType: TextInputType.name,
+                      textCapitalization: TextCapitalization.words,
+                      onSubmitted: (_) => _submitName(),
+                      style: TextStyle(
                         fontSize: 16,
+                        fontWeight: FontWeight.w400,
+                        color: theme.textTheme.bodyLarge?.color,
                       ),
-                      hintStyle: TextStyle(
-                        color: isDark ? Colors.grey[600] : Colors.grey[400],
-                        fontSize: 24,
-                        letterSpacing: 8,
-                      ),
-                      filled: true,
-                      fillColor: isDark ? Color(0xFF2a2a2a) : Colors.white,
-                      suffixIcon: _isLoading
-                          ? Container(
-                              padding: EdgeInsets.all(12),
-                              child: SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  color: theme.colorScheme.primary,
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                            )
-                          : _otpController.text.length == 6
-                          ? Icon(
-                              Icons.check_circle,
-                              color: Colors.green,
-                              size: 24,
-                            )
-                          : null,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: isDark
-                              ? Color(0xFF444444).withOpacity(0.5)
-                              : theme.dividerColor,
-                          width: 1,
+                      decoration: InputDecoration(
+                        labelText: 'Your Name',
+                        hintText: 'Enter your full name',
+                        labelStyle: TextStyle(
+                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                          fontSize: 16,
                         ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: isDark
-                              ? Color(0xFF444444).withOpacity(0.5)
-                              : theme.dividerColor,
-                          width: 1,
+                        hintStyle: TextStyle(
+                          color: isDark ? Colors.grey[500] : Colors.grey[500],
+                          fontSize: 16,
                         ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: theme.colorScheme.primary,
-                          width: 2,
+                        filled: true,
+                        fillColor: isDark ? Color(0xFF2a2a2a) : Colors.white,
+                        prefixIcon: Icon(
+                          Icons.person_outline,
+                          color: isDark ? Colors.grey[400] : Colors.grey[600],
                         ),
-                      ),
-                      errorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.red, width: 1),
-                      ),
-                      counterText: '',
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 16,
+                        suffixIcon: IconButton(
+                          onPressed: _submitName,
+                          icon: Container(
+                            padding: EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primary,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.arrow_forward,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: isDark
+                                ? Color(0xFF444444).withOpacity(0.5)
+                                : theme.dividerColor,
+                            width: 1,
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: isDark
+                                ? Color(0xFF444444).withOpacity(0.5)
+                                : theme.dividerColor,
+                            width: 1,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: theme.colorScheme.primary,
+                            width: 2,
+                          ),
+                        ),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 16,
+                        ),
                       ),
                     ),
-                  ),
+                    SizedBox(height: 8),
+                    Text(
+                      'We\'ll create your account with this name',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? Colors.grey[400] : Colors.grey[600],
+                      ),
+                    ),
+                  ],
+
+                  // Show name summary for new users after submission
+                  if (!widget.userExists && _nameSubmitted) ...[
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: theme.colorScheme.primary.withOpacity(0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.person,
+                            color: theme.colorScheme.primary,
+                            size: 20,
+                          ),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Creating account for: ${_nameController.text.trim()}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _nameSubmitted = false;
+                              });
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                _nameFocusNode.requestFocus();
+                              });
+                            },
+                            child: Text(
+                              'Edit',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                  ],
+
+                  // OTP Input Field - only show for existing users or after name submission for new users
+                  if (widget.userExists || _nameSubmitted) ...[
+                    TextField(
+                      controller: _otpController,
+                      focusNode: _otpFocusNode,
+                      keyboardType: TextInputType.number,
+                      maxLength: 6,
+                      textAlign: TextAlign.center,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 8,
+                        color: theme.textTheme.bodyLarge?.color,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: '6-digit code',
+                        hintText: '000000',
+                        errorText: _hasOtpError ? 'Invalid OTP' : null,
+                        labelStyle: TextStyle(
+                          color: _hasOtpError
+                              ? Colors.red
+                              : isDark
+                              ? Colors.grey[400]
+                              : Colors.grey[600],
+                          fontSize: 16,
+                        ),
+                        hintStyle: TextStyle(
+                          color: isDark ? Colors.grey[600] : Colors.grey[400],
+                          fontSize: 24,
+                          letterSpacing: 8,
+                        ),
+                        filled: true,
+                        fillColor: _hasOtpError
+                            ? Colors.red.withOpacity(0.05)
+                            : isDark
+                            ? Color(0xFF2a2a2a)
+                            : Colors.white,
+                        suffixIcon: _isLoading
+                            ? Container(
+                                padding: EdgeInsets.all(12),
+                                child: SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    color: theme.colorScheme.primary,
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              )
+                            : _hasOtpError
+                            ? Icon(Icons.error, color: Colors.red, size: 24)
+                            : _otpController.text.length == 6
+                            ? Icon(
+                                Icons.check_circle,
+                                color: Colors.green,
+                                size: 24,
+                              )
+                            : null,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: _hasOtpError
+                                ? Colors.red
+                                : isDark
+                                ? Color(0xFF444444).withOpacity(0.5)
+                                : theme.dividerColor,
+                            width: _hasOtpError ? 2 : 1,
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: _hasOtpError
+                                ? Colors.red
+                                : isDark
+                                ? Color(0xFF444444).withOpacity(0.5)
+                                : theme.dividerColor,
+                            width: _hasOtpError ? 2 : 1,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: _hasOtpError
+                                ? Colors.red
+                                : theme.colorScheme.primary,
+                            width: 2,
+                          ),
+                        ),
+                        errorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.red, width: 2),
+                        ),
+                        focusedErrorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.red, width: 2),
+                        ),
+                        counterText: '',
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 16,
+                        ),
+                      ),
+                    ),
+                  ],
 
                   SizedBox(height: 24),
 

@@ -82,10 +82,15 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await ApiService.put('/auth/sms', {'phoneNumber': phone});
-      Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (_) => OTPScreen(phoneNumber: phone)));
+      final response = await ApiService.put('/auth/sms', {
+        'phoneNumber': phone,
+      });
+      final userExists = response['exists'] ?? false;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => OTPScreen(phoneNumber: phone, userExists: userExists),
+        ),
+      );
     } catch (e) {
       if (e is ApiException) {
         // Try to parse rate limiting information from raw response

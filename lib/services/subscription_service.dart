@@ -389,6 +389,80 @@ class SubscriptionService {
     }
   }
 
+  /// Get recent purchase details for a specific product ID
+  Future<PurchaseDetails?> getRecentPurchase(String productId) async {
+    try {
+      print('=== GET RECENT PURCHASE ===');
+      print('Looking for product ID: $productId');
+
+      // Restore purchases to get past purchases
+      await _inAppPurchase.restorePurchases();
+
+      // Wait a moment for the purchase stream to update
+      await Future.delayed(Duration(milliseconds: 500));
+
+      // Listen to the purchase stream to capture restored purchases
+      PurchaseDetails? mostRecentPurchase;
+      DateTime? mostRecentDate;
+
+      // Create a completer to wait for purchase stream updates
+      final Completer<PurchaseDetails?> completer = Completer();
+      bool completed = false;
+
+      late StreamSubscription subscription;
+      subscription = _inAppPurchase.purchaseStream.listen((purchases) {
+        for (final purchase in purchases) {
+          print(
+            'Purchase: ${purchase.productID}, Status: ${purchase.status}, Date: ${purchase.transactionDate}',
+          );
+
+          if (purchase.productID == productId &&
+              (purchase.status == PurchaseStatus.purchased ||
+                  purchase.status == PurchaseStatus.restored)) {
+            final purchaseDate = DateTime.tryParse(
+              purchase.transactionDate ?? '',
+            );
+
+            if (purchaseDate != null) {
+              if (mostRecentDate == null ||
+                  purchaseDate.isAfter(mostRecentDate!)) {
+                mostRecentDate = purchaseDate;
+                mostRecentPurchase = purchase;
+              }
+            } else if (mostRecentPurchase == null) {
+              // If we can't parse the date, use the first valid purchase as fallback
+              mostRecentPurchase = purchase;
+            }
+          }
+        }
+      });
+
+      // Set a timeout to complete the search
+      Timer(Duration(seconds: 3), () {
+        if (!completed) {
+          completed = true;
+          subscription.cancel();
+          completer.complete(mostRecentPurchase);
+        }
+      });
+
+      final result = await completer.future;
+
+      if (result != null) {
+        print(
+          '✅ Found recent purchase: ${result.productID} at ${result.transactionDate}',
+        );
+      } else {
+        print('❌ No recent purchase found for product: $productId');
+      }
+
+      return result;
+    } catch (e) {
+      print('Error getting recent purchase: $e');
+      return null;
+    }
+  }
+
   void dispose() {
     _subscription.cancel();
   }

@@ -915,6 +915,82 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
     return 0.0;
   }
 
+  /// Convert mobile product ID to server plan key
+  String _getServerPlanKey(String productId) {
+    switch (productId) {
+      case 'club_starter_annual':
+        return 'STARTER';
+      case 'team_captain_annual':
+        return 'TEAM';
+      case 'league_master_annual':
+        return 'LEAGUE';
+      default:
+        // Default to STARTER if unknown product ID
+        print('Warning: Unknown product ID $productId, defaulting to STARTER');
+        return 'STARTER';
+    }
+  }
+
+  /// Get subscription data from recent purchase for database storage
+  Future<Map<String, dynamic>?> _getSubscriptionData() async {
+    if (_selectedPlanId == null) return null;
+
+    try {
+      // Get recent purchase details for the selected plan
+      final purchaseDetails = await _subscriptionService.getRecentPurchase(
+        _selectedPlanId!,
+      );
+
+      if (purchaseDetails == null) {
+        print('No recent purchase found for plan: $_selectedPlanId');
+        return null;
+      }
+
+      // Extract platform-specific data
+      final subscriptionData = <String, dynamic>{
+        'planKey': _getServerPlanKey(_selectedPlanId!),
+        'amountPaid':
+            _extractPriceValue(_selectedPlan?.price ?? '0') *
+            100, // Convert to cents
+        'autoRenew': true,
+      };
+
+      // Add Apple App Store fields
+      if (Platform.isIOS &&
+          purchaseDetails.verificationData.source == 'app_store') {
+        subscriptionData.addAll({
+          'appleTransactionId': purchaseDetails.purchaseID,
+          'appleOriginalTransactionId': purchaseDetails.purchaseID,
+          'appleProductId': purchaseDetails.productID,
+          'appleReceiptData':
+              purchaseDetails.verificationData.serverVerificationData,
+          'appleEnvironment':
+              purchaseDetails.verificationData.source == 'app_store'
+              ? 'Production'
+              : 'Sandbox',
+        });
+      }
+
+      // Add Google Play fields
+      if (Platform.isAndroid &&
+          purchaseDetails.verificationData.source == 'google_play') {
+        subscriptionData.addAll({
+          'googlePurchaseToken': purchaseDetails.purchaseID,
+          'googleOrderId': purchaseDetails
+              .transactionDate, // Use transaction date as order ID fallback
+          'googleProductId': purchaseDetails.productID,
+          'googlePackageName': 'com.duggy.cricket', // Your app's package name
+        });
+      }
+
+      print('Subscription data prepared: ${subscriptionData.keys}');
+      return subscriptionData;
+    } catch (e) {
+      print('Error getting subscription data: $e');
+      return null;
+    }
+  }
+
   void _nextStep() async {
     switch (_currentStep) {
       case CreateClubStep.clubName:
@@ -1014,7 +1090,9 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
       // Give a small delay to ensure subscription is fully processed
       await Future.delayed(Duration(seconds: 1));
 
-      // Step 2: Prepare club data
+      // Step 2: Prepare club data with subscription details
+      final subscriptionData = await _getSubscriptionData();
+
       final clubData = {
         'name': _clubNameController.text.trim(),
         'description':
@@ -1024,8 +1102,11 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
         'membershipFee': 0,
         'membershipFeeCurrency': 'INR',
         'upiIdCurrency': 'INR',
-        // Only include planId if we have one selected
-        if (_selectedPlanId != null) 'planId': _selectedPlanId,
+        // Convert mobile product ID to server plan key
+        if (_selectedPlanId != null)
+          'planKey': _getServerPlanKey(_selectedPlanId!),
+        // Include subscription data if available
+        if (subscriptionData != null) 'subscription': subscriptionData,
       };
 
       print('Sending club creation request...');

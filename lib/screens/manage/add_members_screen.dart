@@ -9,6 +9,8 @@ import '../../models/user.dart';
 import '../../services/api_service.dart';
 import '../../widgets/svg_avatar.dart';
 import '../club_invite_qr_screen.dart';
+import '../qr_scanner.dart';
+import '../../widgets/member_preview_dialog.dart';
 
 // Helper function to sanitize text and remove invalid UTF-16 characters
 String sanitizeText(String text) {
@@ -149,6 +151,9 @@ class AddMembersScreenState extends State<AddMembersScreen> {
   String _searchQuery = '';
   bool _isLoadingFromCache = true;
   final TextEditingController _searchController = TextEditingController();
+
+  // Store last scanned member data for API call
+  Map<String, dynamic>? _lastScannedMemberData;
 
   // Duggy users from synced contacts
   List<User> _duggyUsers = [];
@@ -777,6 +782,163 @@ class AddMembersScreenState extends State<AddMembersScreen> {
     );
   }
 
+  Future<void> _scanMemberQR() async {
+    try {
+      // Navigate to QR scanner
+      final String? qrData = await Navigator.push<String>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const QRScanner(title: 'Scan Member QR Code'),
+        ),
+      );
+
+      if (qrData != null && mounted) {
+        // Parse the QR data
+        final memberData = _parseMemberFromQRData(qrData);
+        if (memberData != null) {
+          await _handleScannedMember(memberData);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('QR code does not contain valid member information'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error scanning QR code: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Map<String, dynamic>? _parseMemberFromQRData(String qrData) {
+    try {
+      final data = json.decode(qrData);
+      if (data is Map<String, dynamic> && data['type'] == 'member_profile') {
+        return data;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<void> _handleScannedMember(Map<String, dynamic> memberData) async {
+    try {
+      // Validate QR data
+      if (memberData['type'] != 'member_profile' || memberData['user_id'] == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Invalid member QR code'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Store member data for later API call
+      _lastScannedMemberData = memberData;
+
+      // Show member preview dialog
+      final confirmed = await _showMemberPreviewDialog(memberData);
+      if (confirmed == true) {
+        // Add member to club
+        await _addMemberToClub(memberData['user_id']);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error processing QR code: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<bool?> _showMemberPreviewDialog(Map<String, dynamic> memberData) async {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => MemberPreviewDialog(memberData: memberData),
+    );
+  }
+
+  Future<void> _addMemberToClub(String userId) async {
+    try {
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => Center(
+          child: CircularProgressIndicator(color: Color(0xFF06aeef)),
+        ),
+      );
+
+      // Get member data from the stored memberData (from QR scan)
+      final memberData = _lastScannedMemberData;
+      if (memberData == null) {
+        throw Exception('Member data not available');
+      }
+
+      // Prepare member data in the correct format expected by API
+      final memberToAdd = {
+        'name': memberData['name'] ?? 'Unknown',
+        'phoneNumber': memberData['phone_number'] ?? '',
+        'clubId': widget.club.id,
+        'userId': userId,
+      };
+
+      // Use the same endpoint as regular member addition
+      final response = await ApiService.postRaw('/members', [memberToAdd]);
+
+      // Close loading dialog
+      Navigator.of(context).pop();
+
+      if (response['success'] == true) {
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Member added successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Close this screen and return success
+        Navigator.of(context).pop(true);
+      } else {
+        // Handle API error response
+        final errorMessage = response['message'] ?? 'Failed to add member';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog
+      Navigator.of(context).pop();
+
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to add member: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   // Group cached contacts by first letter
   Map<String, List<CachedContact>> _groupContactsByLetter() {
     final Map<String, List<CachedContact>> grouped = {};
@@ -894,8 +1056,24 @@ class AddMembersScreenState extends State<AddMembersScreen> {
                     color: Colors.grey[500],
                     size: 20,
                   ),
-                  suffixIcon: _searchQuery.isNotEmpty
-                      ? IconButton(
+                  suffixIcon: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // QR Scanner button
+                      IconButton(
+                        icon: Icon(
+                          Icons.qr_code_scanner,
+                          color: isDarkTheme
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).primaryColor,
+                          size: 20,
+                        ),
+                        onPressed: _scanMemberQR,
+                        tooltip: 'Scan Member QR',
+                      ),
+                      // Clear button (only show when there's search text)
+                      if (_searchQuery.isNotEmpty)
+                        IconButton(
                           icon: Icon(
                             Icons.clear,
                             color: Colors.grey[500],
@@ -905,8 +1083,9 @@ class AddMembersScreenState extends State<AddMembersScreen> {
                             _searchController.clear();
                             _filterContacts('');
                           },
-                        )
-                      : null,
+                        ),
+                    ],
+                  ),
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.symmetric(
                     horizontal: 16,
