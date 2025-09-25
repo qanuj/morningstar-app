@@ -579,7 +579,10 @@ class ClubMessage {
       if (json['mentions'] is List && (json['mentions'] as List).isNotEmpty) {
         mentions = (json['mentions'] as List)
             .where((mentionData) => mentionData is Map<String, dynamic>)
-            .map((mentionData) => MentionedUser.fromJson(mentionData as Map<String, dynamic>))
+            .map(
+              (mentionData) =>
+                  MentionedUser.fromJson(mentionData as Map<String, dynamic>),
+            )
             .toList();
         hasMentions = mentions.isNotEmpty;
       }
