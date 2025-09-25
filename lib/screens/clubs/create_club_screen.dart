@@ -35,8 +35,6 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
   List<ProductDetails> _availablePlans = [];
   bool _loadingPlans = true;
   final SubscriptionService _subscriptionService = SubscriptionService();
-  
-
 
   @override
   void initState() {
@@ -66,37 +64,29 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final cachedDataString = prefs.getString('cached_club_data');
-      
+
       if (cachedDataString != null) {
         final cachedData = json.decode(cachedDataString);
         final timestamp = cachedData['timestamp'] as int?;
-        
+
         // Only load if cached within last 30 minutes
-        if (timestamp != null && 
-            DateTime.now().millisecondsSinceEpoch - timestamp < 30 * 60 * 1000) {
-          
+        if (timestamp != null &&
+            DateTime.now().millisecondsSinceEpoch - timestamp <
+                30 * 60 * 1000) {
           setState(() {
             _clubNameController.text = cachedData['name'] ?? '';
             _selectedPlanId = cachedData['selectedPlanId'];
-            
-            // Find the selected plan object
-            if (_selectedPlanId != null && _availablePlans.isNotEmpty) {
-              try {
-                _selectedPlan = _availablePlans.firstWhere(
-                  (plan) => plan.id == _selectedPlanId,
-                );
-              } catch (e) {
-                // Plan not found, clear selection
-                _selectedPlanId = null;
-                _selectedPlan = null;
-              }
-            }
-            
+
+            // Plan selection will be restored after plans are loaded
+            // For now, just keep the planId and restore the plan object later
+
             // Always start from step 1 with prefilled details
             _currentStep = CreateClubStep.clubName;
           });
-          
-          print('Loaded cached club data: ${cachedData['name']} - starting from step 1 with prefilled details');
+
+          print(
+            'Loaded cached club data: ${cachedData['name']} - starting from step 1 with prefilled details',
+          );
         } else {
           // Clear old cache
           await _clearCachedClubData();
@@ -125,28 +115,50 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
 
       if (_subscriptionService.isAvailable) {
         // Sort plans by price (ascending - cheapest first)
-        _availablePlans = _subscriptionService.products..sort((a, b) {
-          // Extract numeric price values for comparison
-          final priceA = _extractPriceValue(a.price);
-          final priceB = _extractPriceValue(b.price);
-          return priceA.compareTo(priceB);
-        });
+        _availablePlans = _subscriptionService.products
+          ..sort((a, b) {
+            // Extract numeric price values for comparison
+            final priceA = _extractPriceValue(a.price);
+            final priceB = _extractPriceValue(b.price);
+            return priceA.compareTo(priceB);
+          });
 
-        // Set Team Captain as default (recommended plan)
-        ProductDetails? teamCaptainPlan;
-        try {
-          teamCaptainPlan = _availablePlans.firstWhere(
-            (plan) => plan.id.contains('team_captain'),
-          );
-        } catch (e) {
-          // If team captain not found, use first available plan
-          teamCaptainPlan = _availablePlans.isNotEmpty ? _availablePlans.first : null;
+        // Restore cached plan selection if available, otherwise use Team Captain as default
+        ProductDetails? selectedPlan;
+
+        // First, try to restore cached selection
+        if (_selectedPlanId != null) {
+          try {
+            selectedPlan = _availablePlans.firstWhere(
+              (plan) => plan.id == _selectedPlanId,
+            );
+            print('Restored cached plan selection: ${selectedPlan.id}');
+          } catch (e) {
+            print('Cached plan not found: $_selectedPlanId');
+            selectedPlan = null;
+          }
         }
 
-        if (teamCaptainPlan != null) {
+        // If no cached selection or not found, use Team Captain as default
+        if (selectedPlan == null) {
+          try {
+            selectedPlan = _availablePlans.firstWhere(
+              (plan) => plan.id.contains('team_captain'),
+            );
+            print('Using default Team Captain plan: ${selectedPlan.id}');
+          } catch (e) {
+            // If team captain not found, use first available plan
+            selectedPlan = _availablePlans.isNotEmpty
+                ? _availablePlans.first
+                : null;
+            print('Using first available plan: ${selectedPlan?.id}');
+          }
+        }
+
+        if (selectedPlan != null) {
           setState(() {
-            _selectedPlanId = teamCaptainPlan!.id;
-            _selectedPlan = teamCaptainPlan;
+            _selectedPlanId = selectedPlan!.id;
+            _selectedPlan = selectedPlan;
             _loadingPlans = false;
           });
         } else {
@@ -787,7 +799,9 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
                       'upto',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                        color: Theme.of(
+                          context,
+                        ).textTheme.bodyMedium?.color?.withOpacity(0.7),
                         fontWeight: FontWeight.w400,
                       ),
                     ),
@@ -803,7 +817,9 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
                       'members',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                        color: Theme.of(
+                          context,
+                        ).textTheme.bodyMedium?.color?.withOpacity(0.7),
                         fontWeight: FontWeight.w400,
                       ),
                     ),
@@ -835,7 +851,9 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
                         planDescription,
                         style: TextStyle(
                           fontSize: 12,
-                          color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                          color: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium?.color?.withOpacity(0.7),
                         ),
                       ),
                     ],
@@ -977,13 +995,13 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
       print('=== CLUB CREATION PROCESS STARTED ===');
       print('Verifying subscription for plan: ${_selectedPlan?.id}');
       print('Environment: Sandbox/Testing Mode');
-      
+
       final subscriptionVerified = await _verifySubscription();
       print('Subscription verification result: $subscriptionVerified');
-      
+
       if (!subscriptionVerified) {
         print('ERROR: Subscription verification failed');
-        
+
         // In sandbox mode, be more lenient - just log the issue and proceed
         print('WARNING: Standard verification failed in sandbox mode');
         print('This is common in sandbox/testing environments');
@@ -999,13 +1017,15 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
       // Step 2: Prepare club data
       final clubData = {
         'name': _clubNameController.text.trim(),
-        'description': 'Cricket club created with ${_selectedPlan?.title ?? 'subscription'} plan',
+        'description':
+            'Cricket club created with ${_selectedPlan?.title ?? 'subscription'} plan',
         'country': 'India',
         'isPublic': true,
         'membershipFee': 0,
         'membershipFeeCurrency': 'INR',
         'upiIdCurrency': 'INR',
-        'planId': _selectedPlanId, // Include planId for validation
+        // Only include planId if we have one selected
+        if (_selectedPlanId != null) 'planId': _selectedPlanId,
       };
 
       print('Sending club creation request...');
@@ -1016,15 +1036,77 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
       try {
         final response = await ApiService.post('/clubs', clubData);
         print('SUCCESS: Club creation API response: $response');
-        
+
+        // Extract the created club info for verification
+        final createdClub = response['club'];
+        final createdClubId = createdClub?['id'];
+        final createdClubName = createdClub?['name'];
+        print('Created club: $createdClubName ($createdClubId)');
+
+        // Wait a moment for database transaction to fully commit
+        await Future.delayed(Duration(seconds: 2));
+
+        // Clear cached clubs data to ensure fresh load
+        await ApiService.clearClubsCache();
+        print('Cleared clubs cache');
+
+        // Refresh clubs cache to get the new club (include pending in case of timing issues)
+        final clubProvider = Provider.of<ClubProvider>(context, listen: false);
+        print('Starting club refresh with includePending=true...');
+        await clubProvider.refreshClubs(includePending: true);
+
+        print('Clubs after refresh: ${clubProvider.clubs.length}');
+        bool foundNewClub = false;
+        for (final membership in clubProvider.clubs) {
+          print(
+            'Club: ${membership.club.name} (${membership.club.id}) - Role: ${membership.role}, Active: ${membership.isActive}, Approved: ${membership.approved}',
+          );
+          if (membership.club.id == createdClubId) {
+            foundNewClub = true;
+            print('✅ Found newly created club in the list!');
+          }
+        }
+
+        if (!foundNewClub && createdClubId != null) {
+          print('❌ Newly created club not found in refreshed list');
+          print('Trying one more refresh after longer delay...');
+
+          // Wait longer and try again without includePending
+          await Future.delayed(Duration(seconds: 3));
+          await clubProvider.refreshClubs(includePending: false);
+
+          print(
+            'Second refresh completed. Clubs: ${clubProvider.clubs.length}',
+          );
+          for (final membership in clubProvider.clubs) {
+            print('Club: ${membership.club.name} (${membership.club.id})');
+            if (membership.club.id == createdClubId) {
+              foundNewClub = true;
+              print('✅ Found newly created club in second refresh!');
+            }
+          }
+
+          if (!foundNewClub) {
+            print(
+              '❌ Club still not found after second refresh - this indicates a serious backend issue',
+            );
+
+            // Debug: Make direct API call to see raw response
+            try {
+              print('Making direct API call for debugging...');
+              final debugResponse = await ApiService.get(
+                '/my/clubs?includePending=true',
+              );
+              print('Direct API response: $debugResponse');
+            } catch (e) {
+              print('Debug API call failed: $e');
+            }
+          }
+        }
       } catch (apiError) {
         print('API Error Details: $apiError');
         rethrow; // Re-throw to be handled by outer catch block
       }
-
-      // Refresh clubs cache
-      final clubProvider = Provider.of<ClubProvider>(context, listen: false);
-      await clubProvider.refreshClubs();
 
       // Clear cached data on successful club creation
       await _clearCachedClubData();
@@ -1044,7 +1126,7 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
       print('Error type: ${e.runtimeType}');
       print('Error message: $e');
       print('Stack trace: ${StackTrace.current}');
-      
+
       if (mounted) {
         setState(() {
           _isProcessing = false;
@@ -1052,30 +1134,35 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
         });
 
         String errorMessage = 'Failed to create club. Please try again.';
-        
+
         // Parse error response if it's an API error
         if (e.toString().contains('CLUB_LIMIT_REACHED')) {
-          errorMessage = 'You can only create one club per subscription. You already have an active club.';
+          errorMessage =
+              'You can only create one club per subscription. You already have an active club.';
         } else if (e.toString().contains('SUBSCRIPTION_REQUIRED')) {
           errorMessage = 'Please purchase a subscription to create a club.';
         } else if (e.toString().contains('subscription_verification_failed')) {
-          errorMessage = 'Subscription purchase successful, but verification failed. Please try again.';
+          errorMessage =
+              'Subscription purchase successful, but verification failed. Please try again.';
         } else if (e.toString().contains('400')) {
-          errorMessage = 'Invalid club data. Please check your information and try again.';
+          errorMessage =
+              'Invalid club data. Please check your information and try again.';
         } else if (e.toString().contains('401')) {
           errorMessage = 'Authentication error. Please log in again.';
         } else if (e.toString().contains('402')) {
-          errorMessage = 'Subscription required. Please complete your purchase.';
+          errorMessage =
+              'Subscription required. Please complete your purchase.';
         } else if (e.toString().contains('500')) {
           errorMessage = 'Server error. Please try again later.';
         } else if (e.toString().contains('subscription')) {
-          errorMessage = 'Subscription issue. Please check your purchase status.';
+          errorMessage =
+              'Subscription issue. Please check your purchase status.';
         } else if (e.toString().contains('network')) {
           errorMessage = 'Network error. Please check your connection.';
         } else if (e.toString().contains('validation')) {
           errorMessage = 'Please check your club details and try again.';
         }
-        
+
         print('Showing error message: $errorMessage');
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1097,40 +1184,47 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
 
     try {
       print('Starting subscription verification for plan: $_selectedPlanId');
-      
+
       // Check all available subscriptions, not just the selected one
       // User might have purchased a different plan that can still create clubs
       bool hasAnyActiveSubscription = false;
       String? activeSubscriptionPlan;
-      
+
       print('Checking all available plans for active subscriptions...');
       for (final plan in _availablePlans) {
         print('Checking plan: ${plan.title} (${plan.id})');
-        final hasActive = await _subscriptionService.hasActiveSubscription(plan.id);
+        final hasActive = await _subscriptionService.hasActiveSubscription(
+          plan.id,
+        );
         print('Plan ${plan.id} active status: $hasActive');
-        
+
         if (hasActive) {
           hasAnyActiveSubscription = true;
           activeSubscriptionPlan = plan.id;
-          print('✅ Found existing active subscription: ${plan.title} (${plan.id})');
+          print(
+            '✅ Found existing active subscription: ${plan.title} (${plan.id})',
+          );
           break;
         }
       }
-      
+
       // Additional check: If no active subscription found via the method above,
       // check if we detected any purchased subscriptions in the logs
       if (!hasAnyActiveSubscription) {
         print('Standard verification failed, trying simplified check...');
-        final anyActiveSubscription = await _subscriptionService.hasAnyActiveSubscription();
+        final anyActiveSubscription = await _subscriptionService
+            .hasAnyActiveSubscription();
         if (anyActiveSubscription != null) {
           hasAnyActiveSubscription = true;
           activeSubscriptionPlan = anyActiveSubscription;
           print('✅ Fallback found active subscription: $anyActiveSubscription');
         }
       }
-      
+
       if (hasAnyActiveSubscription) {
-        print('SUCCESS: User has existing subscription for $activeSubscriptionPlan');
+        print(
+          'SUCCESS: User has existing subscription for $activeSubscriptionPlan',
+        );
         // Update selected plan to match existing subscription
         if (activeSubscriptionPlan != _selectedPlanId) {
           final existingPlan = _availablePlans.firstWhere(
@@ -1143,66 +1237,77 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
           await _saveCachedClubData(); // Cache the updated selection
           print('Updated selected plan to match existing subscription');
         }
-        
+
         // Return true to indicate subscription is verified
         // The caller will handle proceeding to club creation
         return true;
       }
-      
+
       print('❌ No existing subscriptions found across all plans');
-      
+
       // No existing subscription found, need to purchase
-      print('No existing subscription found, initiating purchase for: $_selectedPlanId');
-      
+      print(
+        'No existing subscription found, initiating purchase for: $_selectedPlanId',
+      );
+
       // Trigger purchase flow for the selected plan
-      final purchaseResult = await _subscriptionService.buySubscription(_selectedPlanId!);
+      final purchaseResult = await _subscriptionService.buySubscription(
+        _selectedPlanId!,
+      );
       print('Purchase attempt result: $purchaseResult');
-      
+
       if (!purchaseResult) {
         print('ERROR: Purchase failed for plan: $_selectedPlanId');
         return false;
       }
-      
+
       print('Purchase successful! Waiting for processing...');
       // Wait a moment for purchase to process
       await Future.delayed(Duration(seconds: 3));
-      
+
       // Re-check subscription status after purchase
-      final recheckResult = await _subscriptionService.hasActiveSubscription(_selectedPlanId!);
+      final recheckResult = await _subscriptionService.hasActiveSubscription(
+        _selectedPlanId!,
+      );
       print('Post-purchase subscription verification: $recheckResult');
-      
+
       if (!recheckResult) {
-        print('WARNING: Subscription verification failed after successful purchase');
-        
+        print(
+          'WARNING: Subscription verification failed after successful purchase',
+        );
+
         // Additional sandbox-friendly checks
         print('Attempting additional verification methods...');
-        
+
         // Try checking any subscription, not just the specific one
         bool hasAnySubscription = false;
         for (final plan in _availablePlans) {
-          final hasActive = await _subscriptionService.hasActiveSubscription(plan.id);
+          final hasActive = await _subscriptionService.hasActiveSubscription(
+            plan.id,
+          );
           if (hasActive) {
             hasAnySubscription = true;
             print('Found active subscription for plan: ${plan.id}');
             break;
           }
         }
-        
+
         if (hasAnySubscription) {
           print('SUCCESS: Found active subscription on recheck');
           return true;
         }
-        
+
         // In sandbox mode, if purchase was successful but verification is flaky,
         // we can proceed with a warning
-        print('SANDBOX MODE: Purchase was successful, proceeding despite verification issues');
+        print(
+          'SANDBOX MODE: Purchase was successful, proceeding despite verification issues',
+        );
         print('This is normal in sandbox/testing environments');
         return true; // Be lenient in sandbox mode
       }
 
       print('SUCCESS: New subscription verified for plan: $_selectedPlanId');
       return true;
-
     } catch (e) {
       print('ERROR in subscription verification: $e');
       return false;

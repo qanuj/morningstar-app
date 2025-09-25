@@ -20,14 +20,14 @@ class ClubProvider with ChangeNotifier {
 
     try {
       List<dynamic> clubsData = [];
-      
+
       // First try to load from cached data in ApiService
       if (ApiService.hasClubsData) {
         clubsData = ApiService.cachedClubsData!;
       } else {
         // Fallback to API call if no cached data
         final Map<String, dynamic> response = await ApiService.get('/my/clubs');
-        
+
         // Handle different response formats
         final data = response['data'];
         if (data is List) {
@@ -36,7 +36,7 @@ class ClubProvider with ChangeNotifier {
           clubsData = [data]; // Single club wrapped in data
         }
       }
-      
+
       _clubs = clubsData.map((club) {
         try {
           return ClubMembership.fromJson(club);
@@ -46,7 +46,7 @@ class ClubProvider with ChangeNotifier {
           rethrow;
         }
       }).toList();
-      
+
       // Set current club if exists
       final currentClubId = await AuthService.getCurrentClubId();
       if (currentClubId != null && _clubs.isNotEmpty) {
@@ -77,23 +77,34 @@ class ClubProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> refreshClubs() async {
+  Future<void> refreshClubs({bool includePending = false}) async {
     _isLoading = true;
     notifyListeners();
 
     try {
       // Force refresh from API by calling the API directly
-      final Map<String, dynamic> response = await ApiService.get('/my/clubs');
-      
+      print(
+        'ClubProvider: Fetching fresh clubs data from API (includePending: $includePending)...',
+      );
+      final endpoint = includePending
+          ? '/my/clubs?includePending=true'
+          : '/my/clubs';
+      final Map<String, dynamic> response = await ApiService.get(endpoint);
+      print('ClubProvider: API response: $response');
+
       // Handle different response formats
       final data = response['data'];
       List<dynamic> clubsData = [];
       if (data is List) {
         clubsData = data;
+        print('ClubProvider: Received ${clubsData.length} clubs as List');
       } else if (data is Map) {
         clubsData = [data]; // Single club wrapped in data
+        print('ClubProvider: Received 1 club as Map, converting to List');
+      } else {
+        print('ClubProvider: Unexpected data format: ${data.runtimeType}');
       }
-      
+
       _clubs = clubsData.map((club) {
         try {
           return ClubMembership.fromJson(club);
@@ -103,7 +114,7 @@ class ClubProvider with ChangeNotifier {
           rethrow;
         }
       }).toList();
-      
+
       // Update current club if exists
       final currentClubId = await AuthService.getCurrentClubId();
       if (currentClubId != null && _clubs.isNotEmpty) {
@@ -142,12 +153,15 @@ class ClubProvider with ChangeNotifier {
     required String senderName,
     required String senderId,
     required DateTime createdAt,
-    bool isRead = false, // New messages from notifications are unread by default
+    bool isRead =
+        false, // New messages from notifications are unread by default
   }) {
-    final clubIndex = _clubs.indexWhere((membership) => membership.club.id == clubId);
+    final clubIndex = _clubs.indexWhere(
+      (membership) => membership.club.id == clubId,
+    );
     if (clubIndex != -1) {
       final currentMembership = _clubs[clubIndex];
-      
+
       // Create new latest message with read status
       final newLatestMessage = LatestMessage(
         id: messageId,
@@ -163,9 +177,7 @@ class ClubProvider with ChangeNotifier {
         latestMessage: newLatestMessage,
       );
 
-      final updatedMembership = currentMembership.copyWith(
-        club: updatedClub,
-      );
+      final updatedMembership = currentMembership.copyWith(club: updatedClub);
 
       _clubs[clubIndex] = updatedMembership;
       notifyListeners();
@@ -178,24 +190,27 @@ class ClubProvider with ChangeNotifier {
 
   /// Mark a club as read (clear unread indicator)
   void markClubAsRead(String clubId) {
-    final clubIndex = _clubs.indexWhere((membership) => membership.club.id == clubId);
+    final clubIndex = _clubs.indexWhere(
+      (membership) => membership.club.id == clubId,
+    );
     if (clubIndex != -1) {
       final currentMembership = _clubs[clubIndex];
-      
+
       // Only update if there's a latest message that's unread
-      if (currentMembership.hasUnreadMessage && currentMembership.club.latestMessage != null) {
+      if (currentMembership.hasUnreadMessage &&
+          currentMembership.club.latestMessage != null) {
         final currentLatestMessage = currentMembership.club.latestMessage!;
-        
+
         // Update the latest message to mark it as read
-        final updatedLatestMessage = currentLatestMessage.copyWith(isRead: true);
-        
+        final updatedLatestMessage = currentLatestMessage.copyWith(
+          isRead: true,
+        );
+
         final updatedClub = currentMembership.club.copyWith(
           latestMessage: updatedLatestMessage,
         );
 
-        final updatedMembership = currentMembership.copyWith(
-          club: updatedClub,
-        );
+        final updatedMembership = currentMembership.copyWith(club: updatedClub);
 
         _clubs[clubIndex] = updatedMembership;
         notifyListeners();
