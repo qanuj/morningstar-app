@@ -874,7 +874,7 @@ class _TeamSelectorScreenState extends State<TeamSelectorScreen>
               color: Theme.of(context).cardColor,
               child: TabBar(
                 controller: _tabController,
-                labelColor: Theme.of(context).primaryColor,
+                labelColor: Theme.of(context).colorScheme.primary,
                 unselectedLabelColor: Theme.of(context).textTheme.bodySmall?.color,
                 indicatorColor: Theme.of(context).primaryColor,
                 indicatorWeight: 3,
@@ -1713,7 +1713,7 @@ class _TeamSelectorModalState extends State<TeamSelectorModal>
               color: Theme.of(context).cardColor,
               child: TabBar(
                 controller: _tabController,
-                labelColor: Theme.of(context).primaryColor,
+                labelColor: Theme.of(context).colorScheme.primary,
                 unselectedLabelColor: Theme.of(context).textTheme.bodySmall?.color,
                 indicatorColor: Theme.of(context).primaryColor,
                 indicatorWeight: 3,

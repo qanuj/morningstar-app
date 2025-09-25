@@ -14,12 +14,9 @@ import '../../widgets/custom_app_bar.dart';
 
 class ClubSettingsScreen extends StatefulWidget {
   final Club club;
-  
-  const ClubSettingsScreen({
-    super.key,
-    required this.club,
-  });
-  
+
+  const ClubSettingsScreen({super.key, required this.club});
+
   @override
   ClubSettingsScreenState createState() => ClubSettingsScreenState();
 }
@@ -33,15 +30,22 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
   final _membershipFeeController = TextEditingController();
-  
+
   bool _isLoading = false;
   bool _isUploading = false;
   String? _selectedCurrency;
   File? _selectedImage;
-  
+
   // Currency options
   final List<String> _currencyOptions = [
-    'INR', 'USD', 'EUR', 'GBP', 'AUD', 'CAD', 'SGD', 'AED'
+    'INR',
+    'USD',
+    'EUR',
+    'GBP',
+    'AUD',
+    'CAD',
+    'SGD',
+    'AED',
   ];
 
   @override
@@ -54,7 +58,8 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
     // Populate form with existing club data
     _nameController.text = widget.club.name;
     _descriptionController.text = widget.club.description ?? '';
-    _locationController.text = '${widget.club.city ?? ''}${widget.club.city != null && widget.club.state != null ? ', ' : ''}${widget.club.state ?? ''}';
+    _locationController.text =
+        '${widget.club.city ?? ''}${widget.club.city != null && widget.club.state != null ? ', ' : ''}${widget.club.state ?? ''}';
     _websiteController.text = widget.club.website ?? '';
     _phoneController.text = widget.club.contactPhone ?? '';
     _emailController.text = widget.club.contactEmail ?? '';
@@ -63,9 +68,13 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
   }
 
   Future<void> _showImagePickerDialog() async {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     showModalBottomSheet(
       context: context,
-      backgroundColor: Theme.of(context).cardColor,
+      backgroundColor: isDarkMode
+          ? Theme.of(context).colorScheme.surface.withOpacity(0.95)
+          : Theme.of(context).cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -78,7 +87,9 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Theme.of(context).dividerColor,
+                color: isDarkMode
+                    ? Theme.of(context).colorScheme.outline.withOpacity(0.8)
+                    : Theme.of(context).dividerColor,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -129,6 +140,8 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
     required String title,
     required VoidCallback onTap,
   }) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -138,10 +151,13 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
           padding: EdgeInsets.all(16),
           decoration: BoxDecoration(
             border: Border.all(
-              color: Theme.of(context).dividerColor.withOpacity(0.3),
+              color: Theme.of(context).dividerColor.withOpacity(0.5),
               width: 1,
             ),
             borderRadius: BorderRadius.circular(12),
+            color: isDarkMode
+                ? Theme.of(context).colorScheme.primary.withOpacity(0.05)
+                : Colors.transparent,
           ),
           child: Column(
             children: [
@@ -188,9 +204,9 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to pick image: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to pick image: $e')));
       }
     }
   }
@@ -210,9 +226,9 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to take photo: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to take photo: $e')));
       }
     }
   }
@@ -254,9 +270,9 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to crop image: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to crop image: $e')));
       }
     }
   }
@@ -271,7 +287,7 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
 
   Future<void> _showCupertinoCurrencyPicker() async {
     String? selectedCurrency = _selectedCurrency;
-    
+
     await showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).cardColor,
@@ -322,22 +338,26 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
               child: CupertinoPicker(
                 itemExtent: 32,
                 scrollController: FixedExtentScrollController(
-                  initialItem: _selectedCurrency != null 
+                  initialItem: _selectedCurrency != null
                       ? _currencyOptions.indexOf(_selectedCurrency!)
                       : 0,
                 ),
                 onSelectedItemChanged: (index) {
                   selectedCurrency = _currencyOptions[index];
                 },
-                children: _currencyOptions.map((currency) => Center(
-                  child: Text(
-                    currency,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface,
-                      fontSize: 16,
-                    ),
-                  ),
-                )).toList(),
+                children: _currencyOptions
+                    .map(
+                      (currency) => Center(
+                        child: Text(
+                          currency,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
               ),
             ),
           ],
@@ -353,19 +373,23 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
         title: Text('Select Currency'),
         backgroundColor: Theme.of(context).cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        children: _currencyOptions.map((currency) => SimpleDialogOption(
-          onPressed: () => Navigator.pop(context, currency),
-          child: Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              currency,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface,
-                fontSize: 16,
+        children: _currencyOptions
+            .map(
+              (currency) => SimpleDialogOption(
+                onPressed: () => Navigator.pop(context, currency),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    currency,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ),
-        )).toList(),
+            )
+            .toList(),
       ),
     );
 
@@ -387,30 +411,45 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
       if (_selectedImage != null) {
         logoUrl = await _uploadClubLogo();
       }
-      
+
       // Prepare club data matching the Club model structure
       final data = {
         'name': _nameController.text.trim(),
-        'description': _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
-        'website': _websiteController.text.trim().isEmpty ? null : _websiteController.text.trim(),
-        'contactPhone': _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
-        'contactEmail': _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
-        'membershipFee': _membershipFeeController.text.trim().isEmpty ? 0.0 : double.tryParse(_membershipFeeController.text.trim()) ?? 0.0,
+        'description': _descriptionController.text.trim().isEmpty
+            ? null
+            : _descriptionController.text.trim(),
+        'website': _websiteController.text.trim().isEmpty
+            ? null
+            : _websiteController.text.trim(),
+        'contactPhone': _phoneController.text.trim().isEmpty
+            ? null
+            : _phoneController.text.trim(),
+        'contactEmail': _emailController.text.trim().isEmpty
+            ? null
+            : _emailController.text.trim(),
+        'membershipFee': _membershipFeeController.text.trim().isEmpty
+            ? 0.0
+            : double.tryParse(_membershipFeeController.text.trim()) ?? 0.0,
         'membershipFeeCurrency': _selectedCurrency,
         'logo': logoUrl,
         // TODO: Parse location into city/state when implementing location functionality
         // For now, store the combined location in city field
-        'city': _locationController.text.trim().isEmpty ? null : _locationController.text.trim(),
+        'city': _locationController.text.trim().isEmpty
+            ? null
+            : _locationController.text.trim(),
       };
 
       // Call API to update club settings
       await ApiService.put('/clubs/${widget.club.id}', data);
       debugPrint('Club settings saved successfully: $data');
-      
+
       if (mounted) {
         // Force refresh club data from API (not cache)
         try {
-          final clubProvider = Provider.of<ClubProvider>(context, listen: false);
+          final clubProvider = Provider.of<ClubProvider>(
+            context,
+            listen: false,
+          );
           // Clear cached club data and force refresh from API
           await ApiService.clearClubsCache();
           await clubProvider.refreshClubs();
@@ -419,7 +458,7 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
           debugPrint('Error refreshing club data: $e');
           // Don't show error to user as main save was successful
         }
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Club settings updated successfully'),
@@ -427,15 +466,17 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
             duration: Duration(seconds: 3),
           ),
         );
-        
+
         // Return the updated data to trigger refresh in parent screens
-        Navigator.of(context).pop(true); // Return true to indicate successful update
+        Navigator.of(
+          context,
+        ).pop(true); // Return true to indicate successful update
       }
     } catch (e) {
       debugPrint('Error updating club settings: $e');
       if (mounted) {
         String errorMessage = 'Failed to update club settings';
-        
+
         // Handle specific error types
         if (e.toString().contains('Network')) {
           errorMessage = 'Network error. Please check your connection.';
@@ -446,7 +487,7 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
         } else if (e.toString().contains('500')) {
           errorMessage = 'Server error. Please try again later.';
         }
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMessage),
@@ -473,7 +514,7 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
 
       // Convert File to bytes for upload
       final bytes = await _selectedImage!.readAsBytes();
-      
+
       // Create PlatformFile
       final platformFile = PlatformFile(
         name: 'club_logo.jpg',
@@ -493,7 +534,7 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
               backgroundColor: Colors.green,
             ),
           );
-          
+
           // Clear selected image after successful upload
           setState(() {
             _selectedImage = null;
@@ -526,7 +567,7 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
   Widget _buildClubLogo() {
     // Check if the URL is an SVG
     if (widget.club.logo != null && widget.club.logo!.isNotEmpty) {
-      if (widget.club.logo!.toLowerCase().contains('.svg') || 
+      if (widget.club.logo!.toLowerCase().contains('.svg') ||
           widget.club.logo!.toLowerCase().contains('svg?')) {
         return SvgPicture.network(
           widget.club.logo!,
@@ -610,287 +651,274 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
                 // Club Logo Section
                 Card(
                   elevation: 3,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Club Logo
-                      Stack(
-                        children: [
-                          GestureDetector(
-                            onTap: _isUploading ? null : _showImagePickerDialog,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Theme.of(context).shadowColor.withOpacity(0.1),
-                                    blurRadius: 20,
-                                    offset: Offset(0, 8),
-                                  ),
-                                ],
-                              ),
-                              child: _selectedImage != null
-                                  ? CircleAvatar(
-                                      radius: 40,
-                                      backgroundImage: FileImage(_selectedImage!),
-                                    )
-                                  : Container(
-                                      width: 80,
-                                      height: 80,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: Theme.of(context).dividerColor.withOpacity(0.3),
-                                          width: 1,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Club Logo
+                        Stack(
+                          children: [
+                            GestureDetector(
+                              onTap: _isUploading
+                                  ? null
+                                  : _showImagePickerDialog,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Theme.of(
+                                        context,
+                                      ).shadowColor.withOpacity(0.1),
+                                      blurRadius: 20,
+                                      offset: Offset(0, 8),
+                                    ),
+                                  ],
+                                ),
+                                child: _selectedImage != null
+                                    ? CircleAvatar(
+                                        radius: 40,
+                                        backgroundImage: FileImage(
+                                          _selectedImage!,
+                                        ),
+                                      )
+                                    : Container(
+                                        width: 80,
+                                        height: 80,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: Theme.of(
+                                              context,
+                                            ).dividerColor.withOpacity(0.3),
+                                            width: 1,
+                                          ),
+                                        ),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(
+                                            40,
+                                          ),
+                                          child: _buildClubLogo(),
                                         ),
                                       ),
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(40),
-                                        child: _buildClubLogo(),
-                                      ),
-                                    ),
+                              ),
                             ),
-                          ),
-                          Positioned(
-                            bottom: -12,
-                            right: -12,
-                            child: IconButton(
-                              onPressed: _isUploading ? null : _showImagePickerDialog,
-                              icon: _isUploading
-                                  ? SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Theme.of(context).brightness == Brightness.dark
+                            Positioned(
+                              bottom: -12,
+                              right: -12,
+                              child: IconButton(
+                                onPressed: _isUploading
+                                    ? null
+                                    : _showImagePickerDialog,
+                                icon: _isUploading
+                                    ? SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color:
+                                              Theme.of(context).brightness ==
+                                                  Brightness.dark
+                                              ? Colors.white
+                                              : AppTheme.primaryBlue,
+                                        ),
+                                      )
+                                    : Icon(
+                                        Icons.camera_alt,
+                                        color:
+                                            Theme.of(context).brightness ==
+                                                Brightness.dark
                                             ? Colors.white
                                             : AppTheme.primaryBlue,
+                                        size: 24,
                                       ),
-                                    )
-                                  : Icon(
-                                      Icons.camera_alt,
-                                      color: Theme.of(context).brightness == Brightness.dark
-                                          ? Colors.white
-                                          : AppTheme.primaryBlue,
-                                      size: 24,
-                                    ),
-                              constraints: BoxConstraints(
-                                minWidth: 32,
-                                minHeight: 32,
-                              ),
-                              padding: EdgeInsets.zero,
-                            ),
-                          ),
-                        ],
-                      ),
-                      
-                      SizedBox(width: 20),
-                      
-                      // Club Details
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.club.name,
-                              style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w600,
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'Club ID: ${widget.club.id}',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Theme.of(context).textTheme.bodyMedium?.color,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              'Update your club logo and information',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Theme.of(context).textTheme.bodySmall?.color,
+                                constraints: BoxConstraints(
+                                  minWidth: 32,
+                                  minHeight: 32,
+                                ),
+                                padding: EdgeInsets.zero,
                               ),
                             ),
                           ],
                         ),
-                      ),
-                    ],
+
+                        SizedBox(width: 20),
+
+                        // Club Details
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.club.name,
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'Club ID: ${widget.club.id}',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Theme.of(
+                                    context,
+                                  ).textTheme.bodyMedium?.color,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Update your club logo and information',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(
+                                    context,
+                                  ).textTheme.bodySmall?.color,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
 
-              SizedBox(height: 16),
+                SizedBox(height: 16),
 
-              // Form Fields
-              Card(
-                elevation: 3,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      // Club Name Field
-                      _buildTextField(
-                        controller: _nameController,
-                        label: 'Club Name',
-                        icon: Icons.sports_cricket,
-                        validator: (value) {
-                          if (value?.trim().isEmpty ?? true) {
-                            return 'Club name is required';
-                          }
-                          return null;
-                        },
-                      ),
-
-                      SizedBox(height: 16),
-
-                      // Description Field
-                      _buildTextField(
-                        controller: _descriptionController,
-                        label: 'Club Description',
-                        hint: 'Tell us about your club',
-                        icon: Icons.description,
-                        maxLines: 3,
-                      ),
-
-                      SizedBox(height: 16),
-
-                      // Location Field
-                      _buildTextField(
-                        controller: _locationController,
-                        label: 'Location',
-                        hint: 'Enter club location',
-                        icon: Icons.location_on,
-                      ),
-
-                      SizedBox(height: 16),
-
-                      // Phone Number Field
-                      _buildTextField(
-                        controller: _phoneController,
-                        label: 'Phone Number',
-                        hint: 'Enter club phone number',
-                        icon: Icons.phone,
-                        keyboardType: TextInputType.phone,
-                      ),
-
-                      SizedBox(height: 16),
-
-                      // Email Field
-                      _buildTextField(
-                        controller: _emailController,
-                        label: 'Email Address',
-                        hint: 'Enter club email address',
-                        icon: Icons.email,
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (value) {
-                          if (value?.trim().isNotEmpty == true) {
-                            if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value!)) {
-                              return 'Please enter a valid email';
+                // Form Fields
+                Card(
+                  elevation: 3,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        // Club Name Field
+                        _buildTextField(
+                          controller: _nameController,
+                          label: 'Club Name',
+                          icon: Icons.sports_cricket,
+                          validator: (value) {
+                            if (value?.trim().isEmpty ?? true) {
+                              return 'Club name is required';
                             }
-                          }
-                          return null;
-                        },
-                      ),
+                            return null;
+                          },
+                        ),
 
-                      SizedBox(height: 16),
+                        SizedBox(height: 16),
 
-                      // Website Field
-                      _buildTextField(
-                        controller: _websiteController,
-                        label: 'Website',
-                        hint: 'Enter club website URL',
-                        icon: Icons.web,
-                        keyboardType: TextInputType.url,
-                      ),
+                        // Description Field
+                        _buildTextField(
+                          controller: _descriptionController,
+                          label: 'Club Description',
+                          hint: 'Tell us about your club',
+                          icon: Icons.description,
+                          maxLines: 3,
+                        ),
 
-                      SizedBox(height: 16),
+                        SizedBox(height: 16),
 
-                      // Membership Fee Section
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: _buildTextField(
-                              controller: _membershipFeeController,
-                              label: 'Membership Fee',
-                              hint: '0.00',
-                              icon: Icons.payments,
-                              keyboardType: TextInputType.numberWithOptions(decimal: true),
+                        // Location Field
+                        _buildTextField(
+                          controller: _locationController,
+                          label: 'Location',
+                          hint: 'Enter club location',
+                          icon: Icons.location_on,
+                        ),
+
+                        SizedBox(height: 16),
+
+                        // Phone Number Field
+                        _buildTextField(
+                          controller: _phoneController,
+                          label: 'Phone Number',
+                          hint: 'Enter club phone number',
+                          icon: Icons.phone,
+                          keyboardType: TextInputType.phone,
+                        ),
+
+                        SizedBox(height: 16),
+
+                        // Email Field
+                        _buildTextField(
+                          controller: _emailController,
+                          label: 'Email Address',
+                          hint: 'Enter club email address',
+                          icon: Icons.email,
+                          keyboardType: TextInputType.emailAddress,
+                          validator: (value) {
+                            if (value?.trim().isNotEmpty == true) {
+                              if (!RegExp(
+                                r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                              ).hasMatch(value!)) {
+                                return 'Please enter a valid email';
+                              }
+                            }
+                            return null;
+                          },
+                        ),
+
+                        SizedBox(height: 16),
+
+                        // Website Field
+                        _buildTextField(
+                          controller: _websiteController,
+                          label: 'Website',
+                          hint: 'Enter club website URL',
+                          icon: Icons.web,
+                          keyboardType: TextInputType.url,
+                        ),
+
+                        SizedBox(height: 16),
+
+                        // Membership Fee Section
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: _buildTextField(
+                                controller: _membershipFeeController,
+                                label: 'Membership Fee',
+                                hint: '0.00',
+                                icon: Icons.payments,
+                                keyboardType: TextInputType.numberWithOptions(
+                                  decimal: true,
+                                ),
+                              ),
                             ),
-                          ),
-                          SizedBox(width: 12),
-                          Expanded(
-                            child: _buildNativeTapField(
-                              value: _selectedCurrency,
-                              label: 'Currency',
-                              hint: 'INR',
-                              onTap: _showNativeCurrencyPicker,
-                              readOnly: true,
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: _buildNativeTapField(
+                                value: _selectedCurrency,
+                                label: 'Currency',
+                                hint: 'INR',
+                                onTap: _showNativeCurrencyPicker,
+                                readOnly: true,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
 
-              SizedBox(height: 16),
-            ],
-          ),
-        ),
-      ),
-      ),
-    );
-  }
-
-  Widget _buildSmallClubLogo() {
-    // Check if the URL is an SVG
-    if (widget.club.logo!.toLowerCase().contains('.svg') || 
-        widget.club.logo!.toLowerCase().contains('svg?')) {
-      return SvgPicture.network(
-        widget.club.logo!,
-        fit: BoxFit.cover,
-        placeholderBuilder: (context) => _buildSmallDefaultClubLogo(),
-      );
-    } else {
-      // Regular image (PNG, JPG, etc.)
-      return Image.network(
-        widget.club.logo!,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return _buildSmallDefaultClubLogo();
-        },
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return _buildSmallDefaultClubLogo();
-        },
-      );
-    }
-  }
-
-  Widget _buildSmallDefaultClubLogo() {
-    return Container(
-      color: Theme.of(context).primaryColor.withOpacity(0.1),
-      child: Center(
-        child: Text(
-          widget.club.name.isNotEmpty
-              ? widget.club.name.substring(0, 1).toUpperCase()
-              : 'C',
-          style: TextStyle(
-            fontSize: 8,
-            fontWeight: FontWeight.w600,
-            color: Theme.of(context).primaryColor,
+                SizedBox(height: 16),
+              ],
+            ),
           ),
         ),
       ),
@@ -929,11 +957,9 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
               color: Theme.of(context).hintColor,
               fontSize: 14,
             ),
-            prefixIcon: icon != null ? Icon(
-              icon, 
-              size: 20,
-              color: Theme.of(context).hintColor,
-            ) : null,
+            prefixIcon: icon != null
+                ? Icon(icon, size: 20, color: Theme.of(context).hintColor)
+                : null,
             filled: true,
             fillColor: Theme.of(context).brightness == Brightness.dark
                 ? Theme.of(context).cardColor
@@ -954,10 +980,7 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(
-                color: AppTheme.primaryBlue,
-                width: 2,
-              ),
+              borderSide: BorderSide(color: AppTheme.primaryBlue, width: 2),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
@@ -988,8 +1011,12 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
     IconData? leadingIcon,
     bool readOnly = false,
   }) {
-    IconData icon = leadingIcon ?? (Platform.isIOS ? CupertinoIcons.chevron_down : Icons.keyboard_arrow_down);
-    
+    IconData icon =
+        leadingIcon ??
+        (Platform.isIOS
+            ? CupertinoIcons.chevron_down
+            : Icons.keyboard_arrow_down);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1008,11 +1035,11 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
             width: double.infinity,
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: readOnly 
+              color: readOnly
                   ? Theme.of(context).disabledColor.withOpacity(0.1)
                   : (Theme.of(context).brightness == Brightness.dark
-                      ? Theme.of(context).cardColor
-                      : Theme.of(context).scaffoldBackgroundColor),
+                        ? Theme.of(context).cardColor
+                        : Theme.of(context).scaffoldBackgroundColor),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
                 color: Theme.of(context).dividerColor.withOpacity(0.2),
@@ -1026,20 +1053,16 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
                     value ?? hint,
                     style: TextStyle(
                       fontSize: 16,
-                      color: readOnly 
+                      color: readOnly
                           ? Theme.of(context).disabledColor
-                          : (value != null 
-                              ? Theme.of(context).colorScheme.onSurface
-                              : Theme.of(context).hintColor),
+                          : (value != null
+                                ? Theme.of(context).colorScheme.onSurface
+                                : Theme.of(context).hintColor),
                     ),
                   ),
                 ),
                 if (!readOnly)
-                  Icon(
-                    icon,
-                    size: 20,
-                    color: Theme.of(context).hintColor,
-                  ),
+                  Icon(icon, size: 20, color: Theme.of(context).hintColor),
               ],
             ),
           ),

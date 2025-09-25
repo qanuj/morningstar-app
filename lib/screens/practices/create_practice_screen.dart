@@ -418,7 +418,9 @@ class _CreatePracticeScreenState extends State<CreatePracticeScreen> {
                         duration,
                         style: TextStyle(
                           fontSize: 16,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.normal,
                           color: isSelected
                               ? Theme.of(context).primaryColor
                               : Theme.of(context).textTheme.bodyLarge?.color,
@@ -497,7 +499,7 @@ class _CreatePracticeScreenState extends State<CreatePracticeScreen> {
                       child: Text(
                         'Cancel',
                         style: TextStyle(
-                          color: CupertinoColors.systemBlue,
+                          color: Theme.of(context).colorScheme.primary,
                           fontSize: 17,
                         ),
                       ),
@@ -517,7 +519,7 @@ class _CreatePracticeScreenState extends State<CreatePracticeScreen> {
                       child: Text(
                         'Done',
                         style: TextStyle(
-                          color: CupertinoColors.systemBlue,
+                          color: Theme.of(context).colorScheme.primary,
                           fontSize: 17,
                           fontWeight: FontWeight.w600,
                         ),
@@ -598,7 +600,7 @@ class _CreatePracticeScreenState extends State<CreatePracticeScreen> {
                       child: Text(
                         'Cancel',
                         style: TextStyle(
-                          color: CupertinoColors.systemBlue,
+                          color: Theme.of(context).colorScheme.primary,
                           fontSize: 17,
                         ),
                       ),
@@ -623,7 +625,7 @@ class _CreatePracticeScreenState extends State<CreatePracticeScreen> {
                       child: Text(
                         'Done',
                         style: TextStyle(
-                          color: CupertinoColors.systemBlue,
+                          color: Theme.of(context).colorScheme.primary,
                           fontSize: 17,
                           fontWeight: FontWeight.w600,
                         ),

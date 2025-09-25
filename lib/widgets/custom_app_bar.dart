@@ -218,11 +218,20 @@ class ClubAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return AppBar(
-      backgroundColor: const Color(0xFF003f9b),
+      backgroundColor: isDarkMode
+          ? Theme.of(context).colorScheme.surface
+          : Theme.of(context).colorScheme.primary,
       elevation: 0,
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: Colors.white),
+        icon: Icon(
+          Icons.arrow_back,
+          color: isDarkMode
+              ? Theme.of(context).colorScheme.onSurface
+              : Colors.white,
+        ),
         onPressed: onBackPressed ?? () => Navigator.of(context).pop(),
       ),
       title: Row(
@@ -234,7 +243,9 @@ class ClubAppBar extends StatelessWidget implements PreferredSizeWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
-                color: Colors.white.withOpacity(0.3),
+                color: isDarkMode
+                    ? Theme.of(context).colorScheme.outline.withOpacity(0.3)
+                    : Colors.white.withOpacity(0.3),
                 width: 1,
               ),
             ),
@@ -253,8 +264,10 @@ class ClubAppBar extends StatelessWidget implements PreferredSizeWidget {
               children: [
                 Text(
                   clubName,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: isDarkMode
+                        ? Theme.of(context).colorScheme.onSurface
+                        : Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
                   ),
@@ -264,7 +277,11 @@ class ClubAppBar extends StatelessWidget implements PreferredSizeWidget {
                 Text(
                   subtitle,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.8),
+                    color: isDarkMode
+                        ? Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withOpacity(0.8)
+                        : Colors.white.withOpacity(0.8),
                     fontSize: 13,
                   ),
                 ),
@@ -304,19 +321,26 @@ class ClubAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   Widget _buildDefaultClubLogo() {
     return Builder(
-      builder: (context) => Container(
-        color: Theme.of(context).primaryColor.withOpacity(0.1),
-        child: Center(
-          child: Text(
-            clubName.isNotEmpty ? clubName.substring(0, 1).toUpperCase() : 'C',
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
+      builder: (context) {
+        final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+        return Container(
+          color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+          child: Center(
+            child: Text(
+              clubName.isNotEmpty
+                  ? clubName.substring(0, 1).toUpperCase()
+                  : 'C',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: isDarkMode
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.white,
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -324,12 +348,23 @@ class ClubAppBar extends StatelessWidget implements PreferredSizeWidget {
     if (actions == null || actions!.isEmpty) return [];
 
     return actions!.map((action) {
-      // Style IconButtons with white color
+      // Style IconButtons with theme-aware color
       if (action is IconButton) {
-        return IconButton(
-          onPressed: action.onPressed,
-          icon: Icon((action.icon as Icon).icon, color: Colors.white, size: 24),
-          tooltip: action.tooltip,
+        return Builder(
+          builder: (context) {
+            final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+            return IconButton(
+              onPressed: action.onPressed,
+              icon: Icon(
+                (action.icon as Icon).icon,
+                color: isDarkMode
+                    ? Theme.of(context).colorScheme.onSurface
+                    : Colors.white,
+                size: 24,
+              ),
+              tooltip: action.tooltip,
+            );
+          },
         );
       }
       return action;

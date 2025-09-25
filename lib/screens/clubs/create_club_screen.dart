@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'dart:convert';
 import '../../widgets/custom_app_bar.dart';
+import '../../widgets/club_logo_upload_widget.dart';
 import '../../services/api_service.dart';
 import '../../services/subscription_service.dart';
 import '../../services/file_upload_service.dart';
@@ -194,74 +194,6 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
     return name.length >= 3 && name.length <= 50;
   }
 
-  /// Custom club avatar widget that matches SVGAvatar styling for local files
-  Widget _buildClubAvatar({
-    required double size,
-    File? imageFile,
-    IconData fallbackIcon = Icons.groups,
-    String? fallbackText,
-    VoidCallback? onTap,
-  }) {
-    Widget content = Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Theme.of(context).primaryColor.withOpacity(0.1),
-        border: Border.all(
-          color: Theme.of(context).primaryColor.withOpacity(0.3),
-          width: 2,
-        ),
-      ),
-      child: ClipOval(
-        child: imageFile != null
-            ? Image.file(
-                imageFile,
-                fit: BoxFit.cover,
-                width: size,
-                height: size,
-              )
-            : fallbackText != null && fallbackText.isNotEmpty
-            ? Center(
-                child: Text(
-                  _generateClubInitials(fallbackText),
-                  style: TextStyle(
-                    fontSize: size * 0.4,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).primaryColor,
-                  ),
-                ),
-              )
-            : Icon(
-                fallbackIcon,
-                size: size * 0.5,
-                color: Theme.of(context).primaryColor,
-              ),
-      ),
-    );
-
-    if (onTap != null) {
-      content = GestureDetector(onTap: onTap, child: content);
-    }
-
-    return content;
-  }
-
-  /// Generate initials from club name
-  String _generateClubInitials(String text) {
-    if (text.isEmpty) return '';
-
-    final words = text.trim().split(RegExp(r'\s+'));
-    if (words.length == 1) {
-      return words[0].length >= 2
-          ? words[0].substring(0, 2).toUpperCase()
-          : words[0].substring(0, 1).toUpperCase();
-    } else {
-      return (words[0].substring(0, 1) + words[1].substring(0, 1))
-          .toUpperCase();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
@@ -366,10 +298,10 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
             style: TextStyle(fontSize: 18),
             decoration: InputDecoration(
               hintText: 'Enter club name',
-              hintStyle: TextStyle(color: Colors.grey[400]),
+              hintStyle: TextStyle(color: Theme.of(context).hintColor),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+                borderSide: BorderSide(color: Theme.of(context).dividerColor),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -389,12 +321,16 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
                   decoration: BoxDecoration(
                     color: _isClubNameValid()
                         ? Theme.of(context).primaryColor
-                        : Colors.grey[300],
+                        : Theme.of(context).disabledColor,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
                     Icons.arrow_forward,
-                    color: _isClubNameValid() ? Colors.white : Colors.grey[500],
+                    color: _isClubNameValid()
+                        ? Colors.white
+                        : Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withOpacity(0.38),
                   ),
                 ),
               ),
@@ -455,12 +391,17 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
           ),
           SizedBox(height: 40),
           Center(
-            child: _buildClubAvatar(
+            child: ClubLogoUploadWidget(
+              currentLogoFile: _clubLogoFile,
+              clubName: _clubNameController.text.trim(),
               size: 120,
-              imageFile: _clubLogoFile,
-              fallbackIcon: Icons.add_a_photo,
-              fallbackText: _clubNameController.text.trim(),
-              onTap: _pickImage,
+              isUploading: false,
+              showCameraIcon: true,
+              onImageSelected: (File selectedFile) {
+                setState(() {
+                  _clubLogoFile = selectedFile;
+                });
+              },
             ),
           ),
           SizedBox(height: 20),
@@ -548,11 +489,22 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
             Center(
               child: Column(
                 children: [
-                  Icon(Icons.error_outline, size: 48, color: Colors.grey),
+                  Icon(
+                    Icons.error_outline,
+                    size: 48,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withOpacity(0.6),
+                  ),
                   SizedBox(height: 16),
                   Text(
                     'No subscription plans available',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withOpacity(0.8),
+                    ),
                   ),
                 ],
               ),
@@ -565,7 +517,7 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
             child: ElevatedButton(
               onPressed: () => _nextStep(),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).primaryColor,
+                backgroundColor: Theme.of(context).colorScheme.primary,
                 foregroundColor: Colors.white,
                 padding: EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
@@ -616,11 +568,14 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
                 children: [
                   Row(
                     children: [
-                      _buildClubAvatar(
+                      ClubLogoUploadWidget(
+                        currentLogoFile: _clubLogoFile,
+                        clubName: _clubNameController.text.trim(),
                         size: 60,
-                        imageFile: _clubLogoFile,
-                        fallbackIcon: Icons.groups,
-                        fallbackText: _clubNameController.text.trim(),
+                        isUploading: false,
+                        showCameraIcon:
+                            false, // No edit functionality in confirmation
+                        onTap: () {}, // Disable editing in confirmation step
                       ),
                       SizedBox(width: 16),
                       Expanded(
@@ -640,7 +595,7 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
                                 fontSize: 14,
                                 color: Theme.of(
                                   context,
-                                ).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                                ).colorScheme.onSurface.withOpacity(0.8),
                               ),
                             ),
                           ],
@@ -668,7 +623,7 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Theme.of(context).primaryColor,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
                     ],
@@ -680,7 +635,7 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
                       fontSize: 14,
                       color: Theme.of(
                         context,
-                      ).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                      ).colorScheme.onSurface.withOpacity(0.8),
                     ),
                   ),
                 ],
@@ -693,7 +648,7 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
               child: Column(
                 children: [
                   CircularProgressIndicator(
-                    color: Theme.of(context).primaryColor,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                   SizedBox(height: 16),
                   Text('Creating your club...', style: TextStyle(fontSize: 16)),
@@ -706,7 +661,7 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
               child: ElevatedButton(
                 onPressed: () => _processSubscriptionAndCreateClub(),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).primaryColor,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
                   foregroundColor: Colors.white,
                   padding: EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
@@ -730,7 +685,9 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(color: Theme.of(context).primaryColor),
+          CircularProgressIndicator(
+            color: Theme.of(context).colorScheme.primary,
+          ),
           SizedBox(height: 24),
           Text(
             _processingStatus,
@@ -741,9 +698,7 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
             'This may take a few moments',
             style: TextStyle(
               fontSize: 14,
-              color: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.color?.withOpacity(0.7),
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
             ),
           ),
         ],
@@ -807,14 +762,14 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
         decoration: BoxDecoration(
           border: Border.all(
             color: isSelected
-                ? Theme.of(context).primaryColor
-                : Colors.grey.withOpacity(0.3),
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).dividerColor.withOpacity(0.5),
             width: isSelected ? 2 : 1,
           ),
           borderRadius: BorderRadius.circular(12),
           color: isSelected
-              ? Theme.of(context).primaryColor.withOpacity(0.05)
-              : Colors.transparent,
+              ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+              : Theme.of(context).cardColor,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -825,7 +780,9 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: Colors.brown.withOpacity(0.8),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primary.withOpacity(0.9),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -853,7 +810,7 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
                         fontSize: 12,
                         color: Theme.of(
                           context,
-                        ).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                        ).colorScheme.onSurface.withOpacity(0.8),
                         fontWeight: FontWeight.w400,
                       ),
                     ),
@@ -862,7 +819,7 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        color: Theme.of(context).primaryColor,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                     Text(
@@ -871,7 +828,7 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
                         fontSize: 12,
                         color: Theme.of(
                           context,
-                        ).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                        ).colorScheme.onSurface.withOpacity(0.8),
                         fontWeight: FontWeight.w400,
                       ),
                     ),
@@ -905,7 +862,7 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
                           fontSize: 12,
                           color: Theme.of(
                             context,
-                          ).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                          ).colorScheme.onSurface.withOpacity(0.8),
                         ),
                       ),
                     ],
@@ -921,7 +878,7 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: Theme.of(context).primaryColor,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                   ],
@@ -992,11 +949,11 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
 
     try {
       print('Uploading club logo: ${_clubLogoFile!.path}');
-      
+
       // Convert File to PlatformFile for upload service
       final bytes = await _clubLogoFile!.readAsBytes();
       final fileName = _clubLogoFile!.path.split('/').last;
-      
+
       final platformFile = PlatformFile(
         name: fileName,
         size: bytes.length,
@@ -1005,7 +962,7 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
       );
 
       final uploadedUrl = await FileUploadService.uploadFile(platformFile);
-      
+
       if (uploadedUrl != null) {
         print('Club logo uploaded successfully: $uploadedUrl');
         return uploadedUrl;
@@ -1120,32 +1077,6 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
     }
   }
 
-  Future<void> _pickImage() async {
-    final ImagePicker picker = ImagePicker();
-    try {
-      final XFile? image = await picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 512,
-        maxHeight: 512,
-        imageQuality: 80,
-      );
-
-      if (image != null) {
-        setState(() {
-          _clubLogoFile = File(image.path);
-        });
-      }
-    } catch (e) {
-      print('Error picking image: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error selecting image. Please try again.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
   Future<void> _processSubscriptionAndCreateClub() async {
     if (_isProcessing) return;
 
@@ -1177,10 +1108,12 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
               _isProcessing = false;
               _currentStep = CreateClubStep.confirmation;
             });
-            
+
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Club creation cancelled. You can try again anytime.'),
+                content: Text(
+                  'Club creation cancelled. You can try again anytime.',
+                ),
                 backgroundColor: Colors.orange,
                 duration: Duration(seconds: 3),
               ),
@@ -1209,7 +1142,7 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
         setState(() {
           _processingStatus = 'Uploading club logo...';
         });
-        
+
         print('Uploading club logo before creating club...');
         logoUrl = await _uploadClubLogo();
         if (logoUrl == null) {
@@ -1218,7 +1151,9 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Logo upload failed, but club will be created without logo'),
+                content: Text(
+                  'Logo upload failed, but club will be created without logo',
+                ),
                 backgroundColor: Colors.orange,
                 duration: Duration(seconds: 2),
               ),
@@ -1241,8 +1176,8 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
         'membershipFee': 0,
         'membershipFeeCurrency': 'INR',
         'upiIdCurrency': 'INR',
-        // Include logo URL if uploaded successfully
-        if (logoUrl != null) 'logoUrl': logoUrl,
+        // Include logo URL if uploaded successfully - use 'logo' field to match API expectation
+        if (logoUrl != null) 'logo': logoUrl,
         // Convert mobile product ID to server plan key
         if (_selectedPlanId != null)
           'planKey': _getServerPlanKey(_selectedPlanId!),
@@ -1258,7 +1193,7 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
       setState(() {
         _processingStatus = 'Creating club...';
       });
-      
+
       try {
         final response = await ApiService.post('/clubs', clubData);
         print('SUCCESS: Club creation API response: $response');
@@ -1406,7 +1341,8 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
         // Use different colors for different types of messages
         Color backgroundColor = Colors.red;
         if (_subscriptionService.purchaseCancelled) {
-          backgroundColor = Colors.orange; // More neutral color for cancellation
+          backgroundColor =
+              Colors.orange; // More neutral color for cancellation
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1503,18 +1439,20 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
       if (!purchaseResult) {
         // Check if the purchase was specifically cancelled by the user
         final wasCancelled = _subscriptionService.purchaseCancelled;
-        
+
         if (wasCancelled) {
-          print('PAYMENT CANCELLED: User cancelled the purchase for plan: $_selectedPlanId');
+          print(
+            'PAYMENT CANCELLED: User cancelled the purchase for plan: $_selectedPlanId',
+          );
           print('Clearing cached club data due to payment cancellation...');
         } else {
           print('ERROR: Purchase failed for plan: $_selectedPlanId');
           print('Clearing cached club data due to payment failure...');
         }
-        
+
         // Clear cached club data when payment fails or is cancelled
         await _clearCachedClubData();
-        
+
         return false;
       }
 

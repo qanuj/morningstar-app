@@ -327,7 +327,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                       trailing: _selectedType == type
                           ? Icon(
                               Icons.check,
-                              color: Theme.of(context).primaryColor,
+                              color: Theme.of(context).colorScheme.primary,
                             )
                           : null,
                       onTap: () {
@@ -368,9 +368,9 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
         builder: (context, child) {
           return Theme(
             data: Theme.of(context).copyWith(
-              colorScheme: Theme.of(
-                context,
-              ).colorScheme.copyWith(primary: Theme.of(context).primaryColor),
+              colorScheme: Theme.of(context).colorScheme.copyWith(
+                primary: Theme.of(context).colorScheme.primary,
+              ),
             ),
             child: child!,
           );
@@ -465,9 +465,9 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
         builder: (context, child) {
           return Theme(
             data: Theme.of(context).copyWith(
-              colorScheme: Theme.of(
-                context,
-              ).colorScheme.copyWith(primary: Theme.of(context).primaryColor),
+              colorScheme: Theme.of(context).colorScheme.copyWith(
+                primary: Theme.of(context).colorScheme.primary,
+              ),
             ),
             child: child!,
           );
@@ -720,7 +720,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                               Icon(
                                 Icons.calendar_today,
                                 size: 22,
-                                color: Theme.of(context).primaryColor,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
                               SizedBox(width: 12),
                               Expanded(
@@ -770,7 +770,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                               Icon(
                                 Icons.access_time,
                                 size: 22,
-                                color: Theme.of(context).primaryColor,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
                               SizedBox(width: 12),
                               Expanded(
@@ -806,12 +806,12 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                   border: Border.all(
                     color: _selectedVenue == null
                         ? Theme.of(context).dividerColor.withOpacity(0.5)
-                        : Theme.of(context).primaryColor,
+                        : Theme.of(context).colorScheme.primary,
                     width: _selectedVenue == null ? 1 : 2,
                   ),
                   color: _selectedVenue == null
                       ? Theme.of(context).inputDecorationTheme.fillColor
-                      : Theme.of(context).primaryColor.withOpacity(0.05),
+                      : Theme.of(context).colorScheme.primary.withOpacity(0.05),
                 ),
                 child: Row(
                   children: [
@@ -819,9 +819,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                       Icons.location_on,
                       color: _selectedVenue == null
                           ? Theme.of(context).textTheme.bodyMedium?.color
-                          : (Theme.of(context).brightness == Brightness.dark
-                                ? Theme.of(context).colorScheme.primary
-                                : Theme.of(context).primaryColor),
+                          : Theme.of(context).colorScheme.primary,
                     ),
                     SizedBox(width: 12),
                     Expanded(
@@ -879,12 +877,14 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                     border: Border.all(
                       color: _selectedTournament == null
                           ? Theme.of(context).dividerColor.withOpacity(0.5)
-                          : Theme.of(context).primaryColor,
+                          : Theme.of(context).colorScheme.primary,
                       width: _selectedTournament == null ? 1 : 2,
                     ),
                     color: _selectedTournament == null
                         ? Theme.of(context).inputDecorationTheme.fillColor
-                        : Theme.of(context).primaryColor.withOpacity(0.05),
+                        : Theme.of(
+                            context,
+                          ).colorScheme.primary.withOpacity(0.05),
                   ),
                   child: Row(
                     children: [
@@ -892,9 +892,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                         Icons.emoji_events,
                         color: _selectedTournament == null
                             ? Theme.of(context).textTheme.bodyMedium?.color
-                            : (Theme.of(context).brightness == Brightness.dark
-                                  ? Theme.of(context).colorScheme.primary
-                                  : Theme.of(context).primaryColor),
+                            : Theme.of(context).colorScheme.primary,
                       ),
                       SizedBox(width: 12),
                       Expanded(
@@ -993,7 +991,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: Theme.of(context).primaryColor,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
               ),
             ),
@@ -1022,11 +1020,11 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
           padding: EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
             color: isSelected
-                ? Theme.of(context).primaryColor.withOpacity(0.1)
+                ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
                 : Theme.of(context).inputDecorationTheme.fillColor,
             border: Border.all(
               color: isSelected
-                  ? Theme.of(context).primaryColor
+                  ? Theme.of(context).colorScheme.primary
                   : Theme.of(context).dividerColor.withOpacity(0.5),
               width: isSelected ? 2 : 1,
             ),
@@ -1038,9 +1036,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                 icon,
                 size: 20,
                 color: isSelected
-                    ? (Theme.of(context).brightness == Brightness.dark
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).primaryColor)
+                    ? Theme.of(context).colorScheme.primary
                     : Theme.of(context).textTheme.bodySmall?.color,
               ),
               SizedBox(height: 4),
@@ -1052,9 +1048,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                   fontSize: 11,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                   color: isSelected
-                      ? (Theme.of(context).brightness == Brightness.dark
-                            ? Theme.of(context).colorScheme.primary
-                            : Theme.of(context).primaryColor)
+                      ? Theme.of(context).colorScheme.primary
                       : Theme.of(context).textTheme.bodyLarge?.color,
                 ),
                 textAlign: TextAlign.center,
@@ -1097,7 +1091,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
           boxShadow: [
             if (isSelected)
               BoxShadow(
-                color: Theme.of(context).primaryColor.withOpacity(0.3),
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
                 blurRadius: 8,
                 offset: Offset(0, 4),
               ),
@@ -1150,8 +1144,8 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                           size: 120,
                           backgroundColor: Theme.of(
                             context,
-                          ).primaryColor.withOpacity(0.1),
-                          iconColor: Theme.of(context).primaryColor,
+                          ).colorScheme.primary.withOpacity(0.1),
+                          iconColor: Theme.of(context).colorScheme.primary,
                           fallbackIcon: Icons.sports_cricket,
                           showBorder: false,
                           fit: BoxFit.contain,
@@ -1161,7 +1155,9 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                                   style: TextStyle(
                                     fontSize: 32,
                                     fontWeight: FontWeight.bold,
-                                    color: Theme.of(context).primaryColor,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
                                   ),
                                 )
                               : null,
@@ -1226,7 +1222,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: Theme.of(context).primaryColor,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -1236,7 +1232,12 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                       Text(
                         team!.club!.name,
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withOpacity(0.7),
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),

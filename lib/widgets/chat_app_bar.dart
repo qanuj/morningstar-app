@@ -37,17 +37,26 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return SafeArea(
       top: false, // Don't add top safe area padding
       child: AppBar(
-        backgroundColor: const Color(0xFF003f9b),
+        backgroundColor: isDarkMode
+            ? Theme.of(context).colorScheme.surface
+            : Theme.of(context).colorScheme.primary,
         elevation: 0,
         toolbarHeight: 48.0, // Match the preferredSize height
         titleSpacing: 0, // Remove extra spacing around title
         automaticallyImplyLeading:
             false, // Remove automatic leading widget spacing
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(
+            Icons.arrow_back,
+            color: isDarkMode
+                ? Theme.of(context).colorScheme.onSurface
+                : Colors.white,
+          ),
           onPressed: onBackPressed,
         ),
         title: isSelectionMode ? _buildSelectionTitle() : _buildNormalTitle(),
@@ -59,13 +68,20 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   Widget _buildSelectionTitle() {
-    return Text(
-      '${selectedMessageIds.length} message${selectedMessageIds.length == 1 ? '' : 's'} selected',
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 18,
-        fontWeight: FontWeight.w600,
-      ),
+    return Builder(
+      builder: (context) {
+        final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+        return Text(
+          '${selectedMessageIds.length} message${selectedMessageIds.length == 1 ? '' : 's'} selected',
+          style: TextStyle(
+            color: isDarkMode
+                ? Theme.of(context).colorScheme.onSurface
+                : Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        );
+      },
     );
   }
 
@@ -73,19 +89,29 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
     return Row(
       children: [
         // Club Logo
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: club.logo != null && club.logo!.isNotEmpty
-                ? _buildClubLogo()
-                : _buildDefaultClubLogo(),
-          ),
+        Builder(
+          builder: (context) {
+            final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+            return Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isDarkMode
+                      ? Theme.of(context).colorScheme.outline.withOpacity(0.3)
+                      : Colors.white.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: club.logo != null && club.logo!.isNotEmpty
+                    ? _buildClubLogo()
+                    : _buildDefaultClubLogo(),
+              ),
+            );
+          },
         ),
         const SizedBox(width: 12),
         // Club Name and Status
@@ -102,27 +128,39 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
                 onShowClubInfo();
               }
             },
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  club.name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  _getSubtitleText(),
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.8),
-                    fontSize: 13,
-                  ),
-                ),
-              ],
+            child: Builder(
+              builder: (context) {
+                final isDarkMode =
+                    Theme.of(context).brightness == Brightness.dark;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      club.name,
+                      style: TextStyle(
+                        color: isDarkMode
+                            ? Theme.of(context).colorScheme.onSurface
+                            : Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      _getSubtitleText(),
+                      style: TextStyle(
+                        color: isDarkMode
+                            ? Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withOpacity(0.8)
+                            : Colors.white.withOpacity(0.8),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ),
@@ -157,37 +195,62 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   Widget _buildDefaultClubLogo() {
     return Builder(
-      builder: (context) => Container(
-        color: Theme.of(context).primaryColor.withOpacity(0.1),
-        child: Center(
-          child: Text(
-            club.name.isNotEmpty
-                ? club.name.substring(0, 1).toUpperCase()
-                : 'C',
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
+      builder: (context) {
+        final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+        return Container(
+          color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+          child: Center(
+            child: Text(
+              club.name.isNotEmpty
+                  ? club.name.substring(0, 1).toUpperCase()
+                  : 'C',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: isDarkMode
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.white,
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
   List<Widget> _buildSelectionActions() {
     return [
-      IconButton(
-        icon: const Icon(Icons.close, color: Colors.white),
-        onPressed: onExitSelectionMode,
-        tooltip: 'Cancel selection',
+      Builder(
+        builder: (context) {
+          final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+          return IconButton(
+            icon: Icon(
+              Icons.close,
+              color: isDarkMode
+                  ? Theme.of(context).colorScheme.onSurface
+                  : Colors.white,
+            ),
+            onPressed: onExitSelectionMode,
+            tooltip: 'Cancel selection',
+          );
+        },
       ),
-      IconButton(
-        icon: const Icon(Icons.delete, color: Colors.white),
-        onPressed: selectedMessageIds.isNotEmpty
-            ? onDeleteSelectedMessages
-            : null,
-        tooltip: 'Delete selected messages',
+      Builder(
+        builder: (context) {
+          final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+          return IconButton(
+            icon: Icon(
+              Icons.delete,
+              color: isDarkMode
+                  ? Theme.of(context).colorScheme.onSurface
+                  : Colors.white,
+            ),
+            onPressed: selectedMessageIds.isNotEmpty
+                ? onDeleteSelectedMessages
+                : null,
+            tooltip: 'Delete selected messages',
+          );
+        },
       ),
     ];
   }
@@ -201,20 +264,32 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
           final isOfflineMode = snapshot.data ?? false;
           return Stack(
             children: [
-              IconButton(
-                icon: AnimatedBuilder(
-                  animation: refreshAnimationController,
-                  builder: (context, child) {
-                    return Transform.rotate(
-                      angle: refreshAnimationController.value * 2.0 * 3.14159,
-                      child: const Icon(Icons.refresh, color: Colors.white),
-                    );
-                  },
-                ),
-                onPressed: onRefreshMessages,
-                tooltip: isOfflineMode
-                    ? 'Refresh from server (Offline mode is ON)'
-                    : 'Refresh messages',
+              Builder(
+                builder: (context) {
+                  final isDarkMode =
+                      Theme.of(context).brightness == Brightness.dark;
+                  return IconButton(
+                    icon: AnimatedBuilder(
+                      animation: refreshAnimationController,
+                      builder: (context, child) {
+                        return Transform.rotate(
+                          angle:
+                              refreshAnimationController.value * 2.0 * 3.14159,
+                          child: Icon(
+                            Icons.refresh,
+                            color: isDarkMode
+                                ? Theme.of(context).colorScheme.onSurface
+                                : Colors.white,
+                          ),
+                        );
+                      },
+                    ),
+                    onPressed: onRefreshMessages,
+                    tooltip: isOfflineMode
+                        ? 'Refresh from server (Offline mode is ON)'
+                        : 'Refresh messages',
+                  );
+                },
               ),
               if (isOfflineMode)
                 Positioned(
@@ -234,117 +309,143 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
         },
       ),
       Builder(
-        builder: (context) => PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert, color: Colors.white),
-          onSelected: onMoreOptionSelected,
-          tooltip: 'More options',
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          color: Theme.of(context).brightness == Brightness.dark
-              ? Color(0xFF2A2A2A)
-              : Colors.white,
-          elevation: 8,
-          itemBuilder: (BuildContext menuContext) {
-            // Build menu items based on role
-            final List<PopupMenuEntry<String>> items = [];
+        builder: (context) {
+          final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+          return PopupMenuButton<String>(
+            icon: Icon(
+              Icons.more_vert,
+              color: isDarkMode
+                  ? Theme.of(context).colorScheme.onSurface
+                  : Colors.white,
+            ),
+            onSelected: onMoreOptionSelected,
+            tooltip: 'More options',
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            color: isDarkMode
+                ? Theme.of(context).colorScheme.surface
+                : Colors.white,
+            elevation: 8,
+            itemBuilder: (BuildContext menuContext) {
+              final iconColor = Theme.of(menuContext).colorScheme.primary;
 
-            // Add Members - Only for admin/owner
-            if (userRole?.toLowerCase() == 'admin' ||
-                userRole?.toLowerCase() == 'owner') {
+              // Build menu items based on role
+              final List<PopupMenuEntry<String>> items = [];
+
+              // Add Members - Only for admin/owner
+              if (userRole?.toLowerCase() == 'admin' ||
+                  userRole?.toLowerCase() == 'owner') {
+                items.add(
+                  PopupMenuItem<String>(
+                    value: 'add_members',
+                    child: Row(
+                      children: [
+                        Icon(Icons.person_add, color: iconColor),
+                        SizedBox(width: 12),
+                        Text('Add Members'),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              // Manage Club
               items.add(
                 PopupMenuItem<String>(
-                  value: 'add_members',
+                  value: 'manage_club',
                   child: Row(
                     children: [
-                      Icon(Icons.person_add, color: Color(0xFF003f9b)),
+                      Icon(Icons.settings, color: iconColor),
                       SizedBox(width: 12),
-                      Text('Add Members'),
+                      Text('Manage Club'),
                     ],
                   ),
                 ),
               );
-            }
 
-            // Manage Club
-            items.add(
-              PopupMenuItem<String>(
-                value: 'manage_club',
-                child: Row(
-                  children: [
-                    Icon(Icons.settings, color: Color(0xFF003f9b)),
-                    SizedBox(width: 12),
-                    Text('Manage Club'),
-                  ],
+              // Matches
+              items.add(
+                PopupMenuItem<String>(
+                  value: 'matches',
+                  child: Row(
+                    children: [
+                      Icon(Icons.sports_cricket, color: iconColor),
+                      SizedBox(width: 12),
+                      Text('Matches'),
+                    ],
+                  ),
                 ),
-              ),
-            );
+              );
 
-            // Matches
-            items.add(
-              PopupMenuItem<String>(
-                value: 'matches',
-                child: Row(
-                  children: [
-                    Icon(Icons.sports_cricket, color: Color(0xFF003f9b)),
-                    SizedBox(width: 12),
-                    Text('Matches'),
-                  ],
+              // Transactions
+              items.add(
+                PopupMenuItem<String>(
+                  value: 'transactions',
+                  child: Row(
+                    children: [
+                      Icon(Icons.account_balance_wallet, color: iconColor),
+                      SizedBox(width: 12),
+                      Text('Transactions'),
+                    ],
+                  ),
                 ),
-              ),
-            );
+              );
 
-            // Transactions
-            items.add(
-              PopupMenuItem<String>(
-                value: 'transactions',
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.account_balance_wallet,
-                      color: Color(0xFF003f9b),
+              // Teams
+              items.add(
+                PopupMenuItem<String>(
+                  value: 'teams',
+                  child: Row(
+                    children: [
+                      Icon(Icons.groups, color: iconColor),
+                      SizedBox(width: 12),
+                      Text('Teams'),
+                    ],
+                  ),
+                ),
+              );
+
+              // Divider before clear messages - custom for better dark mode visibility
+              items.add(
+                PopupMenuItem<String>(
+                  enabled: false,
+                  height: 16,
+                  padding: EdgeInsets.zero,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: Theme.of(
+                        menuContext,
+                      ).colorScheme.outline.withOpacity(0.5),
                     ),
-                    SizedBox(width: 12),
-                    Text('Transactions'),
-                  ],
+                  ),
                 ),
-              ),
-            );
+              );
 
-            // Teams
-            items.add(
-              PopupMenuItem<String>(
-                value: 'teams',
-                child: Row(
-                  children: [
-                    Icon(Icons.groups, color: Color(0xFF003f9b)),
-                    SizedBox(width: 12),
-                    Text('Teams'),
-                  ],
+              // Clear Messages
+              items.add(
+                PopupMenuItem<String>(
+                  value: 'clear_messages',
+                  child: Row(
+                    children: [
+                      Icon(Icons.clear_all, color: Colors.red),
+                      SizedBox(width: 12),
+                      Text(
+                        'Clear Messages',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            );
+              );
 
-            // Divider before clear messages
-            items.add(PopupMenuDivider());
-
-            // Clear Messages
-            items.add(
-              PopupMenuItem<String>(
-                value: 'clear_messages',
-                child: Row(
-                  children: [
-                    Icon(Icons.clear_all, color: Colors.red),
-                    SizedBox(width: 12),
-                    Text('Clear Messages', style: TextStyle(color: Colors.red)),
-                  ],
-                ),
-              ),
-            );
-
-            return items;
-          },
-        ),
+              return items;
+            },
+          );
+        },
       ),
     ];
   }
