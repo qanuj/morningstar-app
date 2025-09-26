@@ -140,7 +140,10 @@ class MessageBubbleFactory extends StatelessWidget {
         isSelected: isSelected,
         showSenderInfo: showSenderInfo,
         onReactionRemoved: onReactionRemoved,
-        onViewMatch: () => _navigateToCachedMatchDetail(context, message), // Practice details also cached
+        onViewMatch: () => _navigateToCachedMatchDetail(
+          context,
+          message,
+        ), // Practice details also cached
         onRSVP: () {
           // RSVP is handled internally by the CachedMatchMessageBubble
         },
@@ -173,9 +176,7 @@ class MessageBubbleFactory extends StatelessWidget {
       );
     } else if (message.messageType == 'system') {
       // SYSTEM MESSAGE: Member additions, date groups, and other system events
-      return SystemMessageBubble(
-        message: message,
-      );
+      return SystemMessageBubble(message: message);
     } else {
       // TEXT MESSAGE: Images/videos first, then body below
       return TextMessageBubble(
@@ -244,10 +245,8 @@ class MessageBubbleFactory extends StatelessWidget {
     // Create a cached match detail screen that uses the message data
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => CachedMatchDetailScreen(
-          message: message,
-          matchData: matchData,
-        ),
+        builder: (context) =>
+            CachedMatchDetailScreen(message: message, matchData: matchData),
       ),
     );
   }

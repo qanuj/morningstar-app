@@ -85,7 +85,9 @@ class MemberQRScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: Theme.of(context).brightness == Brightness.dark
+                              color:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
                                   ? Colors.black.withOpacity(0.3)
                                   : Colors.black.withOpacity(0.1),
                               blurRadius: 15,
@@ -127,7 +129,9 @@ class MemberQRScreen extends StatelessWidget {
                           SVGAvatar(
                             imageUrl: user.profilePicture,
                             size: 60,
-                            backgroundColor: Theme.of(context).colorScheme.primary,
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.primary,
                             child: user.profilePicture == null
                                 ? Text(
                                     user.name.isNotEmpty
@@ -162,7 +166,9 @@ class MemberQRScreen extends StatelessWidget {
                             user.phoneNumber,
                             style: TextStyle(
                               fontSize: 16,
-                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withOpacity(0.7),
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -187,9 +193,7 @@ class MemberQRScreen extends StatelessWidget {
         content: const Text('Member ID copied to clipboard'),
         backgroundColor: const Color(0xFF16a34a),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         margin: const EdgeInsets.all(16),
         duration: const Duration(seconds: 2),
       ),

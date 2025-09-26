@@ -61,77 +61,81 @@ class ClubInviteQRScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                // QR Code
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.white
-                        : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.black.withOpacity(0.3)
-                            : Colors.black.withOpacity(0.1),
-                        blurRadius: 15,
-                        spreadRadius: 0,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: QrImageView(
-                    data: qrData,
-                    version: QrVersions.auto,
-                    size: 200.0,
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
-                    errorStateBuilder: (cxt, err) {
-                      return Container(
-                        width: 200,
-                        height: 200,
-                        color: Colors.red.withOpacity(0.1),
-                        child: const Center(
-                          child: Text(
-                            'Error generating QR code',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.red),
-                          ),
+                      // QR Code
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.black.withOpacity(0.3)
+                                  : Colors.black.withOpacity(0.1),
+                              blurRadius: 15,
+                              spreadRadius: 0,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
-                      );
-                    },
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // Club logo and name
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Club logo
-                    SVGAvatar(
-                      imageUrl: club.logo,
-                      size: 60,
-                      backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                      fallbackIcon: Icons.sports_cricket,
-                      iconSize: 30,
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // Club name
-                    Text(
-                      club.name,
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.onSurface,
+                        child: QrImageView(
+                          data: qrData,
+                          version: QrVersions.auto,
+                          size: 200.0,
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.black,
+                          errorStateBuilder: (cxt, err) {
+                            return Container(
+                              width: 200,
+                              height: 200,
+                              color: Colors.red.withOpacity(0.1),
+                              child: const Center(
+                                child: Text(
+                                  'Error generating QR code',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
+
+                      const SizedBox(height: 20),
+
+                      // Club logo and name
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Club logo
+                          SVGAvatar(
+                            imageUrl: club.logo,
+                            size: 60,
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.primary.withOpacity(0.1),
+                            fallbackIcon: Icons.sports_cricket,
+                            iconSize: 30,
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          // Club name
+                          Text(
+                            club.name,
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
