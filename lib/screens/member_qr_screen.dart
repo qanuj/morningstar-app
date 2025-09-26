@@ -24,7 +24,7 @@ class MemberQRScreen extends StatelessWidget {
     });
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -35,23 +35,29 @@ class MemberQRScreen extends StatelessWidget {
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.close,
-                      color: Color(0xFF003f9b),
+                      color: Theme.of(context).colorScheme.primary,
                     ),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                   const Spacer(),
                   TextButton(
                     onPressed: () => _copyToClipboard(context, user.id),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.copy, size: 18, color: Color(0xFF003f9b)),
-                        SizedBox(width: 4),
+                        Icon(
+                          Icons.copy,
+                          size: 18,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 4),
                         Text(
                           'Copy ID',
-                          style: TextStyle(color: Color(0xFF003f9b)),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
                         ),
                       ],
                     ),
@@ -73,11 +79,15 @@ class MemberQRScreen extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white
+                              : Colors.white,
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.black.withOpacity(0.3)
+                                  : Colors.black.withOpacity(0.1),
                               blurRadius: 15,
                               spreadRadius: 0,
                               offset: const Offset(0, 2),
@@ -89,7 +99,7 @@ class MemberQRScreen extends StatelessWidget {
                           version: QrVersions.auto,
                           size: 200.0,
                           backgroundColor: Colors.white,
-                          foregroundColor: const Color(0xFF003f9b),
+                          foregroundColor: Colors.black,
                           errorStateBuilder: (cxt, err) {
                             return Container(
                               width: 200,
@@ -117,7 +127,7 @@ class MemberQRScreen extends StatelessWidget {
                           SVGAvatar(
                             imageUrl: user.profilePicture,
                             size: 60,
-                            backgroundColor: const Color(0xFF003f9b),
+                            backgroundColor: Theme.of(context).colorScheme.primary,
                             child: user.profilePicture == null
                                 ? Text(
                                     user.name.isNotEmpty
@@ -137,10 +147,10 @@ class MemberQRScreen extends StatelessWidget {
                           // Member name
                           Text(
                             user.name,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF003f9b),
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -150,9 +160,9 @@ class MemberQRScreen extends StatelessWidget {
                           // Member phone
                           Text(
                             user.phoneNumber,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
-                              color: Color(0xFF6c757d),
+                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                             ),
                             textAlign: TextAlign.center,
                           ),

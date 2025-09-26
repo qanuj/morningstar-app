@@ -196,7 +196,9 @@ class MessageBubbleFactory extends StatelessWidget {
       isOwn: isOwn,
       isPinned: isPinned,
       isSelected: isSelected,
-      customColor: Colors.grey[300],
+      customColor: Theme.of(context).brightness == Brightness.dark
+          ? Colors.grey[800]
+          : Colors.grey[300],
       showMetaOverlay: false,
       showShadow: false,
       isLastFromSender: isLastFromSender,
@@ -206,7 +208,13 @@ class MessageBubbleFactory extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.block, size: 16, color: Colors.grey[600]),
+            Icon(
+              Icons.block,
+              size: 16,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.grey[400]
+                  : Colors.grey[600],
+            ),
             SizedBox(width: 8),
             Flexible(
               child: Text(
@@ -216,7 +224,9 @@ class MessageBubbleFactory extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13,
                   fontStyle: FontStyle.italic,
-                  color: Colors.grey[600],
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey[400]
+                      : Colors.grey[600],
                 ),
               ),
             ),

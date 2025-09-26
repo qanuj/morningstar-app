@@ -30,7 +30,7 @@ class ClubInviteQRScreen extends StatelessWidget {
     });
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -41,9 +41,9 @@ class ClubInviteQRScreen extends StatelessWidget {
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.close,
-                      color: Color(0xFF003f9b),
+                      color: Theme.of(context).colorScheme.primary,
                     ),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
@@ -65,11 +65,15 @@ class ClubInviteQRScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white
+                        : Colors.white,
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.black.withOpacity(0.3)
+                            : Colors.black.withOpacity(0.1),
                         blurRadius: 15,
                         spreadRadius: 0,
                         offset: const Offset(0, 2),
@@ -81,7 +85,7 @@ class ClubInviteQRScreen extends StatelessWidget {
                     version: QrVersions.auto,
                     size: 200.0,
                     backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFF003f9b),
+                    foregroundColor: Colors.black,
                     errorStateBuilder: (cxt, err) {
                       return Container(
                         width: 200,
@@ -109,7 +113,7 @@ class ClubInviteQRScreen extends StatelessWidget {
                     SVGAvatar(
                       imageUrl: club.logo,
                       size: 60,
-                      backgroundColor: const Color(0xFF003f9b).withOpacity(0.1),
+                      backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                       fallbackIcon: Icons.sports_cricket,
                       iconSize: 30,
                     ),
@@ -119,10 +123,10 @@ class ClubInviteQRScreen extends StatelessWidget {
                     // Club name
                     Text(
                       club.name,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF003f9b),
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                       textAlign: TextAlign.center,
                     ),

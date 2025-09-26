@@ -1097,6 +1097,7 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
         Row(
           children: [
             Expanded(
+              flex: 2,
               child: _buildRsvpButtonWithBadge(
                 context,
                 label: 'In',
@@ -1106,8 +1107,9 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
                 isDisabled: isCancelled,
               ),
             ),
-            SizedBox(width: 8),
+            SizedBox(width: 6),
             Expanded(
+              flex: 2,
               child: _buildRsvpButtonWithBadge(
                 context,
                 label: 'Out',
@@ -1117,8 +1119,9 @@ class _CachedMatchMessageBubbleState extends State<CachedMatchMessageBubble> {
                 isDisabled: isCancelled,
               ),
             ),
-            SizedBox(width: 8),
+            SizedBox(width: 6),
             Expanded(
+              flex: 3,
               child: _buildRsvpButtonWithBadge(
                 context,
                 label: 'Maybe',
