@@ -212,24 +212,30 @@ class _PasteableTextFieldState extends State<PasteableTextField> {
     final currentText = controller.text;
     final selection = controller.selection;
 
+    String newText;
+    int newCursorPosition;
+
     if (selection.isValid) {
-      final newText = currentText.replaceRange(
+      newText = currentText.replaceRange(
         selection.start,
         selection.end,
         text,
       );
-      controller.value = controller.value.copyWith(
-        text: newText,
-        selection: TextSelection.collapsed(
-          offset: selection.start + text.length,
-        ),
-      );
+      newCursorPosition = selection.start + text.length;
     } else {
-      controller.text = currentText + text;
-      controller.selection = TextSelection.collapsed(
-        offset: controller.text.length,
-      );
+      newText = currentText + text;
+      newCursorPosition = newText.length;
     }
+
+    controller.value = controller.value.copyWith(
+      text: newText,
+      selection: TextSelection.collapsed(
+        offset: newCursorPosition,
+      ),
+    );
+
+    // Trigger the onChanged callback to update parent state (like _isComposing)
+    widget.onChanged?.call(newText);
   }
 
   Future<Uint8List?> _getClipboardImageData() async {
