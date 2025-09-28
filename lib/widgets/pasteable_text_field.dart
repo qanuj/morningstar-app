@@ -353,8 +353,6 @@ class _PasteableTextFieldState extends State<PasteableTextField> {
     );
   }
 
-
-
   Widget _buildTextFieldWithContextMenu() {
     return Stack(
       children: [
