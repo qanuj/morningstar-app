@@ -28,6 +28,9 @@ class ShareHandlerService {
       // Check for initial shared data (when app is launched via sharing)
       _getInitialSharedData();
 
+      // Add a test to verify method channel is working
+      _testMethodChannel();
+
       print(
         '✅ ShareHandlerService initialized successfully (Custom Method Channel with iOS Support)',
       );
@@ -36,16 +39,31 @@ class ShareHandlerService {
     }
   }
 
+  /// Test method channel connectivity
+  Future<void> _testMethodChannel() async {
+    try {
+      print('📤 Testing method channel connectivity...');
+      final result = await _methodChannel.invokeMethod('getSharedData');
+      print('📤 Method channel test result: $result');
+    } catch (e) {
+      print('📤 Method channel test error (expected if no shared data): $e');
+    }
+  }
+
   /// Handle method calls from native iOS/Android
   Future<void> _handleMethodCall(MethodCall call) async {
-    print('📤 Received method call: ${call.method}');
+    print('📤 ====== FLUTTER METHOD CALL RECEIVED ======');
+    print('📤 Method: ${call.method}');
     print('📤 Arguments: ${call.arguments}');
+    print('📤 Arguments type: ${call.arguments.runtimeType}');
 
     switch (call.method) {
       case 'onDataReceived':
+        print('📤 Processing onDataReceived...');
         final Map<String, dynamic> data = Map<String, dynamic>.from(
           call.arguments,
         );
+        print('📤 Parsed data: $data');
         _processSharedData(data);
         break;
       case 'onURLReceived':
@@ -162,8 +180,12 @@ class ShareHandlerService {
           break;
         case 'image':
           // Create image content
-          if (text.contains('📸 IMAGE_SHARED')) {
-            // Image shared from native - use message as display text
+          if (text.isNotEmpty && text.startsWith('/')) {
+            // We have an actual image file path (from file:// URL or share extension)
+            print('📤 Creating SharedContent from image file path: $text');
+            sharedContent = SharedContent.fromImages([text]);
+          } else if (text.contains('📸 IMAGE_SHARED')) {
+            // Legacy fallback - image shared from native but no file path
             final content = message?.isNotEmpty == true
                 ? message!
                 : '📸 Shared an image';
@@ -173,17 +195,20 @@ class ShareHandlerService {
               text: content,
               metadata: {'isImageShare': true},
             );
-          } else if (text.isNotEmpty &&
-              text != 'Image' &&
-              text.startsWith('/')) {
-            // We have an actual image file path
-            sharedContent = SharedContent.fromImages([text]);
           } else {
-            // Fallback - create as text with message
-            final content = message?.isNotEmpty == true
-                ? message!
-                : 'Shared an image';
-            sharedContent = SharedContent.fromText(content);
+            // Check if message contains a file path
+            if (message?.isNotEmpty == true && message!.startsWith('/')) {
+              print(
+                '📤 Creating SharedContent from image file path in message: $message',
+              );
+              sharedContent = SharedContent.fromImages([message]);
+            } else {
+              // Fallback - create as text with message
+              final content = message?.isNotEmpty == true
+                  ? message!
+                  : 'Shared an image';
+              sharedContent = SharedContent.fromText(content);
+            }
           }
           break;
         case 'text':

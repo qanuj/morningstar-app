@@ -101,8 +101,14 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
     _sharedContentSubscription = ShareHandlerService().sharedContentStream
         .listen(
           (sharedContent) {
-            print('📤 Received shared content: ${sharedContent.type.name}');
-            print('📤 Content details: ${sharedContent.displayText}');
+            print('📤 === SHARED CONTENT RECEIVED ===');
+            print('📤 Type: ${sharedContent.type.name}');
+            print('📤 Text: ${sharedContent.text}');
+            print('📤 Image Paths: ${sharedContent.imagePaths}');
+            print('📤 Display Text: ${sharedContent.displayText}');
+            print('📤 Is Valid: ${sharedContent.isValid}');
+            print('📤 Has Images: ${sharedContent.hasImages}');
+            print('📤 ==============================');
 
             // Validate shared content before navigation
             if (!sharedContent.isValid) {

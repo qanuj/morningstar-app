@@ -13,6 +13,19 @@ import UIKit
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     
+    print("📱 ====== APP STARTUP ======")
+    print("📱 Launch options: \(launchOptions ?? [:])")
+    
+    // Check if app was launched via URL
+    if let url = launchOptions?[UIApplication.LaunchOptionsKey.url] as? URL {
+      print("📱 App launched with URL: \(url)")
+      
+      // Handle the URL after a short delay to ensure Flutter is ready
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+        _ = self?.application(application, open: url, options: [:])
+      }
+    }
+    
     GeneratedPluginRegistrant.register(with: self)
     
     // Get the Flutter view controller
@@ -26,19 +39,27 @@ import UIKit
     shareChannel?.setMethodCallHandler({
       (call: FlutterMethodCall, result: @escaping FlutterResult) -> Void in
       
+      print("📱 Received Flutter method call: \(call.method)")
+      print("📱 Arguments: \(call.arguments ?? "nil")")
+      
       switch call.method {
       case "getSharedData":
+        print("📱 Flutter requested shared data")
         // For now, return null as iOS sharing will be handled differently
         result(nil)
       case "getSharedImagesDirectory":
+        print("📱 Flutter requested shared images directory")
         // Return the path to shared images directory
         if let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.app.duggy") {
           let sharedImagesDir = containerURL.appendingPathComponent("SharedImages")
+          print("📱 Returning shared images directory: \(sharedImagesDir.path)")
           result(sharedImagesDir.path)
         } else {
+          print("📱 Could not access shared container")
           result(nil)
         }
       default:
+        print("📱 Unhandled method: \(call.method)")
         result(FlutterMethodNotImplemented)
       }
     })
@@ -66,13 +87,30 @@ import UIKit
     options: [UIApplication.OpenURLOptionsKey : Any] = [:]
   ) -> Bool {
     
-    print("📱 App opened with URL: \(url)")
+    print("📱 ====== APP OPENED WITH URL ======")
+    print("📱 URL: \(url)")
+    print("📱 Scheme: \(url.scheme ?? "nil")")
+    print("📱 Host: \(url.host ?? "nil")")
+    print("📱 Path: \(url.path)")
+    print("📱 Query: \(url.query ?? "nil")")
+    print("📱 Options: \(options)")
+    print("📱 ===================================")
     
     // Handle Duggy URL schemes (duggy:// and app.duggy://)
     if url.scheme == "duggy" || url.scheme == "app.duggy" {
-      return handleDuggyURL(url)
+      let result = handleDuggyURL(url)
+      print("📱 Duggy URL handling result: \(result)")
+      return result
     }
     
+    // Handle file:// URLs for direct image sharing
+    if url.scheme == "file" {
+      let result = handleFileURL(url)
+      print("📱 File URL handling result: \(result)")
+      return result
+    }
+    
+    print("📱 URL scheme not recognized, passing to super")
     return super.application(app, open: url, options: options)
   }
   
@@ -95,12 +133,22 @@ import UIKit
   }
   
   private func handleShareURL(_ components: URLComponents) -> Bool {
+    print("📤 ====== HANDLING SHARE URL ======")
+    print("📤 URL Components: \(components)")
+    print("📤 Query Items: \(components.queryItems ?? [])")
+    
     var shareData: [String: Any] = [:]
     
     // Parse all query parameters
     if let queryItems = components.queryItems {
+      print("📤 Processing \(queryItems.count) query items")
       for item in queryItems {
-        guard let value = item.value else { continue }
+        guard let value = item.value else { 
+          print("📤 Skipping query item with nil value: \(item.name)")
+          continue 
+        }
+        
+        print("📤 Processing query item: \(item.name) = \(value)")
         
         switch item.name.lowercased() {
         case "content":
@@ -118,7 +166,11 @@ import UIKit
           shareData[item.name] = value.removingPercentEncoding ?? value
         }
       }
+    } else {
+      print("📤 No query items found in URL")
     }
+    
+    print("📤 Parsed share data: \(shareData)")
     
     // Ensure we have at least some content
     guard shareData["text"] != nil || shareData["content"] != nil else {
@@ -129,12 +181,88 @@ import UIKit
     // Default type if not specified
     if shareData["type"] == nil {
       shareData["type"] = "text"
+      print("📤 Defaulting type to 'text'")
     }
     
-    print("📤 Sending share data to Flutter: \(shareData)")
+    print("📤 Final share data to send to Flutter: \(shareData)")
+    
+    // Check if shareChannel is available
+    if shareChannel == nil {
+      print("❌ Share channel is nil! Cannot send data to Flutter")
+      return false
+    }
     
     // Send the parsed data to Flutter
+    print("📤 Invoking Flutter method 'onDataReceived'")
     shareChannel?.invokeMethod("onDataReceived", arguments: shareData)
+    print("📤 ===================================")
+    return true
+  }
+  
+  private func handleFileURL(_ url: URL) -> Bool {
+    print("📱 ====== HANDLING FILE URL ======")
+    print("📱 File URL: \(url)")
+    print("📱 File path: \(url.path)")
+    
+    // Check if the file exists and is an image
+    let fileManager = FileManager.default
+    guard fileManager.fileExists(atPath: url.path) else {
+      print("❌ File does not exist: \(url.path)")
+      return false
+    }
+    
+    // Check if it's an image file
+    let pathExtension = url.pathExtension.lowercased()
+    let imageExtensions = ["jpg", "jpeg", "png", "gif", "bmp", "tiff", "webp", "heic", "heif"]
+    let textExtensions = ["txt", "text", "md", "rtf"]
+    
+    var shareData: [String: Any]
+    
+    if imageExtensions.contains(pathExtension) {
+      print("✅ Valid image file detected: \(pathExtension)")
+      
+      // Create share data for the image
+      shareData = [
+        "text": url.path,
+        "type": "image",
+        "message": "📸 Shared an image",
+        "timestamp": String(Date().timeIntervalSince1970)
+      ]
+    } else if textExtensions.contains(pathExtension) {
+      print("✅ Valid text file detected: \(pathExtension)")
+      
+      // Read text file content
+      do {
+        let textContent = try String(contentsOf: url, encoding: .utf8)
+        print("📱 Text file content: \(textContent.prefix(100))...")
+        
+        shareData = [
+          "text": textContent,
+          "type": "text",
+          "message": textContent,
+          "timestamp": String(Date().timeIntervalSince1970)
+        ]
+      } catch {
+        print("❌ Failed to read text file: \(error)")
+        return false
+      }
+    } else {
+      print("❌ File is not an image or text file: \(pathExtension)")
+      return false
+    }
+    
+    print("📤 Sending file data to Flutter: \(shareData)")
+    
+    // Check if shareChannel is available
+    if shareChannel == nil {
+      print("❌ Share channel is nil! Cannot send data to Flutter")
+      return false
+    }
+    
+    // Send the file data to Flutter
+    print("📤 Invoking Flutter method 'onDataReceived' for file")
+    shareChannel?.invokeMethod("onDataReceived", arguments: shareData)
+    print("📤 ===================================")
     return true
   }
   

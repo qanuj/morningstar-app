@@ -5,12 +5,24 @@ import UniformTypeIdentifiers
 
 class ShareViewController: SLComposeServiceViewController {
     
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        print("📤 ====== SHARE EXTENSION LOADED ======")
+        print("📤 Share extension view did load")
+        print("📤 ===================================")
+    }
+    
     override func isContentValid() -> Bool {
+        print("📤 Share extension isContentValid called")
         // Always return true to allow sharing
         return true
     }
     
     override func didSelectPost() {
+        print("📤 ====== SHARE EXTENSION TRIGGERED ======")
+        print("📤 Content text: \(contentText ?? "nil")")
+        print("📤 Processing shared content...")
+        
         // Handle different types of shared content
         processSharedContent()
     }
@@ -49,12 +61,16 @@ class ShareViewController: SLComposeServiceViewController {
                 
                 // Handle plain text
                 else if attachment.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
+                    print("📤 Processing plain text attachment")
                     attachment.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { [weak self] (data, error) in
                         DispatchQueue.main.async {
+                            print("📤 Plain text loaded: \(data ?? "nil"), error: \(error?.localizedDescription ?? "none")")
                             if let text = data as? String, !text.isEmpty {
                                 let userText = self?.contentText?.isEmpty == false ? self?.contentText : nil
+                                print("📤 Sharing text: \(text), user text: \(userText ?? "nil")")
                                 self?.launchMainApp(content: text, type: "text", userText: userText)
                             } else {
+                                print("📤 No valid text found, completing request")
                                 self?.completeRequest()
                             }
                         }
@@ -83,6 +99,11 @@ class ShareViewController: SLComposeServiceViewController {
     }
     
     private func launchMainApp(content: String, type: String, userText: String?) {
+        print("📤 ====== LAUNCHING MAIN APP ======")
+        print("📤 Content: \(content)")
+        print("📤 Type: \(type)")
+        print("📤 User text: \(userText ?? "nil")")
+        
         // Build URL parameters
         var components = URLComponents()
         components.scheme = "duggy"
@@ -99,24 +120,30 @@ class ShareViewController: SLComposeServiceViewController {
         // Add timestamp to ensure uniqueness
         queryItems.append(URLQueryItem(name: "timestamp", value: String(Date().timeIntervalSince1970)))
         
+        print("📤 Query items: \(queryItems)")
+        
         components.queryItems = queryItems
         
         guard let duggyURL = components.url else {
-            print("❌ Failed to create Duggy URL")
+            print("❌ Failed to create Duggy URL from components: \(components)")
             completeRequest()
             return
         }
         
-        print("📤 Launching Duggy with URL: \(duggyURL)")
+        print("📤 Created Duggy URL: \(duggyURL)")
+        print("📤 URL absolute string: \(duggyURL.absoluteString)")
+        print("📤 Attempting to launch main app...")
         
         // Launch the main app
         openURL(duggyURL) { [weak self] success in
             DispatchQueue.main.async {
+                print("📤 URL launch completion called")
                 if success {
                     print("✅ Successfully launched Duggy")
                 } else {
-                    print("❌ Failed to launch Duggy")
+                    print("❌ Failed to launch Duggy - URL scheme may not be registered")
                 }
+                print("📤 ===================================")
                 self?.completeRequest()
             }
         }
@@ -160,9 +187,74 @@ class ShareViewController: SLComposeServiceViewController {
             return
         }
         
-        // For now, handle all images as text messages with special marker
-        let userText = contentText?.isEmpty == false ? contentText : "📸 Shared an image"
-        launchMainApp(content: "📸 IMAGE_SHARED", type: "image", userText: userText)
+        // Save image to shared container and get file path
+        if let imagePath = saveImageToSharedContainer(data) {
+            let userText = contentText?.isEmpty == false ? contentText : "📸 Shared an image"
+            launchMainApp(content: imagePath, type: "image", userText: userText)
+        } else {
+            print("❌ Failed to save image to shared container")
+            // Fallback to text message
+            let userText = contentText?.isEmpty == false ? contentText : "📸 Shared an image"
+            launchMainApp(content: "📸 IMAGE_SHARED", type: "image", userText: userText)
+        }
+    }
+    
+    private func saveImageToSharedContainer(_ data: Any?) -> String? {
+        guard let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.app.duggy") else {
+            print("❌ Could not access shared container")
+            return nil
+        }
+        
+        let sharedImagesDir = containerURL.appendingPathComponent("SharedImages")
+        
+        // Create directory if it doesn't exist
+        do {
+            try FileManager.default.createDirectory(at: sharedImagesDir, withIntermediateDirectories: true, attributes: nil)
+        } catch {
+            print("❌ Failed to create shared images directory: \(error)")
+            return nil
+        }
+        
+        // Generate unique filename
+        let filename = "shared_image_\(Int(Date().timeIntervalSince1970))_\(UUID().uuidString.prefix(8)).jpg"
+        let fileURL = sharedImagesDir.appendingPathComponent(filename)
+        
+        // Convert data to image and save
+        var imageData: Data?
+        
+        if let url = data as? URL {
+            // If data is a URL, load the image data
+            do {
+                imageData = try Data(contentsOf: url)
+            } catch {
+                print("❌ Failed to load image data from URL: \(error)")
+                return nil
+            }
+        } else if let image = data as? UIImage {
+            // If data is a UIImage, convert to JPEG
+            imageData = image.jpegData(compressionQuality: 0.8)
+        } else if let data = data as? Data {
+            // If data is already Data, use it directly
+            imageData = data
+        } else {
+            print("❌ Unsupported image data type: \(type(of: data))")
+            return nil
+        }
+        
+        guard let finalImageData = imageData else {
+            print("❌ Could not get image data")
+            return nil
+        }
+        
+        // Save to file
+        do {
+            try finalImageData.write(to: fileURL)
+            print("✅ Saved shared image to: \(fileURL.path)")
+            return fileURL.path
+        } catch {
+            print("❌ Failed to save image: \(error)")
+            return nil
+        }
     }
     
     private func completeRequest() {

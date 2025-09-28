@@ -135,11 +135,17 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
           widget.sharedContent.type == SharedContentType.multipleImages) {
         print('📤 Validating image files');
         final imagePaths = widget.sharedContent.imagePaths ?? [];
+        print('📤 Image paths to validate: $imagePaths');
         final existingFiles = <String>[];
 
         for (final path in imagePaths) {
           try {
-            if (File(path).existsSync()) {
+            final file = File(path);
+            print('📤 Checking file: $path');
+            print('📤 File exists: ${file.existsSync()}');
+            if (file.existsSync()) {
+              final fileSize = file.lengthSync();
+              print('📤 File size: $fileSize bytes');
               existingFiles.add(path);
             } else {
               print('⚠️ Image file not found: $path');
@@ -156,13 +162,16 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('No valid image files found to share.'),
+                duration: Duration(seconds: 5),
               ),
             );
             Navigator.of(context).pop();
           }
           return;
         } else {
-          print('✅ Found ${existingFiles.length} valid image files');
+          print(
+            '✅ Found ${existingFiles.length} valid image files: $existingFiles',
+          );
         }
       }
 
