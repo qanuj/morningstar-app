@@ -4,7 +4,7 @@ import '../../models/message_status.dart';
 import 'base_message_bubble.dart';
 import '../image_gallery_screen.dart';
 import '../svg_avatar.dart';
-import '../tappable_mention_text.dart';
+import '../markdown_mention_text.dart';
 
 /// Text message bubble - renders images/videos first, then text body below
 class TextMessageBubble extends StatelessWidget {
@@ -435,7 +435,7 @@ class TextMessageBubble extends StatelessWidget {
             ? 0
             : 4, // Remove bottom padding for last message to allow shadow space
       ),
-      child: TappableMentionText(
+      child: MarkdownMentionText(
         text: message.content,
         mentions: message.mentions,
         style: TextStyle(

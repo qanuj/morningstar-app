@@ -1,7 +1,6 @@
 // lib/services/share_handler_service.dart
 
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/services.dart';
 import '../models/shared_content.dart';
 
@@ -77,6 +76,7 @@ class ShareHandlerService {
   void _processSharedData(Map<String, dynamic> data) {
     try {
       final String? text = data['text'] as String?;
+      final String? content = data['content'] as String?;
       final String? subject = data['subject'] as String?;
       final String? type = data['type'] as String?;
       final String? message = data['message'] as String?;
@@ -85,16 +85,28 @@ class ShareHandlerService {
       print('📤 Processing enhanced shared data:');
       print('   Type: $type');
       print('   Text: $text');
+      print('   Content: $content');
       print('   Subject: $subject');
       print('   Message: $message');
       print('   Timestamp: $timestamp');
 
-      if (text != null && text.trim().isNotEmpty) {
+      // Use content or text - prioritize content from share extension
+      final sharedText = content ?? text;
+
+      if (sharedText != null && sharedText.trim().isNotEmpty) {
         // Create SharedContent with enhanced data
-        final sharedContent = _createSharedContentFromData(text, type, message);
+        final sharedContent = _createSharedContentFromData(
+          sharedText,
+          type,
+          message,
+        );
+        _sharedContentController.add(sharedContent);
+      } else if (type == 'image' && message != null) {
+        // Handle image sharing even without text content
+        final sharedContent = _createSharedContentFromData('', type, message);
         _sharedContentController.add(sharedContent);
       } else {
-        print('⚠️ No valid text content in shared data');
+        print('⚠️ No valid content in shared data');
       }
     } catch (e) {
       print('❌ Error processing shared data: $e');
@@ -135,18 +147,12 @@ class ShareHandlerService {
     String? message,
   ) {
     try {
-      // Validate input text
-      if (text.trim().isEmpty) {
-        print('⚠️ Empty text provided for SharedContent creation');
-        return SharedContent.fromText('Shared content'); // Fallback
-      }
-
       // Determine content type
       SharedContent sharedContent;
 
       switch (type?.toLowerCase()) {
         case 'url':
-          // Validate URL format
+          // Validate URL format and create URL content
           if (text.startsWith(RegExp(r'https?://'))) {
             sharedContent = SharedContent.fromText(text);
           } else {
@@ -155,15 +161,44 @@ class ShareHandlerService {
           }
           break;
         case 'image':
-          // For now, treat image sharing as text with special marker
-          final content = message?.isNotEmpty == true
-              ? message!
-              : 'Shared an image';
-          sharedContent = SharedContent.fromText(content);
+          // Create image content
+          if (text.contains('📸 IMAGE_SHARED')) {
+            // Image shared from native - use message as display text
+            final content = message?.isNotEmpty == true
+                ? message!
+                : '📸 Shared an image';
+            // Create a special SharedContent that indicates image sharing
+            sharedContent = SharedContent(
+              type: SharedContentType.image,
+              text: content,
+              metadata: {'isImageShare': true},
+            );
+          } else if (text.isNotEmpty &&
+              text != 'Image' &&
+              text.startsWith('/')) {
+            // We have an actual image file path
+            sharedContent = SharedContent.fromImages([text]);
+          } else {
+            // Fallback - create as text with message
+            final content = message?.isNotEmpty == true
+                ? message!
+                : 'Shared an image';
+            sharedContent = SharedContent.fromText(content);
+          }
           break;
         case 'text':
         default:
-          sharedContent = SharedContent.fromText(text);
+          // Handle text content - use text if available, otherwise message
+          if (text.trim().isNotEmpty) {
+            sharedContent = SharedContent.fromText(text);
+          } else if (message?.isNotEmpty == true) {
+            sharedContent = SharedContent.fromText(message!);
+          } else {
+            print('⚠️ No valid text content provided');
+            sharedContent = SharedContent.fromText(
+              'Shared content',
+            ); // Fallback
+          }
           break;
       }
 
@@ -175,46 +210,6 @@ class ShareHandlerService {
       print('❌ Error creating SharedContent: $e');
       // Return fallback content instead of crashing
       return SharedContent.fromText('Shared content');
-    }
-  }
-
-  /// Handle shared text content
-  void _handleSharedText(String text) {
-    try {
-      if (text.trim().isEmpty) return;
-
-      final sharedContent = SharedContent.fromText(text);
-      print(
-        '📤 Processing shared ${sharedContent.type.name}: ${sharedContent.displayText}',
-      );
-
-      _sharedContentController.add(sharedContent);
-    } catch (e) {
-      print('❌ Error handling shared text: $e');
-    }
-  }
-
-  /// Handle shared media files using file paths
-  void _handleSharedMedia(List<String> filePaths) {
-    try {
-      if (filePaths.isEmpty) return;
-
-      // Verify files exist
-      final existingFiles = filePaths
-          .where((path) => File(path).existsSync())
-          .toList();
-
-      if (existingFiles.isEmpty) {
-        print('⚠️ No existing media files found');
-        return;
-      }
-
-      final sharedContent = SharedContent.fromImages(existingFiles);
-      print('📤 Processing shared media: ${sharedContent.displayText}');
-
-      _sharedContentController.add(sharedContent);
-    } catch (e) {
-      print('❌ Error handling shared media files: $e');
     }
   }
 
@@ -241,6 +236,16 @@ class ShareHandlerService {
     simulateShare(sharedContent);
   }
 
+  /// Simulate sharing an image for testing
+  void simulateImageShare(String caption) {
+    final sharedContent = SharedContent(
+      type: SharedContentType.image,
+      text: caption.isEmpty ? '📸 Shared an image' : caption,
+      metadata: {'isImageShare': true},
+    );
+    simulateShare(sharedContent);
+  }
+
   /// Get sharing statistics
   Map<String, dynamic> getStats() {
     return {
@@ -248,6 +253,19 @@ class ShareHandlerService {
       'isNativeMethodChannel': true,
       'pluginAvailable': false,
     };
+  }
+
+  /// Get the path to shared images directory
+  Future<String?> getSharedImagesDirectory() async {
+    try {
+      final result = await _methodChannel.invokeMethod(
+        'getSharedImagesDirectory',
+      );
+      return result as String?;
+    } catch (e) {
+      print('❌ Error getting shared images directory: $e');
+      return null;
+    }
   }
 
   /// Dispose of the service

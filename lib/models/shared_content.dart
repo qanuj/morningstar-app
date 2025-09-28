@@ -1,11 +1,5 @@
 // lib/models/shared_content.dart
-enum SharedContentType {
-  text,
-  url,
-  image,
-  multipleImages,
-  unknown
-}
+enum SharedContentType { text, url, image, multipleImages, unknown }
 
 class SharedContent {
   final SharedContentType type;
@@ -30,7 +24,7 @@ class SharedContent {
     // Check if text is a URL
     final urlRegex = RegExp(r'https?://[^\s]+');
     final isUrl = urlRegex.hasMatch(text);
-    
+
     return SharedContent(
       type: isUrl ? SharedContentType.url : SharedContentType.text,
       text: text,
@@ -40,9 +34,9 @@ class SharedContent {
 
   factory SharedContent.fromImages(List<String> imagePaths) {
     return SharedContent(
-      type: imagePaths.length > 1 
-        ? SharedContentType.multipleImages 
-        : SharedContentType.image,
+      type: imagePaths.length > 1
+          ? SharedContentType.multipleImages
+          : SharedContentType.image,
       imagePaths: imagePaths,
     );
   }
@@ -81,7 +75,7 @@ class SharedContent {
       case SharedContentType.url:
         return url ?? text ?? '';
       case SharedContentType.image:
-        return 'Image';
+        return text ?? 'Image';
       case SharedContentType.multipleImages:
         return '${imagePaths?.length ?? 0} Images';
       default:
@@ -91,5 +85,5 @@ class SharedContent {
 
   bool get hasImages => imagePaths != null && imagePaths!.isNotEmpty;
   bool get hasText => text != null && text!.isNotEmpty;
-  bool get isValid => hasImages || hasText;
+  bool get isValid => hasImages || hasText || type == SharedContentType.image;
 }

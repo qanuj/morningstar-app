@@ -66,8 +66,7 @@ class ShareViewController: SLComposeServiceViewController {
                 else if attachment.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
                     attachment.loadItem(forTypeIdentifier: UTType.image.identifier, options: nil) { [weak self] (data, error) in
                         DispatchQueue.main.async {
-                            let userText = self?.contentText?.isEmpty == false ? self?.contentText : "Shared an image"
-                            self?.launchMainApp(content: "Image", type: "image", userText: userText)
+                            self?.handleImageData(data, error: error)
                         }
                     }
                     return
@@ -152,6 +151,18 @@ class ShareViewController: SLComposeServiceViewController {
         }
         
         completion(false)
+    }
+    
+    private func handleImageData(_ data: Any?, error: Error?) {
+        guard error == nil else {
+            print("❌ Error loading image: \(error!)")
+            completeRequest()
+            return
+        }
+        
+        // For now, handle all images as text messages with special marker
+        let userText = contentText?.isEmpty == false ? contentText : "📸 Shared an image"
+        launchMainApp(content: "📸 IMAGE_SHARED", type: "image", userText: userText)
     }
     
     private func completeRequest() {

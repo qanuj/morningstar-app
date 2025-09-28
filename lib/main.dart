@@ -112,31 +112,15 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
                   return;
                 }
 
-                // Check if ShareTargetScreen is already on top
-                bool isShareTargetVisible = false;
-                navigator.popUntil((route) {
-                  if (route.settings.name == '/share_target' ||
-                      route.toString().contains('ShareTargetScreen')) {
-                    isShareTargetVisible = true;
-                  }
-                  return true;
-                });
-
-                // Only navigate if ShareTargetScreen is not already visible
-                if (!isShareTargetVisible) {
-                  print('📤 Navigating to ShareTargetScreen');
-                  navigator.push(
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          ShareTargetScreen(sharedContent: sharedContent),
-                      settings: const RouteSettings(name: '/share_target'),
-                    ),
-                  );
-                } else {
-                  print(
-                    '📤 ShareTargetScreen already visible, skipping navigation',
-                  );
-                }
+                // Navigate to ShareTargetScreen for shared content
+                print('📤 Navigating to ShareTargetScreen');
+                navigator.push(
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        ShareTargetScreen(sharedContent: sharedContent),
+                    settings: const RouteSettings(name: '/share_target'),
+                  ),
+                );
               } catch (e) {
                 print('❌ Error navigating to ShareTargetScreen: $e');
               }

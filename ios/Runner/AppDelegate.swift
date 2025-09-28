@@ -3,8 +3,10 @@ import UIKit
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
-  private let CHANNEL = "app.duggy/share"
+  private let SHARE_CHANNEL = "app.duggy/share"
+  private let CLIPBOARD_CHANNEL = "app.duggy/clipboard"
   private var shareChannel: FlutterMethodChannel?
+  private var clipboardChannel: FlutterMethodChannel?
   
   override func application(
     _ application: UIApplication,
@@ -13,22 +15,47 @@ import UIKit
     
     GeneratedPluginRegistrant.register(with: self)
     
-    // Register the share method channel using the plugin registry approach
-    if let registrar = self.registrar(forPlugin: "ShareHandlerPlugin") {
-      shareChannel = FlutterMethodChannel(name: CHANNEL, binaryMessenger: registrar.messenger())
-      
-      shareChannel?.setMethodCallHandler({
-        (call: FlutterMethodCall, result: @escaping FlutterResult) -> Void in
-        
-        switch call.method {
-        case "getSharedData":
-          // For now, return null as iOS sharing will be handled differently
-          result(nil)
-        default:
-          result(FlutterMethodNotImplemented)
-        }
-      })
+    // Get the Flutter view controller
+    guard let controller = window?.rootViewController as? FlutterViewController else {
+      return super.application(application, didFinishLaunchingWithOptions: launchOptions)
     }
+    
+    // Register the share method channel
+    shareChannel = FlutterMethodChannel(name: SHARE_CHANNEL, binaryMessenger: controller.binaryMessenger)
+    
+    shareChannel?.setMethodCallHandler({
+      (call: FlutterMethodCall, result: @escaping FlutterResult) -> Void in
+      
+      switch call.method {
+      case "getSharedData":
+        // For now, return null as iOS sharing will be handled differently
+        result(nil)
+      case "getSharedImagesDirectory":
+        // Return the path to shared images directory
+        if let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.app.duggy") {
+          let sharedImagesDir = containerURL.appendingPathComponent("SharedImages")
+          result(sharedImagesDir.path)
+        } else {
+          result(nil)
+        }
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    })
+    
+    // Register the clipboard method channel
+    clipboardChannel = FlutterMethodChannel(name: CLIPBOARD_CHANNEL, binaryMessenger: controller.binaryMessenger)
+    
+    clipboardChannel?.setMethodCallHandler({
+      (call: FlutterMethodCall, result: @escaping FlutterResult) -> Void in
+      
+      switch call.method {
+      case "getClipboardImage":
+        self.getClipboardImage(result: result)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    })
     
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
@@ -155,5 +182,35 @@ import UIKit
     }
     
     return super.application(application, continue: userActivity, restorationHandler: restorationHandler)
+  }
+  
+  private func getClipboardImage(result: @escaping FlutterResult) {
+    print("📋 iOS getClipboardImage method called")
+    let pasteboard = UIPasteboard.general
+    
+    // Check what types are available in the clipboard
+    print("📋 Available types in clipboard: \(pasteboard.types)")
+    print("📋 Has images: \(pasteboard.hasImages)")
+    print("📋 Has strings: \(pasteboard.hasStrings)")
+    
+    // Check if there's an image in the clipboard
+    if pasteboard.hasImages {
+      if let image = pasteboard.image {
+        print("📋 Found UIImage in clipboard: \(image.size)")
+        // Convert UIImage to PNG data
+        if let imageData = image.pngData() {
+          print("📋 Successfully converted to PNG data, size: \(imageData.count) bytes")
+          result(FlutterStandardTypedData(bytes: imageData))
+          return
+        } else {
+          print("❌ Failed to convert UIImage to PNG data")
+        }
+      } else {
+        print("❌ pasteboard.hasImages is true but pasteboard.image is nil")
+      }
+    }
+    
+    print("📋 No image found in iOS clipboard")
+    result(nil)
   }
 }

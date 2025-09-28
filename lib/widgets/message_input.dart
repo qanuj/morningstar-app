@@ -9,6 +9,7 @@ import '../widgets/image_caption_dialog.dart';
 import '../widgets/selectors/unified_event_picker.dart';
 import '../widgets/selectors/poll_picker.dart';
 import '../widgets/mentionable_text_field.dart';
+import '../widgets/pasteable_text_field.dart';
 
 import '../models/club_message.dart';
 import '../models/message_status.dart';
@@ -591,6 +592,103 @@ class MessageInputState extends State<MessageInput> {
       );
 
       widget.onSendMessage(tempMessage);
+    }
+  }
+
+  void _handlePastedImages(List<String> imagePaths) {
+    print('📋 Handling pasted images: ${imagePaths.length} images');
+
+    if (imagePaths.isEmpty) return;
+
+    // Add a temporary placeholder text to show send arrow
+    final placeholderText = '📋 Image ready to send';
+    widget.messageController.text = placeholderText;
+    _mentionableController.text = placeholderText;
+
+    // Update composing state to show send arrow
+    setState(() {
+      _isComposing = true;
+    });
+
+    // Handle the first image through the caption dialog (same as regular image selection)
+    _showPastedImageCaptionDialog(imagePaths.first);
+
+    // If there are multiple pasted images, send the rest without caption dialog
+    if (imagePaths.length > 1) {
+      for (int i = 1; i < imagePaths.length; i++) {
+        final imagePath = imagePaths[i];
+        final tempMessage = ClubMessage(
+          id: 'temp_pasted_${DateTime.now().millisecondsSinceEpoch}_$i',
+          clubId: widget.clubId,
+          senderId: 'current_user',
+          senderName: 'You',
+          senderProfilePicture: null,
+          senderRole: 'MEMBER',
+          content: '',
+          messageType: 'image',
+          createdAt: DateTime.now(),
+          status: MessageStatus.sending,
+          starred: StarredInfo(isStarred: false),
+          pin: PinInfo(isPinned: false),
+          images: [imagePath],
+        );
+
+        print('📋 Sending additional pasted image: $imagePath');
+        widget.onSendMessage(tempMessage);
+      }
+    }
+  }
+
+  void _showPastedImageCaptionDialog(String imagePath) async {
+    try {
+      final file = File(imagePath);
+      final platformFile = PlatformFile(
+        name: 'pasted_image_${DateTime.now().millisecondsSinceEpoch}.png',
+        path: imagePath,
+        size: await file.length(),
+        bytes: null,
+      );
+
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ImageCaptionDialog(
+              imageFile: platformFile,
+              title: 'Send Pasted Image',
+              onSend: (caption, croppedImagePath) {
+                // Clear the placeholder text
+                _clearPastedImagePlaceholder();
+                _sendImageMessageWithCaption(
+                  caption,
+                  croppedImagePath ?? imagePath,
+                );
+              },
+            ),
+            fullscreenDialog: true,
+          ),
+        ).then((_) {
+          // Clear placeholder if dialog is dismissed without sending
+          if (widget.messageController.text == '📋 Image ready to send') {
+            _clearPastedImagePlaceholder();
+          }
+        });
+      }
+    } catch (e) {
+      print('❌ Error showing pasted image caption dialog: $e');
+      // Clear placeholder and fallback: send without caption dialog
+      _clearPastedImagePlaceholder();
+      _sendImageMessageWithCaption('', imagePath);
+    }
+  }
+
+  void _clearPastedImagePlaceholder() {
+    if (widget.messageController.text == '📋 Image ready to send') {
+      widget.messageController.clear();
+      _mentionableController.clear();
+      setState(() {
+        _isComposing = false;
+      });
     }
   }
 
@@ -1333,9 +1431,9 @@ class MessageInputState extends State<MessageInput> {
                     ),
                   ),
 
-                  // Expanded message input area with mention support
+                  // Expanded message input area with mention support and image pasting
                   Expanded(
-                    child: MentionableTextField(
+                    child: PasteableTextField(
                       controller: _mentionableController,
                       focusNode: widget.textFieldFocusNode,
                       autofocus: false,
@@ -1343,7 +1441,7 @@ class MessageInputState extends State<MessageInput> {
                       showMentionOverlay: _showMentionOverlay,
                       onMentionTriggered: _handleMentionTriggered,
                       onMentionCancelled: _handleMentionCancelled,
-                      // onMentionSelected removed to avoid circular callback
+                      onImagesPasted: _handlePastedImages,
                       onTap: () {
                         // Only close attachment menu if it's currently open
                         // This ensures smooth transitions without interference

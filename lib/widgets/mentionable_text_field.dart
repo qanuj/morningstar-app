@@ -60,16 +60,6 @@ class MentionableTextFieldController extends TextEditingController {
       return TextSpan(text: text, style: baseStyle);
     }
 
-    // Debug logging
-    print('🎨 buildTextSpan called with text: "$text"');
-    final completedMentions = completedMentionPattern.allMatches(text);
-    print('🎨 Found ${completedMentions.length} completed mentions');
-    for (final match in completedMentions) {
-      print(
-        '🎨 Completed mention: ${match.group(0)} -> id: ${match.group(1)}, name: ${match.group(2)}',
-      );
-    }
-
     // First handle completed mentions @[id:name]
     String workingText = text;
     final mentionReplacements = <String, String>{};
@@ -82,14 +72,8 @@ class MentionableTextFieldController extends TextEditingController {
       final placeholder = '__MENTION_${replacementCounter++}__';
       final userName = match.group(2)!;
       mentionReplacements[placeholder] = '@$userName';
-      print(
-        '🎨 Replacing "${match.group(0)}" with placeholder "$placeholder" -> display "@$userName"',
-      );
       return placeholder;
     });
-
-    print('🎨 Working text after replacements: "$workingText"');
-    print('🎨 Mention replacements: $mentionReplacements');
 
     // Use a different approach to split and preserve matched parts
     final splitPattern = RegExp(r'(__MENTION_\d+__|@\w+)');
@@ -111,8 +95,6 @@ class MentionableTextFieldController extends TextEditingController {
       parts.add(workingText.substring(lastEnd));
     }
 
-    print('🎨 Split parts: $parts');
-
     for (int i = 0; i < parts.length; i++) {
       final part = parts[i];
 
@@ -120,9 +102,6 @@ class MentionableTextFieldController extends TextEditingController {
 
       if (mentionReplacements.containsKey(part)) {
         // This is a completed mention - style it in blue with bold
-        print(
-          '🎨 Styling completed mention: "$part" -> "${mentionReplacements[part]}"',
-        );
         children.add(
           TextSpan(
             text: mentionReplacements[part]!,
@@ -134,7 +113,6 @@ class MentionableTextFieldController extends TextEditingController {
         );
       } else if (partialMentionPattern.hasMatch(part)) {
         // This is a partial mention like @anuj - style it in lighter blue
-        print('🎨 Styling partial mention: "$part"');
         children.add(
           TextSpan(
             text: part,
@@ -146,7 +124,6 @@ class MentionableTextFieldController extends TextEditingController {
         );
       } else {
         // Regular text
-        print('🎨 Adding regular text: "$part"');
         children.add(TextSpan(text: part, style: baseStyle));
       }
     }

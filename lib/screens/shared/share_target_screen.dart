@@ -61,11 +61,18 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
 
   void _initializeContent() async {
     try {
-      print(
-        '📤 Initializing shared content: ${widget.sharedContent.type.name}',
-      );
+      print('📤 === ShareTargetScreen Debug Info ===');
+      print('📤 Content Type: ${widget.sharedContent.type.name}');
       print('📤 Content URL: ${widget.sharedContent.url}');
       print('📤 Content Text: ${widget.sharedContent.text}');
+      print('📤 Content Subject: ${widget.sharedContent.subject}');
+      print('📤 Content Image Paths: ${widget.sharedContent.imagePaths}');
+      print('📤 Content Metadata: ${widget.sharedContent.metadata}');
+      print('📤 Has Images: ${widget.sharedContent.hasImages}');
+      print('📤 Has Text: ${widget.sharedContent.hasText}');
+      print('📤 Is Valid: ${widget.sharedContent.isValid}');
+      print('📤 Display Text: ${widget.sharedContent.displayText}');
+      print('📤 =====================================');
 
       // Pre-fill message with shared text if available
       if (widget.sharedContent.hasText) {
@@ -1300,15 +1307,17 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
       switch (widget.sharedContent.type) {
         case SharedContentType.url:
           // Ensure we have a valid URL - prioritize the actual URL over metadata
-          final actualUrl = widget.sharedContent.url ?? widget.sharedContent.text ?? '';
+          final actualUrl =
+              widget.sharedContent.url ?? widget.sharedContent.text ?? '';
           print('🔗 Actual URL to send: $actualUrl');
-          
+
           // Validate that we have a proper URL
-          if (actualUrl.isEmpty || !actualUrl.startsWith(RegExp(r'https?://'))) {
+          if (actualUrl.isEmpty ||
+              !actualUrl.startsWith(RegExp(r'https?://'))) {
             print('❌ Invalid URL for sharing: $actualUrl');
             return false;
           }
-          
+
           dynamic contentJson;
           contentJson = {
             'type': 'link',
