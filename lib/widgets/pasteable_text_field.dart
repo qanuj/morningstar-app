@@ -216,11 +216,7 @@ class _PasteableTextFieldState extends State<PasteableTextField> {
     int newCursorPosition;
 
     if (selection.isValid) {
-      newText = currentText.replaceRange(
-        selection.start,
-        selection.end,
-        text,
-      );
+      newText = currentText.replaceRange(selection.start, selection.end, text);
       newCursorPosition = selection.start + text.length;
     } else {
       newText = currentText + text;
@@ -229,9 +225,7 @@ class _PasteableTextFieldState extends State<PasteableTextField> {
 
     controller.value = controller.value.copyWith(
       text: newText,
-      selection: TextSelection.collapsed(
-        offset: newCursorPosition,
-      ),
+      selection: TextSelection.collapsed(offset: newCursorPosition),
     );
 
     // Trigger the onChanged callback to update parent state (like _isComposing)
