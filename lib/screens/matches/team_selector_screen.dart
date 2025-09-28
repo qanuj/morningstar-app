@@ -26,10 +26,10 @@ class TeamSelectorScreen extends StatefulWidget {
     this.multiSelect = false,
     this.preSelectedTeams,
   }) : assert(
-          (!multiSelect && onTeamSelected != null) ||
-          (multiSelect && onMultipleTeamsSelected != null),
-          'Single select requires onTeamSelected, multi-select requires onMultipleTeamsSelected',
-        );
+         (!multiSelect && onTeamSelected != null) ||
+             (multiSelect && onMultipleTeamsSelected != null),
+         'Single select requires onTeamSelected, multi-select requires onMultipleTeamsSelected',
+       );
 
   @override
   State<TeamSelectorScreen> createState() => _TeamSelectorScreenState();
@@ -113,7 +113,8 @@ class _TeamSelectorScreenState extends State<TeamSelectorScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _selectedTeamIds = widget.preSelectedTeams?.map((team) => team.id).toSet() ?? {};
+    _selectedTeamIds =
+        widget.preSelectedTeams?.map((team) => team.id).toSet() ?? {};
     _loadTeams();
   }
 
@@ -134,7 +135,7 @@ class _TeamSelectorScreenState extends State<TeamSelectorScreen>
       // Get both user teams and opponent teams
       final userTeams = await TeamService.getUserTeams();
       final opponentTeams = await TeamService.getOpponentTeams();
-      
+
       if (mounted) {
         setState(() {
           _allTeams = [...userTeams, ...opponentTeams];
@@ -168,7 +169,7 @@ class _TeamSelectorScreenState extends State<TeamSelectorScreen>
         final teamName = team.name.toLowerCase();
         final clubName = team.club?.name?.toLowerCase() ?? '';
         final searchQuery = query.toLowerCase();
-        
+
         return teamName.contains(searchQuery) || clubName.contains(searchQuery);
       }).toList();
 
@@ -242,7 +243,7 @@ class _TeamSelectorScreenState extends State<TeamSelectorScreen>
           final city = jsonData['city'] as String?;
           final state = jsonData['state'] as String?;
           final country = jsonData['country'] as String?;
-          
+
           // Parse club info if available
           final clubData = jsonData['club'] as Map<String, dynamic>?;
           Club? club;
@@ -250,7 +251,7 @@ class _TeamSelectorScreenState extends State<TeamSelectorScreen>
             final clubId = clubData['id'] as String?;
             final clubName = clubData['name'] as String?;
             final clubLogo = clubData['logo'] as String?;
-            
+
             if (clubId != null && clubName != null) {
               club = Club(
                 id: clubId,
@@ -294,7 +295,7 @@ class _TeamSelectorScreenState extends State<TeamSelectorScreen>
 
   Widget _buildTeamTile(Team team) {
     final isSelected = _selectedTeamIds.contains(team.id);
-    
+
     return Card(
       margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       elevation: 4,
@@ -326,7 +327,9 @@ class _TeamSelectorScreenState extends State<TeamSelectorScreen>
                   SVGAvatar(
                     imageUrl: team.logo,
                     size: 50,
-                    backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+                    backgroundColor: Theme.of(
+                      context,
+                    ).primaryColor.withOpacity(0.1),
                     iconColor: Theme.of(context).primaryColor,
                     fallbackIcon: Icons.groups,
                     showBorder: false,
@@ -353,22 +356,18 @@ class _TeamSelectorScreenState extends State<TeamSelectorScreen>
                         height: 20,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: isSelected 
-                              ? Theme.of(context).primaryColor 
+                          color: isSelected
+                              ? Theme.of(context).primaryColor
                               : Theme.of(context).scaffoldBackgroundColor,
                           border: Border.all(
-                            color: isSelected 
-                                ? Theme.of(context).primaryColor 
+                            color: isSelected
+                                ? Theme.of(context).primaryColor
                                 : Theme.of(context).dividerColor,
                             width: 2,
                           ),
                         ),
                         child: isSelected
-                            ? Icon(
-                                Icons.check,
-                                size: 12,
-                                color: Colors.white,
-                              )
+                            ? Icon(Icons.check, size: 12, color: Colors.white)
                             : null,
                       ),
                     ),
@@ -403,7 +402,9 @@ class _TeamSelectorScreenState extends State<TeamSelectorScreen>
                       Text(
                         team.city!,
                         style: TextStyle(
-                          color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
+                          color: Theme.of(
+                            context,
+                          ).textTheme.bodySmall?.color?.withOpacity(0.7),
                           fontSize: 12,
                           fontStyle: FontStyle.italic,
                         ),
@@ -439,7 +440,9 @@ class _TeamSelectorScreenState extends State<TeamSelectorScreen>
         return team.club?.id == widget.clubId;
       }
       // Otherwise, show teams where user has ownership/membership
-      return team.owners.isNotEmpty; // This would need to be refined based on actual membership logic
+      return team
+          .owners
+          .isNotEmpty; // This would need to be refined based on actual membership logic
     }).toList();
 
     // Apply additional filtering if provided
@@ -467,93 +470,95 @@ class _TeamSelectorScreenState extends State<TeamSelectorScreen>
               ],
             )
           : _error != null
-              ? ListView(
-                  physics: AlwaysScrollableScrollPhysics(),
-                  children: [
-                    Container(
-                      height: MediaQuery.of(context).size.height - 300,
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.error_outline,
-                              size: 64,
-                              color: Colors.red,
-                            ),
-                            SizedBox(height: 16),
-                            Text(
-                              'Error loading teams',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w500,
-                                color: Theme.of(context).textTheme.bodySmall?.color,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              _error!,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                )
-              : filteredTeams.isEmpty
-                  ? ListView(
-                      physics: AlwaysScrollableScrollPhysics(),
+          ? ListView(
+              physics: AlwaysScrollableScrollPhysics(),
+              children: [
+                Container(
+                  height: MediaQuery.of(context).size.height - 300,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Container(
-                          height: MediaQuery.of(context).size.height - 300,
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.groups,
-                                  size: 64,
-                                  color: Theme.of(context).brightness == Brightness.dark
-                                      ? Theme.of(context).colorScheme.onSurface.withOpacity(0.5)
-                                      : Theme.of(context).textTheme.bodySmall?.color,
-                                ),
-                                SizedBox(height: 16),
-                                Text(
-                                  'No teams found',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w500,
-                                    color: Theme.of(context).textTheme.bodySmall?.color,
-                                  ),
-                                ),
-                                SizedBox(height: 8),
-                                Text(
-                                  'Pull down to refresh or create a team',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
+                        Icon(Icons.error_outline, size: 64, color: Colors.red),
+                        SizedBox(height: 16),
+                        Text(
+                          'Error loading teams',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
                           ),
                         ),
+                        SizedBox(height: 8),
+                        Text(
+                          _error!,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(
+                              context,
+                            ).textTheme.bodySmall?.color?.withOpacity(0.7),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ],
-                    )
-                  : ListView.builder(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      physics: AlwaysScrollableScrollPhysics(),
-                      itemCount: filteredTeams.length,
-                      itemBuilder: (context, index) {
-                        return _buildTeamTile(filteredTeams[index]);
-                      },
                     ),
+                  ),
+                ),
+              ],
+            )
+          : filteredTeams.isEmpty
+          ? ListView(
+              physics: AlwaysScrollableScrollPhysics(),
+              children: [
+                Container(
+                  height: MediaQuery.of(context).size.height - 300,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.groups,
+                          size: 64,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withOpacity(0.5)
+                              : Theme.of(context).textTheme.bodySmall?.color,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'No teams found',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Pull down to refresh or create a team',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(
+                              context,
+                            ).textTheme.bodySmall?.color?.withOpacity(0.7),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : ListView.builder(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              physics: AlwaysScrollableScrollPhysics(),
+              itemCount: filteredTeams.length,
+              itemBuilder: (context, index) {
+                return _buildTeamTile(filteredTeams[index]);
+              },
+            ),
     );
   }
 
@@ -565,9 +570,11 @@ class _TeamSelectorScreenState extends State<TeamSelectorScreen>
         return team.club?.id != widget.clubId;
       }
       // Otherwise, show teams where user doesn't have ownership/membership
-      return team.owners.isEmpty; // This would need to be refined based on actual membership logic
+      return team
+          .owners
+          .isEmpty; // This would need to be refined based on actual membership logic
     }).toList();
-    
+
     // Apply filtering if provided
     final filteredTeams = widget.filterTeams != null
         ? opponentTeams.where(widget.filterTeams!).toList()
@@ -593,93 +600,95 @@ class _TeamSelectorScreenState extends State<TeamSelectorScreen>
               ],
             )
           : _error != null
-              ? ListView(
-                  physics: AlwaysScrollableScrollPhysics(),
-                  children: [
-                    Container(
-                      height: MediaQuery.of(context).size.height - 300,
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.error_outline,
-                              size: 64,
-                              color: Colors.red,
-                            ),
-                            SizedBox(height: 16),
-                            Text(
-                              'Error loading teams',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w500,
-                                color: Theme.of(context).textTheme.bodySmall?.color,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              _error!,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                )
-              : filteredTeams.isEmpty
-                  ? ListView(
-                      physics: AlwaysScrollableScrollPhysics(),
+          ? ListView(
+              physics: AlwaysScrollableScrollPhysics(),
+              children: [
+                Container(
+                  height: MediaQuery.of(context).size.height - 300,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Container(
-                          height: MediaQuery.of(context).size.height - 300,
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.groups,
-                                  size: 64,
-                                  color: Theme.of(context).brightness == Brightness.dark
-                                      ? Theme.of(context).colorScheme.onSurface.withOpacity(0.5)
-                                      : Theme.of(context).textTheme.bodySmall?.color,
-                                ),
-                                SizedBox(height: 16),
-                                Text(
-                                  'No teams available',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w500,
-                                    color: Theme.of(context).textTheme.bodySmall?.color,
-                                  ),
-                                ),
-                                SizedBox(height: 8),
-                                Text(
-                                  'Pull down to refresh',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
+                        Icon(Icons.error_outline, size: 64, color: Colors.red),
+                        SizedBox(height: 16),
+                        Text(
+                          'Error loading teams',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
                           ),
                         ),
+                        SizedBox(height: 8),
+                        Text(
+                          _error!,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(
+                              context,
+                            ).textTheme.bodySmall?.color?.withOpacity(0.7),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ],
-                    )
-                  : ListView.builder(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      physics: AlwaysScrollableScrollPhysics(),
-                      itemCount: filteredTeams.length,
-                      itemBuilder: (context, index) {
-                        return _buildTeamTile(filteredTeams[index]);
-                      },
                     ),
+                  ),
+                ),
+              ],
+            )
+          : filteredTeams.isEmpty
+          ? ListView(
+              physics: AlwaysScrollableScrollPhysics(),
+              children: [
+                Container(
+                  height: MediaQuery.of(context).size.height - 300,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.groups,
+                          size: 64,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withOpacity(0.5)
+                              : Theme.of(context).textTheme.bodySmall?.color,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'No teams available',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Pull down to refresh',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(
+                              context,
+                            ).textTheme.bodySmall?.color?.withOpacity(0.7),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : ListView.builder(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              physics: AlwaysScrollableScrollPhysics(),
+              itemCount: filteredTeams.length,
+              itemBuilder: (context, index) {
+                return _buildTeamTile(filteredTeams[index]);
+              },
+            ),
     );
   }
 
@@ -723,7 +732,9 @@ class _TeamSelectorScreenState extends State<TeamSelectorScreen>
               'Try different search terms',
               style: TextStyle(
                 fontSize: 14,
-                color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
+                color: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.color?.withOpacity(0.7),
               ),
             ),
           ],
@@ -757,7 +768,9 @@ class _TeamSelectorScreenState extends State<TeamSelectorScreen>
               'Enter team name to search',
               style: TextStyle(
                 fontSize: 14,
-                color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
+                color: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.color?.withOpacity(0.7),
               ),
             ),
           ],
@@ -875,7 +888,9 @@ class _TeamSelectorScreenState extends State<TeamSelectorScreen>
               child: TabBar(
                 controller: _tabController,
                 labelColor: Theme.of(context).colorScheme.primary,
-                unselectedLabelColor: Theme.of(context).textTheme.bodySmall?.color,
+                unselectedLabelColor: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.color,
                 indicatorColor: Theme.of(context).primaryColor,
                 indicatorWeight: 3,
                 labelStyle: TextStyle(
@@ -925,7 +940,14 @@ class _TeamSelectorModalState extends State<TeamSelectorModal>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _selectedTeamIds = widget.preSelectedTeams?.map((team) => team.id).toSet() ?? {};
+    _selectedTeamIds =
+        widget.preSelectedTeams?.map((team) => team.id).toSet() ?? {};
+
+    // Add debugging
+    print('🔍 TeamSelectorModal: Widget initialized');
+    print('🔍 TeamSelectorModal: Club ID: ${widget.clubId}');
+    print('🔍 TeamSelectorModal: Multi-select: ${widget.multiSelect}');
+
     _loadTeams();
   }
 
@@ -937,23 +959,35 @@ class _TeamSelectorModalState extends State<TeamSelectorModal>
   }
 
   Future<void> _loadTeams() async {
+    print('🔍 TeamSelector: Starting to load teams...');
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
     try {
+      print('📞 TeamSelector: Calling getUserTeams...');
       // Get both user teams and opponent teams
       final userTeams = await TeamService.getUserTeams();
+      print('✅ TeamSelector: Got ${userTeams.length} user teams');
+
+      print('📞 TeamSelector: Calling getOpponentTeams...');
       final opponentTeams = await TeamService.getOpponentTeams();
+      print('✅ TeamSelector: Got ${opponentTeams.length} opponent teams');
 
       if (mounted) {
+        final totalTeams = [...userTeams, ...opponentTeams];
+        print('📊 TeamSelector: Total teams to display: ${totalTeams.length}');
         setState(() {
-          _allTeams = [...userTeams, ...opponentTeams];
+          _allTeams = totalTeams;
           _isLoading = false;
         });
+        print('✅ TeamSelector: Successfully loaded and set teams');
+      } else {
+        print('⚠️ TeamSelector: Widget not mounted, skipping setState');
       }
     } catch (e) {
+      print('❌ TeamSelector: Error loading teams: $e');
       if (mounted) {
         setState(() {
           _error = e.toString();
@@ -1136,7 +1170,9 @@ class _TeamSelectorModalState extends State<TeamSelectorModal>
                   SVGAvatar(
                     imageUrl: team.logo,
                     size: 50,
-                    backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+                    backgroundColor: Theme.of(
+                      context,
+                    ).primaryColor.withOpacity(0.1),
                     iconColor: Theme.of(context).primaryColor,
                     fallbackIcon: Icons.groups,
                     showBorder: false,
@@ -1174,11 +1210,7 @@ class _TeamSelectorModalState extends State<TeamSelectorModal>
                           ),
                         ),
                         child: isSelected
-                            ? Icon(
-                                Icons.check,
-                                size: 12,
-                                color: Colors.white,
-                              )
+                            ? Icon(Icons.check, size: 12, color: Colors.white)
                             : null,
                       ),
                     ),
@@ -1213,7 +1245,9 @@ class _TeamSelectorModalState extends State<TeamSelectorModal>
                       Text(
                         team.city!,
                         style: TextStyle(
-                          color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
+                          color: Theme.of(
+                            context,
+                          ).textTheme.bodySmall?.color?.withOpacity(0.7),
                           fontSize: 12,
                           fontStyle: FontStyle.italic,
                         ),
@@ -1249,7 +1283,9 @@ class _TeamSelectorModalState extends State<TeamSelectorModal>
         return team.club?.id == widget.clubId;
       }
       // Otherwise, show teams where user has ownership/membership
-      return team.owners.isNotEmpty; // This would need to be refined based on actual membership logic
+      return team
+          .owners
+          .isNotEmpty; // This would need to be refined based on actual membership logic
     }).toList();
 
     // Apply additional filtering if provided
@@ -1277,93 +1313,95 @@ class _TeamSelectorModalState extends State<TeamSelectorModal>
               ],
             )
           : _error != null
-              ? ListView(
-                  physics: AlwaysScrollableScrollPhysics(),
-                  children: [
-                    Container(
-                      height: 200,
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.error_outline,
-                              size: 64,
-                              color: Colors.red,
-                            ),
-                            SizedBox(height: 16),
-                            Text(
-                              'Error loading teams',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w500,
-                                color: Theme.of(context).textTheme.bodySmall?.color,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              _error!,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                )
-              : filteredTeams.isEmpty
-                  ? ListView(
-                      physics: AlwaysScrollableScrollPhysics(),
+          ? ListView(
+              physics: AlwaysScrollableScrollPhysics(),
+              children: [
+                Container(
+                  height: 200,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Container(
-                          height: 200,
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.groups,
-                                  size: 64,
-                                  color: Theme.of(context).brightness == Brightness.dark
-                                      ? Theme.of(context).colorScheme.onSurface.withOpacity(0.5)
-                                      : Theme.of(context).textTheme.bodySmall?.color,
-                                ),
-                                SizedBox(height: 16),
-                                Text(
-                                  'No teams found',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w500,
-                                    color: Theme.of(context).textTheme.bodySmall?.color,
-                                  ),
-                                ),
-                                SizedBox(height: 8),
-                                Text(
-                                  'Pull down to refresh or create a team',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
+                        Icon(Icons.error_outline, size: 64, color: Colors.red),
+                        SizedBox(height: 16),
+                        Text(
+                          'Error loading teams',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
                           ),
                         ),
+                        SizedBox(height: 8),
+                        Text(
+                          _error!,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(
+                              context,
+                            ).textTheme.bodySmall?.color?.withOpacity(0.7),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ],
-                    )
-                  : ListView.builder(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      physics: AlwaysScrollableScrollPhysics(),
-                      itemCount: filteredTeams.length,
-                      itemBuilder: (context, index) {
-                        return _buildTeamTile(filteredTeams[index]);
-                      },
                     ),
+                  ),
+                ),
+              ],
+            )
+          : filteredTeams.isEmpty
+          ? ListView(
+              physics: AlwaysScrollableScrollPhysics(),
+              children: [
+                Container(
+                  height: 200,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.groups,
+                          size: 64,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withOpacity(0.5)
+                              : Theme.of(context).textTheme.bodySmall?.color,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'No teams found',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Pull down to refresh or create a team',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(
+                              context,
+                            ).textTheme.bodySmall?.color?.withOpacity(0.7),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : ListView.builder(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              physics: AlwaysScrollableScrollPhysics(),
+              itemCount: filteredTeams.length,
+              itemBuilder: (context, index) {
+                return _buildTeamTile(filteredTeams[index]);
+              },
+            ),
     );
   }
 
@@ -1375,7 +1413,9 @@ class _TeamSelectorModalState extends State<TeamSelectorModal>
         return team.club?.id != widget.clubId;
       }
       // Otherwise, show teams where user doesn't have ownership/membership
-      return team.owners.isEmpty; // This would need to be refined based on actual membership logic
+      return team
+          .owners
+          .isEmpty; // This would need to be refined based on actual membership logic
     }).toList();
 
     // Apply filtering if provided
@@ -1403,93 +1443,95 @@ class _TeamSelectorModalState extends State<TeamSelectorModal>
               ],
             )
           : _error != null
-              ? ListView(
-                  physics: AlwaysScrollableScrollPhysics(),
-                  children: [
-                    Container(
-                      height: 200,
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.error_outline,
-                              size: 64,
-                              color: Colors.red,
-                            ),
-                            SizedBox(height: 16),
-                            Text(
-                              'Error loading teams',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w500,
-                                color: Theme.of(context).textTheme.bodySmall?.color,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              _error!,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                )
-              : filteredTeams.isEmpty
-                  ? ListView(
-                      physics: AlwaysScrollableScrollPhysics(),
+          ? ListView(
+              physics: AlwaysScrollableScrollPhysics(),
+              children: [
+                Container(
+                  height: 200,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Container(
-                          height: 200,
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.groups,
-                                  size: 64,
-                                  color: Theme.of(context).brightness == Brightness.dark
-                                      ? Theme.of(context).colorScheme.onSurface.withOpacity(0.5)
-                                      : Theme.of(context).textTheme.bodySmall?.color,
-                                ),
-                                SizedBox(height: 16),
-                                Text(
-                                  'No teams available',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w500,
-                                    color: Theme.of(context).textTheme.bodySmall?.color,
-                                  ),
-                                ),
-                                SizedBox(height: 8),
-                                Text(
-                                  'Pull down to refresh',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
+                        Icon(Icons.error_outline, size: 64, color: Colors.red),
+                        SizedBox(height: 16),
+                        Text(
+                          'Error loading teams',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
                           ),
                         ),
+                        SizedBox(height: 8),
+                        Text(
+                          _error!,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(
+                              context,
+                            ).textTheme.bodySmall?.color?.withOpacity(0.7),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ],
-                    )
-                  : ListView.builder(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      physics: AlwaysScrollableScrollPhysics(),
-                      itemCount: filteredTeams.length,
-                      itemBuilder: (context, index) {
-                        return _buildTeamTile(filteredTeams[index]);
-                      },
                     ),
+                  ),
+                ),
+              ],
+            )
+          : filteredTeams.isEmpty
+          ? ListView(
+              physics: AlwaysScrollableScrollPhysics(),
+              children: [
+                Container(
+                  height: 200,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.groups,
+                          size: 64,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withOpacity(0.5)
+                              : Theme.of(context).textTheme.bodySmall?.color,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'No teams available',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Pull down to refresh',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(
+                              context,
+                            ).textTheme.bodySmall?.color?.withOpacity(0.7),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : ListView.builder(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              physics: AlwaysScrollableScrollPhysics(),
+              itemCount: filteredTeams.length,
+              itemBuilder: (context, index) {
+                return _buildTeamTile(filteredTeams[index]);
+              },
+            ),
     );
   }
 
@@ -1533,7 +1575,9 @@ class _TeamSelectorModalState extends State<TeamSelectorModal>
               'Try different search terms',
               style: TextStyle(
                 fontSize: 14,
-                color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
+                color: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.color?.withOpacity(0.7),
               ),
             ),
           ],
@@ -1567,7 +1611,9 @@ class _TeamSelectorModalState extends State<TeamSelectorModal>
               'Enter team name to search',
               style: TextStyle(
                 fontSize: 14,
-                color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
+                color: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.color?.withOpacity(0.7),
               ),
             ),
           ],
@@ -1714,7 +1760,9 @@ class _TeamSelectorModalState extends State<TeamSelectorModal>
               child: TabBar(
                 controller: _tabController,
                 labelColor: Theme.of(context).colorScheme.primary,
-                unselectedLabelColor: Theme.of(context).textTheme.bodySmall?.color,
+                unselectedLabelColor: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.color,
                 indicatorColor: Theme.of(context).primaryColor,
                 indicatorWeight: 3,
                 labelStyle: TextStyle(

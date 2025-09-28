@@ -120,15 +120,8 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       return;
     }
 
-    if (_selectedOpponentTeam == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Please select opponent team'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
+    // Opponent team is optional for TBD matches
+    // No validation needed for opponent team
 
     // Check if same team is selected for both home and opponent
     if (_isSameTeamSelected) {
@@ -181,10 +174,12 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
 
       // Debug logging for team IDs
       print('🔍 Debug: Home Team ID: ${_selectedHomeTeam!.id}');
-      print('🔍 Debug: Opponent Team ID: ${_selectedOpponentTeam!.id}');
+      print(
+        '🔍 Debug: Opponent Team ID: ${_selectedOpponentTeam?.id ?? 'TBD'}',
+      );
       print('🔍 Debug: Home Team Club ID: ${_selectedHomeTeam!.club?.id}');
       print(
-        '🔍 Debug: Opponent Team Club ID: ${_selectedOpponentTeam!.club?.id}',
+        '🔍 Debug: Opponent Team Club ID: ${_selectedOpponentTeam?.club?.id ?? 'None'}',
       );
 
       final response = await MatchService.createMatch(
@@ -193,12 +188,12 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
         tournamentId: _selectedTournament?.id,
         locationId: _selectedVenue!.id,
         city: _selectedVenue!.city,
-        opponent: _selectedOpponentTeam!.name,
-        opponentClubId: _selectedOpponentTeam!.club?.id,
+        opponent: _selectedOpponentTeam?.name ?? 'TBD',
+        opponentClubId: _selectedOpponentTeam?.club?.id,
         teamId: _selectedHomeTeam!.id,
-        opponentTeamId: _selectedOpponentTeam!.id,
+        opponentTeamId: _selectedOpponentTeam?.id,
         notes:
-            'Ball Type: $_selectedBall | Home Team: ${_selectedHomeTeam!.name} vs ${_selectedOpponentTeam!.name}',
+            'Ball Type: $_selectedBall | Home Team: ${_selectedHomeTeam!.name} vs ${_selectedOpponentTeam?.name ?? 'TBD'}',
         matchDate: matchDateTime,
         spots: 13,
         hideUntilRSVP: false,
@@ -649,7 +644,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                 SizedBox(width: 16),
                 Expanded(
                   child: _buildTeamCircle(
-                    title: 'Opponent Team',
+                    title: 'Opponent Team (Optional)',
                     team: _selectedOpponentTeam,
                     onTap: () => _selectOpponentTeam(),
                   ),
@@ -1307,7 +1302,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
   void _selectOpponentTeam() async {
     final selectedTeam = await TeamSelectorScreen.showTeamPicker(
       context: context,
-      title: 'Select Opponent Team',
+      title: 'Select Opponent Team (Optional for TBD)',
     );
 
     if (selectedTeam != null) {

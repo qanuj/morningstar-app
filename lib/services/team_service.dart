@@ -9,7 +9,11 @@ class TeamService {
 
   static Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('token');
+    final token = prefs.getString('token');
+    print(
+      '🔑 TeamService: Retrieved token from prefs: ${token != null ? 'YES (${token.substring(0, 10)}...)' : 'NO'}',
+    );
+    return token;
   }
 
   /// Search all teams with optional filters
@@ -22,19 +26,25 @@ class TeamService {
     String? sport,
   }) async {
     try {
+      print('🌐 TeamService: Using base URL: $baseUrl');
       final token = await _getToken();
       if (token == null) {
         throw Exception('Authentication required');
       }
 
-      final uri = Uri.parse('$baseUrl/teams/search').replace(queryParameters: {
-        if (query != null && query.isNotEmpty) 'q': query,
-        'limit': limit.toString(),
-        if (excludeTeamId != null) 'excludeTeamId': excludeTeamId,
-        'includeUserTeams': includeUserTeams.toString(),
-        'onlyUserTeams': onlyUserTeams.toString(),
-        if (sport != null) 'sport': sport,
-      });
+      final uri = Uri.parse('$baseUrl/teams/search').replace(
+        queryParameters: {
+          if (query != null && query.isNotEmpty) 'q': query,
+          'limit': limit.toString(),
+          if (excludeTeamId != null) 'excludeTeamId': excludeTeamId,
+          'includeUserTeams': includeUserTeams.toString(),
+          'onlyUserTeams': onlyUserTeams.toString(),
+          if (sport != null) 'sport': sport,
+        },
+      );
+
+      print('🚀 TeamService: Making request to: $uri');
+      print('🔑 TeamService: Token available: ${token.isNotEmpty}');
 
       final response = await http.get(
         uri,
@@ -44,31 +54,57 @@ class TeamService {
         },
       );
 
+      print('📡 TeamService: Response status: ${response.statusCode}');
+      print('📡 TeamService: Response body length: ${response.body.length}');
+
       if (response.statusCode == 200) {
         final List<dynamic> teamsJson = jsonDecode(response.body);
-        return teamsJson.map((team) => Team.fromJson(team)).toList();
+        print('📊 TeamService: Parsed ${teamsJson.length} teams from response');
+        final teams = teamsJson.map((team) => Team.fromJson(team)).toList();
+        print('✅ TeamService: Converted to ${teams.length} Team objects');
+        return teams;
       } else if (response.statusCode == 401) {
+        print('🔐 TeamService: Unauthorized access - token may be invalid');
         throw Exception('Unauthorized access');
       } else {
+        print(
+          '❌ TeamService: API error ${response.statusCode}: ${response.body}',
+        );
         throw Exception('Failed to search teams: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error searching teams: $e');
+      print('❌ TeamService: Exception searching teams: $e');
       throw Exception('Failed to search teams: $e');
     }
   }
 
   /// Get user's teams
   static Future<List<Team>> getUserTeams() async {
-    return await searchTeams(onlyUserTeams: true);
+    print('🔍 TeamService: Loading user teams...');
+    try {
+      final teams = await searchTeams(onlyUserTeams: true);
+      print('✅ TeamService: Loaded ${teams.length} user teams');
+      return teams;
+    } catch (e) {
+      print('❌ TeamService: Error loading user teams: $e');
+      rethrow;
+    }
   }
 
   /// Get opponent teams (teams from clubs user is not a member of)
   static Future<List<Team>> getOpponentTeams({String? excludeTeamId}) async {
-    return await searchTeams(
-      includeUserTeams: false,
-      excludeTeamId: excludeTeamId,
-    );
+    print('🔍 TeamService: Loading opponent teams...');
+    try {
+      final teams = await searchTeams(
+        includeUserTeams: false,
+        excludeTeamId: excludeTeamId,
+      );
+      print('✅ TeamService: Loaded ${teams.length} opponent teams');
+      return teams;
+    } catch (e) {
+      print('❌ TeamService: Error loading opponent teams: $e');
+      rethrow;
+    }
   }
 
   /// Get teams for a specific club
@@ -84,11 +120,13 @@ class TeamService {
         throw Exception('Authentication required');
       }
 
-      final uri = Uri.parse('$baseUrl/clubs/$clubId/teams').replace(queryParameters: {
-        if (search != null && search.isNotEmpty) 'search': search,
-        if (provider != null) 'provider': provider,
-        'limit': limit.toString(),
-      });
+      final uri = Uri.parse('$baseUrl/clubs/$clubId/teams').replace(
+        queryParameters: {
+          if (search != null && search.isNotEmpty) 'search': search,
+          if (provider != null) 'provider': provider,
+          'limit': limit.toString(),
+        },
+      );
 
       print('🚀 Making request to: $uri');
       print('🔑 Token available: ${token != null}');
@@ -112,11 +150,14 @@ class TeamService {
       } else if (response.statusCode == 401) {
         throw Exception('Unauthorized access');
       } else if (response.statusCode == 403) {
-        throw Exception('Access forbidden - you may not have permission to manage this club');
+        throw Exception(
+          'Access forbidden - you may not have permission to manage this club',
+        );
       } else {
         try {
           final Map<String, dynamic>? errorBody = jsonDecode(response.body);
-          final errorMessage = errorBody?['error'] ?? 'Failed to get club teams';
+          final errorMessage =
+              errorBody?['error'] ?? 'Failed to get club teams';
           throw Exception('$errorMessage (${response.statusCode})');
         } catch (jsonError) {
           throw Exception('Failed to get club teams: ${response.statusCode}');
@@ -144,7 +185,8 @@ class TeamService {
         'name': name,
         'sport': 'cricket', // Default sport for the app
         'provider': 'DUGGY', // Default provider as per backend validation
-        'providerId': DateTime.now().millisecondsSinceEpoch.toString(), // Generate unique ID
+        'providerId': DateTime.now().millisecondsSinceEpoch
+            .toString(), // Generate unique ID
         if (logo != null && logo.isNotEmpty) 'logo': logo,
       };
 
