@@ -38,8 +38,7 @@ class BackgroundSyncService {
 
     try {
       // Check if user is authenticated
-      final user = await AuthService.getCurrentUser();
-      if (user.isEmpty) {
+      if (!AuthService.isLoggedIn) {
         print('⚠️ Cannot initialize background sync: user not authenticated');
         return;
       }
@@ -59,19 +58,10 @@ class BackgroundSyncService {
 
     final interval = _isAppActive ? _activeSyncInterval : _syncInterval;
     _syncTimer = Timer.periodic(interval, (timer) async {
-      print(
-        '⏰ Background sync timer tick (${timer.tick}) - isActive: $_isAppActive',
-      );
       if (!_isSyncing) {
         await _performSync();
-      } else {
-        print('⏸️ Sync already in progress, skipping tick ${timer.tick}');
       }
     });
-
-    print(
-      '🔄 Background sync timer started with ${interval.inSeconds}s interval (active: $_isAppActive)',
-    );
   }
 
   /// Set app active state to adjust sync frequency
@@ -80,9 +70,6 @@ class BackgroundSyncService {
       _isAppActive = isActive;
       if (_isInitialized) {
         _startSyncTimer();
-        print(
-          '🔄 Sync interval adjusted for app state: ${isActive ? 'active' : 'background'}',
-        );
       }
     }
   }
@@ -96,17 +83,13 @@ class BackgroundSyncService {
     try {
       // Get user's clubs from provider
       if (_clubProvider == null) {
-        print('⚠️ Club provider not set, skipping sync');
         return;
       }
 
       final clubs = _clubProvider!.clubs;
       if (clubs.isEmpty) {
-        print('ℹ️ No clubs to sync');
         return;
       }
-
-      print('🔄 Starting background sync for ${clubs.length} clubs');
 
       // Sync messages for each club
       final syncTasks = clubs
@@ -128,10 +111,6 @@ class BackgroundSyncService {
       final lastSyncTime = _lastSyncTimes[clubId];
       final lastUpdatedAt = _lastUpdatedAtTimes[clubId];
 
-      print(
-        '🔄 Syncing club $clubId with lastUpdatedAt: ${lastUpdatedAt?.toIso8601String()}',
-      );
-
       // Use efficient message fetching with updatedAt timestamp
       final response = await ChatApiService.getMessagesEfficient(
         clubId,
@@ -140,19 +119,13 @@ class BackgroundSyncService {
         limit: 50, // Increased limit since we're using updatedAt filtering
       );
 
-      print(
-        '📡 Background sync response for $clubId: ${response != null ? 'received' : 'null'}',
-      );
-
       if (response == null) {
-        print('⚠️ Failed to sync messages for club $clubId - null response');
         return;
       }
 
       // Check if response has messages (same structure as club_chat.dart)
       final messagesData = response['messages'];
       if (messagesData == null) {
-        print('ℹ️ No messages data for club $clubId');
         return;
       }
 
@@ -161,11 +134,8 @@ class BackgroundSyncService {
           .toList();
 
       if (newMessages.isEmpty) {
-        print('ℹ️ No new/updated messages for club $clubId');
         return;
       }
-
-      print('📨 Found ${newMessages.length} new messages for club $clubId');
 
       // Process new messages
       await _processNewMessages(clubId, newMessages);
@@ -600,8 +570,6 @@ class BackgroundSyncService {
       print('⚠️ Background sync not initialized');
       return;
     }
-
-    print('🔄 Manual sync triggered');
     await _performSync();
   }
 
@@ -609,6 +577,19 @@ class BackgroundSyncService {
   static void setClubProvider(ClubProvider clubProvider) {
     _clubProvider = clubProvider;
     print('✅ Club provider set for background sync');
+
+    // Try to initialize background sync if not already initialized and user is authenticated
+    if (!_isInitialized && AuthService.isLoggedIn) {
+      initialize()
+          .then((_) {
+            print('✅ Background sync initialized after club provider set');
+          })
+          .catchError((e) {
+            print(
+              '❌ Failed to initialize background sync after club provider set: $e',
+            );
+          });
+    }
   }
 
   /// Register callback for club message updates
@@ -621,24 +602,19 @@ class BackgroundSyncService {
     // Initialize sync tracking for this club if not already present
     if (!_lastSyncTimes.containsKey(clubId)) {
       _lastSyncTimes[clubId] = DateTime.now();
-      print('🔄 Initialized sync tracking for club: $clubId');
     }
 
     // Start background sync immediately for this club if service is initialized
     if (_isInitialized) {
-      print('🚀 Triggering immediate sync for newly registered club: $clubId');
       _syncClubMessages(clubId).catchError((e) {
         print('❌ Error in immediate sync for club $clubId: $e');
       });
     }
-
-    print('✅ Club message callback registered for background sync: $clubId');
   }
 
   /// Clear club message callback
   static void clearClubMessageCallback(String clubId) {
     _messageCallbacks.remove(clubId);
-    print('🗑️ Club message callback cleared for background sync: $clubId');
   }
 
   /// Register callback for match updates
@@ -648,7 +624,6 @@ class BackgroundSyncService {
   ) {
     final callbacks = _matchCallbacks.putIfAbsent(matchId, () => []);
     callbacks.add(callback);
-    print('✅ Match update callback registered for background sync: $matchId');
   }
 
   /// Remove match update callback
@@ -663,14 +638,12 @@ class BackgroundSyncService {
         _matchCallbacks.remove(matchId);
       }
     }
-    print('🗑️ Match update callback removed for background sync: $matchId');
   }
 
   /// Clear all callbacks
   static void clearAllCallbacks() {
     _messageCallbacks.clear();
     _matchCallbacks.clear();
-    print('🗑️ All background sync callbacks cleared');
   }
 
   /// Stop the background sync service

@@ -41,8 +41,15 @@ void main() async {
     print('✅ NotificationService initialized successfully');
 
     // Initialize Background Sync Service for real-time updates
-    await BackgroundSyncService.initialize();
-    print('✅ BackgroundSyncService initialized successfully');
+    try {
+      await BackgroundSyncService.initialize();
+      print('✅ BackgroundSyncService initialized successfully');
+    } catch (e) {
+      print(
+        '⚠️ BackgroundSyncService initialization failed (will retry when authenticated): $e',
+      );
+      // This is not critical for app startup, sync will be retried when user is authenticated
+    }
 
     // Initialize Share Handler Service
     ShareHandlerService().initialize();
@@ -114,15 +121,31 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
                 // Navigate to ShareTargetScreen for shared content
                 print('📤 Navigating to ShareTargetScreen');
-                navigator.push(
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        ShareTargetScreen(sharedContent: sharedContent),
-                    settings: const RouteSettings(name: '/share_target'),
-                  ),
-                );
+                navigator
+                    .push(
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            ShareTargetScreen(sharedContent: sharedContent),
+                        settings: const RouteSettings(name: '/share_target'),
+                      ),
+                    )
+                    .catchError((e) {
+                      print('❌ Navigation error to ShareTargetScreen: $e');
+                      // Handle navigation errors gracefully
+                    });
               } catch (e) {
                 print('❌ Error navigating to ShareTargetScreen: $e');
+                // Try alternative navigation method
+                try {
+                  Navigator.of(_navigatorKey.currentContext!).push(
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          ShareTargetScreen(sharedContent: sharedContent),
+                    ),
+                  );
+                } catch (e2) {
+                  print('❌ Fallback navigation also failed: $e2');
+                }
               }
             });
           },

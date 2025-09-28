@@ -11,6 +11,7 @@ import '../../services/share_handler_service.dart';
 import '../../services/open_graph_service.dart';
 import '../../services/message_refresh_service.dart';
 import '../../services/message_storage_service.dart';
+import '../../services/auth_service.dart';
 import '../clubs/club_chat.dart';
 import '../../widgets/svg_avatar.dart';
 import '../../services/chat_api_service.dart';
@@ -41,7 +42,7 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeContent();
+    _checkAuthenticationAndInit();
 
     // Listen to focus changes on search field
     _searchFocusNode.addListener(() {
@@ -49,12 +50,55 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
         _isSearchFocused = _searchFocusNode.hasFocus;
       });
     });
+  }
+
+  void _checkAuthenticationAndInit() {
+    print('📤 ShareTargetScreen: Checking authentication status...');
+    print('📤 AuthService.isLoggedIn: ${AuthService.isLoggedIn}');
+    print('📤 AuthService.hasToken: ${AuthService.hasToken}');
+
+    // Check if user is authenticated
+    if (!AuthService.isLoggedIn) {
+      print('⚠️ User not authenticated for sharing, redirecting to login');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please log in to share content to your clubs'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+          // Close the share screen and redirect to app (will show login)
+          Navigator.of(context).pop();
+        }
+      });
+      return;
+    }
+
+    print('✅ User is authenticated, proceeding with sharing flow');
+    _initializeContent();
 
     // Load clubs if not already loaded
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final clubProvider = Provider.of<ClubProvider>(context, listen: false);
+      print(
+        '📤 ClubProvider status - Clubs: ${clubProvider.clubs.length}, Loading: ${clubProvider.isLoading}',
+      );
+
       if (clubProvider.clubs.isEmpty && !clubProvider.isLoading) {
-        clubProvider.loadClubs();
+        print('📤 Loading clubs for sharing...');
+        clubProvider
+            .loadClubs()
+            .then((_) {
+              print(
+                '📤 Clubs loaded successfully: ${clubProvider.clubs.length} clubs',
+              );
+            })
+            .catchError((e) {
+              print('❌ Failed to load clubs for sharing: $e');
+            });
+      } else if (clubProvider.clubs.isNotEmpty) {
+        print('📤 Clubs already loaded: ${clubProvider.clubs.length}');
       }
     });
   }

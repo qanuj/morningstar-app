@@ -203,14 +203,9 @@ class HttpService {
   }
 
   static Map<String, dynamic> _handleResponse(http.Response response) {
-    if (AppConfig.enableDebugPrints) {
-      debugPrint('🔵 Response: ${response.statusCode}');
-    }
-
     // Success 2xx
     if (response.statusCode >= 200 && response.statusCode < 300) {
       if (response.body.isEmpty) return {'success': true};
-
       try {
         final decoded = json.decode(response.body);
         if (decoded is List) return {'data': decoded};
