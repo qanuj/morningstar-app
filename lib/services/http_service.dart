@@ -87,12 +87,19 @@ class HttpService {
 
     if (AppConfig.enableDebugPrints) {
       debugPrint('🔵 POST: $uri');
+      debugPrint('🔧 POST Headers: $_headers');
+      debugPrint('🔧 POST Data: ${json.encode(data)}');
     }
 
     try {
       final response = await _client
           .post(uri, headers: _headers, body: json.encode(data))
           .timeout(AppConfig.requestTimeout);
+
+      if (AppConfig.enableDebugPrints) {
+        debugPrint('🔧 POST Response Status: ${response.statusCode}');
+        debugPrint('🔧 POST Response Body: ${response.body}');
+      }
 
       return _handleResponse(response);
     } catch (e) {

@@ -139,16 +139,28 @@ class ChatApiService {
     Map<String, dynamic> messageData,
   ) async {
     try {
+      print('🔧 ChatApiService: sendMessage called');
+      print('🔧 ChatApiService: clubId: $clubId');
+      print('🔧 ChatApiService: Original messageData: $messageData');
+
       // Format the content based on message type
       final formattedData = _formatMessageContent(messageData);
+
+      print('🔧 ChatApiService: Formatted data: $formattedData');
+      print(
+        '🔧 ChatApiService: Making API call to /conversations/$clubId/messages',
+      );
 
       final response = await ApiService.post(
         '/conversations/$clubId/messages',
         formattedData,
       );
+
+      print('🔧 ChatApiService: API response received: $response');
       return response;
     } catch (e) {
-      print('❌ Error sending message: $e');
+      print('❌ ChatApiService: Error sending message: $e');
+      print('❌ ChatApiService: Error type: ${e.runtimeType}');
       return null;
     }
   }

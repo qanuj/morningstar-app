@@ -17,6 +17,7 @@ import '../../services/chat_api_service.dart';
 import '../../services/message_storage_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/background_sync_service.dart';
+import '../../services/message_refresh_service.dart';
 import '../../widgets/club_info_dialog.dart';
 import '../../widgets/audio_recording_widget.dart';
 import '../../widgets/pinned_messages_section.dart';
@@ -99,6 +100,9 @@ class ClubChatScreenState extends State<ClubChatScreen>
   final Set<String> _deliveredMessages = <String>{};
   final Set<String> _seenMessages = <String>{};
 
+  // Message refresh service subscription
+  StreamSubscription<String>? _messageRefreshSubscription;
+
   // Permission caching
   bool? _cachedCanPinMessages;
 
@@ -159,6 +163,9 @@ class ClubChatScreenState extends State<ClubChatScreen>
 
     // Setup push notification callback instead of polling
     _setupBackgroundSyncCallback();
+
+    // Setup message refresh service listener
+    _setupMessageRefreshListener();
 
     // Add focus listener to scroll to bottom when keyboard opens
     _textFieldFocusNode.addListener(() {
@@ -292,6 +299,24 @@ class ClubChatScreenState extends State<ClubChatScreen>
     });
   }
 
+  /// Setup message refresh service listener for shared message updates
+  void _setupMessageRefreshListener() {
+    debugPrint(
+      'Setting up message refresh listener for club: ${widget.club.id}',
+    );
+
+    _messageRefreshSubscription = MessageRefreshService().refreshStream.listen((
+      clubId,
+    ) {
+      if (clubId == widget.club.id && mounted) {
+        debugPrint('🔄 Received refresh request for club: $clubId');
+        _loadMessages(
+          forceSync: false,
+        ); // Load from cache first, then sync if needed
+      }
+    });
+  }
+
   /// Handle real-time message updates from both background sync and push notifications
   void _handleRealtimeMessage(Map<String, dynamic> data) {
     debugPrint('🔄 Handling real-time message: $data');
@@ -361,6 +386,9 @@ class ClubChatScreenState extends State<ClubChatScreen>
     // Clear message callbacks for this club
     NotificationService.clearClubMessageCallback(widget.club.id);
     BackgroundSyncService.clearClubMessageCallback(widget.club.id);
+
+    // Cancel message refresh subscription
+    _messageRefreshSubscription?.cancel();
 
     super.dispose();
   }
@@ -2492,7 +2520,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
   // Handle pull-to-refresh at top of screen
   Future<void> _handleRefresh() async {
     debugPrint('🔄 Pull-to-refresh triggered');
-    await _loadMessages();
+    await _loadMessages(forceSync: true);
   }
 
   // Handle scroll notifications for bottom refresh detection and audio recording pull

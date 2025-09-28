@@ -92,36 +92,60 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   void _setupSharedContentListener() {
     _sharedContentSubscription = ShareHandlerService().sharedContentStream
-        .listen((sharedContent) {
-          print('📤 Received shared content: ${sharedContent.type.name}');
+        .listen(
+          (sharedContent) {
+            print('📤 Received shared content: ${sharedContent.type.name}');
+            print('📤 Content details: ${sharedContent.displayText}');
 
-          // Navigate to ShareTargetScreen when content is shared
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            final navigator = _navigatorKey.currentState;
-            if (navigator != null) {
-              // Check if ShareTargetScreen is already on top
-              bool isShareTargetVisible = false;
-              navigator.popUntil((route) {
-                if (route.settings.name == '/share_target' ||
-                    route.toString().contains('ShareTargetScreen')) {
-                  isShareTargetVisible = true;
-                }
-                return true;
-              });
-
-              // Only navigate if ShareTargetScreen is not already visible
-              if (!isShareTargetVisible) {
-                navigator.push(
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        ShareTargetScreen(sharedContent: sharedContent),
-                    settings: const RouteSettings(name: '/share_target'),
-                  ),
-                );
-              }
+            // Validate shared content before navigation
+            if (!sharedContent.isValid) {
+              print('❌ Invalid shared content received, skipping navigation');
+              return;
             }
-          });
-        });
+
+            // Navigate to ShareTargetScreen when content is shared
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              try {
+                final navigator = _navigatorKey.currentState;
+                if (navigator == null) {
+                  print('❌ Navigator not available for shared content');
+                  return;
+                }
+
+                // Check if ShareTargetScreen is already on top
+                bool isShareTargetVisible = false;
+                navigator.popUntil((route) {
+                  if (route.settings.name == '/share_target' ||
+                      route.toString().contains('ShareTargetScreen')) {
+                    isShareTargetVisible = true;
+                  }
+                  return true;
+                });
+
+                // Only navigate if ShareTargetScreen is not already visible
+                if (!isShareTargetVisible) {
+                  print('📤 Navigating to ShareTargetScreen');
+                  navigator.push(
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          ShareTargetScreen(sharedContent: sharedContent),
+                      settings: const RouteSettings(name: '/share_target'),
+                    ),
+                  );
+                } else {
+                  print(
+                    '📤 ShareTargetScreen already visible, skipping navigation',
+                  );
+                }
+              } catch (e) {
+                print('❌ Error navigating to ShareTargetScreen: $e');
+              }
+            });
+          },
+          onError: (error) {
+            print('❌ Error in shared content stream: $error');
+          },
+        );
   }
 
   @override

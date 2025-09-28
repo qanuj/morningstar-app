@@ -9,9 +9,12 @@ import '../../models/link_metadata.dart';
 import '../../providers/club_provider.dart';
 import '../../services/share_handler_service.dart';
 import '../../services/open_graph_service.dart';
+import '../../services/message_refresh_service.dart';
+import '../../services/message_storage_service.dart';
 import '../clubs/club_chat.dart';
 import '../../widgets/svg_avatar.dart';
 import '../../services/chat_api_service.dart';
+import '../../models/club_message.dart';
 import 'text_editor_screen.dart';
 
 class ShareTargetScreen extends StatefulWidget {
@@ -57,14 +60,69 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
   }
 
   void _initializeContent() async {
-    // Pre-fill message with shared text if available
-    if (widget.sharedContent.hasText) {
-      _messageController.text = widget.sharedContent.text ?? '';
-    }
+    try {
+      print(
+        '📤 Initializing shared content: ${widget.sharedContent.type.name}',
+      );
+      print('📤 Content URL: ${widget.sharedContent.url}');
+      print('📤 Content Text: ${widget.sharedContent.text}');
 
-    // Extract link metadata if content is a URL
-    if (widget.sharedContent.type == SharedContentType.url) {
-      await _extractLinkMetadata();
+      // Pre-fill message with shared text if available
+      if (widget.sharedContent.hasText) {
+        _messageController.text = widget.sharedContent.text ?? '';
+        print('📤 Pre-filled message with shared text');
+      }
+
+      // Extract link metadata if content is a URL
+      if (widget.sharedContent.type == SharedContentType.url) {
+        print('📤 Extracting metadata for URL content');
+        await _extractLinkMetadata();
+      }
+
+      // If content is images, ensure files exist
+      if (widget.sharedContent.type == SharedContentType.image ||
+          widget.sharedContent.type == SharedContentType.multipleImages) {
+        print('📤 Validating image files');
+        final imagePaths = widget.sharedContent.imagePaths ?? [];
+        final existingFiles = <String>[];
+
+        for (final path in imagePaths) {
+          try {
+            if (File(path).existsSync()) {
+              existingFiles.add(path);
+            } else {
+              print('⚠️ Image file not found: $path');
+            }
+          } catch (e) {
+            print('❌ Error checking image file $path: $e');
+          }
+        }
+
+        if (existingFiles.isEmpty) {
+          print('❌ No valid image files found');
+          // Show error and pop if no valid image files
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('No valid image files found to share.'),
+              ),
+            );
+            Navigator.of(context).pop();
+          }
+          return;
+        } else {
+          print('✅ Found ${existingFiles.length} valid image files');
+        }
+      }
+
+      print('✅ Content initialization completed successfully');
+    } catch (e) {
+      print('❌ Error initializing shared content: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error processing shared content: $e')),
+        );
+      }
     }
   }
 
@@ -75,7 +133,9 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
 
     try {
       final url = widget.sharedContent.url ?? widget.sharedContent.text ?? '';
-      if (url.isNotEmpty) {
+      print('📤 Extracting metadata for URL: $url');
+
+      if (url.isNotEmpty && url.startsWith(RegExp(r'https?://'))) {
         final ogData = await OpenGraphService.fetchMetadata(url);
         if (mounted) {
           setState(() {
@@ -88,10 +148,14 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
               favicon: ogData.favicon,
             );
           });
+          print('✅ Link metadata extracted successfully');
         }
+      } else {
+        print('⚠️ Invalid or empty URL for metadata extraction');
       }
     } catch (e) {
-      print('Error extracting metadata: $e');
+      print('❌ Error extracting metadata: $e');
+      // Continue without metadata instead of failing
     } finally {
       if (mounted) {
         setState(() => _isLoadingMetadata = false);
@@ -103,7 +167,7 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
     setState(() {
       if (_selectedClubIds.contains(clubId)) {
         _selectedClubIds.remove(clubId);
-      } else if (_selectedClubIds.length < 5) {
+      } else if (_selectedClubIds.length < 3) {
         _selectedClubIds.add(clubId);
       }
     });
@@ -119,6 +183,19 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Safety check - if shared content is invalid, show error and close
+    if (!widget.sharedContent.isValid) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Invalid shared content received')),
+          );
+          Navigator.of(context).pop();
+        }
+      });
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return Dialog(
       backgroundColor: Colors.white,
       insetPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
@@ -730,22 +807,36 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
 
             // Show filtered clubs
             if (filteredClubs.isNotEmpty) ...[
-              // Header section
+              // Header section with selection limit info
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                child: Text(
-                  _searchQuery.isEmpty ? 'Your clubs' : 'Search results',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _searchQuery.isEmpty ? 'Your clubs' : 'Search results',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    if (_searchQuery.isEmpty && _selectedClubIds.isNotEmpty)
+                      Text(
+                        'Selected ${_selectedClubIds.length}/3 clubs',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[500],
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                  ],
                 ),
               ),
               // Clubs list
               ...filteredClubs.map((club) {
                 final isSelected = _selectedClubIds.contains(club.club.id);
-                final canSelect = _selectedClubIds.length < 5 || isSelected;
+                final canSelect = _selectedClubIds.length < 3 || isSelected;
 
                 return _buildClubItem(
                   key: club.club.id,
@@ -824,6 +915,7 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
     VoidCallback? onTap,
   }) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final isDisabled = onTap == null;
 
     return Material(
       color: Colors.transparent,
@@ -842,66 +934,69 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Row(
-            children: [
-              avatar,
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: isDarkMode
-                            ? Colors.white
-                            : const Color(0xFF212121),
-                      ),
-                    ),
-                    if (subtitle != null && subtitle.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: Text(
-                          subtitle,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: isDarkMode
-                                ? const Color(0xFF9E9E9E)
-                                : const Color(0xFF757575),
-                            fontWeight: FontWeight.w400,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+          child: Opacity(
+            opacity: isDisabled ? 0.5 : 1.0,
+            child: Row(
+              children: [
+                avatar,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: isDarkMode
+                              ? Colors.white
+                              : const Color(0xFF212121),
                         ),
                       ),
-                  ],
+                      if (subtitle != null && subtitle.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            subtitle,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: isDarkMode
+                                  ? const Color(0xFF9E9E9E)
+                                  : const Color(0xFF757575),
+                              fontWeight: FontWeight.w400,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                width: 22,
-                height: 22,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
+                const SizedBox(width: 12),
+                Container(
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isSelected
+                          ? const Color(0xFF2196F3)
+                          : (isDarkMode
+                                ? const Color(0xFF616161)
+                                : const Color(0xFFBDBDBD)),
+                      width: 1.5,
+                    ),
                     color: isSelected
                         ? const Color(0xFF2196F3)
-                        : (isDarkMode
-                              ? const Color(0xFF616161)
-                              : const Color(0xFFBDBDBD)),
-                    width: 1.5,
+                        : Colors.transparent,
                   ),
-                  color: isSelected
-                      ? const Color(0xFF2196F3)
-                      : Colors.transparent,
+                  child: isSelected
+                      ? const Icon(Icons.check, color: Colors.white, size: 14)
+                      : null,
                 ),
-                child: isSelected
-                    ? const Icon(Icons.check, color: Colors.white, size: 14)
-                    : null,
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -1181,10 +1276,8 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
       }
 
       // Send to each selected club
-      int successCount = 0;
       for (final clubId in _selectedClubIds) {
-        final success = await _sendMessageToClub(clubId);
-        if (success) successCount++;
+        await _sendMessageToClub(clubId);
       }
 
       _navigateToClubsScreen();
@@ -1201,16 +1294,28 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
     try {
       print('📤 _sendMessageToClub called for clubId: $clubId');
       print('📤 SharedContent type: ${widget.sharedContent.type}');
-      
+
       Map<String, dynamic> messageData;
 
       switch (widget.sharedContent.type) {
         case SharedContentType.url:
+          // Ensure we have a valid URL - prioritize the actual URL over metadata
+          final actualUrl = widget.sharedContent.url ?? widget.sharedContent.text ?? '';
+          print('🔗 Actual URL to send: $actualUrl');
+          
+          // Validate that we have a proper URL
+          if (actualUrl.isEmpty || !actualUrl.startsWith(RegExp(r'https?://'))) {
+            print('❌ Invalid URL for sharing: $actualUrl');
+            return false;
+          }
+          
           dynamic contentJson;
           contentJson = {
             'type': 'link',
-            'url': _linkMetadata?.url ?? widget.sharedContent.url ?? widget.sharedContent.text,
-            'body': _messageController.text.trim().isEmpty ? ' ' : _messageController.text.trim(),
+            'url': actualUrl, // Use the actual URL directly
+            'body': _messageController.text.trim().isEmpty
+                ? actualUrl // Use URL as body if no custom message
+                : _messageController.text.trim(),
             if (_linkMetadata?.title != null) 'title': _linkMetadata?.title,
             if (_linkMetadata?.description != null)
               'description': _linkMetadata?.description,
@@ -1223,6 +1328,7 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
           messageData = {
             'content': contentJson,
             'type': 'link',
+            'metadata': {'forwarded': true},
             if (_linkMetadata != null) 'linkMeta': [_linkMetadata!.toJson()],
           };
           break;
@@ -1234,6 +1340,7 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
               'body': widget.sharedContent.text ?? '',
             },
             'type': 'text',
+            'metadata': {'forwarded': true},
           };
           break;
 
@@ -1242,7 +1349,7 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
           // Upload all images first and get their URLs
           final imagePaths = widget.sharedContent.imagePaths ?? [];
           final uploadedImageUrls = <String>[];
-          
+
           // Upload all images sequentially to ensure they're all processed
           for (final imagePath in imagePaths) {
             try {
@@ -1257,9 +1364,11 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
                   bytes: bytes,
                   path: imagePath,
                 );
-                
+
                 // Upload the file and wait for completion
-                final uploadedUrl = await ChatApiService.uploadFile(platformFile);
+                final uploadedUrl = await ChatApiService.uploadFile(
+                  platformFile,
+                );
                 if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
                   uploadedImageUrls.add(uploadedUrl);
                   print('✅ Image uploaded successfully: $uploadedUrl');
@@ -1274,23 +1383,28 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
               // Continue with other images even if one fails
             }
           }
-          
+
           // Only proceed if at least one image was uploaded successfully
           if (uploadedImageUrls.isEmpty) {
             print('❌ No images were uploaded successfully');
             return false;
           }
-          
-          print('📤 Creating message with ${uploadedImageUrls.length} uploaded images');
-          
+
+          print(
+            '📤 Creating message with ${uploadedImageUrls.length} uploaded images',
+          );
+
           // Create message with uploaded image URLs
           messageData = {
             'content': {
               'type': 'text',
-              'body': _messageController.text.trim().isEmpty ? ' ' : _messageController.text.trim(),
+              'body': _messageController.text.trim().isEmpty
+                  ? ' '
+                  : _messageController.text.trim(),
               'images': uploadedImageUrls,
             },
             'type': 'text',
+            'metadata': {'forwarded': true},
           };
           break;
 
@@ -1301,13 +1415,39 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
               'body': widget.sharedContent.displayText,
             },
             'type': 'text',
+            'metadata': {'forwarded': true},
           };
           break;
       }
-      
+
       print('📤 Final messageData: $messageData');
-      
+      print('🔧 ShareTarget: About to call ChatApiService.sendMessage');
+      print('🔧 ShareTarget: ClubId: $clubId');
+
       final response = await ChatApiService.sendMessage(clubId, messageData);
+
+      print('🔧 ShareTarget: ChatApiService.sendMessage completed');
+      print('🔧 ShareTarget: Response: $response');
+      print('🔧 ShareTarget: Success: ${response != null}');
+
+      // If message was sent successfully, add to local cache
+      if (response != null) {
+        try {
+          print('💾 ShareTarget: Adding message to local cache...');
+
+          // Create ClubMessage from API response
+          final clubMessage = ClubMessage.fromJson(response);
+
+          // Add message to local cache
+          await MessageStorageService.addMessage(clubId, clubMessage);
+
+          print('✅ ShareTarget: Message added to local cache successfully');
+        } catch (e) {
+          print('❌ ShareTarget: Error adding message to cache: $e');
+          // Don't fail the entire operation if caching fails
+        }
+      }
+
       return response != null;
     } catch (e) {
       print('Error sending message to club $clubId: $e');
@@ -1501,6 +1641,9 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
         final success = await _sendMessageToClub(clubId);
 
         if (success) {
+          // Trigger refresh for the successful club
+          MessageRefreshService().triggerRefresh(clubId);
+
           final selectedClub = clubProvider.clubs
               .firstWhere((membership) => membership.club.id == clubId)
               .club;
@@ -1518,18 +1661,48 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
             );
           }
         } else {
-          // Silent error handling - don't navigate if sending failed
+          // Show error feedback for single club failure
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('❌ Failed to send message. Please try again.'),
+                backgroundColor: Colors.red,
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
           return;
         }
       } else {
         // For multiple clubs, send to each club via API
         int successCount = 0;
+        List<String> successfulClubs = [];
         for (final clubId in _selectedClubIds) {
           final success = await _sendMessageToClub(clubId);
-          if (success) successCount++;
+          if (success) {
+            successCount++;
+            successfulClubs.add(clubId);
+          }
+        }
+
+        // Trigger refresh for successful clubs
+        if (successfulClubs.isNotEmpty) {
+          MessageRefreshService().triggerRefreshForClubs(successfulClubs);
         }
 
         if (mounted) {
+          // Show success feedback
+          if (successCount > 0) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  '✅ Message sent to $successCount club${successCount > 1 ? 's' : ''}! Messages are now visible in chat.',
+                ),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 4),
+              ),
+            );
+          }
           Navigator.of(context).pop();
         }
       }

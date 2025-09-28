@@ -40,9 +40,11 @@ class _TextEditorScreenState extends State<TextEditorScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Scaffold(
-      backgroundColor: isDarkMode ? const Color(0xFF121212) : const Color(0xFFFAFAFA),
+      backgroundColor: isDarkMode
+          ? const Color(0xFF121212)
+          : const Color(0xFFFAFAFA),
       body: SafeArea(
         child: Column(
           children: [
@@ -53,8 +55,8 @@ class _TextEditorScreenState extends State<TextEditorScreen> {
                 color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
                 border: Border(
                   bottom: BorderSide(
-                    color: isDarkMode 
-                        ? const Color(0xFF2A2A2A) 
+                    color: isDarkMode
+                        ? const Color(0xFF2A2A2A)
                         : const Color(0xFFE5E5E5),
                     width: 0.5,
                   ),
@@ -72,7 +74,7 @@ class _TextEditorScreenState extends State<TextEditorScreen> {
                       'Cancel',
                       style: TextStyle(
                         fontSize: 16,
-                        color: isDarkMode 
+                        color: isDarkMode
                             ? const Color(0xFF9E9E9E)
                             : const Color(0xFF757575),
                         fontWeight: FontWeight.w400,
@@ -86,7 +88,9 @@ class _TextEditorScreenState extends State<TextEditorScreen> {
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w600,
-                        color: isDarkMode ? Colors.white : const Color(0xFF212121),
+                        color: isDarkMode
+                            ? Colors.white
+                            : const Color(0xFF212121),
                       ),
                     ),
                   ),
@@ -110,7 +114,7 @@ class _TextEditorScreenState extends State<TextEditorScreen> {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
-                        color: isDarkMode 
+                        color: isDarkMode
                             ? const Color(0xFF9E9E9E)
                             : const Color(0xFF757575),
                       ),
@@ -139,7 +143,7 @@ class _TextEditorScreenState extends State<TextEditorScreen> {
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.all(16),
                     hintStyle: TextStyle(
-                      color: isDarkMode 
+                      color: isDarkMode
                           ? const Color(0xFF757575)
                           : const Color(0xFF9E9E9E),
                       fontSize: 16,
@@ -176,7 +180,9 @@ class _TextEditorScreenState extends State<TextEditorScreen> {
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
                             strokeWidth: 2,
                           ),
                         )
@@ -200,7 +206,7 @@ class _TextEditorScreenState extends State<TextEditorScreen> {
 
   Widget _buildSelectedClubsList() {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Consumer<ClubProvider>(
       builder: (context, clubProvider, child) {
         return Wrap(
@@ -213,11 +219,14 @@ class _TextEditorScreenState extends State<TextEditorScreen> {
 
             // Selected clubs
             ...clubProvider.clubs
-                .where((membership) => widget.selectedClubIds.contains(membership.club.id))
-                .map((membership) => _buildClubChip(
-                      membership.club.name,
-                      isDarkMode,
-                    )),
+                .where(
+                  (membership) =>
+                      widget.selectedClubIds.contains(membership.club.id),
+                )
+                .map(
+                  (membership) =>
+                      _buildClubChip(membership.club.name, isDarkMode),
+                ),
           ],
         );
       },
@@ -228,23 +237,17 @@ class _TextEditorScreenState extends State<TextEditorScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: isDarkMode 
-            ? const Color(0xFF2A2A2A)
-            : const Color(0xFFF0F8FF),
+        color: isDarkMode ? const Color(0xFF2A2A2A) : const Color(0xFFF0F8FF),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isDarkMode 
-              ? const Color(0xFF424242)
-              : const Color(0xFFE3F2FD),
+          color: isDarkMode ? const Color(0xFF424242) : const Color(0xFFE3F2FD),
           width: 0.5,
         ),
       ),
       child: Text(
         name,
         style: TextStyle(
-          color: isDarkMode 
-              ? const Color(0xFF64B5F6)
-              : const Color(0xFF1976D2),
+          color: isDarkMode ? const Color(0xFF64B5F6) : const Color(0xFF1976D2),
           fontSize: 13,
           fontWeight: FontWeight.w500,
         ),
@@ -267,10 +270,8 @@ class _TextEditorScreenState extends State<TextEditorScreen> {
       }
 
       // Send to each selected club
-      int successCount = 0;
       for (final clubId in widget.selectedClubIds) {
-        final success = await _sendTextToClub(clubId, messageText);
-        if (success) successCount++;
+        await _sendTextToClub(clubId, messageText);
       }
 
       // Silent completion - no toast notifications
@@ -288,11 +289,9 @@ class _TextEditorScreenState extends State<TextEditorScreen> {
   Future<bool> _sendTextToClub(String clubId, String messageText) async {
     try {
       final messageData = {
-        'content': {
-          'type': 'text',
-          'body': messageText,
-        },
+        'content': {'type': 'text', 'body': messageText},
         'type': 'text',
+        'metadata': {'forwarded': true},
       };
 
       final response = await ChatApiService.sendMessage(clubId, messageData);

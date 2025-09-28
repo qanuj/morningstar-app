@@ -6,6 +6,7 @@ import '../screens/shared/share_target_screen.dart';
 import '../models/shared_content.dart';
 import '../services/share_handler_service.dart';
 import '../screens/qr_scanner.dart';
+import 'api_test_screen.dart';
 
 class ShareTestScreen extends StatefulWidget {
   const ShareTestScreen({super.key});
@@ -159,6 +160,18 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
                   onPressed: () => _testRealSharing(context),
                   color: const Color(0xFF16a34a),
                 ),
+                _buildToolButton(
+                  label: 'API Connectivity Test',
+                  icon: Icons.network_check,
+                  onPressed: () => _openApiTestScreen(context),
+                  color: const Color(0xFF059669),
+                ),
+                _buildToolButton(
+                  label: 'Test Share Flow End-to-End',
+                  icon: Icons.analytics,
+                  onPressed: () => _testEndToEndFlow(context),
+                  color: const Color(0xFF7c3aed),
+                ),
               ],
             ),
 
@@ -195,8 +208,9 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
                   SizedBox(height: 12),
                   Text(
                     '• Use these buttons to simulate different sharing scenarios\n'
-                    '• iOS: Test URL scheme duggy://share?text=Hello\n'
-                    '• Android: Sharing should work from any app\n'
+                    '• Messages are sent successfully (check console logs)\n'
+                    '• To see messages in chat: Pull down to refresh chat screen\n'
+                    '• Success notifications will confirm message was sent\n'
                     '• All tests work without external dependencies',
                     style: TextStyle(
                       fontSize: 13,
@@ -298,6 +312,10 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
       'This is a test shared message from the debug screen!',
     );
 
+    print('🔧 Admin Tools: Starting text share test');
+    print('🔧 Admin Tools: Content type: ${sharedContent.type}');
+    print('🔧 Admin Tools: Content text: ${sharedContent.text}');
+
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => ShareTargetScreen(sharedContent: sharedContent),
@@ -307,6 +325,10 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
 
   void _testUrlShare(BuildContext context) {
     final sharedContent = SharedContent.fromText('https://duggy.app');
+
+    print('🔧 Admin Tools: Starting URL share test');
+    print('🔧 Admin Tools: Content type: ${sharedContent.type}');
+    print('🔧 Admin Tools: URL: ${sharedContent.url}');
 
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -320,6 +342,10 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
     final sharedContent = SharedContent.fromText(
       'https://youtube.com/watch?v=dQw4w9WgXcQ',
     );
+
+    print('🔧 Admin Tools: Starting YouTube video share test');
+    print('🔧 Admin Tools: Content type: ${sharedContent.type}');
+    print('🔧 Admin Tools: URL: ${sharedContent.url}');
 
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -407,6 +433,10 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
 
     final sharedContent = SharedContent.fromImages(mockImagePaths);
 
+    print('🔧 Admin Tools: Starting mock single image share test');
+    print('🔧 Admin Tools: Content type: ${sharedContent.type}');
+    print('🔧 Admin Tools: Mock image paths: $mockImagePaths');
+
     navigator.push(
       MaterialPageRoute(
         builder: (context) => ShareTargetScreen(sharedContent: sharedContent),
@@ -425,6 +455,10 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
     ];
 
     final sharedContent = SharedContent.fromImages(mockImagePaths);
+
+    print('🔧 Admin Tools: Starting mock multiple images share test');
+    print('🔧 Admin Tools: Content type: ${sharedContent.type}');
+    print('🔧 Admin Tools: Mock image paths: $mockImagePaths');
 
     navigator.push(
       MaterialPageRoute(
@@ -524,5 +558,85 @@ class _ShareTestScreenState extends State<ShareTestScreen> {
         );
       }
     }
+  }
+
+  void _openApiTestScreen(BuildContext context) {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => const ApiTestScreen()));
+  }
+
+  void _testEndToEndFlow(BuildContext context) {
+    // Show dialog to explain what this test does
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('End-to-End Share Test'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'This test will:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8),
+            Text('• Create a test text message'),
+            Text('• Navigate to club selection screen'),
+            Text('• Send messages to selected clubs'),
+            Text('• Show success confirmation'),
+            Text('• Log detailed information to console'),
+            SizedBox(height: 16),
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Text(
+                'Note: After sending, pull down to refresh any chat screens to see the new messages.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.green.shade700,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _performEndToEndTest(context);
+            },
+            child: Text('Start Test'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _performEndToEndTest(BuildContext context) {
+    final sharedContent = SharedContent.fromText(
+      '🚀 END-TO-END TEST MESSAGE - This is testing the complete sharing flow from admin tools!',
+    );
+
+    print('🧪 E2E Test: Starting end-to-end share test');
+    print('🧪 E2E Test: Content type: ${sharedContent.type}');
+    print('🧪 E2E Test: Content text: ${sharedContent.text}');
+    print('🧪 E2E Test: Content valid: ${sharedContent.isValid}');
+    print('🧪 E2E Test: Navigating to ShareTargetScreen...');
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ShareTargetScreen(sharedContent: sharedContent),
+      ),
+    );
   }
 }
