@@ -25,7 +25,7 @@ class AppConfig {
   // ——— API Base Hosts (no paths) ———
   static const String _prodHostDual = 'duggy.app'; // dual stack (web)
   static const String _prodHostV4 = 'api4.duggy.app'; // IPv4-only alias for app
-  static const String _devLanHost = '192.168.1.56'; // your LAN backend
+  static const String _devLanHost = '192.168.1.70'; // your LAN backend
   static const int _devPort = 3000;
 
   // ——— API Base URLs (final) ———

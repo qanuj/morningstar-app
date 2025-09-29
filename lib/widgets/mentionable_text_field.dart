@@ -159,6 +159,8 @@ class MentionableTextField extends StatefulWidget {
   final TextCapitalization textCapitalization;
   final TextInputAction? textInputAction;
   final Function(String)? onSubmitted;
+  final Widget Function(BuildContext, EditableTextState)? contextMenuBuilder;
+  final ContentInsertionConfiguration? contentInsertionConfiguration;
 
   const MentionableTextField({
     super.key,
@@ -181,6 +183,8 @@ class MentionableTextField extends StatefulWidget {
     this.textCapitalization = TextCapitalization.sentences,
     this.textInputAction,
     this.onSubmitted,
+    this.contextMenuBuilder,
+    this.contentInsertionConfiguration,
   });
 
   @override
@@ -393,6 +397,8 @@ class _MentionableTextFieldState extends State<MentionableTextField> {
         widget.onTap?.call();
       },
       onSubmitted: widget.onSubmitted,
+      contextMenuBuilder: widget.contextMenuBuilder,
+      contentInsertionConfiguration: widget.contentInsertionConfiguration,
     );
   }
 }

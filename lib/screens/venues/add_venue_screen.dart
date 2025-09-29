@@ -82,8 +82,8 @@ class _AddVenueScreenState extends State<AddVenueScreen> with WidgetsBindingObse
     super.didChangeAppLifecycleState(state);
 
     if (state == AppLifecycleState.resumed && _justOpenedMaps) {
-      // User returned to app after opening Maps, check clipboard
-      _checkClipboardForGoogleMapsLink();
+      // Disable automatic clipboard checking to prevent permission prompts
+      // User can manually paste Google Maps link if needed
       _justOpenedMaps = false;
     }
   }

@@ -32,9 +32,10 @@ class _SplashScreenState extends State<SplashScreen> {
       try {
         await Provider.of<UserProvider>(context, listen: false).loadUser();
         await Provider.of<ClubProvider>(context, listen: false).loadClubs();
-        Navigator.of(
-          context,
-        ).pushReplacement(MaterialPageRoute(builder: (_) => HomeScreen()));
+
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => HomeScreen()),
+        );
       } catch (e) {
         Navigator.of(
           context,

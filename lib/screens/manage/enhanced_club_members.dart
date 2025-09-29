@@ -435,31 +435,18 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('📱 Contacts Permission Required'),
+        title: Text('📱 Contacts Access Needed'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'To add members from your contacts, you need to grant contacts permission.',
+              'To add members from your contacts, this feature needs contacts permission. You can enable this in your device settings if needed.',
               style: TextStyle(fontSize: 16),
             ),
             SizedBox(height: 16),
             Text(
-              'iOS Steps:',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-            ),
-            SizedBox(height: 8),
-            Text(
-              '1. Tap "Open Settings" below\n'
-              '2. Find "Duggy" in the app list\n'
-              '3. Toggle "Contacts" to ON\n'
-              '4. Return to the app and try again',
-              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Or you can add members manually without contacts access.',
+              'You can still add members manually without contacts access.',
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey[600],
@@ -470,26 +457,15 @@ class EnhancedClubMembersScreenState extends State<EnhancedClubMembersScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          TextButton(
             onPressed: () {
               Navigator.pop(context);
               _showManualAddMember();
             },
             child: Text('Add Manually'),
           ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await openAppSettings();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xFF003f9b),
-              foregroundColor: Colors.white,
-            ),
-            child: Text('Open Settings'),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('OK'),
           ),
         ],
       ),

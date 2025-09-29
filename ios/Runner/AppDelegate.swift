@@ -69,10 +69,14 @@ import UIKit
     
     clipboardChannel?.setMethodCallHandler({
       (call: FlutterMethodCall, result: @escaping FlutterResult) -> Void in
-      
+
       switch call.method {
       case "getClipboardImage":
-        self.getClipboardImage(result: result)
+        let allowedMimeTypes = (call.arguments as? [String: Any])?["allowedMimeTypes"] as? [String] ?? []
+        self.getClipboardImage(result: result, allowedMimeTypes: allowedMimeTypes)
+      case "getClipboardImageSafe":
+        let allowedMimeTypes = (call.arguments as? [String: Any])?["allowedMimeTypes"] as? [String] ?? []
+        self.getClipboardImageSafe(result: result, allowedMimeTypes: allowedMimeTypes)
       default:
         result(FlutterMethodNotImplemented)
       }
@@ -312,20 +316,49 @@ import UIKit
     return super.application(application, continue: userActivity, restorationHandler: restorationHandler)
   }
   
-  private func getClipboardImage(result: @escaping FlutterResult) {
-    print("📋 iOS getClipboardImage method called")
+  private func getClipboardImage(result: @escaping FlutterResult, allowedMimeTypes: [String]) {
+    print("📋 iOS getClipboardImage method called with MIME types: \(allowedMimeTypes)")
     let pasteboard = UIPasteboard.general
-    
+
     // Check what types are available in the clipboard
     print("📋 Available types in clipboard: \(pasteboard.types)")
     print("📋 Has images: \(pasteboard.hasImages)")
     print("📋 Has strings: \(pasteboard.hasStrings)")
-    
+
+    // Create a mapping of MIME types to iOS UTI types
+    let mimeToUTI = [
+      "image/png": "public.png",
+      "image/jpeg": "public.jpeg",
+      "image/gif": "com.compuserve.gif",
+      "image/webp": "org.webmproject.webp",
+      "image/bmp": "com.microsoft.bmp"
+    ]
+
+    // Check if clipboard contains any allowed image types
+    var foundValidType = false
+    if !allowedMimeTypes.isEmpty {
+      for mimeType in allowedMimeTypes {
+        if let utiType = mimeToUTI[mimeType] {
+          if pasteboard.contains(pasteboardTypes: [utiType]) {
+            print("📋 Found allowed MIME type: \(mimeType) (\(utiType))")
+            foundValidType = true
+            break
+          }
+        }
+      }
+
+      if !foundValidType {
+        print("📋 No allowed MIME types found in clipboard")
+        result(nil)
+        return
+      }
+    }
+
     // Check if there's an image in the clipboard
     if pasteboard.hasImages {
       if let image = pasteboard.image {
         print("📋 Found UIImage in clipboard: \(image.size)")
-        // Convert UIImage to PNG data
+        // Convert UIImage to PNG data (standardize format)
         if let imageData = image.pngData() {
           print("📋 Successfully converted to PNG data, size: \(imageData.count) bytes")
           result(FlutterStandardTypedData(bytes: imageData))
@@ -337,8 +370,77 @@ import UIKit
         print("❌ pasteboard.hasImages is true but pasteboard.image is nil")
       }
     }
-    
-    print("📋 No image found in iOS clipboard")
+
+    print("📋 No valid image found in iOS clipboard")
+    result(nil)
+  }
+
+  private func getClipboardImageSafe(result: @escaping FlutterResult, allowedMimeTypes: [String]) {
+    print("📋 iOS getClipboardImageSafe method called with MIME types: \(allowedMimeTypes)")
+    let pasteboard = UIPasteboard.general
+
+    // First check if we can access the pasteboard without causing permission prompt
+    guard pasteboard.numberOfItems > 0 else {
+      print("📋 Clipboard is empty")
+      result(nil)
+      return
+    }
+
+    // Create a mapping of MIME types to iOS UTI types
+    let mimeToUTI = [
+      "image/png": "public.png",
+      "image/jpeg": "public.jpeg",
+      "image/gif": "com.compuserve.gif",
+      "image/webp": "org.webmproject.webp",
+      "image/bmp": "com.microsoft.bmp"
+    ]
+
+    // Check if there are any allowed image types available without accessing the content
+    let availableTypes = pasteboard.types
+    var allowedUTITypes = ["public.image"] // Generic image fallback
+
+    // Add specific UTI types based on allowed MIME types
+    if !allowedMimeTypes.isEmpty {
+      for mimeType in allowedMimeTypes {
+        if let utiType = mimeToUTI[mimeType] {
+          allowedUTITypes.append(utiType)
+        }
+      }
+    } else {
+      // Default allowed types if none specified
+      allowedUTITypes.append(contentsOf: ["public.png", "public.jpeg", "com.compuserve.gif"])
+    }
+
+    let hasAllowedImageType = availableTypes.contains { type in
+      allowedUTITypes.contains(type)
+    }
+
+    print("📋 Available types: \(availableTypes)")
+    print("📋 Allowed UTI types: \(allowedUTITypes)")
+    print("📋 Has allowed image type: \(hasAllowedImageType)")
+
+    guard hasAllowedImageType else {
+      print("📋 No allowed image types found in clipboard")
+      result(nil)
+      return
+    }
+
+    // Only access the image if we know it's there and allowed
+    if pasteboard.hasImages {
+      if let image = pasteboard.image {
+        print("📋 Found UIImage in clipboard: \(image.size)")
+        // Convert UIImage to PNG data (standardize format)
+        if let imageData = image.pngData() {
+          print("📋 Successfully converted to PNG data, size: \(imageData.count) bytes")
+          result(FlutterStandardTypedData(bytes: imageData))
+          return
+        } else {
+          print("❌ Failed to convert UIImage to PNG data")
+        }
+      }
+    }
+
+    print("📋 No accessible allowed image found in iOS clipboard")
     result(nil)
   }
 }

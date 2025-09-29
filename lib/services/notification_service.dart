@@ -65,9 +65,9 @@ class NotificationService {
 
     const DarwinInitializationSettings initializationSettingsIOS =
         DarwinInitializationSettings(
-          requestSoundPermission: true,
-          requestBadgePermission: true,
-          requestAlertPermission: true,
+          requestSoundPermission: false,
+          requestBadgePermission: false,
+          requestAlertPermission: false,
         );
 
     const InitializationSettings initializationSettings =
@@ -129,6 +129,7 @@ class NotificationService {
       }
     }
   }
+
 
   /// Initialize Firebase messaging
   static Future<void> _initializeFirebaseMessaging() async {

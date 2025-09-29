@@ -1,11 +1,12 @@
 // lib/models/shared_content.dart
-enum SharedContentType { text, url, image, multipleImages, unknown }
+enum SharedContentType { text, url, image, file, multipleImages, unknown }
 
 class SharedContent {
   final SharedContentType type;
   final String? text;
   final String? subject;
   final List<String>? imagePaths;
+  final List<String>? filePaths;
   final String? url;
   final Map<String, dynamic>? metadata;
   final DateTime receivedAt;
@@ -15,6 +16,7 @@ class SharedContent {
     this.text,
     this.subject,
     this.imagePaths,
+    this.filePaths,
     this.url,
     this.metadata,
     DateTime? receivedAt,

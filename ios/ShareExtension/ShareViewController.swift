@@ -78,6 +78,31 @@ class ShareViewController: SLComposeServiceViewController {
                     return
                 }
                 
+                // Handle videos
+                else if attachment.hasItemConformingToTypeIdentifier(UTType.movie.identifier) {
+                    attachment.loadItem(forTypeIdentifier: UTType.movie.identifier, options: nil) { [weak self] (data, error) in
+                        DispatchQueue.main.async {
+                            self?.handleVideoData(data, error: error)
+                        }
+                    }
+                    return
+                }
+
+                // Handle files (from Files app)
+                else if attachment.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+                    attachment.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { [weak self] (data, error) in
+                        DispatchQueue.main.async {
+                            if let fileURL = data as? URL {
+                                let userText = self?.contentText?.isEmpty == false ? self?.contentText : nil
+                                self?.launchMainApp(content: fileURL.path, type: "file", userText: userText)
+                            } else {
+                                self?.completeRequest()
+                            }
+                        }
+                    }
+                    return
+                }
+
                 // Handle images
                 else if attachment.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
                     attachment.loadItem(forTypeIdentifier: UTType.image.identifier, options: nil) { [weak self] (data, error) in
@@ -186,7 +211,7 @@ class ShareViewController: SLComposeServiceViewController {
             completeRequest()
             return
         }
-        
+
         // Save image to shared container and get file path
         if let imagePath = saveImageToSharedContainer(data) {
             let userText = contentText?.isEmpty == false ? contentText : "📸 Shared an image"
@@ -196,6 +221,25 @@ class ShareViewController: SLComposeServiceViewController {
             // Fallback to text message
             let userText = contentText?.isEmpty == false ? contentText : "📸 Shared an image"
             launchMainApp(content: "📸 IMAGE_SHARED", type: "image", userText: userText)
+        }
+    }
+
+    private func handleVideoData(_ data: Any?, error: Error?) {
+        guard error == nil else {
+            print("❌ Error loading video: \(error!)")
+            completeRequest()
+            return
+        }
+
+        // Save video to shared container and get file path
+        if let videoPath = saveVideoToSharedContainer(data) {
+            let userText = contentText?.isEmpty == false ? contentText : "🎥 Shared a video"
+            launchMainApp(content: videoPath, type: "video", userText: userText)
+        } else {
+            print("❌ Failed to save video to shared container")
+            // Fallback to text message
+            let userText = contentText?.isEmpty == false ? contentText : "🎥 Shared a video"
+            launchMainApp(content: "🎥 VIDEO_SHARED", type: "video", userText: userText)
         }
     }
     
@@ -257,6 +301,61 @@ class ShareViewController: SLComposeServiceViewController {
         }
     }
     
+    private func saveVideoToSharedContainer(_ data: Any?) -> String? {
+        guard let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.app.duggy") else {
+            print("❌ Could not access shared container")
+            return nil
+        }
+
+        let sharedVideosDir = containerURL.appendingPathComponent("SharedVideos")
+
+        // Create directory if it doesn't exist
+        do {
+            try FileManager.default.createDirectory(at: sharedVideosDir, withIntermediateDirectories: true, attributes: nil)
+        } catch {
+            print("❌ Failed to create shared videos directory: \(error)")
+            return nil
+        }
+
+        // Generate unique filename
+        let filename = "shared_video_\(Int(Date().timeIntervalSince1970))_\(UUID().uuidString.prefix(8)).mov"
+        let fileURL = sharedVideosDir.appendingPathComponent(filename)
+
+        // Convert data to video and save
+        var videoData: Data?
+
+        if let url = data as? URL {
+            // If data is a URL, load the video data
+            do {
+                videoData = try Data(contentsOf: url)
+            } catch {
+                print("❌ Failed to load video data from URL: \(error)")
+                return nil
+            }
+        } else if let data = data as? Data {
+            // If data is already Data, use it directly
+            videoData = data
+        } else {
+            print("❌ Unsupported video data type: \(type(of: data))")
+            return nil
+        }
+
+        guard let finalVideoData = videoData else {
+            print("❌ Could not get video data")
+            return nil
+        }
+
+        // Save to file
+        do {
+            try finalVideoData.write(to: fileURL)
+            print("✅ Saved shared video to: \(fileURL.path)")
+            return fileURL.path
+        } catch {
+            print("❌ Failed to save video: \(error)")
+            return nil
+        }
+    }
+
     private func completeRequest() {
         extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
     }

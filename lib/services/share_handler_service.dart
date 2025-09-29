@@ -211,6 +211,55 @@ class ShareHandlerService {
             }
           }
           break;
+        case 'video':
+          // Create video content
+          if (text.isNotEmpty && text.startsWith('/')) {
+            // We have an actual video file path
+            print('📤 Creating SharedContent from video file path: $text');
+            sharedContent = SharedContent(
+              type: SharedContentType.file,
+              text: message?.isNotEmpty == true ? message! : '🎥 Shared a video',
+              filePaths: [text],
+              metadata: {'isVideoShare': true},
+            );
+          } else if (text.contains('🎥 VIDEO_SHARED')) {
+            // Legacy fallback - video shared from native but no file path
+            final content = message?.isNotEmpty == true
+                ? message!
+                : '🎥 Shared a video';
+            sharedContent = SharedContent(
+              type: SharedContentType.file,
+              text: content,
+              metadata: {'isVideoShare': true},
+            );
+          } else {
+            // Fallback - create as text with message
+            final content = message?.isNotEmpty == true
+                ? message!
+                : 'Shared a video';
+            sharedContent = SharedContent.fromText(content);
+          }
+          break;
+        case 'file':
+          // Create file content
+          if (text.isNotEmpty && text.startsWith('/')) {
+            // We have an actual file path
+            print('📤 Creating SharedContent from file path: $text');
+            final fileName = text.split('/').last;
+            sharedContent = SharedContent(
+              type: SharedContentType.file,
+              text: message?.isNotEmpty == true ? message! : '📄 Shared file: $fileName',
+              filePaths: [text],
+              metadata: {'isFileShare': true},
+            );
+          } else {
+            // Fallback - create as text with message
+            final content = message?.isNotEmpty == true
+                ? message!
+                : 'Shared a file';
+            sharedContent = SharedContent.fromText(content);
+          }
+          break;
         case 'text':
         default:
           // Handle text content - use text if available, otherwise message
@@ -327,6 +376,38 @@ class FileUtils {
       'flv',
       '3gp',
       'webm',
+      'm4v',
+      'mpg',
+      'mpeg',
+    ];
+    final extension = path.split('.').last.toLowerCase();
+    return validExtensions.contains(extension);
+  }
+
+  static bool isDocument(String path) {
+    const validExtensions = [
+      'pdf',
+      'doc',
+      'docx',
+      'xls',
+      'xlsx',
+      'ppt',
+      'pptx',
+      'txt',
+      'rtf',
+    ];
+    final extension = path.split('.').last.toLowerCase();
+    return validExtensions.contains(extension);
+  }
+
+  static bool isAudio(String path) {
+    const validExtensions = [
+      'mp3',
+      'wav',
+      'aac',
+      'flac',
+      'm4a',
+      'ogg',
     ];
     final extension = path.split('.').last.toLowerCase();
     return validExtensions.contains(extension);

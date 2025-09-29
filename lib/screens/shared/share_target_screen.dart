@@ -21,8 +21,7 @@ import 'text_editor_screen.dart';
 class ShareTargetScreen extends StatefulWidget {
   final SharedContent sharedContent;
 
-  const ShareTargetScreen({Key? key, required this.sharedContent})
-    : super(key: key);
+  const ShareTargetScreen({super.key, required this.sharedContent});
 
   @override
   State<ShareTargetScreen> createState() => _ShareTargetScreenState();
@@ -93,12 +92,14 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
               print(
                 '📤 Clubs loaded successfully: ${clubProvider.clubs.length} clubs',
               );
+              _checkForSingleClubAutoSend(clubProvider);
             })
             .catchError((e) {
               print('❌ Failed to load clubs for sharing: $e');
             });
       } else if (clubProvider.clubs.isNotEmpty) {
         print('📤 Clubs already loaded: ${clubProvider.clubs.length}');
+        _checkForSingleClubAutoSend(clubProvider);
       }
     });
   }
@@ -219,6 +220,32 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
     } finally {
       if (mounted) {
         setState(() => _isLoadingMetadata = false);
+      }
+    }
+  }
+
+  void _checkForSingleClubAutoSend(ClubProvider clubProvider) {
+    // Only auto-send if there is exactly one club and no search is active
+    if (clubProvider.clubs.length == 1 && _searchQuery.isEmpty) {
+      final singleClub = clubProvider.clubs.first;
+      print('📤 Single club detected: ${singleClub.club.name}');
+      print('📤 Auto-selecting single club for sharing');
+
+      // Auto-select the single club
+      setState(() {
+        _selectedClubIds.clear();
+        _selectedClubIds.add(singleClub.club.id);
+      });
+
+      // For non-text content, auto-send directly
+      if (widget.sharedContent.type != SharedContentType.text) {
+        print('📤 Auto-sending non-text content to single club');
+        // Small delay to ensure UI is ready
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _shareContent();
+          }
+        });
       }
     }
   }
@@ -443,6 +470,8 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
         return _buildSingleImageContent();
       case SharedContentType.multipleImages:
         return _buildMultipleImagesContent();
+      case SharedContentType.file:
+        return _buildFileContent();
       default:
         return _buildUnknownContent();
     }
@@ -763,6 +792,132 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildFileContent() {
+    final filePaths = widget.sharedContent.filePaths ?? [];
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    if (filePaths.isEmpty) return _buildUnknownContent();
+
+    final firstFile = filePaths.first;
+    final fileName = firstFile.split('/').last;
+    final isVideo = widget.sharedContent.metadata?['isVideoShare'] == true;
+
+    IconData fileIcon;
+    Color iconColor;
+    String fileType;
+
+    if (isVideo) {
+      fileIcon = Icons.videocam;
+      iconColor = const Color(0xFFE91E63);
+      fileType = 'Video';
+    } else {
+      // Determine file type by extension
+      final extension = fileName.split('.').last.toLowerCase();
+      switch (extension) {
+        case 'pdf':
+          fileIcon = Icons.picture_as_pdf;
+          iconColor = const Color(0xFFF44336);
+          fileType = 'PDF';
+          break;
+        case 'doc':
+        case 'docx':
+          fileIcon = Icons.description;
+          iconColor = const Color(0xFF2196F3);
+          fileType = 'Document';
+          break;
+        case 'xls':
+        case 'xlsx':
+          fileIcon = Icons.table_chart;
+          iconColor = const Color(0xFF4CAF50);
+          fileType = 'Spreadsheet';
+          break;
+        case 'ppt':
+        case 'pptx':
+          fileIcon = Icons.slideshow;
+          iconColor = const Color(0xFFFF9800);
+          fileType = 'Presentation';
+          break;
+        case 'mp3':
+        case 'wav':
+        case 'aac':
+          fileIcon = Icons.audiotrack;
+          iconColor = const Color(0xFF9C27B0);
+          fileType = 'Audio';
+          break;
+        default:
+          fileIcon = Icons.insert_drive_file;
+          iconColor = const Color(0xFF607D8B);
+          fileType = 'File';
+      }
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(4.0),
+      child: Row(
+        children: [
+          // File icon
+          Container(
+            width: 80,
+            height: 80,
+            margin: const EdgeInsets.only(right: 12),
+            decoration: BoxDecoration(
+              color: iconColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: iconColor.withOpacity(0.3)),
+            ),
+            child: Icon(fileIcon, size: 40, color: iconColor),
+          ),
+
+          // File details
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  fileName,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: isDarkMode ? Colors.white : Colors.black87,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: iconColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: iconColor.withOpacity(0.3)),
+                  ),
+                  child: Text(
+                    fileType,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: iconColor,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                if (filePaths.length > 1) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    '+${filePaths.length - 1} more files',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1239,7 +1394,8 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
       case SharedContentType.url:
       case SharedContentType.image:
       case SharedContentType.multipleImages:
-        // Send icon for URLs and media
+      case SharedContentType.file:
+        // Send icon for URLs, media and files
         return Container(
           width: 36,
           height: 36,
@@ -1470,6 +1626,87 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
           };
           break;
 
+        case SharedContentType.file:
+          // Upload all files first and get their URLs
+          final filePaths = widget.sharedContent.filePaths ?? [];
+          final uploadedFileUrls = <String>[];
+
+          // Upload all files sequentially to ensure they're all processed
+          for (final filePath in filePaths) {
+            try {
+              // Create PlatformFile from file path
+              final file = File(filePath);
+              if (await file.exists()) {
+                final bytes = await file.readAsBytes();
+                final fileName = filePath.split('/').last;
+                final platformFile = PlatformFile(
+                  name: fileName,
+                  size: bytes.length,
+                  bytes: bytes,
+                  path: filePath,
+                );
+
+                // Upload the file and wait for completion
+                final uploadedUrl = await ChatApiService.uploadFile(
+                  platformFile,
+                );
+                if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
+                  uploadedFileUrls.add(uploadedUrl);
+                  print('✅ File uploaded successfully: $uploadedUrl');
+                } else {
+                  print('❌ Failed to upload file: $filePath');
+                }
+              } else {
+                print('❌ File not found: $filePath');
+              }
+            } catch (e) {
+              print('❌ Error uploading file $filePath: $e');
+              // Continue with other files even if one fails
+            }
+          }
+
+          // Only proceed if at least one file was uploaded successfully
+          if (uploadedFileUrls.isEmpty) {
+            print('❌ No files were uploaded successfully');
+            return false;
+          }
+
+          print(
+            '📤 Creating message with ${uploadedFileUrls.length} uploaded files',
+          );
+
+          // Determine if files are videos or images
+          final isVideoShare =
+              widget.sharedContent.metadata?['isVideoShare'] == true;
+
+          // Create message with uploaded file URLs
+          if (isVideoShare) {
+            messageData = {
+              'content': {
+                'type': 'text',
+                'body': _messageController.text.trim().isEmpty
+                    ? ' '
+                    : _messageController.text.trim(),
+                'videos': uploadedFileUrls,
+              },
+              'type': 'text',
+              'metadata': {'forwarded': true},
+            };
+          } else {
+            messageData = {
+              'content': {
+                'type': 'text',
+                'body': _messageController.text.trim().isEmpty
+                    ? ' '
+                    : _messageController.text.trim(),
+                'files': uploadedFileUrls,
+              },
+              'type': 'text',
+              'metadata': {'forwarded': true},
+            };
+          }
+          break;
+
         case SharedContentType.unknown:
           messageData = {
             'content': {
@@ -1538,7 +1775,8 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
         break;
       case SharedContentType.image:
       case SharedContentType.multipleImages:
-        // For media, send directly with image preview
+      case SharedContentType.file:
+        // For media and files, send directly with preview
         _sendToClubs();
         break;
       default:

@@ -143,6 +143,13 @@
 	</array>
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>This app needs access to send notifications to keep you updated about club activities, matches, and important announcements.</string>
+	<key>UIPasteboardDetectionPatterns</key>
+	<array>
+		<string>Number</string>
+		<string>WebURL</string>
+		<string>EmailAddress</string>
+		<string>PhoneNumber</string>
+	</array>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>
@@ -151,17 +158,6 @@
 		<string>processing</string>
 		<string>remote-notification</string>
 		<string>fetch</string>
-	</array>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleURLName</key>
-			<string>app.duggy.share</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>duggy</string>
-			</array>
-		</dict>
 	</array>
 	<key>UIFileSharingEnabled</key>
 	<true/>

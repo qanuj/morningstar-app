@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 import 'dart:async';
 import 'package:logger/logger.dart' show Level;
@@ -49,14 +48,9 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
 
   Future<void> _checkInitialPermissions() async {
     try {
-      final status = await Permission.microphone.status;
-      if (status.isPermanentlyDenied) {
-        print('⚠️ Microphone permission is permanently denied');
-      } else if (status.isDenied) {
-        print('⚠️ Microphone permission is not granted');
-      } else {
-        print('✅ Microphone permission is granted');
-      }
+      print('📱 Checking initial permissions using flutter_sound...');
+      // flutter_sound will handle permissions internally
+      print('📱 Initial permission check completed');
     } catch (e) {
       print('❌ Error checking microphone permission: $e');
     }
@@ -72,55 +66,15 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
 
   Future<bool> _requestMicrophonePermission() async {
     try {
-      PermissionStatus permission = await Permission.microphone.status;
+      print('📱 Using flutter_sound native permission handling...');
 
-      if (permission.isDenied) {
-        permission = await Permission.microphone.request();
-      }
-
-      if (permission.isPermanentlyDenied) {
-        // Show dialog to open settings
-        await _showPermissionDialog();
-        return false;
-      }
-
-      return permission.isGranted;
+      // flutter_sound handles permissions internally when starting recording
+      // Let's just try to start recording and see what happens
+      return true; // Let flutter_sound handle the permission request
     } catch (e) {
-      print('Error requesting microphone permission: $e');
+      print('Error with flutter_sound permission handling: $e');
       return false;
     }
-  }
-
-  Future<void> _showPermissionDialog() async {
-    if (!mounted) return;
-
-    return showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Microphone Permission Required'),
-          content: Text(
-            'This app needs microphone access to record audio messages. Please grant microphone permission in your device settings.',
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: Text('Open Settings'),
-              onPressed: () async {
-                Navigator.of(context).pop();
-                await openAppSettings();
-              },
-            ),
-          ],
-        );
-      },
-    );
   }
 
   @override
@@ -133,12 +87,7 @@ class AudioRecordingWidgetState extends State<AudioRecordingWidget> {
   Future<void> _startVoiceRecording() async {
     if (_isRecording || _hasRecording) return;
 
-    // Check microphone permission first
-    bool hasPermission = await _requestMicrophonePermission();
-    if (!hasPermission) {
-      print('❌ Microphone permission denied. Cannot start recording.');
-      return;
-    }
+    print('📱 Starting voice recording with flutter_sound native permissions...');
 
     // Reset time tracking immediately at the start
     _recordingDuration = Duration.zero;

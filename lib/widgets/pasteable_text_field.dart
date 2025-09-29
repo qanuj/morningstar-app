@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/cupertino.dart';
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:async';
 import 'package:path_provider/path_provider.dart';
 import 'package:image/image.dart' as img;
@@ -64,7 +63,11 @@ class PasteableTextField extends StatefulWidget {
 class _PasteableTextFieldState extends State<PasteableTextField> {
   static const MethodChannel _channel = MethodChannel('app.duggy/clipboard');
   bool _hasClipboardContent = false;
+  bool _hasClipboardImage = false;
   Timer? _clipboardCheckTimer;
+
+  // Context menu controller
+  ContextMenuController? _contextMenuController;
 
   @override
   void initState() {
@@ -86,22 +89,20 @@ class _PasteableTextFieldState extends State<PasteableTextField> {
       widget.focusNode!.removeListener(_onFocusChange);
     }
     _clipboardCheckTimer?.cancel();
+    _contextMenuController?.remove();
     super.dispose();
   }
 
   void _startPeriodicClipboardCheck() {
+    // Disable periodic clipboard checking to prevent permission prompts
     _clipboardCheckTimer?.cancel();
-    _clipboardCheckTimer = Timer.periodic(Duration(seconds: 2), (timer) {
-      if (mounted && (widget.focusNode?.hasFocus ?? false)) {
-        _checkClipboardContent();
-      }
-    });
+    // Only check clipboard on focus or tap events instead
   }
 
   void _onFocusChange() {
     if (widget.focusNode!.hasFocus) {
+      // Only check text clipboard on focus, no periodic checking
       _checkClipboardContent();
-      _startPeriodicClipboardCheck();
     } else {
       _clipboardCheckTimer?.cancel();
     }
@@ -114,15 +115,35 @@ class _PasteableTextFieldState extends State<PasteableTextField> {
       bool hasText =
           clipboardData?.text != null && clipboardData!.text!.isNotEmpty;
 
-      // Check for image content
-      final imageData = await _getClipboardImageData();
-      bool hasImage = imageData != null && imageData.isNotEmpty;
+      // Check for images using safe method to avoid permission prompts
+      bool hasImage = false;
+      if (Platform.isIOS || Platform.isMacOS) {
+        try {
+          // Try safe clipboard image access first
+          const allowedMimeTypes = [
+            'image/png',
+            'image/jpeg',
+            'image/gif',
+            'image/webp',
+            'image/bmp',
+          ];
+          final imageData = await _channel.invokeMethod<Uint8List>(
+            'getClipboardImageSafe',
+            {'allowedMimeTypes': allowedMimeTypes},
+          );
+          hasImage = imageData != null && imageData.isNotEmpty;
+        } catch (e) {
+          // Safe method not available or failed, don't check images
+          hasImage = false;
+        }
+      }
 
       final hasContent = hasText || hasImage;
 
       if (mounted) {
         setState(() {
           _hasClipboardContent = hasContent;
+          _hasClipboardImage = hasImage;
         });
       }
     } catch (e) {
@@ -190,8 +211,9 @@ class _PasteableTextFieldState extends State<PasteableTextField> {
         return;
       }
 
-      // Try to get image data from clipboard
-      print('📋 No text found, checking for image data');
+      // For image pasting, only attempt when user explicitly initiates paste
+      // and we don't have text content. This reduces permission prompts.
+      print('📋 No text found, attempting image paste...');
       final imageData = await _getClipboardImageData();
 
       if (imageData != null && imageData.isNotEmpty) {
@@ -200,11 +222,23 @@ class _PasteableTextFieldState extends State<PasteableTextField> {
         );
         await _handleImagePaste(imageData);
       } else {
-        print('📋 No image data found in clipboard');
+        print('📋 No content available to paste');
       }
     } catch (e) {
       print('❌ Error during paste operation: $e');
+      // If there's an error, try to handle it gracefully
+      _showPasteError();
     }
+  }
+
+  void _showPasteError() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Unable to paste from clipboard'),
+        duration: Duration(seconds: 2),
+        backgroundColor: Colors.orange,
+      ),
+    );
   }
 
   void _pasteText(String text) {
@@ -234,9 +268,38 @@ class _PasteableTextFieldState extends State<PasteableTextField> {
 
   Future<Uint8List?> _getClipboardImageData() async {
     try {
+      // Define allowed image MIME types
+      const allowedMimeTypes = [
+        'image/png',
+        'image/jpeg',
+        'image/gif',
+        'image/webp',
+        'image/bmp',
+      ];
+
+      // First check if this is iOS/macOS and if we should request permission
+      if (Platform.isIOS || Platform.isMacOS) {
+        // On Apple platforms, try to check clipboard access more carefully
+        try {
+          final result = await _channel.invokeMethod<Uint8List>(
+            'getClipboardImageSafe',
+            {'allowedMimeTypes': allowedMimeTypes},
+          );
+          return result;
+        } catch (e) {
+          print('⚠️ Safe clipboard access failed, trying regular method: $e');
+          // If it's a MissingPluginException, the app needs to be rebuilt
+          if (e.toString().contains('MissingPluginException')) {
+            print('💡 App needs to be rebuilt to pick up new native methods');
+            print('💡 Run: flutter clean && flutter run');
+          }
+        }
+      }
+
       // Use platform channel to get image data from clipboard
       final result = await _channel.invokeMethod<Uint8List>(
         'getClipboardImage',
+        {'allowedMimeTypes': allowedMimeTypes},
       );
       return result;
     } catch (e) {
@@ -250,6 +313,9 @@ class _PasteableTextFieldState extends State<PasteableTextField> {
         print(
           '💡 Make sure to rebuild the app after adding platform channel code.',
         );
+      } else if (e.toString().contains('permission') ||
+          e.toString().contains('access')) {
+        print('⚠️ Clipboard access permission denied');
       }
 
       return null;
@@ -376,32 +442,107 @@ class _PasteableTextFieldState extends State<PasteableTextField> {
           showMentionOverlay: widget.showMentionOverlay,
           onMentionTriggered: widget.onMentionTriggered,
           onMentionCancelled: widget.onMentionCancelled,
-        ),
-        // Show paste hint when clipboard has content
-        if (_hasClipboardContent)
-          Positioned(
-            right: 4,
-            top: 4,
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: _handlePaste,
-                borderRadius: BorderRadius.circular(24),
-                child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.content_paste, size: 14, color: Colors.grey),
-                      SizedBox(width: 4),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+          contextMenuBuilder: _buildContextMenu,
+          contentInsertionConfiguration: ContentInsertionConfiguration(
+            onContentInserted: (content) {
+              _handleContentInserted(content);
+            },
+            allowedMimeTypes: const [
+              'image/png',
+              'image/jpeg',
+              'image/gif',
+              'image/webp',
+              'image/bmp',
+            ],
           ),
+        ),
       ],
     );
+  }
+
+  /// Build custom context menu for TextField
+  Widget _buildContextMenu(
+    BuildContext context,
+    EditableTextState editableTextState,
+  ) {
+    final List<ContextMenuButtonItem> buttonItems = [];
+    final List<ContextMenuButtonItem> originalItems = editableTextState.contextMenuButtonItems;
+
+    // Add custom paste button FIRST if we have images in clipboard
+    if (_hasClipboardImage) {
+      final customPasteButton = ContextMenuButtonItem(
+        label: 'Paste',
+        onPressed: () {
+          ContextMenuController.removeAny();
+          _handlePaste();
+        },
+      );
+      buttonItems.add(customPasteButton);
+    }
+
+    // Add all original buttons (Cut, Copy, native Paste, Select All, etc.)
+    buttonItems.addAll(originalItems);
+
+    // Add text formatting buttons directly if text is selected
+    final controller = widget.controller;
+    final selection = controller.selection;
+    final hasTextSelection = selection.isValid && !selection.isCollapsed;
+
+    if (hasTextSelection) {
+      // Add all formatting options directly to the context menu
+      final formatButtons = [
+        ContextMenuButtonItem(
+          label: 'Bold',
+          onPressed: () {
+            ContextMenuController.removeAny();
+            _handleFormat(FormatType.bold);
+          },
+        ),
+        ContextMenuButtonItem(
+          label: 'Italic',
+          onPressed: () {
+            ContextMenuController.removeAny();
+            _handleFormat(FormatType.italic);
+          },
+        ),
+        ContextMenuButtonItem(
+          label: 'Strike',
+          onPressed: () {
+            ContextMenuController.removeAny();
+            _handleFormat(FormatType.strikethrough);
+          },
+        ),
+        ContextMenuButtonItem(
+          label: 'Code',
+          onPressed: () {
+            ContextMenuController.removeAny();
+            _handleFormat(FormatType.code);
+          },
+        ),
+      ];
+
+      buttonItems.addAll(formatButtons);
+    }
+
+    return AdaptiveTextSelectionToolbar(
+      anchors: editableTextState.contextMenuAnchors,
+      children: buttonItems.map((ContextMenuButtonItem buttonItem) {
+        return CupertinoTextSelectionToolbarButton.buttonItem(
+          buttonItem: buttonItem,
+        );
+      }).toList(),
+    );
+  }
+
+  /// Handle content insertion from clipboard (including images)
+  void _handleContentInserted(KeyboardInsertedContent content) {
+    if (content.hasData) {
+      final data = content.data;
+      if (data != null) {
+        // Handle image content
+        _handleImagePaste(data);
+      }
+    }
   }
 }
 
