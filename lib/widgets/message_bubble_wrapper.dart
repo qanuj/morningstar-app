@@ -1,3 +1,4 @@
+import 'package:duggy/models/club.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
@@ -18,7 +19,7 @@ class MessageBubbleWrapper extends StatelessWidget {
   final bool showSenderInfo;
   final bool isFirstFromSender;
   final bool isLastFromSender;
-  final String clubId;
+  final Club club;
 
   // Selection mode
   final bool isSelectionMode;
@@ -68,7 +69,7 @@ class MessageBubbleWrapper extends StatelessWidget {
     required this.showSenderInfo,
     required this.isFirstFromSender,
     required this.isLastFromSender,
-    required this.clubId,
+    required this.club,
     required this.isSelectionMode,
     required this.selectedMessageIds,
     required this.onToggleSelection,
@@ -204,7 +205,7 @@ class MessageBubbleWrapper extends StatelessWidget {
                                       ),
                                       showSenderInfo:
                                           isFirstFromSender || isLastFromSender,
-                                      clubId: clubId,
+                                      club: club,
                                       pendingUploads: pendingUploads,
                                       onMessageUpdated: onMessageUpdated,
                                       onMessageFailed: onMessageFailed,
@@ -258,7 +259,7 @@ class MessageBubbleWrapper extends StatelessWidget {
   Widget _buildInteractiveMessage(bool isOwn) {
     return InteractiveMessageBubble(
       message: message,
-      clubId: clubId,
+      club: club,
       isOwn: isOwn,
       isPinned: isCurrentlyPinned(message),
       isSelected: selectedMessageIds.contains(message.id),

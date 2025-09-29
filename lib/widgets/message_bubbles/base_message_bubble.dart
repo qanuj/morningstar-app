@@ -251,6 +251,15 @@ class BaseMessageBubble extends StatelessWidget {
     Color finalIconColor = iconColor;
 
     switch (message.status) {
+      case MessageStatus.preparing:
+        icon = Icons.schedule;
+        break;
+      case MessageStatus.compressing:
+        icon = Icons.compress;
+        break;
+      case MessageStatus.uploading:
+        icon = Icons.cloud_upload;
+        break;
       case MessageStatus.sending:
         icon = Icons.access_time;
         break;

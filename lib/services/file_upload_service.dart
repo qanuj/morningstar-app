@@ -59,6 +59,99 @@ class FileUploadService {
     }
   }
 
+  /// Upload a file from a File object (useful for generated thumbnails)
+  static Future<String?> uploadFileFromPath(String filePath, {String? customName}) async {
+    try {
+      final file = File(filePath);
+      if (!await file.exists()) {
+        debugPrint('❌ File does not exist: $filePath');
+        return null;
+      }
+
+      final bytes = await file.readAsBytes();
+      final fileName = customName ?? filePath.split('/').last;
+      final extension = fileName.split('.').last;
+      final uri = Uri.parse('${AppConfig.apiBaseUrl}/upload');
+
+      if (AppConfig.enableDebugPrints) {
+        debugPrint('🔵 Uploading file from path: $fileName');
+      }
+
+      final request = http.MultipartRequest('POST', uri)
+        ..headers.addAll(_headers)
+        ..files.add(
+          http.MultipartFile.fromBytes(
+            'file',
+            bytes,
+            filename: fileName,
+            contentType: MediaType.parse(_getMimeType(extension)),
+          ),
+        );
+
+      final streamed = await request.send().timeout(
+        const Duration(seconds: 30),
+      );
+      final responseBody = await streamed.stream.bytesToString();
+
+      if (streamed.statusCode == 200 || streamed.statusCode == 201) {
+        final jsonResponse = json.decode(responseBody);
+        if (jsonResponse is Map &&
+            jsonResponse['success'] == true &&
+            jsonResponse['url'] != null) {
+          if (AppConfig.enableDebugPrints) {
+            debugPrint('✅ File uploaded successfully: ${jsonResponse['url']}');
+          }
+          return jsonResponse['url'] as String;
+        }
+      }
+
+      debugPrint('❌ File upload failed (${streamed.statusCode}): $responseBody');
+      return null;
+    } catch (e) {
+      debugPrint('❌ Error uploading file from path: $e');
+      return null;
+    }
+  }
+
+  /// Upload video and its thumbnail together, returning both URLs
+  static Future<Map<String, String?>> uploadVideoWithThumbnail({
+    required String videoPath,
+    required String thumbnailPath,
+    String? videoName,
+    String? thumbnailName,
+  }) async {
+    try {
+      if (AppConfig.enableDebugPrints) {
+        debugPrint('🎬 Uploading video with thumbnail...');
+      }
+
+      // Upload both files concurrently for better performance
+      final futures = await Future.wait([
+        uploadFileFromPath(videoPath, customName: videoName),
+        uploadFileFromPath(thumbnailPath, customName: thumbnailName),
+      ]);
+
+      final videoUrl = futures[0];
+      final thumbnailUrl = futures[1];
+
+      if (AppConfig.enableDebugPrints) {
+        debugPrint('🎬 Video upload result: $videoUrl');
+        debugPrint('🖼️ Thumbnail upload result: $thumbnailUrl');
+      }
+
+      return {
+        'videoUrl': videoUrl,
+        'thumbnailUrl': thumbnailUrl,
+      };
+    } catch (e) {
+      debugPrint('❌ Error uploading video with thumbnail: $e');
+      return {
+        'videoUrl': null,
+        'thumbnailUrl': null,
+      };
+    }
+  }
+
   static Future<List<String>> uploadMultipleFiles(List<PlatformFile> files) async {
     final uploadedUrls = <String>[];
 

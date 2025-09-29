@@ -44,6 +44,9 @@ dependencies:
   qr_flutter: ^4.1.0
   qr_code_scanner: ^1.0.1
   in_app_purchase: ^3.1.13
+  video_player: ^2.8.2
+  chewie: ^1.7.5
+  ffmpeg_kit_flutter_new: ^3.2.0
 
 dev_dependencies:
   flutter_test:

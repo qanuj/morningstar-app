@@ -1866,7 +1866,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
       starred: tempMessage.starred,
       pin: tempMessage.pin,
       // ✅ MEDIA FIELDS - Critical for video/audio/document uploads
-      images: tempMessage.images,
+      media: tempMessage.media,
       document: tempMessage.document,
       audio: tempMessage.audio,
       linkMeta: tempMessage.linkMeta,
@@ -2485,7 +2485,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
                         showSenderInfo: showSenderInfo,
                         isLastFromSender: isLastFromSender,
                         isFirstFromSender: isFirstFromSender,
-                        clubId: widget.club.id,
+                        club: widget.club,
                         isSelectionMode: _isSelectionMode,
                         selectedMessageIds: _selectedMessageIds,
                         onToggleSelection: _toggleSelection,

@@ -1,3 +1,4 @@
+import 'package:duggy/models/club.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
@@ -21,7 +22,7 @@ class SelfSendingMessageBubble extends StatefulWidget {
   final bool isDeleted;
   final bool isSelected;
   final bool showSenderInfo;
-  final String clubId;
+  final Club club;
   final List<PlatformFile>? pendingUploads; // Files waiting to be uploaded
   final Function(ClubMessage oldMessage, ClubMessage newMessage)?
   onMessageUpdated;
@@ -33,7 +34,7 @@ class SelfSendingMessageBubble extends StatefulWidget {
     required this.isOwn,
     required this.isPinned,
     required this.isDeleted,
-    required this.clubId,
+    required this.club,
     this.isSelected = false,
     this.showSenderInfo = false,
     this.pendingUploads,
@@ -176,29 +177,29 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
 
   Future<void> _handleExistingMedia() async {
     // Handle images that are already in the message (from cropping, etc.)
-    if (currentMessage.images.isNotEmpty) {
+    if (currentMessage.media.isNotEmpty) {
       if (mounted) {
         setState(() {
           _isUploading = true;
-          _totalUploads = currentMessage.images.length;
+          _totalUploads = currentMessage.media.length;
           _completedUploads = 0;
         });
       }
 
-      for (int i = 0; i < currentMessage.images.length; i++) {
-        final image = currentMessage.images[i];
-        final imagePath = image;
+      for (int i = 0; i < currentMessage.media.length; i++) {
+        final mediaItem = currentMessage.media[i];
+        final imagePath = mediaItem.url;
 
         // Skip if it's already a remote URL (already uploaded)
         if (imagePath.startsWith('http')) {
-          _uploadedImages.add(image);
+          _uploadedImages.add(imagePath);
           continue;
         }
 
         if (mounted) {
           setState(() {
             _currentUploadFile = imagePath.split('/').last;
-            _uploadProgress = i / currentMessage.images.length;
+            _uploadProgress = i / currentMessage.media.length;
           });
         }
 
@@ -229,7 +230,7 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
         if (mounted) {
           setState(() {
             _completedUploads = i + 1;
-            _uploadProgress = (i + 1) / currentMessage.images.length;
+            _uploadProgress = (i + 1) / currentMessage.media.length;
           });
         }
       }
@@ -511,13 +512,29 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
         print(
           '🔍 Building contentMap. _uploadedImages.length = ${_uploadedImages.length}',
         );
-        if (_uploadedImages.isNotEmpty) {
-          contentMap['images'] = _uploadedImages;
-          print('🔍 Added images to contentMap: $_uploadedImages');
+        print(
+          '🔍 Building contentMap. currentMessage.media.length = ${currentMessage.media.length}',
+        );
+
+        // Combine uploaded images and videos into single images array (legacy)
+        List<String> allMediaItems = [..._uploadedImages, ..._uploadedVideos];
+
+        // Add media from the new media array (already uploaded)
+        if (currentMessage.media.isNotEmpty) {
+          for (final mediaItem in currentMessage.media) {
+            if (mediaItem.url.isNotEmpty) {
+              allMediaItems.add(mediaItem.url);
+            }
+          }
+          // Also add the media array for proper API processing
+          contentMap['media'] = currentMessage.media
+              .map((item) => item.toJson())
+              .toList();
         }
 
-        if (_uploadedVideos.isNotEmpty) {
-          contentMap['videos'] = _uploadedVideos;
+        if (allMediaItems.isNotEmpty) {
+          contentMap['images'] = allMediaItems;
+          print('🔍 Added media to contentMap: $allMediaItems');
         }
 
         // Note: meta field is deprecated - we only use the new linkSchema format now
@@ -544,7 +561,7 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
 
       // Send to API using the unified sendMessage method
       Map<String, dynamic>? response = await ChatApiService.sendMessage(
-        widget.clubId,
+        widget.club.id,
         requestData,
       );
 
@@ -563,7 +580,8 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
     return _uploadedImages.isNotEmpty ||
         _uploadedVideos.isNotEmpty ||
         _uploadedDocuments.isNotEmpty ||
-        _uploadedAudio != null;
+        _uploadedAudio != null ||
+        currentMessage.media.isNotEmpty;
   }
 
   Future<void> _handleSuccessResponse(
@@ -604,7 +622,7 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
       }
 
       // Save to storage
-      await MessageStorageService.addMessage(widget.clubId, finalMessage);
+      await MessageStorageService.addMessage(widget.club.id, finalMessage);
 
       // Update current message
       if (mounted) {
@@ -641,9 +659,9 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
 
   Future<void> _markAsDelivered(String messageId) async {
     try {
-      await ChatApiService.markAsDelivered(widget.clubId, messageId);
+      await ChatApiService.markAsDelivered(widget.club.id, messageId);
 
-      await MessageStorageService.markAsDelivered(widget.clubId, messageId);
+      await MessageStorageService.markAsDelivered(widget.club.id, messageId);
 
       // Update message status to delivered
       final deliveredMessage = currentMessage.copyWith(
@@ -699,7 +717,8 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
     if (_uploadedImages.isNotEmpty ||
         _uploadedVideos.isNotEmpty ||
         _uploadedAudio != null ||
-        _uploadedDocuments.isNotEmpty) {
+        _uploadedDocuments.isNotEmpty ||
+        currentMessage.media.isNotEmpty) {
       return 'text';
     }
 
@@ -965,7 +984,7 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
               opacity: 0.7,
               child: MessageBubbleFactory(
                 message: currentMessage.copyWith(
-                  images: [],
+                  media: [],
                 ), // Remove pictures to avoid duplication
                 isOwn: widget.isOwn,
                 isPinned: widget.isPinned,
@@ -973,6 +992,7 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
                 isSelected: widget.isSelected,
                 showSenderInfo: widget.showSenderInfo,
                 onRetryUpload: null,
+                club: widget.club,
               ),
             ),
         ],
@@ -996,6 +1016,7 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
             isDeleted: widget.isDeleted,
             isSelected: widget.isSelected,
             showSenderInfo: widget.showSenderInfo,
+            club: widget.club,
             onRetryUpload: currentMessage.status == MessageStatus.failed
                 ? _handleRetry
                 : null,

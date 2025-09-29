@@ -6,6 +6,10 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:io';
 import '../widgets/audio_recording_widget.dart';
 import '../widgets/image_caption_dialog.dart';
+import '../screens/media_caption_screen.dart';
+import '../models/media_item.dart';
+import '../services/video_compression_service.dart';
+import '../services/file_upload_service.dart';
 import '../widgets/selectors/unified_event_picker.dart';
 import '../widgets/selectors/poll_picker.dart';
 import '../widgets/mentionable_text_field.dart';
@@ -440,7 +444,44 @@ class MessageInputState extends State<MessageInput> {
     widget.onSendMessage(tempMessage);
   }
 
-  void _handleCameraCapture() async {
+  void _handleCameraCapture() {
+    // Directly capture photo (camera button = photo)
+    _capturePhoto();
+  }
+
+  void _pickImages() async {
+    // Allow selecting both images and videos from gallery
+    _pickImagesAndVideos();
+  }
+
+  void _pickImagesAndVideos() async {
+    try {
+      // Use file picker to allow both images and videos
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.media, // This allows both images and videos
+        allowMultiple: true,
+      );
+
+      if (result != null && result.files.isNotEmpty) {
+        // Convert all selected files to XFile objects
+        final selectedFiles = <XFile>[];
+        for (final file in result.files) {
+          if (file.path != null) {
+            selectedFiles.add(XFile(file.path!));
+          }
+        }
+
+        if (selectedFiles.isNotEmpty) {
+          // Show caption screen for all selected media at once
+          _showMediaCaptionScreen(selectedFiles);
+        }
+      }
+    } catch (e) {
+      _showError('Failed to pick media: $e');
+    }
+  }
+
+  void _capturePhoto() async {
     try {
       final XFile? photo = await _imagePicker.pickImage(
         source: ImageSource.camera,
@@ -455,24 +496,18 @@ class MessageInputState extends State<MessageInput> {
     }
   }
 
-  void _pickImages() async {
+  void _captureVideo() async {
     try {
-      final List<XFile> images = await _imagePicker.pickMultiImage(
-        imageQuality: 80,
+      final XFile? video = await _imagePicker.pickVideo(
+        source: ImageSource.camera,
+        maxDuration: const Duration(minutes: 2), // Limit video duration
       );
 
-      if (images.isNotEmpty) {
-        // For now, handle first image through caption dialog
-        // Multiple image support can be added later by extending ImageCaptionDialog
-        _showImageCaptionDialog(images.first);
-
-        // If user selected multiple images, show the rest without caption dialog
-        if (images.length > 1) {
-          _sendImageMessage(images.skip(1).toList());
-        }
+      if (video != null) {
+        _showVideoCaptionDialog(video);
       }
     } catch (e) {
-      _showError('Failed to pick images: $e');
+      _showError('Failed to capture video: $e');
     }
   }
 
@@ -516,26 +551,39 @@ class MessageInputState extends State<MessageInput> {
     }
   }
 
-  void _showImageCaptionDialog(XFile image) async {
-    final platformFile = PlatformFile(
-      name: image.name,
-      path: image.path,
-      size: await File(image.path).length(),
-      bytes: null,
-    );
+  void _showMediaCaptionScreen(List<XFile> mediaFiles) async {
+    // Convert XFiles to MediaItem objects and generate thumbnails for videos
+    final mediaItems = <MediaItem>[];
+
+    for (final file in mediaFiles) {
+      var mediaItem = MediaItem.fromPath(file.path);
+
+      // Generate thumbnail for videos
+      if (mediaItem.isVideo) {
+        print('🖼️ MessageInput: Generating thumbnail for video: ${file.path}');
+        final thumbnailPath = await VideoCompressionService.generateThumbnail(file.path);
+        if (thumbnailPath != null) {
+          mediaItem = mediaItem.copyWith(thumbnailPath: thumbnailPath);
+          print('✅ MessageInput: Thumbnail generated: $thumbnailPath');
+        } else {
+          print('⚠️ MessageInput: Failed to generate thumbnail for video');
+        }
+      }
+
+      mediaItems.add(mediaItem);
+    }
 
     if (mounted) {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => ImageCaptionDialog(
-            imageFile: platformFile,
-            title: 'Send Image',
-            onSend: (caption, croppedImagePath) {
-              _sendImageMessageWithCaption(
-                caption,
-                croppedImagePath ?? image.path,
-              );
+          builder: (context) => MediaCaptionScreen(
+            mediaItems: mediaItems,
+            title: mediaFiles.length == 1
+                ? (mediaItems.first.isVideo ? 'Send Video' : 'Send Image')
+                : 'Send ${mediaFiles.length} items',
+            onSend: (mediaItems) {
+              _sendMediaMessage(mediaItems);
             },
           ),
           fullscreenDialog: true,
@@ -544,10 +592,40 @@ class MessageInputState extends State<MessageInput> {
     }
   }
 
-  void _sendImageMessageWithCaption(String caption, String imagePath) {
-    print('🔍 MessageInput: Creating message with imagePath: $imagePath');
-    print('🔍 MessageInput: Caption: "$caption"');
-    print('🔍 MessageInput: ClubId: ${widget.clubId}');
+  // Legacy method for single image - redirects to new media screen
+  void _showImageCaptionDialog(XFile image) async {
+    _showMediaCaptionScreen([image]);
+  }
+
+  // Legacy method for single video - redirects to new media screen
+  void _showVideoCaptionDialog(XFile video) async {
+    _showMediaCaptionScreen([video]);
+  }
+
+  void _sendMediaMessage(List<MediaItem> mediaItems) async {
+    print(
+      '🔍 MessageInput: Creating message with ${mediaItems.length} media items',
+    );
+
+    // Extract content from media captions
+    String content = '';
+    if (mediaItems.length == 1 && mediaItems.first.caption != null) {
+      content = mediaItems.first.caption!;
+    } else {
+      // For multiple items, combine unique captions
+      final captions = mediaItems
+          .map((item) => item.caption)
+          .where((caption) => caption != null && caption.isNotEmpty)
+          .toSet()
+          .toList();
+      if (captions.length == 1) {
+        content = captions.first!;
+      } else if (captions.isNotEmpty) {
+        content = captions.join('\n');
+      }
+    }
+
+    // Create initial message with all media items
     final tempMessage = ClubMessage(
       id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
       clubId: widget.clubId,
@@ -555,21 +633,227 @@ class MessageInputState extends State<MessageInput> {
       senderName: 'You',
       senderProfilePicture: null,
       senderRole: 'MEMBER',
-      content: caption.trim(),
-      messageType: 'image',
+      content: content,
+      messageType: mediaItems.length == 1
+          ? (mediaItems.first.isVideo ? 'video' : 'image')
+          : 'media',
       createdAt: DateTime.now(),
-      status: MessageStatus.sending,
+      status: MessageStatus.preparing,
       starred: StarredInfo(isStarred: false),
       pin: PinInfo(isPinned: false),
-      // Store temp file path for upload
-      images: [imagePath],
+      media: mediaItems,
+      processingStatus: 'Preparing media...',
     );
-    print(
-      '🔍 MessageInput: Created tempMessage with status: ${tempMessage.status}',
-    );
-    print('🔍 MessageInput: Calling widget.onSendMessage');
+
+    // Send the message immediately to show in chat
     widget.onSendMessage(tempMessage);
-    print('🔍 MessageInput: widget.onSendMessage completed');
+
+    // Process media items in background
+    _processMediaItems(tempMessage, mediaItems);
+  }
+
+  Future<void> _processMediaItems(
+    ClubMessage message,
+    List<MediaItem> mediaItems,
+  ) async {
+    final processedMediaItems = <MediaItem>[];
+
+    for (int i = 0; i < mediaItems.length; i++) {
+      final item = mediaItems[i];
+
+      try {
+        if (item.isVideo) {
+          // Update status for compression
+          _updateMessageProgress(
+            message,
+            i,
+            mediaItems.length,
+            'Processing video ${i + 1}/${mediaItems.length}...',
+            MessageStatus.compressing,
+          );
+
+          final needsCompression =
+              await VideoCompressionService.needsCompression(item.url);
+          String finalVideoPath = item.url;
+          String? thumbnailPath = item.thumbnailPath;
+
+          // Generate thumbnail if not already generated
+          if (thumbnailPath == null) {
+            print('🖼️ MessageInput: Generating thumbnail during processing for ${item.url}');
+            thumbnailPath = await VideoCompressionService.generateThumbnail(item.url);
+          }
+
+          if (needsCompression) {
+            final compressedPath = await VideoCompressionService.compressVideo(
+              inputPath: item.url,
+              deleteOriginal: false,
+              onProgress: (progress) {
+                // Update compression progress for this specific item
+                _updateMediaItemProgress(
+                  message,
+                  i,
+                  compressionProgress: progress,
+                );
+              },
+            );
+
+            if (compressedPath != null) {
+              finalVideoPath = compressedPath;
+            }
+          }
+
+          processedMediaItems.add(
+            item.copyWith(
+              url: finalVideoPath,
+              originalPath: item.url,
+              thumbnailPath: thumbnailPath,
+              compressionProgress: 100.0,
+            ),
+          );
+        } else {
+          // For images, just add directly
+          processedMediaItems.add(item);
+        }
+      } catch (e) {
+        print('❌ Error processing media item $i: $e');
+        // Add original item if processing fails
+        processedMediaItems.add(item);
+      }
+    }
+
+    // Update message with processed media and start uploading
+    _updateMessageProgress(
+      message,
+      0,
+      mediaItems.length,
+      'Uploading media...',
+      MessageStatus.uploading,
+    );
+
+    // Upload media files and update URLs
+    final uploadedMediaItems = <MediaItem>[];
+
+    for (int i = 0; i < processedMediaItems.length; i++) {
+      final item = processedMediaItems[i];
+
+      try {
+        // Update upload progress for this specific item
+        _updateMediaItemProgress(
+          message,
+          i,
+          uploadProgress: 0.0,
+        );
+
+        if (item.isVideo) {
+          // Upload video with thumbnail
+          final uploadResult = await FileUploadService.uploadVideoWithThumbnail(
+            videoPath: item.url,
+            thumbnailPath: item.thumbnailPath!,
+            videoName: 'video_${DateTime.now().millisecondsSinceEpoch}.mp4',
+            thumbnailName: 'thumb_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          );
+
+          final videoUrl = uploadResult['videoUrl'];
+          final thumbnailUrl = uploadResult['thumbnailUrl'];
+
+          if (videoUrl != null) {
+            print('✅ Video uploaded successfully: $videoUrl');
+            print('🖼️ Thumbnail uploaded: $thumbnailUrl');
+
+            uploadedMediaItems.add(item.copyWith(
+              url: videoUrl,
+              thumbnailUrl: thumbnailUrl,
+              isLocal: false,
+              uploadProgress: 100.0,
+            ));
+          } else {
+            print('❌ Video upload failed, keeping local file');
+            uploadedMediaItems.add(item.copyWith(uploadProgress: 0.0));
+          }
+        } else if (item.isImage) {
+          // Upload image
+          final imageUrl = await FileUploadService.uploadFileFromPath(
+            item.url,
+            customName: 'image_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          );
+
+          if (imageUrl != null) {
+            print('✅ Image uploaded successfully: $imageUrl');
+            uploadedMediaItems.add(item.copyWith(
+              url: imageUrl,
+              isLocal: false,
+              uploadProgress: 100.0,
+            ));
+          } else {
+            print('❌ Image upload failed, keeping local file');
+            uploadedMediaItems.add(item.copyWith(uploadProgress: 0.0));
+          }
+        } else {
+          // For other types, just add as-is
+          uploadedMediaItems.add(item);
+        }
+
+        // Update upload progress for this specific item
+        _updateMediaItemProgress(
+          message,
+          i,
+          uploadProgress: 100.0,
+        );
+
+      } catch (e) {
+        print('❌ Upload failed for item $i: $e');
+        uploadedMediaItems.add(item.copyWith(uploadProgress: 0.0));
+      }
+    }
+
+    // Create final message with uploaded media
+    final finalMessage = message.copyWith(
+      media: uploadedMediaItems,
+      status: MessageStatus.sent,
+      processingStatus: null,
+      uploadProgress: null,
+      compressionProgress: null,
+    );
+
+    widget.onSendMessage(finalMessage);
+  }
+
+  void _updateMessageProgress(
+    ClubMessage message,
+    int currentItem,
+    int totalItems,
+    String status,
+    MessageStatus messageStatus,
+  ) {
+    final updatedMessage = message.copyWith(
+      status: messageStatus,
+      processingStatus: status,
+    );
+    widget.onSendMessage(updatedMessage);
+  }
+
+  void _updateMediaItemProgress(
+    ClubMessage message,
+    int itemIndex, {
+    double? compressionProgress,
+    double? uploadProgress,
+  }) {
+    final updatedMedia = List<MediaItem>.from(message.media);
+    if (itemIndex < updatedMedia.length) {
+      updatedMedia[itemIndex] = updatedMedia[itemIndex].copyWith(
+        compressionProgress: compressionProgress,
+        uploadProgress: uploadProgress,
+      );
+
+      final updatedMessage = message.copyWith(media: updatedMedia);
+      widget.onSendMessage(updatedMessage);
+    }
+  }
+
+  // Legacy method for backward compatibility
+  void _sendImageMessageWithCaption(String caption, String imagePath) {
+    final mediaItem = MediaItem.fromPath(imagePath, caption: caption);
+    _sendMediaMessage([mediaItem]);
   }
 
   void _sendImageMessage(List<XFile> images) {
@@ -588,10 +872,98 @@ class MessageInputState extends State<MessageInput> {
         starred: StarredInfo(isStarred: false),
         pin: PinInfo(isPinned: false),
         // Store temp file path for upload
-        images: [image.path],
+        media: [MediaItem.fromPath(image.path)],
       );
 
       widget.onSendMessage(tempMessage);
+    }
+  }
+
+  void _sendVideoMessageWithCaption(String caption, String videoPath) async {
+    print('🔍 MessageInput: Creating message with videoPath: $videoPath');
+    print('🔍 MessageInput: Caption: "$caption"');
+    print('🔍 MessageInput: ClubId: ${widget.clubId}');
+
+    try {
+      // Check if video needs compression BEFORE creating message
+      final needsCompression = await VideoCompressionService.needsCompression(
+        videoPath,
+      );
+      String finalVideoPath = videoPath;
+
+      if (needsCompression) {
+        print('🎬 MessageInput: Video needs compression, starting...');
+
+        // Show compression progress if needed
+        final compressedPath = await VideoCompressionService.compressVideo(
+          inputPath: videoPath,
+          deleteOriginal: false,
+          onProgress: (progress) {
+            print(
+              '📊 Video compression progress: ${progress.toStringAsFixed(1)}%',
+            );
+            // You could update UI here to show compression progress
+          },
+        );
+
+        if (compressedPath != null) {
+          finalVideoPath = compressedPath;
+          print(
+            '✅ MessageInput: Video compressed successfully: $finalVideoPath',
+          );
+        } else {
+          print('❌ MessageInput: Video compression failed, using original');
+          // Continue with original file if compression fails
+        }
+      } else {
+        print('✅ MessageInput: Video doesn\'t need compression');
+      }
+
+      // Create final message with compressed video path (only send once)
+      final finalMessage = ClubMessage(
+        id: 'temp_video_${DateTime.now().millisecondsSinceEpoch}',
+        clubId: widget.clubId,
+        senderId: 'current_user',
+        senderName: 'You',
+        senderProfilePicture: null,
+        senderRole: 'MEMBER',
+        content: caption.trim(),
+        messageType: 'video',
+        createdAt: DateTime.now(),
+        status: MessageStatus.sending,
+        starred: StarredInfo(isStarred: false),
+        pin: PinInfo(isPinned: false),
+        // Store final compressed file path for upload (videos go in images array)
+        media: [MediaItem.fromPath(finalVideoPath, caption: caption)],
+      );
+
+      // Send only the final message with compressed video
+      print(
+        '🔍 MessageInput: Calling widget.onSendMessage for compressed video',
+      );
+      widget.onSendMessage(finalMessage);
+      print('🔍 MessageInput: Sent final message with compressed video');
+    } catch (e) {
+      print('❌ MessageInput: Error during video compression: $e');
+
+      // Create fallback message with original video if compression fails
+      final fallbackMessage = ClubMessage(
+        id: 'temp_video_${DateTime.now().millisecondsSinceEpoch}',
+        clubId: widget.clubId,
+        senderId: 'current_user',
+        senderName: 'You',
+        senderProfilePicture: null,
+        senderRole: 'MEMBER',
+        content: caption.trim(),
+        messageType: 'video',
+        createdAt: DateTime.now(),
+        status: MessageStatus.sending,
+        starred: StarredInfo(isStarred: false),
+        pin: PinInfo(isPinned: false),
+        media: [MediaItem.fromPath(videoPath, caption: caption)],
+      );
+
+      widget.onSendMessage(fallbackMessage);
     }
   }
 
@@ -630,7 +1002,7 @@ class MessageInputState extends State<MessageInput> {
           status: MessageStatus.sending,
           starred: StarredInfo(isStarred: false),
           pin: PinInfo(isPinned: false),
-          images: [imagePath],
+          media: [MediaItem.fromPath(imagePath)],
         );
 
         print('📋 Sending additional pasted image: $imagePath');
@@ -1318,12 +1690,12 @@ class MessageInputState extends State<MessageInput> {
                             },
                           ),
                           _buildGridOption(
-                            icon: Icons.audiotrack,
-                            iconColor: Color(0xFFFF9800),
-                            title: 'Audio',
+                            icon: Icons.videocam,
+                            iconColor: Color(0xFFE91E63),
+                            title: 'Video',
                             onTap: () {
                               _closeAttachmentMenu();
-                              _pickAudioFiles();
+                              _captureVideo();
                             },
                           ),
                         ],
@@ -1363,8 +1735,15 @@ class MessageInputState extends State<MessageInput> {
                               }
                             },
                           ),
-                          // Empty space for better alignment
-                          SizedBox(width: 60),
+                          _buildGridOption(
+                            icon: Icons.audiotrack,
+                            iconColor: Color(0xFFFF9800),
+                            title: 'Audio',
+                            onTap: () {
+                              _closeAttachmentMenu();
+                              _pickAudioFiles();
+                            },
+                          ),
                         ],
                       ),
                     ],

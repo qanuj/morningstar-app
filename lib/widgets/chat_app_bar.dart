@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../models/club.dart';
+import 'club_logo_widget.dart';
 import '../services/message_storage_service.dart';
 
 /// Custom AppBar widget for the club chat screen
@@ -92,24 +93,19 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
         Builder(
           builder: (context) {
             final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-            return Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isDarkMode
-                      ? Theme.of(context).colorScheme.outline.withOpacity(0.3)
-                      : Colors.white.withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(18),
-                child: club.logo != null && club.logo!.isNotEmpty
-                    ? _buildClubLogo()
-                    : _buildDefaultClubLogo(),
-              ),
+            return ClubLogoWidget(
+              club: club,
+              size: 36,
+              backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+              iconColor: isDarkMode
+                  ? Theme.of(context).colorScheme.onSurface
+                  : Colors.white,
+              fallbackIcon: Icons.sports_cricket,
+              showBorder: true,
+              borderColor: isDarkMode
+                  ? Theme.of(context).colorScheme.outline.withOpacity(0.3)
+                  : Colors.white.withOpacity(0.3),
+              borderWidth: 1,
             );
           },
         ),
@@ -168,55 +164,6 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
     );
   }
 
-  Widget _buildClubLogo() {
-    // Check if the URL is an SVG
-    if (club.logo!.toLowerCase().contains('.svg') ||
-        club.logo!.toLowerCase().contains('svg?')) {
-      return SvgPicture.network(
-        club.logo!,
-        fit: BoxFit.cover,
-        placeholderBuilder: (context) => _buildDefaultClubLogo(),
-      );
-    } else {
-      // Regular image (PNG, JPG, etc.)
-      return Image.network(
-        club.logo!,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return _buildDefaultClubLogo();
-        },
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return _buildDefaultClubLogo();
-        },
-      );
-    }
-  }
-
-  Widget _buildDefaultClubLogo() {
-    return Builder(
-      builder: (context) {
-        final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-        return Container(
-          color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-          child: Center(
-            child: Text(
-              club.name.isNotEmpty
-                  ? club.name.substring(0, 1).toUpperCase()
-                  : 'C',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: isDarkMode
-                    ? Theme.of(context).colorScheme.primary
-                    : Colors.white,
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
 
   List<Widget> _buildSelectionActions() {
     return [

@@ -262,15 +262,53 @@ class ChatApiService {
         };
 
         // Add media arrays if present
+        // Combine images and videos into single images array
+        List<String> allMediaItems = [];
+        List<Map<String, dynamic>> videoThumbnails = [];
+
+        // Handle legacy images and videos arrays (strings)
         if (content['images'] != null &&
             content['images'] is List &&
             (content['images'] as List).isNotEmpty) {
-          contentMap['images'] = content['images'];
+          allMediaItems.addAll((content['images'] as List).cast<String>());
         }
         if (content['videos'] != null &&
             content['videos'] is List &&
             (content['videos'] as List).isNotEmpty) {
-          contentMap['videos'] = content['videos'];
+          allMediaItems.addAll((content['videos'] as List).cast<String>());
+        }
+
+        // Handle new media array (MediaItem objects)
+        if (content['media'] != null &&
+            content['media'] is List &&
+            (content['media'] as List).isNotEmpty) {
+          for (final mediaItem in (content['media'] as List)) {
+            if (mediaItem is Map<String, dynamic>) {
+              final url = mediaItem['url'] as String?;
+              final contentType = mediaItem['contentType'] as String?;
+              final thumbnailUrl = mediaItem['thumbnailUrl'] as String?;
+
+              if (url != null) {
+                allMediaItems.add(url);
+
+                // If this is a video with thumbnail, add to videoThumbnails array
+                if (contentType == 'video' && thumbnailUrl != null) {
+                  videoThumbnails.add({
+                    'videoUrl': url,
+                    'thumbnailUrl': thumbnailUrl,
+                  });
+                }
+              }
+            }
+          }
+        }
+
+        // Add arrays to content map
+        if (allMediaItems.isNotEmpty) {
+          contentMap['images'] = allMediaItems;
+        }
+        if (videoThumbnails.isNotEmpty) {
+          contentMap['videoThumbnails'] = videoThumbnails;
         }
         break;
     }

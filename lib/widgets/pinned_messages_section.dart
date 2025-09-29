@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:duggy/models/media_item.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/club_message.dart';
@@ -6,7 +7,8 @@ import '../models/club_message.dart';
 class PinnedMessagesSection extends StatefulWidget {
   final List<ClubMessage> messages;
   final Function(String messageId) onScrollToMessage;
-  final Function(String messageId)? onHighlightMessage; // New callback for highlighting
+  final Function(String messageId)?
+  onHighlightMessage; // New callback for highlighting
   final Function(ClubMessage message) onTogglePin;
   final Function() canPinMessages;
   final String clubId;
@@ -54,8 +56,10 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
     final pinnedMessages = widget.messages
         .where((m) => _isCurrentlyPinned(m))
         .toList();
-    if (_currentPinnedIndex >= pinnedMessages.length && pinnedMessages.isNotEmpty) {
-      _currentPinnedIndex = pinnedMessages.length - 1; // Go to last instead of first
+    if (_currentPinnedIndex >= pinnedMessages.length &&
+        pinnedMessages.isNotEmpty) {
+      _currentPinnedIndex =
+          pinnedMessages.length - 1; // Go to last instead of first
     }
   }
 
@@ -86,7 +90,7 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
             final pinnedMessages = widget.messages
                 .where((m) => _isCurrentlyPinned(m))
                 .toList();
-            
+
             if (pinnedMessages.isEmpty) {
               _currentPinnedIndex = 0;
             } else if (_currentPinnedIndex < pinnedMessages.length) {
@@ -133,12 +137,14 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
           color: Theme.of(context).brightness == Brightness.dark
               ? Color(0xFF2a2f32)
               : Color(0xFFF8F9FA),
-          border: Border(bottom: BorderSide(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.white.withOpacity(0.1)
-                : Color(0xFFDEE2E6), 
-            width: 1,
-          )),
+          border: Border(
+            bottom: BorderSide(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white.withOpacity(0.1)
+                  : Color(0xFFDEE2E6),
+              width: 1,
+            ),
+          ),
         ),
         child: Column(
           children: [
@@ -162,10 +168,10 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
       return 'Audio';
     } else if (message.document != null) {
       return 'Document';
-    } else if (message.images.isNotEmpty) {
-      return message.images.length == 1
+    } else if (message.media.isNotEmpty) {
+      return message.media.length == 1
           ? 'Photo'
-          : '${message.images.length} Photos';
+          : '${message.media.length} Photos';
     } else if (message.gifUrl != null && message.gifUrl!.isNotEmpty) {
       return 'GIF';
     } else if (message.linkMeta.isNotEmpty) {
@@ -194,48 +200,53 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
       height: 56, // Fixed height to prevent changes
       padding: EdgeInsets.symmetric(horizontal: 16),
       child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Pin icon
-            Icon(
-              Icons.push_pin, 
-              size: 16, 
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.white.withOpacity(0.6)
-                  : Color(0xFF6C757D),
-            ),
-            SizedBox(width: 8),
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Pin icon
+          Icon(
+            Icons.push_pin,
+            size: 16,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white.withOpacity(0.6)
+                : Color(0xFF6C757D),
+          ),
+          SizedBox(width: 8),
 
-            // Message content
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Message preview
-                  Text(
-                    firstLine,
-                    style: TextStyle(
-                      fontSize: 14, 
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white.withOpacity(0.7)
-                          : Color(0xFF6C757D),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+          // Message content
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Message preview
+                Text(
+                  firstLine,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white.withOpacity(0.7)
+                        : Color(0xFF6C757D),
                   ),
-                ],
-              ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
+          ),
 
-            // Visual indicator for different message types
-            _buildPinnedMessageIndicator(message),
-          ],
-        ),
+          // Visual indicator for different message types
+          _buildPinnedMessageIndicator(message),
+        ],
+      ),
     );
   }
 
-  Widget _buildPinnedMessageImages(List<String> pictures) {
+  Widget _buildPinnedMessageImages(List<MediaItem> items) {
+    final pictures = items
+        .where((m) => m.contentType == 'image' && m.url.isNotEmpty)
+        .map((m) => m.url)
+        .toList();
+
     final imagesToShow = pictures.take(3).toList();
 
     return Container(
@@ -320,8 +331,8 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
   /// Builds visual indicator for different message types in pinned messages
   Widget _buildPinnedMessageIndicator(ClubMessage message) {
     // Show images if available
-    if (message.images.isNotEmpty) {
-      return _buildPinnedMessageImages(message.images);
+    if (message.media.isNotEmpty) {
+      return _buildPinnedMessageImages(message.media);
     }
 
     // Show icon indicators for other message types
@@ -355,7 +366,7 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
           border: Border.all(
             color: Theme.of(context).brightness == Brightness.dark
                 ? Colors.white.withOpacity(0.1)
-                : Color(0xFFDEE2E6), 
+                : Color(0xFFDEE2E6),
             width: 1,
           ),
         ),
@@ -410,11 +421,11 @@ class _PinnedMessagesSectionState extends State<PinnedMessagesSection> {
                     ),
                     height: 2,
                     decoration: BoxDecoration(
-                      color: isActive 
-                          ? Color(0xFF003f9b) 
+                      color: isActive
+                          ? Color(0xFF003f9b)
                           : (Theme.of(context).brightness == Brightness.dark
-                              ? Colors.white.withOpacity(0.2)
-                              : Color(0xFFDEE2E6)),
+                                ? Colors.white.withOpacity(0.2)
+                                : Color(0xFFDEE2E6)),
                       borderRadius: BorderRadius.circular(1),
                     ),
                   ),

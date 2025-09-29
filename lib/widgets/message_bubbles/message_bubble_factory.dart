@@ -1,8 +1,7 @@
+import 'package:duggy/models/club.dart';
 import 'package:flutter/material.dart';
 import '../../models/club_message.dart';
-import '../../screens/matches/match_detail.dart';
 import '../../screens/matches/cached_match_detail_screen.dart';
-import '../../screens/practices/practice_match_detail.dart';
 import 'text_message_bubble.dart';
 import 'audio_message_bubble.dart';
 import 'document_message_bubble.dart';
@@ -18,6 +17,7 @@ import 'base_message_bubble.dart';
 /// Factory widget that creates the appropriate message bubble based on content type
 class MessageBubbleFactory extends StatelessWidget {
   final ClubMessage message;
+  final Club club;
   final bool isOwn;
   final bool isPinned;
   final bool isDeleted;
@@ -40,6 +40,9 @@ class MessageBubbleFactory extends StatelessWidget {
   final bool canPinMessages;
   final bool canDeleteMessages;
   final bool isSelectionMode;
+  final List<ClubMessage>? allMessages; // For unified media gallery
+  final String? clubName;
+  final String? clubLogo;
 
   const MessageBubbleFactory({
     super.key,
@@ -47,6 +50,7 @@ class MessageBubbleFactory extends StatelessWidget {
     required this.isOwn,
     required this.isPinned,
     required this.isDeleted,
+    required this.club,
     this.isSelected = false,
     this.showSenderInfo = false,
     this.isLastFromSender = false,
@@ -63,6 +67,9 @@ class MessageBubbleFactory extends StatelessWidget {
     this.canPinMessages = false,
     this.canDeleteMessages = false,
     this.isSelectionMode = false,
+    this.allMessages,
+    this.clubName,
+    this.clubLogo,
   });
 
   @override
@@ -178,7 +185,7 @@ class MessageBubbleFactory extends StatelessWidget {
       // SYSTEM MESSAGE: Member additions, date groups, and other system events
       return SystemMessageBubble(message: message);
     } else {
-      // TEXT MESSAGE: Images/videos first, then body below
+      // TEXT MESSAGE: Media (images/videos) first, then body below
       return TextMessageBubble(
         message: message,
         isOwn: isOwn,
@@ -187,6 +194,8 @@ class MessageBubbleFactory extends StatelessWidget {
         showSenderInfo: showSenderInfo,
         isLastFromSender: isLastFromSender,
         onReactionRemoved: onReactionRemoved,
+        allMessages: allMessages,
+        club: club,
       );
     }
   }

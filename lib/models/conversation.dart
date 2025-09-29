@@ -231,6 +231,9 @@ class MessageModel {
 
   String _messageStatusToString(MessageStatus status) {
     switch (status) {
+      case MessageStatus.preparing: return 'preparing';
+      case MessageStatus.compressing: return 'compressing';
+      case MessageStatus.uploading: return 'uploading';
       case MessageStatus.sending: return 'sending';
       case MessageStatus.sent: return 'sent';
       case MessageStatus.delivered: return 'delivered';

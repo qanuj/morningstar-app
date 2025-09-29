@@ -17,6 +17,7 @@ import '../../widgets/svg_avatar.dart';
 import '../../services/chat_api_service.dart';
 import '../../models/club_message.dart';
 import 'text_editor_screen.dart';
+import '../../services/video_compression_service.dart';
 
 class ShareTargetScreen extends StatefulWidget {
   final SharedContent sharedContent;
@@ -1634,16 +1635,45 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
           // Upload all files sequentially to ensure they're all processed
           for (final filePath in filePaths) {
             try {
-              // Create PlatformFile from file path
-              final file = File(filePath);
+              // Check if file is a video and needs compression
+              String finalFilePath = filePath;
+
+              if (_isVideoFile(filePath)) {
+                print('🎬 ShareTarget: Processing video file: $filePath');
+
+                final needsCompression = await VideoCompressionService.needsCompression(filePath);
+                if (needsCompression) {
+                  print('🎬 ShareTarget: Video needs compression, compressing...');
+
+                  final compressedPath = await VideoCompressionService.compressVideo(
+                    inputPath: filePath,
+                    deleteOriginal: false,
+                    onProgress: (progress) {
+                      print('📊 Video compression progress: ${progress.toStringAsFixed(1)}%');
+                    },
+                  );
+
+                  if (compressedPath != null) {
+                    finalFilePath = compressedPath;
+                    print('✅ ShareTarget: Video compressed successfully: $finalFilePath');
+                  } else {
+                    print('⚠️ ShareTarget: Video compression failed, using original');
+                  }
+                } else {
+                  print('✅ ShareTarget: Video doesn\'t need compression');
+                }
+              }
+
+              // Create PlatformFile from file path (original or compressed)
+              final file = File(finalFilePath);
               if (await file.exists()) {
                 final bytes = await file.readAsBytes();
-                final fileName = filePath.split('/').last;
+                final fileName = finalFilePath.split('/').last;
                 final platformFile = PlatformFile(
                   name: fileName,
                   size: bytes.length,
                   bytes: bytes,
-                  path: filePath,
+                  path: finalFilePath,
                 );
 
                 // Upload the file and wait for completion
@@ -1654,13 +1684,13 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
                   uploadedFileUrls.add(uploadedUrl);
                   print('✅ File uploaded successfully: $uploadedUrl');
                 } else {
-                  print('❌ Failed to upload file: $filePath');
+                  print('❌ Failed to upload file: $finalFilePath');
                 }
               } else {
-                print('❌ File not found: $filePath');
+                print('❌ File not found: $finalFilePath');
               }
             } catch (e) {
-              print('❌ Error uploading file $filePath: $e');
+              print('❌ Error processing file $filePath: $e');
               // Continue with other files even if one fails
             }
           }
@@ -1675,36 +1705,18 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
             '📤 Creating message with ${uploadedFileUrls.length} uploaded files',
           );
 
-          // Determine if files are videos or images
-          final isVideoShare =
-              widget.sharedContent.metadata?['isVideoShare'] == true;
-
-          // Create message with uploaded file URLs
-          if (isVideoShare) {
-            messageData = {
-              'content': {
-                'type': 'text',
-                'body': _messageController.text.trim().isEmpty
-                    ? ' '
-                    : _messageController.text.trim(),
-                'videos': uploadedFileUrls,
-              },
+          // Create message with uploaded file URLs (mixed images/videos in images array)
+          messageData = {
+            'content': {
               'type': 'text',
-              'metadata': {'forwarded': true},
-            };
-          } else {
-            messageData = {
-              'content': {
-                'type': 'text',
-                'body': _messageController.text.trim().isEmpty
-                    ? ' '
-                    : _messageController.text.trim(),
-                'files': uploadedFileUrls,
-              },
-              'type': 'text',
-              'metadata': {'forwarded': true},
-            };
-          }
+              'body': _messageController.text.trim().isEmpty
+                  ? ' '
+                  : _messageController.text.trim(),
+              'images': uploadedFileUrls, // Use images array for all media types
+            },
+            'type': 'text',
+            'metadata': {'forwarded': true},
+          };
           break;
 
         case SharedContentType.unknown:
@@ -2016,5 +2028,11 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  /// Helper function to check if a file is a video based on its extension
+  bool _isVideoFile(String filePath) {
+    final extension = filePath.split('.').last.toLowerCase();
+    return ['mp4', 'mov', 'avi', 'mkv', '3gp', 'webm', 'm4v', 'mpg', 'mpeg'].contains(extension);
   }
 }

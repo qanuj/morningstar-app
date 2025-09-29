@@ -1,3 +1,4 @@
+import 'package:duggy/models/club.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -14,7 +15,7 @@ import 'message_bubble_factory.dart';
 /// A wrapper for BaseMessageBubble that adds interactive functionality
 class InteractiveMessageBubble extends StatefulWidget {
   final ClubMessage message;
-  final String clubId;
+  final Club club;
   final bool isOwn;
   final bool isPinned;
   final bool isSelected;
@@ -46,7 +47,7 @@ class InteractiveMessageBubble extends StatefulWidget {
   const InteractiveMessageBubble({
     super.key,
     required this.message,
-    required this.clubId,
+    required this.club,
     required this.isOwn,
     required this.isPinned,
     required this.showSenderInfo,
@@ -140,6 +141,7 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
           canPinMessages: widget.canPinMessages,
           canDeleteMessages: widget.canDeleteMessages,
           isSelectionMode: widget.isSelectionMode,
+          club: widget.club,
         ),
       ),
     );
@@ -274,7 +276,7 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
       });
 
       try {
-        await ChatApiService.removeReaction(widget.clubId, message.id);
+        await ChatApiService.removeReaction(widget.club.id, message.id);
         debugPrint('✅ Reaction removed successfully');
       } catch (e) {
         debugPrint('❌ Error removing reaction: $e');
@@ -358,7 +360,7 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
 
       try {
         await ChatApiService.addReaction(
-          widget.clubId,
+          widget.club.id,
           message.id,
           newReaction,
         );
@@ -431,7 +433,7 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
     });
 
     try {
-      await ChatApiService.removeReaction(widget.clubId, messageId);
+      await ChatApiService.removeReaction(widget.club.id, messageId);
 
       // Success - no snackbar needed, UI already updated
       debugPrint('✅ Reaction removed successfully');
@@ -473,9 +475,9 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
 
     try {
       if (message.starred.isStarred) {
-        await ChatApiService.unstarMessage(widget.clubId, message.id);
+        await ChatApiService.unstarMessage(widget.club.id, message.id);
       } else {
-        await ChatApiService.starMessage(widget.clubId, message.id);
+        await ChatApiService.starMessage(widget.club.id, message.id);
       }
 
       // Success - the UI already shows the updated state
@@ -504,13 +506,13 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
   Future<void> _handleTogglePinMessage(ClubMessage message) async {
     try {
       if (widget.isPinned) {
-        await ChatApiService.unpinMessage(widget.clubId, message.id);
+        await ChatApiService.unpinMessage(widget.club.id, message.id);
         debugPrint('✅ Message unpinned successfully');
       } else {
         // Show pin duration dialog
         final duration = await _showPinDurationDialog(context);
         if (duration != null) {
-          await ChatApiService.pinMessage(widget.clubId, message.id, {
+          await ChatApiService.pinMessage(widget.club.id, message.id, {
             'durationHours': duration,
           });
           debugPrint('✅ Message pinned successfully');
@@ -607,29 +609,6 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
         child: Text(label),
       ),
     );
-  }
-
-  String _formatDateTime(DateTime dateTime) {
-    final local = dateTime.toLocal();
-    return '${local.day}/${local.month}/${local.year} ${local.hour}:${local.minute.toString().padLeft(2, '0')}';
-  }
-
-  /// Check if the current user can delete this message
-  /// Returns true if:
-  /// 1. User has general delete permissions (canDeleteMessages - for admins/owners), OR
-  /// 2. It's the user's own message
-  bool _canDeleteThisMessage() {
-    // Admins and owners can delete any message
-    if (widget.canDeleteMessages) {
-      return true;
-    }
-
-    // Users can always delete their own messages
-    if (widget.isOwn) {
-      return true;
-    }
-
-    return false;
   }
 }
 

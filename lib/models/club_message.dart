@@ -7,6 +7,7 @@ import 'message_reaction.dart';
 import 'message_reply.dart';
 import 'starred_info.dart';
 import 'mention.dart';
+import 'media_item.dart';
 
 class PinInfo {
   final bool isPinned;
@@ -34,7 +35,7 @@ class ClubMessage {
   final String? senderProfilePicture;
   final String? senderRole;
   final String content;
-  final List<String> images;
+  final List<MediaItem> media; // Combined images and videos with individual captions
   final MessageDocument? document;
   final MessageAudio? audio;
   final List<LinkMetadata> linkMeta;
@@ -72,6 +73,11 @@ class ClubMessage {
   final bool? _hasMentions;
   final bool? _mentionsCurrentUser;
 
+  // Progress tracking fields (for local messages only)
+  final double? uploadProgress;    // 0.0 to 1.0 for upload progress
+  final double? compressionProgress; // 0.0 to 1.0 for compression progress
+  final String? processingStatus;  // Human readable status like "Compressing...", "Uploading..."
+
   /// Get mentions list, never null
   List<MentionedUser> get mentions => _mentions ?? [];
 
@@ -89,7 +95,7 @@ class ClubMessage {
     this.senderProfilePicture,
     this.senderRole,
     required this.content,
-    this.images = const [],
+    this.media = const [],
     this.document,
     this.audio,
     this.linkMeta = const [],
@@ -117,6 +123,9 @@ class ClubMessage {
     List<MentionedUser>? mentions,
     bool? hasMentions,
     bool? mentionsCurrentUser,
+    this.uploadProgress,
+    this.compressionProgress,
+    this.processingStatus,
   }) : _mentions = mentions ?? [],
        _hasMentions = hasMentions ?? false,
        _mentionsCurrentUser = mentionsCurrentUser ?? false;
@@ -124,7 +133,7 @@ class ClubMessage {
   ClubMessage copyWith({
     MessageStatus? status,
     String? errorMessage,
-    List<String>? images,
+    List<MediaItem>? media,
     List<MessageDocument>? documents,
     MessageAudio? audio,
     List<LinkMetadata>? linkMeta,
@@ -149,6 +158,9 @@ class ClubMessage {
     List<MentionedUser>? mentions,
     bool? hasMentions,
     bool? mentionsCurrentUser,
+    double? uploadProgress,
+    double? compressionProgress,
+    String? processingStatus,
   }) {
     return ClubMessage(
       id: id,
@@ -158,7 +170,7 @@ class ClubMessage {
       senderProfilePicture: senderProfilePicture,
       senderRole: senderRole,
       content: content,
-      images: images ?? this.images,
+      media: media ?? this.media,
       document: document ?? this.document,
       audio: audio ?? this.audio,
       linkMeta: linkMeta ?? this.linkMeta,
@@ -186,6 +198,9 @@ class ClubMessage {
       mentions: mentions ?? _mentions,
       hasMentions: hasMentions ?? _hasMentions,
       mentionsCurrentUser: mentionsCurrentUser ?? _mentionsCurrentUser,
+      uploadProgress: uploadProgress ?? this.uploadProgress,
+      compressionProgress: compressionProgress ?? this.compressionProgress,
+      processingStatus: processingStatus ?? this.processingStatus,
     );
   }
 
@@ -205,7 +220,7 @@ class ClubMessage {
     String messageContent = '';
     String? messageType;
     String? gifUrl;
-    List<String> images = [];
+    List<MediaItem> media = [];
     MessageDocument? document;
     MessageAudio? audio;
     List<LinkMetadata> linkMeta = [];
@@ -257,13 +272,13 @@ class ClubMessage {
             break;
           case 'image':
             if (content['url'] != null) {
-              images = [content['url'] as String];
+              media = [MediaItem.fromUrl(content['url'] as String)];
             }
             break;
           case 'text_with_images':
             if (content['images'] is List) {
-              images = (content['images'] as List)
-                  .map((url) => url as String)
+              media = (content['images'] as List)
+                  .map((url) => MediaItem.fromUrl(url as String))
                   .toList();
             }
             break;
@@ -271,8 +286,8 @@ class ClubMessage {
             // Handle text messages that may also have images
             if (content['images'] is List &&
                 (content['images'] as List).isNotEmpty) {
-              images = (content['images'] as List)
-                  .map((url) => url as String)
+              media = (content['images'] as List)
+                  .map((url) => MediaItem.fromUrl(url as String))
                   .toList();
             }
             break;
@@ -352,35 +367,44 @@ class ClubMessage {
       // Parse images array (as URLs) - for text messages and other non-link types
       if (content['images'] is List &&
           messageType != 'link' &&
-          images.isEmpty) {
-        images = (content['images'] as List)
-            .map((url) => url as String)
+          media.isEmpty) {
+        media = (content['images'] as List)
+            .map((url) => MediaItem.fromUrl(url as String))
             .toList();
       }
 
       // Parse pictures array (for backward compatibility)
-      if (content['pictures'] is List && images.isEmpty) {
+      if (content['pictures'] is List && media.isEmpty) {
         final picturesList = content['pictures'] as List;
-        images = picturesList
+        media = picturesList
             .map((pic) {
               if (pic is String) {
-                return pic;
+                return MediaItem.fromUrl(pic);
               } else if (pic is Map<String, dynamic> && pic['url'] != null) {
-                return pic['url'] as String;
+                return MediaItem.fromUrl(pic['url'] as String);
               }
-              return '';
+              return null;
             })
-            .where((url) => url.isNotEmpty)
+            .where((item) => item != null)
+            .cast<MediaItem>()
             .toList();
       }
 
       // Note: meta field is deprecated - we only use the new linkSchema format now
     }
 
-    // Parse top-level images array (for cache compatibility)
-    if (json['images'] is List && images.isEmpty) {
-      images = (json['images'] as List).map((url) => url as String).toList();
+    // Parse top-level media array (preferred - from local storage)
+    if (json['media'] is List && media.isEmpty) {
+      media = (json['media'] as List)
+          .map((item) => MediaItem.fromJson(item as Map<String, dynamic>))
+          .toList();
     }
+
+    // Parse top-level images array (for cache compatibility)
+    if (json['images'] is List && media.isEmpty) {
+      media = (json['images'] as List).map((url) => MediaItem.fromUrl(url as String)).toList();
+    }
+
 
     // Parse top-level audio object (for cache compatibility)
     if (json['audio'] is Map<String, dynamic> && audio == null) {
@@ -578,11 +602,8 @@ class ClubMessage {
     try {
       if (json['mentions'] is List && (json['mentions'] as List).isNotEmpty) {
         mentions = (json['mentions'] as List)
-            .where((mentionData) => mentionData is Map<String, dynamic>)
-            .map(
-              (mentionData) =>
-                  MentionedUser.fromJson(mentionData as Map<String, dynamic>),
-            )
+            .whereType<Map<String, dynamic>>()
+            .map(MentionedUser.fromJson)
             .toList();
         hasMentions = mentions.isNotEmpty;
       }
@@ -608,7 +629,7 @@ class ClubMessage {
       senderProfilePicture: senderProfilePicture,
       senderRole: senderRole,
       content: messageContent,
-      images: images,
+      media: media,
       document: document,
       audio: audio,
       linkMeta: linkMeta,
@@ -703,7 +724,8 @@ class ClubMessage {
       'senderProfilePicture': senderProfilePicture,
       'senderRole': senderRole,
       'content': contentJson,
-      'images': images,
+      'images': media.map((item) => item.url).toList(), // Convert back to string array for API compatibility
+      'media': media.map((item) => item.toJson()).toList(), // Full media objects for local storage
       'document': document?.toJson(),
       'audio': audio?.toJson(),
       'linkMeta': linkMeta.map((l) => l.toJson()).toList(),

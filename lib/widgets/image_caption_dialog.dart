@@ -4,6 +4,7 @@ import 'package:image_cropper/image_cropper.dart';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
+import 'video_player_widget.dart';
 
 class ImageCaptionDialog extends StatefulWidget {
   final String? imageUrl;
@@ -18,7 +19,7 @@ class ImageCaptionDialog extends StatefulWidget {
     this.imageFile,
     this.initialCaption,
     required this.onSend,
-    this.title = 'Send Image',
+    this.title = 'Send Media',
   }) : assert(imageUrl != null || imageFile != null, 'Either imageUrl or imageFile must be provided');
 
   @override
@@ -32,12 +33,24 @@ class _ImageCaptionDialogState extends State<ImageCaptionDialog> {
   Uint8List? _imageBytes;
   bool _isLoading = true;
   bool _isCropping = false;
+  bool _isVideo = false;
 
   @override
   void initState() {
     super.initState();
     _captionController = TextEditingController(text: widget.initialCaption ?? '');
+    _checkIfVideo();
     _loadImage();
+  }
+
+  void _checkIfVideo() {
+    if (widget.imageFile?.name != null) {
+      final extension = widget.imageFile!.name.split('.').last.toLowerCase();
+      _isVideo = ['mp4', 'mov', 'avi', 'mkv', '3gp', 'webm', 'm4v', 'mpg', 'mpeg'].contains(extension);
+    } else if (widget.imageUrl != null) {
+      final extension = widget.imageUrl!.split('.').last.toLowerCase();
+      _isVideo = ['mp4', 'mov', 'avi', 'mkv', '3gp', 'webm', 'm4v', 'mpg', 'mpeg'].contains(extension);
+    }
   }
 
   @override
@@ -154,8 +167,24 @@ class _ImageCaptionDialogState extends State<ImageCaptionDialog> {
         ),
       );
     }
-    
-    if (_imageBytes != null) {
+
+    // Show video player for video files
+    if (_isVideo && (_currentImagePath != null || widget.imageUrl != null)) {
+      final videoSource = _currentImagePath ?? widget.imageUrl!;
+      return Container(
+        height: 300,
+        width: double.infinity,
+        color: Color(0xFF0f0f0f),
+        child: VideoThumbnailWidget(
+          videoUrl: videoSource,
+          onTap: () {}, // No action needed in preview
+          borderRadius: 12,
+        ),
+      );
+    }
+
+    // Show image for image files
+    if (_imageBytes != null && !_isVideo) {
       return Container(
         height: 300,
         width: double.infinity,
@@ -167,7 +196,7 @@ class _ImageCaptionDialogState extends State<ImageCaptionDialog> {
         ),
       );
     }
-    
+
     return _buildErrorWidget();
   }
 
@@ -203,20 +232,22 @@ class _ImageCaptionDialogState extends State<ImageCaptionDialog> {
         ),
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: _isCropping 
-                ? SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF06aeef)),
-                    ),
-                  )
-                : Icon(Icons.crop, color: Colors.white),
-            onPressed: _isCropping ? null : _cropImage,
-            tooltip: 'Edit Image',
-          ),
+          // Only show crop button for images
+          if (!_isVideo)
+            IconButton(
+              icon: _isCropping
+                  ? SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF06aeef)),
+                      ),
+                    )
+                  : Icon(Icons.crop, color: Colors.white),
+              onPressed: _isCropping ? null : _cropImage,
+              tooltip: 'Edit Image',
+            ),
         ],
       ),
       body: Column(
