@@ -133,7 +133,6 @@ class ClubLogoWidget extends StatelessWidget {
     return ClubLogoWidget(
       club: club,
       size: 32,
-      backgroundColor: backgroundColor ?? Colors.white24,
       iconColor: iconColor ?? Colors.white70,
       fallbackIcon: Icons.sports_cricket,
       iconSize: 20,
@@ -165,29 +164,81 @@ class ClubLogoWidget extends StatelessWidget {
     );
   }
 
+  /// Factory constructor for colorful text fallbacks
+  factory ClubLogoWidget.colorfulText({
+    required Club club,
+    double size = 40,
+    bool showBorder = false,
+    VoidCallback? onTap,
+  }) {
+    return ClubLogoWidget(
+      club: club,
+      size: size,
+      backgroundColor: _getColorFromClubName(club.name),
+      iconColor: Colors.white,
+      fallbackIcon: Icons.sports_cricket,
+      iconSize: size / 2,
+      showBorder: showBorder,
+      borderColor: showBorder ? Colors.white.withOpacity(0.3) : null,
+      onTap: onTap,
+    );
+  }
+
+  /// Generate a color based on club name for consistent appearance
+  static Color _getColorFromClubName(String name) {
+    final colors = [
+      Color(0xFF003f9b), // Primary blue
+      Color(0xFF06aeef), // Light blue
+      Color(0xFF4dd0ff), // Lighter blue
+      Color(0xFF16a34a), // Green
+      Color(0xFFf59e0b), // Orange
+      Color(0xFF8b5cf6), // Purple
+      Color(0xFFef4444), // Red
+      Color(0xFF059669), // Emerald
+      Color(0xFF7c3aed), // Violet
+      Color(0xFFdc2626), // Red
+    ];
+    final hash = name.toLowerCase().hashCode;
+    print('Hash for club name "$name": $hash');
+    return colors[hash.abs() % colors.length];
+  }
+
   @override
   Widget build(BuildContext context) {
     // Use club logo if available, otherwise show fallback
     final hasLogo = club.logo != null && club.logo!.isNotEmpty;
 
+    // For text fallbacks, ensure we have a solid background color for visibility
+    final effectiveBackgroundColor = hasLogo
+        ? (backgroundColor ?? Colors.transparent)
+        : (backgroundColor ?? _getColorFromClubName(club.name));
+
+    print('Building ClubLogoWidget for club: ${club.name}, hasLogo: $hasLogo');
+
+    // For text fallbacks, ensure we have white text on colored background
+    final effectiveIconColor = hasLogo
+        ? (iconColor ?? Theme.of(context).colorScheme.primary)
+        : Colors.white;
+
     return SVGAvatar(
       imageUrl: hasLogo ? club.logo : null,
       size: size,
-      backgroundColor: backgroundColor,
-      iconColor: iconColor,
+      backgroundColor: effectiveBackgroundColor,
+      iconColor: effectiveIconColor,
       fallbackIcon: fallbackIcon,
       iconSize: iconSize ?? size / 2,
       fallbackText: hasLogo ? null : _getClubInitials(),
       fallbackTextStyle: TextStyle(
         fontSize: size / 2.5,
         fontWeight: FontWeight.w600,
-        color: iconColor ?? Colors.white,
+        color: effectiveIconColor,
       ),
       showBorder: showBorder,
       borderColor: borderColor,
       borderWidth: borderWidth ?? (showBorder ? 2.0 : 0.0),
       fit: fit,
       onTap: onTap,
+      isAvatarMode: true, // Ensure circular background
     );
   }
 

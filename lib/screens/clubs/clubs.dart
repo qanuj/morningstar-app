@@ -5,6 +5,7 @@ import '../../providers/club_provider.dart';
 import '../../models/club.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/svg_avatar.dart';
+import '../../widgets/club_logo_widget.dart';
 import 'club_chat.dart';
 import 'create_club_screen.dart';
 
@@ -306,12 +307,9 @@ class ClubsScreenState extends State<ClubsScreen> {
               // Club Profile Image
               Stack(
                 children: [
-                  SVGAvatar(
-                    imageUrl: club.logo,
+                  ClubLogoWidget(
+                    club: club,
                     size: 50,
-                    backgroundColor: Theme.of(
-                      context,
-                    ).primaryColor.withOpacity(0.1),
                     fallbackIcon: Icons.groups,
                     iconSize: 28,
                   ),

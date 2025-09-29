@@ -363,9 +363,7 @@ class _MediaGalleryScreenState extends State<MediaGalleryScreen> {
                   // Club logo
                   Container(
                     margin: EdgeInsets.only(right: 12),
-                    child: ClubLogoWidget.appBar(
-                      club: widget.club,
-                    ),
+                    child: ClubLogoWidget.appBar(club: widget.club),
                   ),
                   // Club name
                   Expanded(

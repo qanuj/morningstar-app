@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/club.dart';
 import '../providers/club_provider.dart';
 import '../widgets/svg_avatar.dart';
+import 'club_logo_widget.dart';
 
 class ClubSelectorDialog extends StatefulWidget {
   final String title;
@@ -27,10 +28,10 @@ class ClubSelectorDialog extends StatefulWidget {
     this.multiSelect = false,
     this.preSelectedClubs,
   }) : assert(
-          (!multiSelect && onClubSelected != null) || 
-          (multiSelect && onMultipleClubsSelected != null),
-          'Single select requires onClubSelected, multi-select requires onMultipleClubsSelected',
-        );
+         (!multiSelect && onClubSelected != null) ||
+             (multiSelect && onMultipleClubsSelected != null),
+         'Single select requires onClubSelected, multi-select requires onMultipleClubsSelected',
+       );
 
   @override
   State<ClubSelectorDialog> createState() => _ClubSelectorDialogState();
@@ -44,7 +45,8 @@ class _ClubSelectorDialogState extends State<ClubSelectorDialog> {
   @override
   void initState() {
     super.initState();
-    _selectedClubIds = widget.preSelectedClubs?.map((club) => club.id).toSet() ?? {};
+    _selectedClubIds =
+        widget.preSelectedClubs?.map((club) => club.id).toSet() ?? {};
   }
 
   @override
@@ -147,12 +149,18 @@ class _ClubSelectorDialogState extends State<ClubSelectorDialog> {
                                         ),
                                       ),
                                     ),
-                                    if (widget.multiSelect && _selectedClubIds.isNotEmpty)
+                                    if (widget.multiSelect &&
+                                        _selectedClubIds.isNotEmpty)
                                       Container(
-                                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: Theme.of(context).primaryColor,
-                                          borderRadius: BorderRadius.circular(12),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
                                         ),
                                         child: Text(
                                           '${_selectedClubIds.length}',
@@ -192,12 +200,16 @@ class _ClubSelectorDialogState extends State<ClubSelectorDialog> {
                               SizedBox(width: 8),
                             ],
                             TextButton(
-                              onPressed: _selectedClubIds.isEmpty 
-                                  ? null 
+                              onPressed: _selectedClubIds.isEmpty
+                                  ? null
                                   : () {
                                       Navigator.of(context).pop();
-                                      final selectedClubs = _getSelectedClubs(clubProvider.clubs);
-                                      widget.onMultipleClubsSelected!(selectedClubs);
+                                      final selectedClubs = _getSelectedClubs(
+                                        clubProvider.clubs,
+                                      );
+                                      widget.onMultipleClubsSelected!(
+                                        selectedClubs,
+                                      );
                                     },
                               child: Text(
                                 'Done',
@@ -318,7 +330,7 @@ class _ClubSelectorDialogState extends State<ClubSelectorDialog> {
                         final club = membership.club;
 
                         final isSelected = _selectedClubIds.contains(club.id);
-                        
+
                         return Material(
                           color: Colors.transparent,
                           child: InkWell(
@@ -337,7 +349,9 @@ class _ClubSelectorDialogState extends State<ClubSelectorDialog> {
                               ),
                               decoration: widget.multiSelect && isSelected
                                   ? BoxDecoration(
-                                      color: Theme.of(context).primaryColor.withOpacity(0.05),
+                                      color: Theme.of(
+                                        context,
+                                      ).primaryColor.withOpacity(0.05),
                                       border: Border(
                                         left: BorderSide(
                                           color: Theme.of(context).primaryColor,
@@ -355,21 +369,21 @@ class _ClubSelectorDialogState extends State<ClubSelectorDialog> {
                                       onChanged: (bool? value) {
                                         _toggleClubSelection(club);
                                       },
-                                      activeColor: Theme.of(context).primaryColor,
-                                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      activeColor: Theme.of(
+                                        context,
+                                      ).primaryColor,
+                                      materialTapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
                                     ),
                                     SizedBox(width: 12),
                                   ],
-                                  
+
                                   // Club avatar
                                   Stack(
                                     children: [
-                                      SVGAvatar(
-                                        imageUrl: club.logo,
+                                      ClubLogoWidget(
+                                        club: club,
                                         size: 50,
-                                        backgroundColor: Theme.of(
-                                          context,
-                                        ).primaryColor.withOpacity(0.1),
                                         fallbackIcon: Icons.groups,
                                         iconSize: 28,
                                       ),
@@ -519,9 +533,10 @@ class ClubSelectorDialogFactory {
         subtitle: 'Choose which club to create a match for',
         onClubSelected: onClubSelected,
         filterClubs: (membership) =>
-            membership.approved && 
-            (membership.role.toUpperCase() == 'ADMIN' || 
-             membership.role.toUpperCase() == 'OWNER'), // Only show clubs where user is admin/owner
+            membership.approved &&
+            (membership.role.toUpperCase() == 'ADMIN' ||
+                membership.role.toUpperCase() ==
+                    'OWNER'), // Only show clubs where user is admin/owner
       ),
     );
   }
@@ -568,7 +583,7 @@ class ClubSelectorDialogFactory {
       context: context,
       builder: (context) => ClubSelectorDialog(
         title: title,
-        subtitle: multiSelect 
+        subtitle: multiSelect
             ? 'Choose which clubs to manage'
             : 'Choose which club to manage',
         onClubSelected: onClubSelected,

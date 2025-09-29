@@ -96,7 +96,6 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
             return ClubLogoWidget(
               club: club,
               size: 36,
-              backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
               iconColor: isDarkMode
                   ? Theme.of(context).colorScheme.onSurface
                   : Colors.white,
@@ -163,7 +162,6 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
       ],
     );
   }
-
 
   List<Widget> _buildSelectionActions() {
     return [
