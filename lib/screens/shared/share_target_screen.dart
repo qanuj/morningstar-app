@@ -1633,10 +1633,11 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
               // Upload the file
               final uploadedUrl = await ChatApiService.uploadFile(platformFile);
               if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
-                // Add to media items with proper type
+                // Add to media items with contentType and url
+                final contentType = _getContentType(fileName, fileType);
                 mediaItems.add({
-                  'type': fileType == 'video' ? 'video' : 'image',
                   'url': uploadedUrl,
+                  'contentType': contentType,
                 });
                 print('✅ $fileType uploaded successfully: $uploadedUrl');
               } else {
@@ -1656,7 +1657,7 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
 
           print('📤 Creating message with ${mediaItems.length} uploaded media items');
 
-          // Create message with uploaded media (same format as SelfSendingMessageBubble)
+          // Create message with uploaded media (correct format: type=text with media array)
           messageData = {
             'content': {
               'type': 'text',
@@ -2007,5 +2008,60 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
     }
 
     return 'document';
+  }
+
+  String _getContentType(String fileName, String fileType) {
+    final extension = fileName.split('.').last.toLowerCase();
+
+    switch (fileType) {
+      case 'image':
+        switch (extension) {
+          case 'jpg':
+          case 'jpeg':
+            return 'image/jpeg';
+          case 'png':
+            return 'image/png';
+          case 'gif':
+            return 'image/gif';
+          case 'webp':
+            return 'image/webp';
+          case 'bmp':
+            return 'image/bmp';
+          default:
+            return 'image/jpeg'; // Default fallback
+        }
+      case 'video':
+        switch (extension) {
+          case 'mp4':
+            return 'video/mp4';
+          case 'mov':
+            return 'video/quicktime';
+          case 'avi':
+            return 'video/x-msvideo';
+          case 'mkv':
+            return 'video/x-matroska';
+          case 'webm':
+            return 'video/webm';
+          case '3gp':
+            return 'video/3gpp';
+          default:
+            return 'video/mp4'; // Default fallback
+        }
+      case 'audio':
+        switch (extension) {
+          case 'mp3':
+            return 'audio/mpeg';
+          case 'wav':
+            return 'audio/wav';
+          case 'aac':
+            return 'audio/aac';
+          case 'm4a':
+            return 'audio/mp4';
+          default:
+            return 'audio/mpeg'; // Default fallback
+        }
+      default:
+        return 'application/octet-stream';
+    }
   }
 }
