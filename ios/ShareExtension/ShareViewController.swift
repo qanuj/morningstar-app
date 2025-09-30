@@ -500,7 +500,7 @@ final class ShareViewController: UIViewController {
 
         // First try: Load as plain text using UTType
         if provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
-            let result = await withCheckedContinuation { cont in
+            let result = await withCheckedContinuation { (cont: CheckedContinuation<String?, Never>) in
                 provider.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { item, error in
                     if let error = error {
                         self.logStep("PlainText load error: \(error)")
@@ -529,7 +529,7 @@ final class ShareViewController: UIViewController {
 
         // Second try: Load as NSString object (only if we can safely do so)
         if provider.canLoadObject(ofClass: NSString.self) {
-            let result = await withCheckedContinuation { cont in
+            let result = await withCheckedContinuation { (cont: CheckedContinuation<String?, Never>) in
                 provider.loadObject(ofClass: NSString.self) { obj, error in
                     if let error = error {
                         self.logStep("NSString load error (expected): \(error)")
@@ -554,7 +554,7 @@ final class ShareViewController: UIViewController {
         let textTypes = ["public.text", "public.utf8-plain-text", "public.utf16-plain-text"]
         for textType in textTypes {
             if provider.hasItemConformingToTypeIdentifier(textType) {
-                let result = await withCheckedContinuation { cont in
+                let result = await withCheckedContinuation { (cont: CheckedContinuation<String?, Never>) in
                     provider.loadItem(forTypeIdentifier: textType, options: nil) { item, error in
                         if let error = error {
                             self.logStep("Text type \(textType) load error: \(error)")
