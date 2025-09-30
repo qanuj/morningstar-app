@@ -199,7 +199,6 @@ class ClubLogoWidget extends StatelessWidget {
       Color(0xFFdc2626), // Red
     ];
     final hash = name.toLowerCase().hashCode;
-    print('Hash for club name "$name": $hash');
     return colors[hash.abs() % colors.length];
   }
 
@@ -212,8 +211,6 @@ class ClubLogoWidget extends StatelessWidget {
     final effectiveBackgroundColor = hasLogo
         ? (backgroundColor ?? Colors.transparent)
         : (backgroundColor ?? _getColorFromClubName(club.name));
-
-    print('Building ClubLogoWidget for club: ${club.name}, hasLogo: $hasLogo');
 
     // For text fallbacks, ensure we have white text on colored background
     final effectiveIconColor = hasLogo

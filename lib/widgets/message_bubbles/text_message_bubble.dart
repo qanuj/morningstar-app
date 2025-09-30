@@ -5,10 +5,8 @@ import '../../models/club_message.dart';
 import '../../models/message_status.dart';
 import '../../models/media_item.dart';
 import 'base_message_bubble.dart';
-import '../image_gallery_screen.dart';
 import '../svg_avatar.dart';
 import '../markdown_mention_text.dart';
-import '../../screens/shared/video_player_screen.dart';
 import '../video_player_widget.dart';
 
 /// Text message bubble - renders images/videos first, then text body below
@@ -21,8 +19,8 @@ class TextMessageBubble extends StatelessWidget {
   final bool isLastFromSender;
   final Function(String messageId, String emoji, String userId)?
   onReactionRemoved;
-  final List<ClubMessage>? allMessages;
   final Club club;
+  final Function(String messageId, int mediaIndex)? onMediaTap;
 
   const TextMessageBubble({
     super.key,
@@ -34,7 +32,7 @@ class TextMessageBubble extends StatelessWidget {
     this.showSenderInfo = false,
     this.isLastFromSender = false,
     this.onReactionRemoved,
-    this.allMessages, // Optional: List of all messages for unified media gallery
+    this.onMediaTap,
   });
 
   @override
@@ -82,124 +80,6 @@ class TextMessageBubble extends StatelessWidget {
         if (message.media.isNotEmpty && message.content.trim().isEmpty)
           SizedBox(height: 16),
       ],
-    );
-  }
-
-  Widget _buildSingleImage(BuildContext context, String imageUrl) {
-    return GestureDetector(
-      onTap: () => _openImageGallery(context, 0),
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        constraints: BoxConstraints(
-          maxHeight: 300,
-          maxWidth: MediaQuery.of(context).size.width * 0.6,
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: SVGAvatar.image(imageUrl: imageUrl, width: 200, height: 200),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTwoImages(BuildContext context, List<String> images) {
-    return Container(
-      height: 150,
-      child: Row(
-        children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: () => _openImageGallery(context, 0),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: SVGAvatar.image(
-                  imageUrl: images[0],
-                  width: 200,
-                  height: 200,
-                ),
-              ),
-            ),
-          ),
-          SizedBox(width: 4),
-          Expanded(
-            child: GestureDetector(
-              onTap: () => _openImageGallery(context, 1),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: SVGAvatar.image(
-                  imageUrl: images[1],
-                  width: 200,
-                  height: 200,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMultipleImages(BuildContext context, List<String> images) {
-    return SizedBox(
-      height: 280,
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: NeverScrollableScrollPhysics(),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 4,
-          mainAxisSpacing: 4,
-        ),
-        itemCount: images.length > 4 ? 4 : images.length,
-        itemBuilder: (context, index) {
-          if (index == 3 && images.length > 4) {
-            // Show "+X more" overlay on 4th image
-            return GestureDetector(
-              onTap: () => _openImageGallery(context, index),
-              child: Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: SVGAvatar.image(
-                      imageUrl: images[index],
-                      width: 200,
-                      height: 200,
-                    ),
-                  ),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.6),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '+${images.length - 3}',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return GestureDetector(
-            onTap: () => _openImageGallery(context, index),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: SVGAvatar.image(
-                imageUrl: images[index],
-                width: 200,
-                height: 200,
-              ),
-            ),
-          );
-        },
-      ),
     );
   }
 
@@ -379,63 +259,28 @@ class TextMessageBubble extends StatelessWidget {
   }
 
   void _openMediaGallery(BuildContext context, int initialIndex) {
-    // Get the MediaItem from the current message
-    final mediaItems = message.media
-        .where((item) => item.isImage || item.isVideo)
-        .toList();
-
-    if (mediaItems.isEmpty) return;
-
-    final initialMediaItem = initialIndex < mediaItems.length
-        ? mediaItems[initialIndex]
-        : mediaItems.first;
-
-    // Use all messages if available, otherwise fallback to current message
-    final messagesToUse = allMessages ?? [message];
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => MediaGalleryScreen(
-          messages: messagesToUse,
-          initialMediaIndex: 0, // Will be recalculated in the gallery
-          initialMediaUrl: initialMediaItem.url,
-          club: club,
-        ),
-      ),
-    );
+    // Simply call the callback with message ID and media index
+    if (onMediaTap != null) {
+      onMediaTap!(message.id, initialIndex);
+    } else {
+      debugPrint('❌ No onMediaTap callback provided');
+    }
   }
 
-  void _openImageGallery(BuildContext context, int initialIndex) {
-    // Redirect to new unified media gallery
-    _openMediaGallery(context, initialIndex);
-  }
-
-  /// Build media gallery that handles both images and videos
+  /// Build media gallery that handles both images and videos as unified grid
   Widget _buildMediaGallery(BuildContext context) {
     final mediaItems = message.media;
-    if (mediaItems.isEmpty) return SizedBox.shrink();
+    if (mediaItems.isEmpty) {
+      return SizedBox.shrink();
+    }
 
     // Show processing status if message is still being processed
     if (_isProcessingMessage()) {
       return _buildProcessingOverlay(context, mediaItems);
     }
 
-    // Separate images and videos for mixed handling if needed
-    final images = mediaItems.where((item) => item.isImage).toList();
-    final videos = mediaItems.where((item) => item.isVideo).toList();
-
-    return Column(
-      children: [
-        // Show images using existing image gallery logic
-        if (images.isNotEmpty) _buildImageGalleryForMediaItems(context, images),
-        // Show videos using video grid logic
-        if (videos.isNotEmpty) ...[
-          if (images.isNotEmpty) SizedBox(height: 8),
-          _buildVideoGalleryForMediaItems(context, videos),
-        ],
-      ],
-    );
+    // Build unified media grid (images and videos together)
+    return _buildUnifiedMediaGrid(context, mediaItems);
   }
 
   bool _isProcessingMessage() {
@@ -583,66 +428,61 @@ class TextMessageBubble extends StatelessWidget {
     }
   }
 
-  /// Build image gallery for specific MediaItem images
-  Widget _buildImageGalleryForMediaItems(
+  /// Build unified media grid for all media types (images and videos together)
+  Widget _buildUnifiedMediaGrid(
     BuildContext context,
-    List<MediaItem> images,
+    List<MediaItem> mediaItems,
   ) {
-    final imageUrls = images.map((item) => item.url).toList();
-    if (images.length == 1) {
-      return _buildSingleImage(context, imageUrls.first);
-    } else if (images.length == 2) {
-      return _buildTwoImages(context, imageUrls);
+    if (mediaItems.length == 1) {
+      return _buildSingleMediaItem(context, mediaItems.first);
+    } else if (mediaItems.length == 2) {
+      return _buildTwoMediaItems(context, mediaItems);
+    } else if (mediaItems.length == 3) {
+      return _buildThreeMediaItems(context, mediaItems);
     } else {
-      return _buildMultipleImages(context, imageUrls);
+      return _buildFourPlusMediaItems(context, mediaItems);
     }
   }
 
-  /// Build video gallery for MediaItem videos
-  Widget _buildVideoGalleryForMediaItems(
-    BuildContext context,
-    List<MediaItem> videos,
-  ) {
-    if (videos.length == 1) {
-      return _buildSingleVideoFromMedia(context, videos.first);
-    } else if (videos.length == 2) {
-      return _buildTwoVideosFromMedia(context, videos);
-    } else {
-      // For 3+ videos, show first two and indicate more
-      return _buildMultipleVideosFromMedia(context, videos);
-    }
-  }
-
-  Widget _buildSingleVideoFromMedia(BuildContext context, MediaItem video) {
-    return _buildVideoThumbnailFromMedia(
-      context,
-      video,
-      width: double.infinity,
-      height: 200,
+  Widget _buildSingleMediaItem(BuildContext context, MediaItem item) {
+    return GestureDetector(
+      onTap: () => _openMediaGallery(context, 0),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: 300,
+          maxWidth: MediaQuery.of(context).size.width * 0.6,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: _buildMediaItemWidget(context, item),
+        ),
+      ),
     );
   }
 
-  Widget _buildTwoVideosFromMedia(
-    BuildContext context,
-    List<MediaItem> videos,
-  ) {
-    return SizedBox(
+  Widget _buildTwoMediaItems(BuildContext context, List<MediaItem> items) {
+    return Container(
       height: 150,
       child: Row(
         children: [
           Expanded(
-            child: _buildVideoThumbnailFromMedia(
-              context,
-              videos[0],
-              borderRadius: 8,
+            child: GestureDetector(
+              onTap: () => _openMediaGallery(context, 0),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: _buildMediaItemWidget(context, items[0]),
+              ),
             ),
           ),
           SizedBox(width: 4),
           Expanded(
-            child: _buildVideoThumbnailFromMedia(
-              context,
-              videos[1],
-              borderRadius: 8,
+            child: GestureDetector(
+              onTap: () => _openMediaGallery(context, 1),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: _buildMediaItemWidget(context, items[1]),
+              ),
             ),
           ),
         ],
@@ -650,52 +490,44 @@ class TextMessageBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildMultipleVideosFromMedia(
-    BuildContext context,
-    List<MediaItem> videos,
-  ) {
-    return SizedBox(
+  Widget _buildThreeMediaItems(BuildContext context, List<MediaItem> items) {
+    return Container(
       height: 200,
       child: Row(
         children: [
           Expanded(
             flex: 2,
-            child: _buildVideoThumbnailFromMedia(context, videos[0]),
+            child: GestureDetector(
+              onTap: () => _openMediaGallery(context, 0),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: _buildMediaItemWidget(context, items[0]),
+              ),
+            ),
           ),
           SizedBox(width: 4),
           Expanded(
             child: Column(
               children: [
                 Expanded(
-                  child: _buildVideoThumbnailFromMedia(context, videos[1]),
-                ),
-                if (videos.length > 2) ...[
-                  SizedBox(height: 4),
-                  Expanded(
-                    child: Stack(
-                      children: [
-                        _buildVideoThumbnailFromMedia(context, videos[2]),
-                        if (videos.length > 3)
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.black54,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Center(
-                              child: Text(
-                                '+${videos.length - 2}',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
+                  child: GestureDetector(
+                    onTap: () => _openMediaGallery(context, 1),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: _buildMediaItemWidget(context, items[1]),
                     ),
                   ),
-                ],
+                ),
+                SizedBox(height: 4),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => _openMediaGallery(context, 2),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: _buildMediaItemWidget(context, items[2]),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -704,139 +536,140 @@ class TextMessageBubble extends StatelessWidget {
     );
   }
 
-  // Enhanced method that uses MediaItem thumbnail information
-  Widget _buildVideoThumbnailFromMedia(
-    BuildContext context,
-    MediaItem video, {
-    double? width,
-    double? height,
-    double borderRadius = 8,
-  }) {
-    // Use the best available thumbnail (remote URL first, then local path)
-    if (video.hasThumbnail) {
-      final thumbnailSource = video.bestThumbnail!;
-      final isRemoteUrl = thumbnailSource.startsWith('http');
-
-      return GestureDetector(
-        onTap: () => _playVideo(context, video.url),
-        child: Container(
-          width: width,
-          height: height,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(borderRadius),
-            color: Colors.black12,
+  Widget _buildFourPlusMediaItems(BuildContext context, List<MediaItem> items) {
+    return Container(
+      height: 200,
+      child: Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: GestureDetector(
+              onTap: () => _openMediaGallery(context, 0),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: _buildMediaItemWidget(context, items[0]),
+              ),
+            ),
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(borderRadius),
-            child: Stack(
+          SizedBox(width: 4),
+          Expanded(
+            child: Column(
               children: [
-                // Thumbnail image
-                isRemoteUrl
-                    ? Image.network(
-                        thumbnailSource,
-                        width: double.infinity,
-                        height: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            _buildVideoFallback(context, video.url),
-                      )
-                    : Image.file(
-                        File(thumbnailSource),
-                        width: double.infinity,
-                        height: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            _buildVideoFallback(context, video.url),
-                      ),
-                // Play button overlay
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(borderRadius),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => _openMediaGallery(context, 1),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: _buildMediaItemWidget(context, items[1]),
+                    ),
                   ),
-                  child: Center(
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.9),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.play_arrow,
-                        color: Colors.black87,
-                        size: 24,
+                ),
+                SizedBox(height: 4),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => _openMediaGallery(context, 2),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Stack(
+                        children: [
+                          _buildMediaItemWidget(context, items[2]),
+                          if (items.length > 3)
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.black54,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '+${items.length - 3}',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ),
                 ),
-                // Duration badge if available
-                if (video.duration != null)
-                  Positioned(
-                    bottom: 8,
-                    right: 8,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.7),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        _formatDuration(video.duration!),
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ),
               ],
             ),
           ),
-        ),
-      );
-    }
-
-    // Fallback to VideoThumbnailWidget if no thumbnail available
-    return _buildVideoFallback(
-      context,
-      video.url,
-      width: width,
-      height: height,
-      borderRadius: borderRadius,
-    );
-  }
-
-  Widget _buildVideoFallback(
-    BuildContext context,
-    String videoUrl, {
-    double? width,
-    double? height,
-    double borderRadius = 8,
-  }) {
-    return VideoThumbnailWidget(
-      videoUrl: videoUrl,
-      onTap: () => _playVideo(context, videoUrl),
-      width: width,
-      height: height,
-      borderRadius: borderRadius,
-    );
-  }
-
-  String _formatDuration(double seconds) {
-    final duration = Duration(seconds: seconds.round());
-    final minutes = duration.inMinutes;
-    final remainingSeconds = duration.inSeconds % 60;
-    return '$minutes:${remainingSeconds.toString().padLeft(2, '0')}';
-  }
-
-  void _playVideo(BuildContext context, String videoUrl) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) =>
-            VideoPlayerScreen(videoUrl: videoUrl, title: 'Video'),
+        ],
       ),
     );
+  }
+
+  Widget _buildMediaItemWidget(BuildContext context, MediaItem item) {
+    if (item.isVideo) {
+      // For videos, show thumbnail with play button overlay
+      if (item.hasThumbnail) {
+        final thumbnailSource = item.bestThumbnail!;
+        final isRemoteUrl = thumbnailSource.startsWith('http');
+
+        return Stack(
+          children: [
+            // Thumbnail
+            isRemoteUrl
+                ? Image.network(
+                    thumbnailSource,
+                    width: double.infinity,
+                    height: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      color: Colors.grey[300],
+                      child: Icon(Icons.videocam, color: Colors.grey[600]),
+                    ),
+                  )
+                : Image.file(
+                    File(thumbnailSource),
+                    width: double.infinity,
+                    height: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      color: Colors.grey[300],
+                      child: Icon(Icons.videocam, color: Colors.grey[600]),
+                    ),
+                  ),
+            // Play button overlay
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Center(
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.7),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.play_arrow, color: Colors.white, size: 24),
+                ),
+              ),
+            ),
+          ],
+        );
+      } else {
+        // Fallback for videos without thumbnails
+        return Container(
+          color: Colors.grey[300],
+          child: Center(
+            child: Icon(Icons.videocam, color: Colors.grey[600], size: 32),
+          ),
+        );
+      }
+    } else {
+      // For images
+      return SVGAvatar.image(
+        imageUrl: item.url,
+        width: double.infinity,
+        height: double.infinity,
+      );
+    }
   }
 }

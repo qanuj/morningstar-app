@@ -607,23 +607,8 @@ class MessageInputState extends State<MessageInput> {
       '🔍 MessageInput: Creating message with ${mediaItems.length} media items',
     );
 
-    // Extract content from media captions
+    // Use empty content - individual captions are preserved in media items
     String content = '';
-    if (mediaItems.length == 1 && mediaItems.first.caption != null) {
-      content = mediaItems.first.caption!;
-    } else {
-      // For multiple items, combine unique captions
-      final captions = mediaItems
-          .map((item) => item.caption)
-          .where((caption) => caption != null && caption.isNotEmpty)
-          .toSet()
-          .toList();
-      if (captions.length == 1) {
-        content = captions.first!;
-      } else if (captions.isNotEmpty) {
-        content = captions.join('\n');
-      }
-    }
 
     // Create initial message with all media items
     final tempMessage = ClubMessage(
@@ -806,10 +791,10 @@ class MessageInputState extends State<MessageInput> {
       }
     }
 
-    // Create final message with uploaded media
+    // Create final message with uploaded media - mark as sending (not sent) so API call happens
     final finalMessage = message.copyWith(
       media: uploadedMediaItems,
-      status: MessageStatus.sent,
+      status: MessageStatus.sending,
       processingStatus: null,
       uploadProgress: null,
       compressionProgress: null,

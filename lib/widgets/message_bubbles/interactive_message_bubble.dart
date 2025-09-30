@@ -43,6 +43,7 @@ class InteractiveMessageBubble extends StatefulWidget {
   final bool canDeleteMessages;
   final bool isSelectionMode;
   final Function(String messageId)? onToggleSelection;
+  final Function(String messageId, int mediaIndex)? onMediaTap;
 
   const InteractiveMessageBubble({
     super.key,
@@ -72,6 +73,7 @@ class InteractiveMessageBubble extends StatefulWidget {
     this.canDeleteMessages = false,
     this.isSelectionMode = false,
     this.onToggleSelection,
+    this.onMediaTap,
   });
 
   @override
@@ -142,6 +144,7 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
           canDeleteMessages: widget.canDeleteMessages,
           isSelectionMode: widget.isSelectionMode,
           club: widget.club,
+          onMediaTap: widget.onMediaTap,
         ),
       ),
     );

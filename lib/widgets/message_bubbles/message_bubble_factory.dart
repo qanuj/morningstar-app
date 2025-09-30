@@ -40,9 +40,9 @@ class MessageBubbleFactory extends StatelessWidget {
   final bool canPinMessages;
   final bool canDeleteMessages;
   final bool isSelectionMode;
-  final List<ClubMessage>? allMessages; // For unified media gallery
   final String? clubName;
   final String? clubLogo;
+  final Function(String messageId, int mediaIndex)? onMediaTap;
 
   const MessageBubbleFactory({
     super.key,
@@ -67,9 +67,9 @@ class MessageBubbleFactory extends StatelessWidget {
     this.canPinMessages = false,
     this.canDeleteMessages = false,
     this.isSelectionMode = false,
-    this.allMessages,
     this.clubName,
     this.clubLogo,
+    this.onMediaTap,
   });
 
   @override
@@ -194,8 +194,8 @@ class MessageBubbleFactory extends StatelessWidget {
         showSenderInfo: showSenderInfo,
         isLastFromSender: isLastFromSender,
         onReactionRemoved: onReactionRemoved,
-        allMessages: allMessages,
         club: club,
+        onMediaTap: onMediaTap,
       );
     }
   }

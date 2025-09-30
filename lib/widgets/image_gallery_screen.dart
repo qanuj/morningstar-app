@@ -5,19 +5,21 @@ import 'dart:io';
 import '../models/club_message.dart';
 import '../models/media_item.dart';
 import '../services/media_storage_service.dart';
-import '../screens/shared/video_player_screen.dart';
+import '../services/media_gallery_service.dart';
 import 'svg_avatar.dart';
 import 'club_logo_widget.dart';
+import 'cached_media_image.dart';
+import 'video_player_widget.dart';
 
 class MediaGalleryScreen extends StatefulWidget {
-  final List<ClubMessage> messages;
+  final List<MediaReference> mediaIndex;
   final int initialMediaIndex;
   final String initialMediaUrl;
   final Club club;
 
   const MediaGalleryScreen({
     super.key,
-    required this.messages,
+    required this.mediaIndex,
     required this.initialMediaIndex,
     required this.initialMediaUrl,
     required this.club,
@@ -29,54 +31,43 @@ class MediaGalleryScreen extends StatefulWidget {
 
 class _MediaGalleryScreenState extends State<MediaGalleryScreen> {
   late PageController _pageController;
-  late List<MediaWithMessage> _allMedia;
+  late ScrollController _thumbnailScrollController;
+  late List<MediaReference> _mediaIndex;
   int _currentIndex = 0;
   bool _showAppBar = true;
 
   @override
   void initState() {
     super.initState();
-    _extractAllMedia();
+    _initializeMediaIndex();
     _findInitialIndex();
     _pageController = PageController(initialPage: _currentIndex);
+    _thumbnailScrollController = ScrollController();
+
+    // After the first frame, center the initial thumbnail
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_mediaIndex.length > 1) {
+        _centerThumbnail(_currentIndex);
+      }
+    });
   }
 
-  void _extractAllMedia() {
-    _allMedia = [];
-
-    // Extract all media (images and videos) from all messages, sorted by timestamp
-    final List<MediaWithMessage> tempMedia = [];
-
-    for (final message in widget.messages) {
-      if (message.media.isNotEmpty) {
-        for (final mediaItem in message.media) {
-          // Include both images and videos
-          tempMedia.add(
-            MediaWithMessage(mediaItem: mediaItem, message: message),
-          );
-        }
-      }
-    }
-
-    // Sort by message timestamp (oldest first for chronological viewing)
-    tempMedia.sort(
-      (a, b) => a.message.createdAt.compareTo(b.message.createdAt),
-    );
-    _allMedia = tempMedia;
+  void _initializeMediaIndex() {
+    // Use the provided media index directly (already sorted)
+    _mediaIndex = widget.mediaIndex;
 
     print(
-      '📱 MediaGallery: Extracted ${_allMedia.length} media items from ${widget.messages.length} messages',
+      '📱 MediaGallery: Using ${_mediaIndex.length} media items from index',
     );
   }
 
   void _findInitialIndex() {
     // Find the index of the initially tapped media
-    for (int i = 0; i < _allMedia.length; i++) {
-      if (_allMedia[i].mediaItem.url == widget.initialMediaUrl) {
-        _currentIndex = i;
-        break;
-      }
-    }
+    _currentIndex = MediaGalleryService.findMediaIndex(
+      _mediaIndex,
+      widget.initialMediaUrl
+    );
+
     print(
       '📱 MediaGallery: Initial index set to $_currentIndex for ${widget.initialMediaUrl}',
     );
@@ -86,6 +77,37 @@ class _MediaGalleryScreenState extends State<MediaGalleryScreen> {
     setState(() {
       _showAppBar = !_showAppBar;
     });
+
+    // When showing the app bar again, center the current thumbnail
+    if (_showAppBar && _mediaIndex.length > 1) {
+      // Add a small delay to ensure the ListView is built before scrolling
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _centerThumbnail(_currentIndex);
+      });
+    }
+  }
+
+  void _centerThumbnail(int index) {
+    if (!_thumbnailScrollController.hasClients) return;
+
+    // Calculate the position to center the selected thumbnail
+    const double thumbnailWidth = 68.0; // 60 width + 8 margin
+    const double padding = 16.0; // horizontal padding
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    // Calculate the target scroll position to center the thumbnail
+    final targetPosition = (index * thumbnailWidth) - (screenWidth / 2) + (thumbnailWidth / 2) + padding;
+
+    // Clamp the position to valid scroll bounds
+    final maxScrollExtent = _thumbnailScrollController.position.maxScrollExtent;
+    final minScrollExtent = _thumbnailScrollController.position.minScrollExtent;
+    final clampedPosition = targetPosition.clamp(minScrollExtent, maxScrollExtent);
+
+    _thumbnailScrollController.animateTo(
+      clampedPosition,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
   }
 
   String _formatDateTime(DateTime dateTime) {
@@ -112,139 +134,74 @@ class _MediaGalleryScreenState extends State<MediaGalleryScreen> {
   @override
   void dispose() {
     _pageController.dispose();
+    _thumbnailScrollController.dispose();
     super.dispose();
   }
 
-  Widget _buildMediaViewer(MediaItem mediaItem) {
-    if (mediaItem.isVideo) {
-      return _buildVideoViewer(mediaItem);
+  Widget _buildMediaViewer(MediaReference mediaRef) {
+    if (mediaRef.isVideo) {
+      return _buildVideoViewer(mediaRef);
     } else {
-      return _buildImageViewer(mediaItem);
+      return _buildImageViewer(mediaRef);
     }
   }
 
-  Widget _buildImageViewer(MediaItem mediaItem) {
+  Widget _buildImageViewer(MediaReference mediaRef) {
     return InteractiveViewer(
       minScale: 0.8,
       maxScale: 5.0,
-      child: SVGAvatar.image(
-        imageUrl: mediaItem.url,
-        width: MediaQuery.of(context).size.width,
-        height: MediaQuery.of(context).size.height,
-      ),
-    );
-  }
-
-  Widget _buildVideoViewer(MediaItem mediaItem) {
-    return Stack(
-      children: [
-        // Video thumbnail with play button
-        Container(
-          width: MediaQuery.of(context).size.width,
-          height: MediaQuery.of(context).size.height,
-          color: Colors.black,
-          child: Stack(
-            children: [
-              // Show video thumbnail if available
-              if (mediaItem.hasThumbnail)
-                Center(
-                  child: InteractiveViewer(
-                    minScale: 0.8,
-                    maxScale: 3.0,
-                    child:
-                        mediaItem.thumbnailUrl != null &&
-                            mediaItem.thumbnailUrl!.startsWith('http')
-                        ? SVGAvatar.image(
-                            imageUrl: mediaItem.thumbnailUrl!,
-                            width: MediaQuery.of(context).size.width,
-                            height: MediaQuery.of(context).size.height * 0.8,
-                          )
-                        : mediaItem.thumbnailPath != null
-                        ? Image.file(
-                            File(mediaItem.thumbnailPath!),
-                            fit: BoxFit.contain,
-                            width: MediaQuery.of(context).size.width,
-                            height: MediaQuery.of(context).size.height * 0.8,
-                          )
-                        : Container(
-                            color: Colors.black54,
-                            child: Icon(
-                              Icons.videocam,
-                              color: Colors.white54,
-                              size: 64,
-                            ),
-                          ),
-                  ),
-                )
-              else
-                // Fallback when no thumbnail
-                Center(
-                  child: Container(
-                    color: Colors.black54,
-                    child: Icon(
-                      Icons.videocam,
-                      color: Colors.white54,
-                      size: 64,
-                    ),
-                  ),
-                ),
-
-              // Play button overlay
-              Center(
-                child: GestureDetector(
-                  onTap: () => _playVideo(mediaItem),
-                  child: Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.play_arrow,
-                      color: Colors.white,
-                      size: 40,
-                    ),
-                  ),
-                ),
+      child: Center(
+        child: CachedMediaImage(
+          imageUrl: mediaRef.url,
+          fit: BoxFit.contain, // Maintain aspect ratio, fit within screen
+          errorWidget: Container(
+            color: Colors.grey[800],
+            child: Center(
+              child: Icon(
+                Icons.broken_image,
+                color: Colors.white54,
+                size: 64,
               ),
-
-              // Duration badge if available
-              if (mediaItem.duration != null)
-                Positioned(
-                  bottom: 20,
-                  right: 20,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      _formatDuration(mediaItem.duration!),
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
+            ),
+          ),
+          placeholder: Container(
+            color: Colors.grey[900],
+            child: Center(
+              child: CircularProgressIndicator(
+                color: Colors.white54,
+                strokeWidth: 2,
+              ),
+            ),
           ),
         ),
-      ],
-    );
-  }
-
-  void _playVideo(MediaItem mediaItem) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) =>
-            VideoPlayerScreen(videoUrl: mediaItem.url, title: 'Video'),
       ),
     );
   }
+
+  Widget _buildVideoViewer(MediaReference mediaRef) {
+    return Container(
+      width: MediaQuery.of(context).size.width,
+      height: MediaQuery.of(context).size.height,
+      color: Colors.black,
+      child: SafeArea(
+        child: Center(
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.8, // Leave space for controls
+              maxWidth: MediaQuery.of(context).size.width,
+            ),
+            child: CachedVideoPlayerWidget(
+              videoUrl: mediaRef.url,
+              autoPlay: false, // Don't autoplay in gallery
+              showControls: true,
+              borderRadius: 0, // No border radius in fullscreen
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
 
   String _formatDuration(double seconds) {
     final duration = Duration(seconds: seconds.round());
@@ -253,11 +210,11 @@ class _MediaGalleryScreenState extends State<MediaGalleryScreen> {
     return '${minutes}:${remainingSeconds.toString().padLeft(2, '0')}';
   }
 
-  Widget _buildThumbnailForStrip(MediaItem mediaItem) {
-    if (mediaItem.isVideo) {
+  Widget _buildThumbnailForStrip(MediaReference mediaRef) {
+    if (mediaRef.isVideo) {
       // For videos, show thumbnail if available
-      if (mediaItem.hasThumbnail) {
-        final thumbnailSource = mediaItem.bestThumbnail!;
+      if (mediaRef.hasThumbnail) {
+        final thumbnailSource = mediaRef.bestThumbnail!;
 
         if (thumbnailSource.startsWith('http')) {
           // Remote thumbnail URL
@@ -284,15 +241,15 @@ class _MediaGalleryScreenState extends State<MediaGalleryScreen> {
       }
     } else {
       // For images, show the image itself
-      return SVGAvatar.image(imageUrl: mediaItem.url, width: 60, height: 60);
+      return SVGAvatar.image(imageUrl: mediaRef.url, width: 60, height: 60);
     }
   }
 
   Future<void> _shareCurrentMedia() async {
-    if (_allMedia.isNotEmpty && _currentIndex < _allMedia.length) {
-      final currentMedia = _allMedia[_currentIndex];
-      final mediaUrl = currentMedia.mediaItem.url;
-      final mediaType = currentMedia.mediaItem.isVideo ? 'video' : 'image';
+    if (_mediaIndex.isNotEmpty && _currentIndex < _mediaIndex.length) {
+      final currentMedia = _mediaIndex[_currentIndex];
+      final mediaUrl = currentMedia.url;
+      final mediaType = currentMedia.isVideo ? 'video' : 'image';
 
       try {
         print('📤 Sharing $mediaType: $mediaUrl');
@@ -328,7 +285,7 @@ class _MediaGalleryScreenState extends State<MediaGalleryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_allMedia.isEmpty) {
+    if (_mediaIndex.isEmpty) {
       return Scaffold(
         backgroundColor: Colors.black,
         body: Center(
@@ -397,22 +354,23 @@ class _MediaGalleryScreenState extends State<MediaGalleryScreen> {
             bottom: 0,
             child: PageView.builder(
               controller: _pageController,
-              itemCount: _allMedia.length,
+              itemCount: _mediaIndex.length,
               onPageChanged: (index) {
                 setState(() {
                   _currentIndex = index;
                 });
+                // Center the thumbnail when page changes
+                _centerThumbnail(index);
               },
               itemBuilder: (context, index) {
-                final mediaWithMessage = _allMedia[index];
-                final mediaItem = mediaWithMessage.mediaItem;
+                final mediaRef = _mediaIndex[index];
 
                 return GestureDetector(
                   onTap: _toggleAppBarVisibility,
                   child: Center(
                     child: Hero(
-                      tag: 'media_${mediaItem.url}',
-                      child: _buildMediaViewer(mediaItem),
+                      tag: 'media_${mediaRef.url}',
+                      child: _buildMediaViewer(mediaRef),
                     ),
                   ),
                 );
@@ -453,24 +411,39 @@ class _MediaGalleryScreenState extends State<MediaGalleryScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // Show media caption if available
+                            if (_mediaIndex[_currentIndex].caption != null &&
+                                _mediaIndex[_currentIndex].caption!.isNotEmpty) ...[
+                              Text(
+                                _mediaIndex[_currentIndex].caption!,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                  height: 1.4,
+                                ),
+                                textAlign: TextAlign.left,
+                              ),
+                              SizedBox(height: 8),
+                            ],
+                            // Sender name and timestamp
                             Text(
-                              _allMedia[_currentIndex].message.senderName,
+                              _mediaIndex[_currentIndex].senderName,
                               style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                height: 1.4,
+                                color: Colors.white70,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
                               ),
                               textAlign: TextAlign.left,
                             ),
                             SizedBox(height: 4),
                             Text(
                               _formatDateTime(
-                                _allMedia[_currentIndex].message.createdAt,
+                                _mediaIndex[_currentIndex].timestamp,
                               ),
                               style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 14,
+                                color: Colors.white60,
+                                fontSize: 13,
                               ),
                             ),
                           ],
@@ -478,16 +451,16 @@ class _MediaGalleryScreenState extends State<MediaGalleryScreen> {
                       ),
 
                       // Thumbnail strip (only show if more than 1 media item)
-                      if (_allMedia.length > 1)
+                      if (_mediaIndex.length > 1)
                         Container(
                           height: 80,
                           child: ListView.builder(
+                            controller: _thumbnailScrollController,
                             scrollDirection: Axis.horizontal,
                             padding: EdgeInsets.symmetric(horizontal: 16),
-                            itemCount: _allMedia.length,
+                            itemCount: _mediaIndex.length,
                             itemBuilder: (context, index) {
-                              final mediaWithMessage = _allMedia[index];
-                              final mediaItem = mediaWithMessage.mediaItem;
+                              final mediaRef = _mediaIndex[index];
                               final isSelected = index == _currentIndex;
 
                               return GestureDetector(
@@ -497,6 +470,7 @@ class _MediaGalleryScreenState extends State<MediaGalleryScreen> {
                                     duration: Duration(milliseconds: 300),
                                     curve: Curves.easeInOut,
                                   );
+                                  // Center thumbnail will be called automatically via onPageChanged
                                 },
                                 child: Container(
                                   width: 60,
@@ -517,10 +491,10 @@ class _MediaGalleryScreenState extends State<MediaGalleryScreen> {
                                       fit: StackFit.expand,
                                       children: [
                                         // Thumbnail image
-                                        _buildThumbnailForStrip(mediaItem),
+                                        _buildThumbnailForStrip(mediaRef),
 
                                         // Video play icon overlay
-                                        if (mediaItem.isVideo)
+                                        if (mediaRef.isVideo)
                                           Container(
                                             color: Colors.black.withOpacity(
                                               0.3,
@@ -563,7 +537,7 @@ class _MediaGalleryScreenState extends State<MediaGalleryScreen> {
             ),
 
           // Media counter
-          if (_showAppBar && _allMedia.length > 1)
+          if (_showAppBar && _mediaIndex.length > 1)
             Positioned(
               top: MediaQuery.of(context).padding.top + 60,
               right: 20,
@@ -574,7 +548,7 @@ class _MediaGalleryScreenState extends State<MediaGalleryScreen> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  '${_currentIndex + 1} / ${_allMedia.length}',
+                  '${_currentIndex + 1} / ${_mediaIndex.length}',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 14,
@@ -587,11 +561,4 @@ class _MediaGalleryScreenState extends State<MediaGalleryScreen> {
       ),
     );
   }
-}
-
-class MediaWithMessage {
-  final MediaItem mediaItem;
-  final ClubMessage message;
-
-  MediaWithMessage({required this.mediaItem, required this.message});
 }

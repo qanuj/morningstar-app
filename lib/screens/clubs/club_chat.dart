@@ -18,6 +18,7 @@ import '../../services/message_storage_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/background_sync_service.dart';
 import '../../services/message_refresh_service.dart';
+import '../../services/media_gallery_service.dart';
 import '../../widgets/club_info_dialog.dart';
 import '../../widgets/audio_recording_widget.dart';
 import '../../widgets/pinned_messages_section.dart';
@@ -27,6 +28,7 @@ import '../../widgets/message_bubble_wrapper.dart';
 import '../../widgets/message_input.dart';
 import '../../widgets/chat_header.dart';
 import '../../widgets/svg_avatar.dart';
+import '../../widgets/image_gallery_screen.dart';
 import '../manage/manage_club.dart';
 import '../manage/club_matches.dart';
 import '../manage/club_transactions.dart';
@@ -1499,6 +1501,49 @@ class ClubChatScreenState extends State<ClubChatScreen>
     _handleMessageUpdated(message, retryMessage);
   }
 
+  /// Handle media tap events from message bubbles
+  void _handleMediaTap(String messageId, int mediaIndex) {
+    debugPrint('📱 Media tapped: messageId=$messageId, mediaIndex=$mediaIndex');
+
+    // Build lightweight media index from all messages
+    final allMediaIndex = MediaGalleryService.buildMediaIndex(_messages);
+
+    // Find the tapped message
+    final message = _messages.firstWhere(
+      (m) => m.id == messageId,
+      orElse: () => _messages.first, // Fallback to first message if not found
+    );
+
+    // Get the specific media item that was tapped
+    if (message.media.isEmpty || mediaIndex >= message.media.length) {
+      debugPrint('❌ Invalid media index: $mediaIndex for message $messageId');
+      return;
+    }
+
+    final tappedMediaItem = message.media[mediaIndex];
+
+    // Find the global index of this media item in the overall gallery
+    final globalIndex = MediaGalleryService.findMediaIndex(
+      allMediaIndex,
+      tappedMediaItem.url,
+    );
+
+    debugPrint('📱 Opening gallery with ${allMediaIndex.length} total media items, starting at global index $globalIndex');
+
+    // Open the media gallery
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MediaGalleryScreen(
+          mediaIndex: allMediaIndex,
+          initialMediaIndex: globalIndex,
+          initialMediaUrl: tappedMediaItem.url,
+          club: widget.club,
+        ),
+      ),
+    );
+  }
+
   /// Handle reaction removal directly from the message bubble
   Future<void> _handleReactionRemoved(
     String messageId,
@@ -2505,6 +2550,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
                             true, // Any user can delete messages (local cache only)
                         isCurrentlyPinned: _isCurrentlyPinned,
                         onReplyTap: _scrollToMessage,
+                        onMediaTap: _handleMediaTap,
                       ),
                     ),
                   );

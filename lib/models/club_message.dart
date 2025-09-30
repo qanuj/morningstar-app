@@ -283,8 +283,14 @@ class ClubMessage {
             }
             break;
           case 'text':
-            // Handle text messages that may also have images
-            if (content['images'] is List &&
+            // Handle new media array format (preferred)
+            if (content['media'] is List && (content['media'] as List).isNotEmpty) {
+              media = (content['media'] as List)
+                  .map((item) => MediaItem.fromJson(item as Map<String, dynamic>))
+                  .toList();
+            }
+            // Fall back to legacy images array if no media array
+            else if (content['images'] is List &&
                 (content['images'] as List).isNotEmpty) {
               media = (content['images'] as List)
                   .map((url) => MediaItem.fromUrl(url as String))

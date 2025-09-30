@@ -98,19 +98,23 @@ class MediaItem {
   }
 
   Map<String, dynamic> toJson() {
-    return {
+    final Map<String, dynamic> json = {
       'url': url,
       'contentType': contentType,
-      'caption': caption,
-      'duration': duration,
-      'thumbnailPath': thumbnailPath,
-      'thumbnailUrl': thumbnailUrl,
-      'originalPath': originalPath,
-      'uploadProgress': uploadProgress,
-      'compressionProgress': compressionProgress,
-      'processingStatus': processingStatus,
-      'isLocal': isLocal,
     };
+
+    // Only include non-null values to avoid API validation errors
+    if (caption != null) json['caption'] = caption;
+    if (duration != null) json['duration'] = duration;
+    if (thumbnailPath != null) json['thumbnailPath'] = thumbnailPath;
+    if (thumbnailUrl != null) json['thumbnailUrl'] = thumbnailUrl;
+    if (originalPath != null) json['originalPath'] = originalPath;
+    if (uploadProgress != null) json['uploadProgress'] = uploadProgress;
+    if (compressionProgress != null) json['compressionProgress'] = compressionProgress;
+    if (processingStatus != null) json['processingStatus'] = processingStatus;
+    json['isLocal'] = isLocal;
+
+    return json;
   }
 
   factory MediaItem.fromJson(Map<String, dynamic> json) {

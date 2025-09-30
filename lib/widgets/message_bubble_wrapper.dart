@@ -63,6 +63,9 @@ class MessageBubbleWrapper extends StatelessWidget {
   // Reply tap callback
   final Function(String messageId)? onReplyTap;
 
+  // Media tap callback
+  final Function(String messageId, int mediaIndex)? onMediaTap;
+
   const MessageBubbleWrapper({
     super.key,
     required this.message,
@@ -91,6 +94,7 @@ class MessageBubbleWrapper extends StatelessWidget {
     this.clubMembers = const [],
     required this.isCurrentlyPinned,
     this.onReplyTap,
+    this.onMediaTap,
   });
 
   @override
@@ -274,6 +278,7 @@ class MessageBubbleWrapper extends StatelessWidget {
       onToggleSelection: (messageId) {
         onToggleSelection(messageId);
       },
+      onMediaTap: onMediaTap,
     );
   }
 

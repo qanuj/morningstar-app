@@ -508,33 +508,18 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
               : currentMessage.content,
         };
 
-        // Add media arrays for text messages with media
-        print(
-          '🔍 Building contentMap. _uploadedImages.length = ${_uploadedImages.length}',
-        );
+        // Add media array for text messages with media
         print(
           '🔍 Building contentMap. currentMessage.media.length = ${currentMessage.media.length}',
         );
 
-        // Combine uploaded images and videos into single images array (legacy)
-        List<String> allMediaItems = [..._uploadedImages, ..._uploadedVideos];
-
         // Add media from the new media array (already uploaded)
         if (currentMessage.media.isNotEmpty) {
-          for (final mediaItem in currentMessage.media) {
-            if (mediaItem.url.isNotEmpty) {
-              allMediaItems.add(mediaItem.url);
-            }
-          }
-          // Also add the media array for proper API processing
+          // Add the media array for proper API processing
           contentMap['media'] = currentMessage.media
               .map((item) => item.toJson())
               .toList();
-        }
-
-        if (allMediaItems.isNotEmpty) {
-          contentMap['images'] = allMediaItems;
-          print('🔍 Added media to contentMap: $allMediaItems');
+          print('🔍 Added media array to contentMap with ${currentMessage.media.length} items');
         }
 
         // Note: meta field is deprecated - we only use the new linkSchema format now
