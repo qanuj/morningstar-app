@@ -234,16 +234,8 @@ import UserNotifications
       // Send the parsed data to Flutter with error handling
       print("📤 Invoking Flutter method 'onDataReceived'")
 
-      // Add delay to ensure Flutter is ready
-      DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-        channel.invokeMethod("onDataReceived", arguments: shareData) { result in
-          if let error = result as? FlutterError {
-            print("❌ Flutter method call error: \(error)")
-          } else {
-            print("✅ Flutter method call successful: \(result ?? "nil")")
-          }
-        }
-      }
+      // Wait for Flutter to be ready with exponential backoff
+      waitForFlutterAndSendData(channel: channel, shareData: shareData, attempt: 1)
 
       print("📤 ===================================")
       return true
@@ -493,6 +485,45 @@ import UserNotifications
 
     print("📋 No accessible allowed image found in iOS clipboard")
     result(nil)
+  }
+
+  private func waitForFlutterAndSendData(channel: FlutterMethodChannel, shareData: [String: Any], attempt: Int) {
+    let maxAttempts = 10
+    let baseDelay = 0.3
+    let currentDelay = min(baseDelay * Double(attempt), 3.0) // Cap at 3 seconds
+
+    print("📤 Attempt \(attempt)/\(maxAttempts) to send data to Flutter (delay: \(currentDelay)s)")
+
+    DispatchQueue.main.asyncAfter(deadline: .now() + currentDelay) {
+      // Test if Flutter is ready by calling a simple method first
+      channel.invokeMethod("getSharedData", arguments: nil) { testResult in
+        if testResult is FlutterMethodNotImplemented || testResult != nil {
+          // Flutter is responding, send the actual data
+          print("✅ Flutter is ready, sending share data (attempt \(attempt))")
+          channel.invokeMethod("onDataReceived", arguments: shareData) { result in
+            if let error = result as? FlutterError {
+              print("❌ Flutter method call error: \(error)")
+
+              // Retry if it's a channel error and we haven't exceeded max attempts
+              if attempt < maxAttempts {
+                print("🔄 Retrying due to Flutter error...")
+                self.waitForFlutterAndSendData(channel: channel, shareData: shareData, attempt: attempt + 1)
+              }
+            } else {
+              print("✅ Flutter method call successful: \(result ?? "nil")")
+            }
+          }
+        } else {
+          // Flutter not ready yet, retry
+          if attempt < maxAttempts {
+            print("⏳ Flutter not ready yet, retrying...")
+            self.waitForFlutterAndSendData(channel: channel, shareData: shareData, attempt: attempt + 1)
+          } else {
+            print("❌ Max attempts reached, Flutter may not be ready")
+          }
+        }
+      }
+    }
   }
 
   private func checkSharedContent(result: @escaping FlutterResult) {
