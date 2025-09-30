@@ -186,14 +186,20 @@ import UserNotifications
           switch item.name.lowercased() {
           case "content":
             shareData["content"] = value.removingPercentEncoding ?? value
+          case "link": // Handle link parameter from URL scheme
+            shareData["content"] = value.removingPercentEncoding ?? value
+            shareData["type"] = "url" // Set type to url when link parameter is provided
           case "type":
             shareData["type"] = value
           case "message":
             shareData["message"] = value.removingPercentEncoding ?? value
           case "timestamp":
             shareData["timestamp"] = value
-          case "text": // Legacy support
-            shareData["text"] = value.removingPercentEncoding ?? value
+          case "text": // Handle text parameter from URL scheme
+            shareData["content"] = value.removingPercentEncoding ?? value
+            if shareData["type"] == nil {
+              shareData["type"] = "text" // Set type to text when text parameter is provided
+            }
           default:
             // Store any additional parameters
             shareData[item.name] = value.removingPercentEncoding ?? value
@@ -206,7 +212,7 @@ import UserNotifications
       print("📤 Parsed share data: \(shareData)")
 
       // Ensure we have at least some content
-      guard shareData["content"] != nil || shareData["text"] != nil else {
+      guard shareData["content"] != nil else {
         print("❌ No content found in share URL")
         return false
       }

@@ -262,30 +262,47 @@ class OpenGraphService {
         try {
           debugPrint('🔍 Trying URL: $testUrl');
 
-          final response = await http.get(
-            Uri.parse(testUrl),
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1',
-              'Accept': '*/*',
-              'Accept-Language': 'en-US,en;q=0.9',
-              'Accept-Encoding': 'gzip, deflate, br',
-              'Cache-Control': 'no-cache',
-              'Pragma': 'no-cache',
-              'Sec-Fetch-Dest': 'document',
-              'Sec-Fetch-Mode': 'navigate',
-              'Sec-Fetch-Site': 'none',
-              'Upgrade-Insecure-Requests': '1',
-            },
-          ).timeout(const Duration(seconds: 15));
+          // Create HTTP client with proper configuration
+          final client = http.Client();
+          final request = http.Request('GET', Uri.parse(testUrl));
+
+          // Add headers that work better with Instagram
+          request.headers.addAll({
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'identity', // Disable compression to avoid encoding issues
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Upgrade-Insecure-Requests': '1',
+            'Connection': 'keep-alive',
+          });
+
+          final response = await client.send(request).timeout(const Duration(seconds: 15));
 
           if (response.statusCode == 200) {
             debugPrint('✅ Successfully fetched Instagram page');
-            final ogData = _parseInstagramContent(response.body, url);
-            if (ogData.image != null) {
+
+            // Read response body with proper encoding handling
+            final responseBody = await response.stream.bytesToString();
+            debugPrint('📄 Response body length: ${responseBody.length}');
+
+            final ogData = _parseInstagramContent(responseBody, url);
+            if (ogData.image != null && ogData.image!.isNotEmpty) {
               debugPrint('✅ Found Instagram image: ${ogData.image}');
+              client.close();
               return ogData;
+            } else {
+              debugPrint('⚠️ No image found in Instagram response');
             }
+          } else {
+            debugPrint('❌ Instagram request failed with status: ${response.statusCode}');
           }
+
+          client.close();
         } catch (e) {
           debugPrint('❌ Failed to fetch $testUrl: $e');
           continue;
@@ -307,57 +324,82 @@ class OpenGraphService {
     String? description;
     String? image;
 
-    // Instagram-specific meta tags
-    final instagramImageRegex = RegExp(r'<meta\s+property="og:image"\s+content="([^"]*)"', caseSensitive: false);
-    final instagramVideoRegex = RegExp(r'<meta\s+property="og:video"\s+content="([^"]*)"', caseSensitive: false);
-    final instagramTitleRegex = RegExp(r'<meta\s+property="og:title"\s+content="([^"]*)"', caseSensitive: false);
-    final instagramDescRegex = RegExp(r'<meta\s+property="og:description"\s+content="([^"]*)"', caseSensitive: false);
+    debugPrint('🔍 Parsing Instagram HTML (length: ${html.length})');
 
-    // Try to find image
-    final imageMatch = instagramImageRegex.firstMatch(html);
-    if (imageMatch != null) {
-      image = imageMatch.group(1);
-    }
+    // Multiple regex patterns for Instagram meta tags
+    final List<RegExp> imageRegexes = [
+      RegExp(r'<meta\s+property="og:image"\s+content="([^"]*)"', caseSensitive: false),
+      RegExp(r'<meta\s+property="og:image:url"\s+content="([^"]*)"', caseSensitive: false),
+      RegExp(r'<meta\s+name="twitter:image"\s+content="([^"]*)"', caseSensitive: false),
+      RegExp(r'"display_url":"([^"]*)"', caseSensitive: false),
+      RegExp(r'"thumbnail_src":"([^"]*)"', caseSensitive: false),
+    ];
 
-    // If no image, try video thumbnail
-    if (image == null) {
-      final videoMatch = instagramVideoRegex.firstMatch(html);
-      if (videoMatch != null) {
-        // For video posts, Instagram often has a thumbnail
-        final videoThumbRegex = RegExp(r'<meta\s+property="og:image"\s+content="([^"]*)"', caseSensitive: false);
-        final thumbMatch = videoThumbRegex.firstMatch(html);
-        if (thumbMatch != null) {
-          image = thumbMatch.group(1);
+    final List<RegExp> titleRegexes = [
+      RegExp(r'<meta\s+property="og:title"\s+content="([^"]*)"', caseSensitive: false),
+      RegExp(r'<title[^>]*>([^<]*)</title>', caseSensitive: false),
+      RegExp(r'<meta\s+name="twitter:title"\s+content="([^"]*)"', caseSensitive: false),
+    ];
+
+    final List<RegExp> descriptionRegexes = [
+      RegExp(r'<meta\s+property="og:description"\s+content="([^"]*)"', caseSensitive: false),
+      RegExp(r'<meta\s+name="description"\s+content="([^"]*)"', caseSensitive: false),
+      RegExp(r'<meta\s+name="twitter:description"\s+content="([^"]*)"', caseSensitive: false),
+    ];
+
+    // Try to find image using multiple patterns
+    for (final regex in imageRegexes) {
+      final match = regex.firstMatch(html);
+      if (match != null && match.group(1) != null) {
+        final foundImage = match.group(1)!;
+        // Clean up escaped characters
+        image = foundImage
+            .replaceAll(r'\u0026', '&')
+            .replaceAll(r'\\/', '/')
+            .replaceAll(r'\\', '');
+
+        if (image!.isNotEmpty &&
+            !image!.contains('placeholder') &&
+            !image!.contains('default')) {
+          debugPrint('✅ Found Instagram image: $image');
+          break;
+        } else {
+          image = null; // Reset if it's a placeholder
         }
       }
     }
 
-    // Try alternative image selectors
-    if (image == null) {
-      final altImageRegex = RegExp(r'"display_url":"([^"]*)"', caseSensitive: false);
-      final altMatch = altImageRegex.firstMatch(html);
-      if (altMatch != null) {
-        image = altMatch.group(1)?.replaceAll(r'\u0026', '&');
+    // Try to find title using multiple patterns
+    for (final regex in titleRegexes) {
+      final match = regex.firstMatch(html);
+      if (match != null && match.group(1) != null) {
+        title = _decodeHtmlEntities(match.group(1)!);
+        if (title!.isNotEmpty && title != 'Instagram') {
+          debugPrint('✅ Found Instagram title: $title');
+          break;
+        }
       }
     }
 
-    // Extract title
-    final titleMatch = instagramTitleRegex.firstMatch(html);
-    if (titleMatch != null) {
-      title = _decodeHtmlEntities(titleMatch.group(1)!);
+    // Try to find description using multiple patterns
+    for (final regex in descriptionRegexes) {
+      final match = regex.firstMatch(html);
+      if (match != null && match.group(1) != null) {
+        description = _decodeHtmlEntities(match.group(1)!);
+        if (description!.isNotEmpty) {
+          debugPrint('✅ Found Instagram description: ${description!.length > 100 ? description!.substring(0, 100) + "..." : description}');
+          break;
+        }
+      }
     }
 
-    // Extract description
-    final descMatch = instagramDescRegex.firstMatch(html);
-    if (descMatch != null) {
-      description = _decodeHtmlEntities(descMatch.group(1)!);
-    }
+    debugPrint('🔍 Instagram parsing results: title=$title, description=${description?.length}, image=$image');
 
     return OpenGraphData(
       url: originalUrl,
-      title: title ?? 'Instagram Post',
-      description: description,
-      image: image,
+      title: title?.isNotEmpty == true ? title : (originalUrl.contains('/reel/') ? 'Instagram Reel' : 'Instagram Post'),
+      description: description?.isNotEmpty == true ? description : null,
+      image: image?.isNotEmpty == true ? image : null,
       siteName: 'Instagram',
       favicon: 'https://www.instagram.com/static/images/ico/favicon.ico',
     );
