@@ -1565,91 +1565,48 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
 
         case SharedContentType.image:
         case SharedContentType.multipleImages:
-          // Upload all images first and get their URLs
-          final imagePaths = widget.sharedContent.imagePaths ?? [];
-          final uploadedImageUrls = <String>[];
+        case SharedContentType.file:
+          // Handle mixed media (images, videos, and files) using the same approach as SelfSendingMessageBubble
+          final allFilePaths = [
+            ...(widget.sharedContent.imagePaths ?? []),
+            ...(widget.sharedContent.filePaths ?? []),
+          ];
 
-          // Upload all images sequentially to ensure they're all processed
-          for (final imagePath in imagePaths) {
-            try {
-              // Create PlatformFile from image path
-              final file = File(imagePath);
-              if (await file.exists()) {
-                final bytes = await file.readAsBytes();
-                final fileName = imagePath.split('/').last;
-                final platformFile = PlatformFile(
-                  name: fileName,
-                  size: bytes.length,
-                  bytes: bytes,
-                  path: imagePath,
-                );
-
-                // Upload the file and wait for completion
-                final uploadedUrl = await ChatApiService.uploadFile(
-                  platformFile,
-                );
-                if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
-                  uploadedImageUrls.add(uploadedUrl);
-                  print('✅ Image uploaded successfully: $uploadedUrl');
-                } else {
-                  print('❌ Failed to upload image: $imagePath');
-                }
-              } else {
-                print('❌ Image file not found: $imagePath');
-              }
-            } catch (e) {
-              print('❌ Error uploading image $imagePath: $e');
-              // Continue with other images even if one fails
-            }
-          }
-
-          // Only proceed if at least one image was uploaded successfully
-          if (uploadedImageUrls.isEmpty) {
-            print('❌ No images were uploaded successfully');
+          if (allFilePaths.isEmpty) {
+            print('❌ No files found to upload');
             return false;
           }
 
-          print(
-            '📤 Creating message with ${uploadedImageUrls.length} uploaded images',
-          );
+          final mediaItems = <Map<String, dynamic>>[];
 
-          // Create message with uploaded image URLs
-          messageData = {
-            'content': {
-              'type': 'text',
-              'body': _messageController.text.trim().isEmpty
-                  ? ' '
-                  : _messageController.text.trim(),
-              'images': uploadedImageUrls,
-            },
-            'type': 'text',
-            'metadata': {'forwarded': true},
-          };
-          break;
-
-        case SharedContentType.file:
-          // Upload all files first and get their URLs
-          final filePaths = widget.sharedContent.filePaths ?? [];
-          final uploadedFileUrls = <String>[];
-
-          // Upload all files sequentially to ensure they're all processed
-          for (final filePath in filePaths) {
+          // Upload all files sequentially and categorize them
+          for (final filePath in allFilePaths) {
             try {
-              // Check if file is a video and needs compression
+              final file = File(filePath);
+              if (!await file.exists()) {
+                print('❌ File not found: $filePath');
+                continue;
+              }
+
+              // Determine file type using the same logic as SelfSendingMessageBubble
+              final fileName = filePath.split('/').last;
+              final fileType = _getFileType(fileName);
+
+              print('📤 Processing $fileType: $fileName');
+
+              // Handle video compression if needed (same as SelfSendingMessageBubble)
               String finalFilePath = filePath;
-
-              if (_isVideoFile(filePath)) {
-                print('🎬 ShareTarget: Processing video file: $filePath');
-
+              if (fileType == 'video') {
+                // Import video compression service if available
                 final needsCompression = await VideoCompressionService.needsCompression(filePath);
                 if (needsCompression) {
-                  print('🎬 ShareTarget: Video needs compression, compressing...');
+                  print('🎬 ShareTarget: Video needs compression, starting...');
 
                   final compressedPath = await VideoCompressionService.compressVideo(
                     inputPath: filePath,
                     deleteOriginal: false,
                     onProgress: (progress) {
-                      print('📊 Video compression progress: ${progress.toStringAsFixed(1)}%');
+                      print('📊 ShareTarget compression progress: ${progress.toStringAsFixed(1)}%');
                     },
                   );
 
@@ -1664,60 +1621,55 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
                 }
               }
 
-              // Create PlatformFile from file path (original or compressed)
-              final file = File(finalFilePath);
-              if (await file.exists()) {
-                final bytes = await file.readAsBytes();
-                final fileName = finalFilePath.split('/').last;
-                final platformFile = PlatformFile(
-                  name: fileName,
-                  size: bytes.length,
-                  bytes: bytes,
-                  path: finalFilePath,
-                );
+              // Create PlatformFile
+              final bytes = await file.readAsBytes();
+              final platformFile = PlatformFile(
+                name: fileName,
+                size: bytes.length,
+                bytes: bytes,
+                path: finalFilePath,
+              );
 
-                // Upload the file and wait for completion
-                final uploadedUrl = await ChatApiService.uploadFile(
-                  platformFile,
-                );
-                if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
-                  uploadedFileUrls.add(uploadedUrl);
-                  print('✅ File uploaded successfully: $uploadedUrl');
-                } else {
-                  print('❌ Failed to upload file: $finalFilePath');
-                }
+              // Upload the file
+              final uploadedUrl = await ChatApiService.uploadFile(platformFile);
+              if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
+                // Add to media items with proper type
+                mediaItems.add({
+                  'type': fileType == 'video' ? 'video' : 'image',
+                  'url': uploadedUrl,
+                });
+                print('✅ $fileType uploaded successfully: $uploadedUrl');
               } else {
-                print('❌ File not found: $finalFilePath');
+                print('❌ Failed to upload $fileType: $filePath');
               }
             } catch (e) {
-              print('❌ Error processing file $filePath: $e');
+              print('❌ Error uploading file $filePath: $e');
               // Continue with other files even if one fails
             }
           }
 
           // Only proceed if at least one file was uploaded successfully
-          if (uploadedFileUrls.isEmpty) {
+          if (mediaItems.isEmpty) {
             print('❌ No files were uploaded successfully');
             return false;
           }
 
-          print(
-            '📤 Creating message with ${uploadedFileUrls.length} uploaded files',
-          );
+          print('📤 Creating message with ${mediaItems.length} uploaded media items');
 
-          // Create message with uploaded file URLs (mixed images/videos in images array)
+          // Create message with uploaded media (same format as SelfSendingMessageBubble)
           messageData = {
             'content': {
               'type': 'text',
               'body': _messageController.text.trim().isEmpty
                   ? ' '
                   : _messageController.text.trim(),
-              'images': uploadedFileUrls, // Use images array for all media types
+              'media': mediaItems,
             },
             'type': 'text',
             'metadata': {'forwarded': true},
           };
           break;
+
 
         case SharedContentType.unknown:
           messageData = {
@@ -2034,5 +1986,26 @@ class _ShareTargetScreenState extends State<ShareTargetScreen> {
   bool _isVideoFile(String filePath) {
     final extension = filePath.split('.').last.toLowerCase();
     return ['mp4', 'mov', 'avi', 'mkv', '3gp', 'webm', 'm4v', 'mpg', 'mpeg'].contains(extension);
+  }
+
+  String _getFileType(String fileName) {
+    final extension = fileName.split('.').last.toLowerCase();
+
+    // Image types
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].contains(extension)) {
+      return 'image';
+    }
+
+    // Video types
+    if (['mp4', 'mov', 'avi', 'mkv', 'wmv', 'flv', 'webm', '3gp', 'm4v', 'mpg', 'mpeg'].contains(extension)) {
+      return 'video';
+    }
+
+    // Audio types
+    if (['mp3', 'wav', 'aac', 'm4a', 'flac', 'ogg', 'wma'].contains(extension)) {
+      return 'audio';
+    }
+
+    return 'document';
   }
 }

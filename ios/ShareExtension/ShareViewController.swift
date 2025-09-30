@@ -7,6 +7,9 @@ final class ShareViewController: UIViewController {
     // Prevent double-completion
     private var didComplete = false
 
+    // Debug log for tracking all steps
+    private var debugLog: [String] = []
+
     override func loadView() {
         // Create an invisible view since we're just processing and redirecting
         view = UIView()
@@ -16,12 +19,23 @@ final class ShareViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        logStep("ShareExtension viewDidLoad - Starting content processing")
         Task { await processSharedContent() }
     }
 
-    // MARK: - Debug Alert Helper
+    // MARK: - Debug Logging
+
+    private func logStep(_ message: String) {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss.SSS"
+        let timestamp = formatter.string(from: Date())
+        let logEntry = "[\(timestamp)] \(message)"
+        debugLog.append(logEntry)
+        print("LOG: \(logEntry)")
+    }
 
     private func showDebugAlert(_ title: String, message: String) {
+        logStep("\(title): \(message)")
         DispatchQueue.main.async {
             let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
             alert.addAction(UIAlertAction(title: "OK", style: .default))
@@ -29,22 +43,52 @@ final class ShareViewController: UIViewController {
         }
     }
 
+    private func showFinalLog() {
+        let fullLog = debugLog.joined(separator: "\n")
+        DispatchQueue.main.async {
+            let alert = UIAlertController(title: "ShareExtension Debug Log", message: fullLog, preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "Copy", style: .default) { _ in
+                UIPasteboard.general.string = fullLog
+            })
+            alert.addAction(UIAlertAction(title: "Close", style: .cancel))
+            self.present(alert, animated: true)
+        }
+    }
+
     // MARK: - Core
 
     private func completeOnce() {
-        //do nothing.
         guard !didComplete else { return }
         didComplete = true
-        extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
+        logStep("ShareExtension completing...")
+
+        // Show final log before closing
+        showFinalLog()
+
+        // Complete after a delay to allow user to see the log
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) {
+            self.extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
+        }
     }
 
     private func completeWithError(_ message: String) {
-        showDebugAlert("ShareExtension Error", message: "❌ \(message)")
-        completeOnce()
+        logStep("ERROR: \(message)")
+        showFinalLog()
+
+        // Complete after a delay to allow user to see the log
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) {
+            self.extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
+        }
     }
 
     private func containerURL() -> URL? {
-        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.app.duggy")
+        let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.app.duggy")
+        if let url = containerURL {
+            logStep("App Group container found: \(url.path)")
+        } else {
+            logStep("App Group container NOT found for 'group.app.duggy'")
+        }
+        return containerURL
     }
 
     private func ensureDirectory(_ url: URL) throws {
@@ -77,25 +121,59 @@ final class ShareViewController: UIViewController {
     }
 
     private func appGroupCopyTempFile(_ tempURL: URL, folder: String, filename: String) -> String? {
-        guard let base = containerURL() else { return nil }
+        logStep("appGroupCopyTempFile called for \(filename) in \(folder)")
+
+        guard let base = containerURL() else {
+            logStep("Failed to get App Group container URL")
+            return nil
+        }
+        logStep("App Group container URL: \(base.path)")
+
         let dir = base.appendingPathComponent(folder, isDirectory: true)
-        do { try ensureDirectory(dir) } catch {
+        logStep("Target directory: \(dir.path)")
+
+        do {
+            try ensureDirectory(dir)
+            logStep("Successfully ensured directory exists")
+        } catch {
+            logStep("Failed to create directory: \(error)")
             showDebugAlert("Directory Error", message: "❌ Could not create \(folder) dir: \(error)")
             return nil
         }
+
         let dest = dir.appendingPathComponent(filename)
+        logStep("Destination file: \(dest.path)")
+        logStep("Source file: \(tempURL.path)")
+
+        // Check if source file exists and is readable
+        if FileManager.default.fileExists(atPath: tempURL.path) {
+            logStep("Source file exists")
+        } else {
+            logStep("Source file does NOT exist")
+            return nil
+        }
+
         do {
             // Overwrite if exists
-            try? FileManager.default.removeItem(at: dest)
+            if FileManager.default.fileExists(atPath: dest.path) {
+                logStep("Destination file exists, removing...")
+                try FileManager.default.removeItem(at: dest)
+                logStep("Successfully removed existing destination file")
+            }
+
+            logStep("Attempting to copy file...")
             try FileManager.default.copyItem(at: tempURL, to: dest)
+            logStep("Successfully copied file to app group")
             return dest.path
         } catch {
-            //showDebugAlert("Copy Error", message: "❌ Copy to app group failed: \(error)")
+            logStep("Copy failed with error: \(error)")
+            logStep("Error details: \(error.localizedDescription)")
             return nil
         }
     }
 
     private func openHostApp(fallbackPayload: (content: String, type: String, userText: String?)) async {
+        logStep("openHostApp called with type: \(fallbackPayload.type)")
         // Save the content to App Groups for the main app to read
         appGroupSave(content: fallbackPayload.content, type: fallbackPayload.type, userText: fallbackPayload.userText)
         await MainActor.run {
@@ -104,130 +182,158 @@ final class ShareViewController: UIViewController {
     }
 
     private func openMainApp() {
+        logStep("openMainApp called - attempting to launch main app")
         // Use only the working URL scheme
         let scheme = "duggy://share"
 
         if let url = URL(string: scheme) {
+            logStep("Valid URL created: \(scheme)")
             var responder: UIResponder? = self
             while responder != nil {
                 if let application = responder as? UIApplication {
+                    logStep("Found UIApplication, calling open(url)")
                     application.open(url)
                     break
                 }
                 responder = responder?.next
             }
+            logStep("App launch attempt completed")
+        } else {
+            logStep("Failed to create URL from scheme: \(scheme)")
         }
     }
 
     // MARK: - Processing
 
     private func processSharedContent() async {
+        logStep("Starting processSharedContent")
+
         guard let items = extensionContext?.inputItems as? [NSExtensionItem], !items.isEmpty else {
             return completeWithError("No input items")
         }
 
+        logStep("Found \(items.count) input item(s)")
         var allAttachmentTypes: [String] = []
+        var processedFiles: [(path: String, type: String, message: String)] = []
 
-        // Iterate attachments in priority order: URL → text → movie → file → image
-        for item in items {
-            guard let providers = item.attachments, !providers.isEmpty else { continue }
+        // Iterate through all items to collect all files first
+        for (itemIndex, item) in items.enumerated() {
+            logStep("Processing item \(itemIndex + 1)")
+
+            guard let providers = item.attachments, !providers.isEmpty else {
+                logStep("Item \(itemIndex + 1) has no attachments")
+                continue
+            }
+
+            logStep("Item \(itemIndex + 1) has \(providers.count) provider(s)")
 
             // Collect all attachment types for debugging
-            for provider in providers {
+            for (providerIndex, provider) in providers.enumerated() {
                 let types = provider.registeredTypeIdentifiers
+                logStep("Provider \(providerIndex + 1) types: \(types.joined(separator: ", "))")
                 allAttachmentTypes.append(contentsOf: types)
             }
 
-            // Helper to check a provider for a UTType
-            func firstProvider(conformingTo type: UTType) -> NSItemProvider? {
-                providers.first { $0.hasItemConformingToTypeIdentifier(type.identifier) }
-            }
+            // Process each provider to collect all files
+            for (providerIndex, provider) in providers.enumerated() {
+                logStep("Processing provider \(providerIndex + 1) of item \(itemIndex + 1)")
 
-            // 1) URL
-            if let p = firstProvider(conformingTo: .url) {
-                if let url = await loadURL(from: p) {
-                    await openHostApp(fallbackPayload: (url.absoluteString, "url", "🔗 Shared a link"))
-                    return completeOnce()
-                }
-            }
+                // Try different content types for this provider
+                var processed = false
 
-            // 2) Plain text
-            if let p = firstProvider(conformingTo: .plainText) {
-                if let text = await loadText(from: p) {
-                    await openHostApp(fallbackPayload: (text, "text", "📝 Shared text"))
-                    return completeOnce()
-                }
-            }
-
-            // 3) Movie
-            if let p = firstProvider(conformingTo: .movie) {
-                if let temp = await loadFile(from: p, as: .movie) {
-                    let name = "shared_video_\(Int(Date().timeIntervalSince1970))_\(UUID().uuidString.prefix(8)).mov"
-                    if let path = appGroupCopyTempFile(temp, folder: "SharedVideos", filename: name) {
-                        await openHostApp(fallbackPayload: (path, "video", "🎥 Shared a video"))
-                        return completeOnce()
+                // 1) URL
+                if !processed && provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
+                    logStep("Provider has URL, attempting to load...")
+                    if let url = await loadURL(from: provider) {
+                        logStep("Successfully loaded URL: \(url.absoluteString)")
+                        processedFiles.append((url.absoluteString, "url", "🔗 Shared a link"))
+                        processed = true
                     }
                 }
-            }
 
-            // 4) Generic file (data / file URL)
-            if let p = firstProvider(conformingTo: .data) ?? firstProvider(conformingTo: .item) {
-                if let temp = await loadAnyFile(from: p) {
-                    let name = "shared_file_\(Int(Date().timeIntervalSince1970))_\(UUID().uuidString.prefix(8))"
-                    if let path = appGroupCopyTempFile(temp, folder: "SharedFiles", filename: name) {
-                        await openHostApp(fallbackPayload: (path, "file", "📄 Shared a file"))
-                        return completeOnce()
+                // 2) Plain text
+                if !processed && provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
+                    logStep("Provider has plain text, attempting to load...")
+                    if let text = await loadText(from: provider) {
+                        logStep("Successfully loaded text: \(text.prefix(50))...")
+                        processedFiles.append((text, "text", "📝 Shared text"))
+                        processed = true
                     }
                 }
-            }
 
-            // 5) Image - try specific image formats first, then generic .image
-            let imageTypes: [UTType] = [
-                UTType(filenameExtension: "jpg") ?? .jpeg,
-                UTType(filenameExtension: "jpeg") ?? .jpeg,
-                .jpeg,
-                .png,
-                .gif,
-                .webP,
-                .bmp,
-                .tiff,
-                .image  // Generic fallback
-            ]
+                // 3) Movie
+                if !processed && provider.hasItemConformingToTypeIdentifier(UTType.movie.identifier) {
+                    logStep("Provider has movie, attempting to load...")
+                    if let copiedFile = await loadFile(from: provider, as: .movie) {
+                        logStep("Successfully loaded and copied movie file: \(copiedFile.path)")
+                        processedFiles.append((copiedFile.path, "video", "🎥 Shared a video"))
+                        processed = true
+                    }
+                }
 
-            for imageType in imageTypes {
-                if let p = firstProvider(conformingTo: imageType) {
-                    if let temp = await loadFile(from: p, as: imageType) {
-                        let name = "shared_image_\(Int(Date().timeIntervalSince1970))_\(UUID().uuidString.prefix(8)).jpg"
-                        if let path = appGroupCopyTempFile(temp, folder: "SharedImages", filename: name) {
-                            await openHostApp(fallbackPayload: (path, "image", "📸 Shared an image"))
-                            return completeOnce()
+                // 4) Images - try multiple image types
+                if !processed {
+                    let imageTypes: [UTType] = [.jpeg, .png, .gif, .webP, .bmp, .tiff, .image]
+                    for imageType in imageTypes {
+                        if provider.hasItemConformingToTypeIdentifier(imageType.identifier) {
+                            logStep("Provider has \(imageType.identifier), attempting to load...")
+                            if let copiedFile = await loadFile(from: provider, as: imageType) {
+                                logStep("Successfully loaded and copied image file: \(copiedFile.path)")
+                                processedFiles.append((copiedFile.path, "image", "📸 Shared an image"))
+                                processed = true
+                                break
+                            }
                         }
                     }
                 }
-            }
 
-            // Also try by raw type identifier for public.jpeg
-            for provider in providers {
-                if provider.hasItemConformingToTypeIdentifier("public.jpeg") ||
-                   provider.hasItemConformingToTypeIdentifier("public.png") ||
-                   provider.hasItemConformingToTypeIdentifier("public.image") {
-                    if let temp = await loadFileByIdentifier(from: provider, identifier: provider.registeredTypeIdentifiers.first { id in
-                        id.contains("jpeg") || id.contains("png") || id.contains("image")
-                    } ?? "public.image") {
-                        let name = "shared_image_\(Int(Date().timeIntervalSince1970))_\(UUID().uuidString.prefix(8)).jpg"
-                        if let path = appGroupCopyTempFile(temp, folder: "SharedImages", filename: name) {
-                            await openHostApp(fallbackPayload: (path, "image", "📸 Shared an image"))
-                            return completeOnce()
+                // 5) Raw type identifiers for images
+                if !processed {
+                    for typeId in provider.registeredTypeIdentifiers {
+                        if typeId.contains("jpeg") || typeId.contains("png") || typeId.contains("image") {
+                            logStep("Provider has raw image type \(typeId), attempting to load...")
+                            if let copiedFile = await loadFileByIdentifier(from: provider, identifier: typeId) {
+                                logStep("Successfully loaded and copied raw image file: \(copiedFile.path)")
+                                processedFiles.append((copiedFile.path, "image", "📸 Shared an image"))
+                                processed = true
+                                break
+                            }
                         }
                     }
+                }
+
+                // 6) Generic file
+                if !processed && (provider.hasItemConformingToTypeIdentifier(UTType.data.identifier) ||
+                                  provider.hasItemConformingToTypeIdentifier(UTType.item.identifier)) {
+                    logStep("Provider has generic data, attempting to load...")
+                    if let copiedFile = await loadAnyFile(from: provider) {
+                        logStep("Successfully loaded and copied generic file: \(copiedFile.path)")
+                        processedFiles.append((copiedFile.path, "file", "📄 Shared a file"))
+                        processed = true
+                    }
+                }
+
+                if !processed {
+                    logStep("Could not process provider \(providerIndex + 1) with types: \(provider.registeredTypeIdentifiers.joined(separator: ", "))")
                 }
             }
         }
 
-        // Show all found attachment types in error message
-        let uniqueTypes = Array(Set(allAttachmentTypes)).sorted()
-        let typesString = uniqueTypes.joined(separator: ", ")
-        completeWithError("No supported attachments found. Available types: \(typesString)")
+        // Process results
+        if processedFiles.isEmpty {
+            let uniqueTypes = Array(Set(allAttachmentTypes)).sorted()
+            let typesString = uniqueTypes.joined(separator: ", ")
+            completeWithError("No supported attachments found. Available types: \(typesString)")
+        } else {
+            logStep("Successfully processed \(processedFiles.count) file(s)")
+
+            // For now, take the first successfully processed file
+            // TODO: In the future, we could show a file picker or process multiple files
+            let firstFile = processedFiles[0]
+            logStep("Using first processed file: \(firstFile.path) (\(firstFile.type))")
+            await openHostApp(fallbackPayload: (firstFile.path, firstFile.type, firstFile.message))
+            completeOnce()
+        }
     }
 
     // MARK: - NSItemProvider loaders (async)
@@ -280,8 +386,38 @@ final class ShareViewController: UIViewController {
                     DispatchQueue.main.async {
                         self.showDebugAlert("Load File Error", message: "❌ load file(\(type)) error: \(error)")
                     }
+                    cont.resume(returning: nil)
+                    return
                 }
-                cont.resume(returning: url)
+
+                guard let tempURL = url else {
+                    cont.resume(returning: nil)
+                    return
+                }
+
+                // Copy immediately while temp file still exists
+                self.logStep("Temp file received: \(tempURL.path)")
+
+                // Determine appropriate folder and filename based on type
+                let (folder, filename): (String, String)
+                if type == .movie || type.identifier.contains("movie") || type.identifier.contains("video") {
+                    folder = "SharedVideos"
+                    filename = "shared_video_\(Int(Date().timeIntervalSince1970))_\(UUID().uuidString.prefix(8)).mov"
+                } else if type == .image || type.identifier.contains("image") || type.identifier.contains("jpeg") || type.identifier.contains("png") {
+                    folder = "SharedImages"
+                    filename = "shared_image_\(Int(Date().timeIntervalSince1970))_\(UUID().uuidString.prefix(8)).jpg"
+                } else {
+                    folder = "SharedFiles"
+                    filename = "shared_file_\(Int(Date().timeIntervalSince1970))_\(UUID().uuidString.prefix(8))"
+                }
+
+                if let copiedPath = self.appGroupCopyTempFile(tempURL, folder: folder, filename: filename) {
+                    // Return the copied file URL instead of temp URL
+                    cont.resume(returning: URL(fileURLWithPath: copiedPath))
+                } else {
+                    self.logStep("Failed to copy temp file immediately")
+                    cont.resume(returning: nil)
+                }
             }
         }
     }
@@ -293,8 +429,38 @@ final class ShareViewController: UIViewController {
                     DispatchQueue.main.async {
                         self.showDebugAlert("Load File by ID Error", message: "❌ load file(\(identifier)) error: \(error)")
                     }
+                    cont.resume(returning: nil)
+                    return
                 }
-                cont.resume(returning: url)
+
+                guard let tempURL = url else {
+                    cont.resume(returning: nil)
+                    return
+                }
+
+                // Copy immediately while temp file still exists
+                self.logStep("Temp file received by identifier: \(tempURL.path)")
+
+                // Determine appropriate folder and filename based on identifier
+                let (folder, filename): (String, String)
+                if identifier.contains("movie") || identifier.contains("video") || identifier.contains("mpeg") || identifier.contains("quicktime") {
+                    folder = "SharedVideos"
+                    filename = "shared_video_\(Int(Date().timeIntervalSince1970))_\(UUID().uuidString.prefix(8)).mov"
+                } else if identifier.contains("image") || identifier.contains("jpeg") || identifier.contains("png") {
+                    folder = "SharedImages"
+                    filename = "shared_image_\(Int(Date().timeIntervalSince1970))_\(UUID().uuidString.prefix(8)).jpg"
+                } else {
+                    folder = "SharedFiles"
+                    filename = "shared_file_\(Int(Date().timeIntervalSince1970))_\(UUID().uuidString.prefix(8))"
+                }
+
+                if let copiedPath = self.appGroupCopyTempFile(tempURL, folder: folder, filename: filename) {
+                    // Return the copied file URL instead of temp URL
+                    cont.resume(returning: URL(fileURLWithPath: copiedPath))
+                } else {
+                    self.logStep("Failed to copy temp file immediately by identifier")
+                    cont.resume(returning: nil)
+                }
             }
         }
     }

@@ -35,7 +35,7 @@ class FileUploadService {
         );
 
       final streamed = await request.send().timeout(
-        const Duration(seconds: 30),
+        const Duration(seconds: 120), // Increased timeout for large files
       );
       final responseBody = await streamed.stream.bytesToString();
 
@@ -89,7 +89,7 @@ class FileUploadService {
         );
 
       final streamed = await request.send().timeout(
-        const Duration(seconds: 30),
+        const Duration(seconds: 120), // Increased timeout for large files
       );
       final responseBody = await streamed.stream.bytesToString();
 
