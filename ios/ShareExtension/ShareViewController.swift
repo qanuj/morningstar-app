@@ -19,16 +19,27 @@ final class ShareViewController: UIViewController {
         Task { await processSharedContent() }
     }
 
+    // MARK: - Debug Alert Helper
+
+    private func showDebugAlert(_ title: String, message: String) {
+        DispatchQueue.main.async {
+            let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            self.present(alert, animated: true)
+        }
+    }
+
     // MARK: - Core
 
     private func completeOnce() {
+        //do nothing.
         guard !didComplete else { return }
         didComplete = true
         extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
     }
 
     private func completeWithError(_ message: String) {
-        print("❌ ShareExtension: \(message)")
+        showDebugAlert("ShareExtension Error", message: "❌ \(message)")
         completeOnce()
     }
 
@@ -45,7 +56,7 @@ final class ShareViewController: UIViewController {
 
         let dir = base.appendingPathComponent("SharedData", isDirectory: true)
         do { try ensureDirectory(dir) } catch {
-            print("❌ Could not create SharedData dir: \(error)")
+            showDebugAlert("Directory Error", message: "❌ Could not create SharedData dir: \(error)")
             return
         }
 
@@ -60,9 +71,8 @@ final class ShareViewController: UIViewController {
         do {
             let data = try JSONSerialization.data(withJSONObject: payload, options: .prettyPrinted)
             try data.write(to: file, options: .atomic)
-            print("✅ Saved shared payload → \(file.path)")
         } catch {
-            print("❌ Failed to persist payload: \(error)")
+            showDebugAlert("Save Error", message: "❌ Failed to persist payload: \(error)")
         }
     }
 
@@ -70,7 +80,7 @@ final class ShareViewController: UIViewController {
         guard let base = containerURL() else { return nil }
         let dir = base.appendingPathComponent(folder, isDirectory: true)
         do { try ensureDirectory(dir) } catch {
-            print("❌ Could not create \(folder) dir: \(error)")
+            showDebugAlert("Directory Error", message: "❌ Could not create \(folder) dir: \(error)")
             return nil
         }
         let dest = dir.appendingPathComponent(filename)
@@ -80,17 +90,14 @@ final class ShareViewController: UIViewController {
             try FileManager.default.copyItem(at: tempURL, to: dest)
             return dest.path
         } catch {
-            print("❌ Copy to app group failed: \(error)")
+            //showDebugAlert("Copy Error", message: "❌ Copy to app group failed: \(error)")
             return nil
         }
     }
 
     private func openHostApp(fallbackPayload: (content: String, type: String, userText: String?)) async {
-        print("📤 Saving content and opening main app...")
-
         // Save the content to App Groups for the main app to read
         appGroupSave(content: fallbackPayload.content, type: fallbackPayload.type, userText: fallbackPayload.userText)
-
         await MainActor.run {
             openMainApp()
         }
@@ -101,7 +108,6 @@ final class ShareViewController: UIViewController {
         let scheme = "duggy://share"
 
         if let url = URL(string: scheme) {
-            print("📤 Attempting to open app with: \(scheme)")
             var responder: UIResponder? = self
             while responder != nil {
                 if let application = responder as? UIApplication {
@@ -109,11 +115,6 @@ final class ShareViewController: UIViewController {
                     break
                 }
                 responder = responder?.next
-            }
-        } else {
-            print("⚠️ Invalid URL scheme")
-            Task {
-                await sendNotificationFallback(type: "content", userText: "Content saved - open Duggy to share")
             }
         }
     }
@@ -125,9 +126,17 @@ final class ShareViewController: UIViewController {
             return completeWithError("No input items")
         }
 
+        var allAttachmentTypes: [String] = []
+
         // Iterate attachments in priority order: URL → text → movie → file → image
         for item in items {
             guard let providers = item.attachments, !providers.isEmpty else { continue }
+
+            // Collect all attachment types for debugging
+            for provider in providers {
+                let types = provider.registeredTypeIdentifiers
+                allAttachmentTypes.append(contentsOf: types)
+            }
 
             // Helper to check a provider for a UTType
             func firstProvider(conformingTo type: UTType) -> NSItemProvider? {
@@ -172,19 +181,53 @@ final class ShareViewController: UIViewController {
                 }
             }
 
-            // 5) Image
-            if let p = firstProvider(conformingTo: .image) {
-                if let temp = await loadFile(from: p, as: .image) {
-                    let name = "shared_image_\(Int(Date().timeIntervalSince1970))_\(UUID().uuidString.prefix(8)).jpg"
-                    if let path = appGroupCopyTempFile(temp, folder: "SharedImages", filename: name) {
-                        await openHostApp(fallbackPayload: (path, "image", "📸 Shared an image"))
-                        return completeOnce()
+            // 5) Image - try specific image formats first, then generic .image
+            let imageTypes: [UTType] = [
+                UTType(filenameExtension: "jpg") ?? .jpeg,
+                UTType(filenameExtension: "jpeg") ?? .jpeg,
+                .jpeg,
+                .png,
+                .gif,
+                .webP,
+                .bmp,
+                .tiff,
+                .image  // Generic fallback
+            ]
+
+            for imageType in imageTypes {
+                if let p = firstProvider(conformingTo: imageType) {
+                    if let temp = await loadFile(from: p, as: imageType) {
+                        let name = "shared_image_\(Int(Date().timeIntervalSince1970))_\(UUID().uuidString.prefix(8)).jpg"
+                        if let path = appGroupCopyTempFile(temp, folder: "SharedImages", filename: name) {
+                            await openHostApp(fallbackPayload: (path, "image", "📸 Shared an image"))
+                            return completeOnce()
+                        }
+                    }
+                }
+            }
+
+            // Also try by raw type identifier for public.jpeg
+            for provider in providers {
+                if provider.hasItemConformingToTypeIdentifier("public.jpeg") ||
+                   provider.hasItemConformingToTypeIdentifier("public.png") ||
+                   provider.hasItemConformingToTypeIdentifier("public.image") {
+                    if let temp = await loadFileByIdentifier(from: provider, identifier: provider.registeredTypeIdentifiers.first { id in
+                        id.contains("jpeg") || id.contains("png") || id.contains("image")
+                    } ?? "public.image") {
+                        let name = "shared_image_\(Int(Date().timeIntervalSince1970))_\(UUID().uuidString.prefix(8)).jpg"
+                        if let path = appGroupCopyTempFile(temp, folder: "SharedImages", filename: name) {
+                            await openHostApp(fallbackPayload: (path, "image", "📸 Shared an image"))
+                            return completeOnce()
+                        }
                     }
                 }
             }
         }
 
-        completeWithError("No supported attachments found")
+        // Show all found attachment types in error message
+        let uniqueTypes = Array(Set(allAttachmentTypes)).sorted()
+        let typesString = uniqueTypes.joined(separator: ", ")
+        completeWithError("No supported attachments found. Available types: \(typesString)")
     }
 
     // MARK: - NSItemProvider loaders (async)
@@ -192,7 +235,11 @@ final class ShareViewController: UIViewController {
     private func loadURL(from provider: NSItemProvider) async -> URL? {
         await withCheckedContinuation { cont in
             provider.loadItem(forTypeIdentifier: UTType.url.identifier, options: nil) { item, error in
-                if let error = error { print("❌ load URL error: \(error)") }
+                if let error = error {
+                    DispatchQueue.main.async {
+                        self.showDebugAlert("Load URL Error", message: "❌ \(error)")
+                    }
+                }
                 cont.resume(returning: item as? URL)
             }
         }
@@ -203,14 +250,22 @@ final class ShareViewController: UIViewController {
         if provider.canLoadObject(ofClass: NSString.self) {
             return await withCheckedContinuation { cont in
                 provider.loadObject(ofClass: NSString.self) { obj, error in
-                    if let error = error { print("❌ load text error: \(error)") }
+                    if let error = error {
+                        DispatchQueue.main.async {
+                            self.showDebugAlert("Load Text Error", message: "❌ \(error)")
+                        }
+                    }
                     cont.resume(returning: (obj as? String as String?)?.trimmingCharacters(in: .whitespacesAndNewlines))
                 }
             }
         }
         return await withCheckedContinuation { cont in
             provider.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { item, error in
-                if let error = error { print("❌ load plainText error: \(error)") }
+                if let error = error {
+                    DispatchQueue.main.async {
+                        self.showDebugAlert("Load PlainText Error", message: "❌ \(error)")
+                    }
+                }
                 if let s = item as? String {
                     cont.resume(returning: s.trimmingCharacters(in: .whitespacesAndNewlines))
                 } else { cont.resume(returning: nil) }
@@ -221,7 +276,24 @@ final class ShareViewController: UIViewController {
     private func loadFile(from provider: NSItemProvider, as type: UTType) async -> URL? {
         await withCheckedContinuation { cont in
             provider.loadFileRepresentation(forTypeIdentifier: type.identifier) { url, error in
-                if let error = error { print("❌ load file(\(type)) error: \(error)") }
+                if let error = error {
+                    DispatchQueue.main.async {
+                        self.showDebugAlert("Load File Error", message: "❌ load file(\(type)) error: \(error)")
+                    }
+                }
+                cont.resume(returning: url)
+            }
+        }
+    }
+
+    private func loadFileByIdentifier(from provider: NSItemProvider, identifier: String) async -> URL? {
+        await withCheckedContinuation { cont in
+            provider.loadFileRepresentation(forTypeIdentifier: identifier) { url, error in
+                if let error = error {
+                    DispatchQueue.main.async {
+                        self.showDebugAlert("Load File by ID Error", message: "❌ load file(\(identifier)) error: \(error)")
+                    }
+                }
                 cont.resume(returning: url)
             }
         }
@@ -247,7 +319,7 @@ final class ShareViewController: UIViewController {
     // MARK: - Notification Fallback
 
     private func sendNotificationFallback(type: String, userText: String?) async {
-        print("📤 Sending local notification as fallback...")
+        showDebugAlert("Notification", message: "📤 Sending local notification as fallback...")
 
         let center = UNUserNotificationCenter.current()
 
@@ -255,14 +327,16 @@ final class ShareViewController: UIViewController {
         let permissionGranted = await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
             center.requestAuthorization(options: [.alert, .sound]) { granted, error in
                 if let error = error {
-                    print("❌ Notification permission error: \(error)")
+                    DispatchQueue.main.async {
+                        self.showDebugAlert("Notification Permission Error", message: "❌ \(error)")
+                    }
                 }
                 cont.resume(returning: granted)
             }
         }
 
         guard permissionGranted else {
-            print("⚠️ Notification permission not granted")
+            showDebugAlert("Permission Denied", message: "⚠️ Notification permission not granted")
             return
         }
 
@@ -293,9 +367,9 @@ final class ShareViewController: UIViewController {
 
         do {
             try await center.add(request)
-            print("✅ Local notification sent successfully")
+            showDebugAlert("Notification Success", message: "✅ Local notification sent successfully")
         } catch {
-            print("❌ Failed to send notification: \(error)")
+            showDebugAlert("Notification Error", message: "❌ Failed to send notification: \(error)")
         }
     }
 }
