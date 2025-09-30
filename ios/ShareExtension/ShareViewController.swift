@@ -102,18 +102,14 @@ final class ShareViewController: UIViewController {
 
         if let url = URL(string: scheme) {
             print("📤 Attempting to open app with: \(scheme)")
-
-            // Try to open the URL - this may or may not work in ShareExtension
-            extensionContext?.open(url, completionHandler: { success in
-                print("📤 URL open result for \(scheme): \(success)")
-                if !success {
-                    print("⚠️ Could not open main app via URL scheme")
-                    // Fallback: just save to App Groups and user can open app manually
-                    Task {
-                        await self.sendNotificationFallback(type: "content", userText: "Content saved - open Duggy to share")
-                    }
+            var responder: UIResponder? = self
+            while responder != nil {
+                if let application = responder as? UIApplication {
+                    application.open(url)
+                    break
                 }
-            })
+                responder = responder?.next
+            }
         } else {
             print("⚠️ Invalid URL scheme")
             Task {
@@ -208,7 +204,7 @@ final class ShareViewController: UIViewController {
             return await withCheckedContinuation { cont in
                 provider.loadObject(ofClass: NSString.self) { obj, error in
                     if let error = error { print("❌ load text error: \(error)") }
-                    cont.resume(returning: (obj as! String as String?)?.trimmingCharacters(in: .whitespacesAndNewlines))
+                    cont.resume(returning: (obj as? String as String?)?.trimmingCharacters(in: .whitespacesAndNewlines))
                 }
             }
         }
