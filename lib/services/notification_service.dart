@@ -130,7 +130,6 @@ class NotificationService {
     }
   }
 
-
   /// Initialize Firebase messaging
   static Future<void> _initializeFirebaseMessaging() async {
     // Enable auto initialization
@@ -751,9 +750,6 @@ class NotificationService {
   ) {
     final callbacks = _matchUpdateCallbacks.putIfAbsent(matchId, () => []);
     callbacks.add(callback);
-    print(
-      '✅ Match update callback registered for match: $matchId (total: ${callbacks.length})',
-    );
   }
 
   /// Remove a previously registered match update callback

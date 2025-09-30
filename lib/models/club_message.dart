@@ -35,7 +35,8 @@ class ClubMessage {
   final String? senderProfilePicture;
   final String? senderRole;
   final String content;
-  final List<MediaItem> media; // Combined images and videos with individual captions
+  final List<MediaItem>
+  media; // Combined images and videos with individual captions
   final MessageDocument? document;
   final MessageAudio? audio;
   final List<LinkMetadata> linkMeta;
@@ -74,9 +75,10 @@ class ClubMessage {
   final bool? _mentionsCurrentUser;
 
   // Progress tracking fields (for local messages only)
-  final double? uploadProgress;    // 0.0 to 1.0 for upload progress
+  final double? uploadProgress; // 0.0 to 1.0 for upload progress
   final double? compressionProgress; // 0.0 to 1.0 for compression progress
-  final String? processingStatus;  // Human readable status like "Compressing...", "Uploading..."
+  final String?
+  processingStatus; // Human readable status like "Compressing...", "Uploading..."
 
   /// Get mentions list, never null
   List<MentionedUser> get mentions => _mentions ?? [];
@@ -284,9 +286,12 @@ class ClubMessage {
             break;
           case 'text':
             // Handle new media array format (preferred)
-            if (content['media'] is List && (content['media'] as List).isNotEmpty) {
+            if (content['media'] is List &&
+                (content['media'] as List).isNotEmpty) {
               media = (content['media'] as List)
-                  .map((item) => MediaItem.fromJson(item as Map<String, dynamic>))
+                  .map(
+                    (item) => MediaItem.fromJson(item as Map<String, dynamic>),
+                  )
                   .toList();
             }
             // Fall back to legacy images array if no media array
@@ -318,14 +323,6 @@ class ClubMessage {
                   favicon: content['favicon'],
                 ),
               ];
-              print(
-                '🔗 ClubMessage.fromJson: Created linkMeta with ${linkMeta.length} items',
-              );
-              print(
-                '🔗 ClubMessage.fromJson: LinkMeta title: ${linkMeta.first.title}',
-              );
-            } else {
-              print('🔗 ClubMessage.fromJson: No URL found in link content');
             }
             break;
           case 'document':
@@ -371,9 +368,7 @@ class ClubMessage {
       }
 
       // Parse images array (as URLs) - for text messages and other non-link types
-      if (content['images'] is List &&
-          messageType != 'link' &&
-          media.isEmpty) {
+      if (content['images'] is List && messageType != 'link' && media.isEmpty) {
         media = (content['images'] as List)
             .map((url) => MediaItem.fromUrl(url as String))
             .toList();
@@ -408,9 +403,10 @@ class ClubMessage {
 
     // Parse top-level images array (for cache compatibility)
     if (json['images'] is List && media.isEmpty) {
-      media = (json['images'] as List).map((url) => MediaItem.fromUrl(url as String)).toList();
+      media = (json['images'] as List)
+          .map((url) => MediaItem.fromUrl(url as String))
+          .toList();
     }
-
 
     // Parse top-level audio object (for cache compatibility)
     if (json['audio'] is Map<String, dynamic> && audio == null) {
@@ -463,9 +459,6 @@ class ClubMessage {
     MessageReply? replyTo;
     if (json['replyTo'] is Map<String, dynamic>) {
       replyTo = MessageReply.fromJson(json['replyTo'] as Map<String, dynamic>);
-      debugPrint(
-        '🔗 ClubMessage.fromJson: Parsed reply - ${replyTo.senderName}: "${replyTo.content}"',
-      );
     }
 
     // Parse pin information
@@ -730,8 +723,12 @@ class ClubMessage {
       'senderProfilePicture': senderProfilePicture,
       'senderRole': senderRole,
       'content': contentJson,
-      'images': media.map((item) => item.url).toList(), // Convert back to string array for API compatibility
-      'media': media.map((item) => item.toJson()).toList(), // Full media objects for local storage
+      'images': media
+          .map((item) => item.url)
+          .toList(), // Convert back to string array for API compatibility
+      'media': media
+          .map((item) => item.toJson())
+          .toList(), // Full media objects for local storage
       'document': document?.toJson(),
       'audio': audio?.toJson(),
       'linkMeta': linkMeta.map((l) => l.toJson()).toList(),

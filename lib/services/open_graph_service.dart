@@ -41,12 +41,20 @@ class OpenGraphService {
         fullUrl = 'https://$url';
       }
 
+      // Check if this is an Instagram URL and handle specially
+      if (_isInstagramUrl(fullUrl)) {
+        final instagramData = await _fetchInstagramMetadata(fullUrl);
+        _cache[url] = instagramData;
+        return instagramData;
+      }
+
+      // For other URLs, use enhanced headers
+      final headers = _getHeadersForUrl(fullUrl);
+
       // Fetch the webpage
       final response = await http.get(
         Uri.parse(fullUrl),
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; DuggyBot/1.0; +https://duggy.app)',
-        },
+        headers: headers,
       ).timeout(_timeout);
 
       if (response.statusCode != 200) {
@@ -56,10 +64,10 @@ class OpenGraphService {
       // Parse HTML for Open Graph tags
       final html = response.body;
       final ogData = _parseOpenGraphTags(html, fullUrl);
-      
+
       // Cache the result
       _cache[url] = ogData;
-      
+
       return ogData;
     } catch (e) {
       debugPrint('Error fetching Open Graph data for $url: $e');
@@ -195,6 +203,189 @@ class OpenGraphService {
         .replaceAll('&#x2F;', '/')
         .replaceAll('&#39;', "'")
         .replaceAll('&nbsp;', ' ');
+  }
+
+  /// Checks if the URL is an Instagram URL
+  static bool _isInstagramUrl(String url) {
+    return url.contains('instagram.com');
+  }
+
+  /// Checks if the URL is a YouTube URL
+  static bool _isYouTubeUrl(String url) {
+    return url.contains('youtube.com') || url.contains('youtu.be');
+  }
+
+  /// Gets appropriate headers for different types of URLs
+  static Map<String, String> _getHeadersForUrl(String url) {
+    final Map<String, String> headers = {
+      'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.5',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'DNT': '1',
+      'Connection': 'keep-alive',
+      'Upgrade-Insecure-Requests': '1',
+    };
+
+    // Add specific headers for different platforms
+    if (url.contains('instagram.com')) {
+      headers['X-Instagram-AJAX'] = '1';
+      headers['X-Requested-With'] = 'XMLHttpRequest';
+    } else if (url.contains('youtube.com') || url.contains('youtu.be')) {
+      headers['X-YouTube-Client-Name'] = '1';
+      headers['X-YouTube-Client-Version'] = '2.0';
+    } else if (url.contains('twitter.com') || url.contains('x.com')) {
+      headers['X-Twitter-Active-User'] = 'yes';
+    } else if (url.contains('facebook.com')) {
+      headers['Sec-Fetch-Site'] = 'none';
+      headers['Sec-Fetch-Mode'] = 'navigate';
+    }
+
+    return headers;
+  }
+
+  /// Fetches Instagram metadata with special handling
+  static Future<OpenGraphData> _fetchInstagramMetadata(String url) async {
+    try {
+      debugPrint('🔍 Fetching Instagram metadata for: $url');
+
+      // Try different Instagram URL formats
+      final List<String> urlsToTry = [
+        url,
+        // Convert /reel/ to /p/ format which sometimes works better
+        url.replaceAll('/reel/', '/p/'),
+        // Add embed format
+        '${url}embed/',
+      ];
+
+      for (final testUrl in urlsToTry) {
+        try {
+          debugPrint('🔍 Trying URL: $testUrl');
+
+          final response = await http.get(
+            Uri.parse(testUrl),
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1',
+              'Accept': '*/*',
+              'Accept-Language': 'en-US,en;q=0.9',
+              'Accept-Encoding': 'gzip, deflate, br',
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache',
+              'Sec-Fetch-Dest': 'document',
+              'Sec-Fetch-Mode': 'navigate',
+              'Sec-Fetch-Site': 'none',
+              'Upgrade-Insecure-Requests': '1',
+            },
+          ).timeout(const Duration(seconds: 15));
+
+          if (response.statusCode == 200) {
+            debugPrint('✅ Successfully fetched Instagram page');
+            final ogData = _parseInstagramContent(response.body, url);
+            if (ogData.image != null) {
+              debugPrint('✅ Found Instagram image: ${ogData.image}');
+              return ogData;
+            }
+          }
+        } catch (e) {
+          debugPrint('❌ Failed to fetch $testUrl: $e');
+          continue;
+        }
+      }
+
+      // If all attempts fail, create fallback with Instagram branding
+      debugPrint('⚠️ Creating Instagram fallback data');
+      return _createInstagramFallback(url);
+    } catch (e) {
+      debugPrint('❌ Error in _fetchInstagramMetadata: $e');
+      return _createInstagramFallback(url);
+    }
+  }
+
+  /// Parses Instagram-specific content for metadata
+  static OpenGraphData _parseInstagramContent(String html, String originalUrl) {
+    String? title;
+    String? description;
+    String? image;
+
+    // Instagram-specific meta tags
+    final instagramImageRegex = RegExp(r'<meta\s+property="og:image"\s+content="([^"]*)"', caseSensitive: false);
+    final instagramVideoRegex = RegExp(r'<meta\s+property="og:video"\s+content="([^"]*)"', caseSensitive: false);
+    final instagramTitleRegex = RegExp(r'<meta\s+property="og:title"\s+content="([^"]*)"', caseSensitive: false);
+    final instagramDescRegex = RegExp(r'<meta\s+property="og:description"\s+content="([^"]*)"', caseSensitive: false);
+
+    // Try to find image
+    final imageMatch = instagramImageRegex.firstMatch(html);
+    if (imageMatch != null) {
+      image = imageMatch.group(1);
+    }
+
+    // If no image, try video thumbnail
+    if (image == null) {
+      final videoMatch = instagramVideoRegex.firstMatch(html);
+      if (videoMatch != null) {
+        // For video posts, Instagram often has a thumbnail
+        final videoThumbRegex = RegExp(r'<meta\s+property="og:image"\s+content="([^"]*)"', caseSensitive: false);
+        final thumbMatch = videoThumbRegex.firstMatch(html);
+        if (thumbMatch != null) {
+          image = thumbMatch.group(1);
+        }
+      }
+    }
+
+    // Try alternative image selectors
+    if (image == null) {
+      final altImageRegex = RegExp(r'"display_url":"([^"]*)"', caseSensitive: false);
+      final altMatch = altImageRegex.firstMatch(html);
+      if (altMatch != null) {
+        image = altMatch.group(1)?.replaceAll(r'\u0026', '&');
+      }
+    }
+
+    // Extract title
+    final titleMatch = instagramTitleRegex.firstMatch(html);
+    if (titleMatch != null) {
+      title = _decodeHtmlEntities(titleMatch.group(1)!);
+    }
+
+    // Extract description
+    final descMatch = instagramDescRegex.firstMatch(html);
+    if (descMatch != null) {
+      description = _decodeHtmlEntities(descMatch.group(1)!);
+    }
+
+    return OpenGraphData(
+      url: originalUrl,
+      title: title ?? 'Instagram Post',
+      description: description,
+      image: image,
+      siteName: 'Instagram',
+      favicon: 'https://www.instagram.com/static/images/ico/favicon.ico',
+    );
+  }
+
+  /// Creates fallback data specifically for Instagram
+  static OpenGraphData _createInstagramFallback(String url) {
+    // Extract basic info from URL
+    String title = 'Instagram Post';
+    String? description;
+
+    if (url.contains('/reel/')) {
+      title = 'Instagram Reel';
+      description = 'Watch this reel on Instagram';
+    } else if (url.contains('/p/')) {
+      title = 'Instagram Post';
+      description = 'View this post on Instagram';
+    }
+
+    return OpenGraphData(
+      url: url,
+      title: title,
+      description: description,
+      siteName: 'Instagram',
+      favicon: 'https://www.instagram.com/static/images/ico/favicon.ico',
+      // Use Instagram's default placeholder image
+      image: 'https://www.instagram.com/static/images/ico/apple-touch-icon-180x180-precomposed.png',
+    );
   }
 
   /// Clears the cache (useful for testing or memory management)

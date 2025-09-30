@@ -120,6 +120,40 @@ final class ShareViewController: UIViewController {
         }
     }
 
+    private func appGroupSaveMultipleFiles(processedFiles: [(path: String, type: String, message: String)]) {
+        guard let base = containerURL() else { return }
+
+        let dir = base.appendingPathComponent("SharedData", isDirectory: true)
+        do { try ensureDirectory(dir) } catch {
+            showDebugAlert("Directory Error", message: "❌ Could not create SharedData dir: \(error)")
+            return
+        }
+
+        // Create array of file data
+        let filesData = processedFiles.map { file in
+            return [
+                "content": file.path,
+                "type": file.type,
+                "message": file.message
+            ]
+        }
+
+        let payload: [String: Any] = [
+            "files": filesData,
+            "type": "multiple_files",
+            "timestamp": Date().timeIntervalSince1970
+        ]
+
+        let file = dir.appendingPathComponent("shared_content_\(Int(Date().timeIntervalSince1970)).json")
+        do {
+            let data = try JSONSerialization.data(withJSONObject: payload, options: .prettyPrinted)
+            try data.write(to: file, options: .atomic)
+            logStep("Successfully saved multiple files data to App Groups")
+        } catch {
+            showDebugAlert("Save Error", message: "❌ Failed to persist multiple files payload: \(error)")
+        }
+    }
+
     private func appGroupCopyTempFile(_ tempURL: URL, folder: String, filename: String) -> String? {
         logStep("appGroupCopyTempFile called for \(filename) in \(folder)")
 
@@ -174,8 +208,42 @@ final class ShareViewController: UIViewController {
 
     private func openHostApp(fallbackPayload: (content: String, type: String, userText: String?)) async {
         logStep("openHostApp called with type: \(fallbackPayload.type)")
+
+        // Check if this is a URL that should use the URL scheme - ANY URL
+        if fallbackPayload.type == "url" {
+            let urlString = fallbackPayload.content
+            logStep("Detected URL share: \(urlString)")
+            logStep("Using URL scheme for ANY URL")
+            await MainActor.run {
+                openMainApp(withURL: urlString)
+            }
+            return
+        }
+
+        // Check if this is plain text that should use the URL scheme - ANY TEXT
+        if fallbackPayload.type == "text" {
+            let textString = fallbackPayload.content
+            logStep("Detected text share: \(textString)")
+            logStep("Using URL scheme for ANY text")
+            await MainActor.run {
+                openMainApp(withText: textString)
+            }
+            return
+        }
+
         // Save the content to App Groups for the main app to read
         appGroupSave(content: fallbackPayload.content, type: fallbackPayload.type, userText: fallbackPayload.userText)
+        await MainActor.run {
+            openMainApp()
+        }
+    }
+
+    private func openHostAppWithMultipleFiles(processedFiles: [(path: String, type: String, message: String)]) async {
+        logStep("openHostAppWithMultipleFiles called with \(processedFiles.count) files")
+
+        // Save data for multiple files to App Groups
+        appGroupSaveMultipleFiles(processedFiles: processedFiles)
+
         await MainActor.run {
             openMainApp()
         }
@@ -200,6 +268,72 @@ final class ShareViewController: UIViewController {
             logStep("App launch attempt completed")
         } else {
             logStep("Failed to create URL from scheme: \(scheme)")
+        }
+    }
+
+    private func openMainApp(withURL urlString: String) {
+        logStep("openMainApp called with URL - attempting to launch main app with URL: \(urlString)")
+
+        // URL encode the link parameter
+        guard let encodedURL = urlString.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+            logStep("Failed to URL encode the shared URL")
+            // Fallback to regular launch
+            openMainApp()
+            return
+        }
+
+        // Use the URL scheme with link parameter
+        let scheme = "duggy://share?link=\(encodedURL)"
+
+        if let url = URL(string: scheme) {
+            logStep("Valid URL created: \(scheme)")
+            var responder: UIResponder? = self
+            while responder != nil {
+                if let application = responder as? UIApplication {
+                    logStep("Found UIApplication, calling open(url) with link parameter")
+                    application.open(url)
+                    break
+                }
+                responder = responder?.next
+            }
+            logStep("App launch with URL attempt completed")
+        } else {
+            logStep("Failed to create URL from scheme: \(scheme)")
+            // Fallback to regular launch
+            openMainApp()
+        }
+    }
+
+    private func openMainApp(withText textString: String) {
+        logStep("openMainApp called with text - attempting to launch main app with text: \(textString)")
+
+        // URL encode the text parameter
+        guard let encodedText = textString.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+            logStep("Failed to URL encode the shared text")
+            // Fallback to regular launch
+            openMainApp()
+            return
+        }
+
+        // Use the URL scheme with text parameter
+        let scheme = "duggy://share?text=\(encodedText)"
+
+        if let url = URL(string: scheme) {
+            logStep("Valid URL created: \(scheme)")
+            var responder: UIResponder? = self
+            while responder != nil {
+                if let application = responder as? UIApplication {
+                    logStep("Found UIApplication, calling open(url) with text parameter")
+                    application.open(url)
+                    break
+                }
+                responder = responder?.next
+            }
+            logStep("App launch with text attempt completed")
+        } else {
+            logStep("Failed to create URL from scheme: \(scheme)")
+            // Fallback to regular launch
+            openMainApp()
         }
     }
 
@@ -327,11 +461,21 @@ final class ShareViewController: UIViewController {
         } else {
             logStep("Successfully processed \(processedFiles.count) file(s)")
 
-            // For now, take the first successfully processed file
-            // TODO: In the future, we could show a file picker or process multiple files
-            let firstFile = processedFiles[0]
-            logStep("Using first processed file: \(firstFile.path) (\(firstFile.type))")
-            await openHostApp(fallbackPayload: (firstFile.path, firstFile.type, firstFile.message))
+            // Check if we have ANY URL or TEXT - if so, use the URL scheme handling path
+            let urlFile = processedFiles.first { $0.type == "url" }
+            let textFile = processedFiles.first { $0.type == "text" }
+
+            if let urlFile = urlFile {
+                logStep("Found URL in processed files: \(urlFile.path)")
+                await openHostApp(fallbackPayload: (content: urlFile.path, type: urlFile.type, userText: urlFile.message))
+            } else if let textFile = textFile {
+                logStep("Found text in processed files: \(textFile.path)")
+                await openHostApp(fallbackPayload: (content: textFile.path, type: textFile.type, userText: textFile.message))
+            } else {
+                // Process all files and pass them to the Flutter app
+                logStep("No URLs or text found, processing as multiple files")
+                await openHostAppWithMultipleFiles(processedFiles: processedFiles)
+            }
             completeOnce()
         }
     }
@@ -352,31 +496,90 @@ final class ShareViewController: UIViewController {
     }
 
     private func loadText(from provider: NSItemProvider) async -> String? {
-        // Try String directly, then plain text
+        // Try multiple approaches to extract text content
+
+        // First try: Load as plain text using UTType
+        if provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
+            let result = await withCheckedContinuation { cont in
+                provider.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { item, error in
+                    if let error = error {
+                        self.logStep("PlainText load error: \(error)")
+                        cont.resume(returning: nil)
+                        return
+                    }
+
+                    if let string = item as? String {
+                        cont.resume(returning: string.trimmingCharacters(in: .whitespacesAndNewlines))
+                    } else if let data = item as? Data, let string = String(data: data, encoding: .utf8) {
+                        cont.resume(returning: string.trimmingCharacters(in: .whitespacesAndNewlines))
+                    } else if let url = item as? URL {
+                        // Sometimes URLs come as plain text
+                        cont.resume(returning: url.absoluteString)
+                    } else {
+                        self.logStep("PlainText item is not a string: \(type(of: item))")
+                        cont.resume(returning: nil)
+                    }
+                }
+            }
+            if let result = result, !result.isEmpty {
+                logStep("Successfully loaded text via UTType.plainText: \(result.prefix(50))...")
+                return result
+            }
+        }
+
+        // Second try: Load as NSString object (only if we can safely do so)
         if provider.canLoadObject(ofClass: NSString.self) {
-            return await withCheckedContinuation { cont in
+            let result = await withCheckedContinuation { cont in
                 provider.loadObject(ofClass: NSString.self) { obj, error in
                     if let error = error {
-                        DispatchQueue.main.async {
-                            self.showDebugAlert("Load Text Error", message: "❌ \(error)")
+                        self.logStep("NSString load error (expected): \(error)")
+                        cont.resume(returning: nil)
+                        return
+                    }
+
+                    if let string = obj as? String {
+                        cont.resume(returning: string.trimmingCharacters(in: .whitespacesAndNewlines))
+                    } else {
+                        cont.resume(returning: nil)
+                    }
+                }
+            }
+            if let result = result, !result.isEmpty {
+                logStep("Successfully loaded text via NSString: \(result.prefix(50))...")
+                return result
+            }
+        }
+
+        // Third try: Try other text-related type identifiers
+        let textTypes = ["public.text", "public.utf8-plain-text", "public.utf16-plain-text"]
+        for textType in textTypes {
+            if provider.hasItemConformingToTypeIdentifier(textType) {
+                let result = await withCheckedContinuation { cont in
+                    provider.loadItem(forTypeIdentifier: textType, options: nil) { item, error in
+                        if let error = error {
+                            self.logStep("Text type \(textType) load error: \(error)")
+                            cont.resume(returning: nil)
+                            return
+                        }
+
+                        if let string = item as? String {
+                            cont.resume(returning: string.trimmingCharacters(in: .whitespacesAndNewlines))
+                        } else if let data = item as? Data, let string = String(data: data, encoding: .utf8) {
+                            cont.resume(returning: string.trimmingCharacters(in: .whitespacesAndNewlines))
+                        } else {
+                            cont.resume(returning: nil)
                         }
                     }
-                    cont.resume(returning: (obj as? String as String?)?.trimmingCharacters(in: .whitespacesAndNewlines))
+                }
+                if let result = result, !result.isEmpty {
+                    logStep("Successfully loaded text via \(textType): \(result.prefix(50))...")
+                    return result
                 }
             }
         }
-        return await withCheckedContinuation { cont in
-            provider.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { item, error in
-                if let error = error {
-                    DispatchQueue.main.async {
-                        self.showDebugAlert("Load PlainText Error", message: "❌ \(error)")
-                    }
-                }
-                if let s = item as? String {
-                    cont.resume(returning: s.trimmingCharacters(in: .whitespacesAndNewlines))
-                } else { cont.resume(returning: nil) }
-            }
-        }
+
+        logStep("Failed to load text from provider with types: \(provider.registeredTypeIdentifiers)")
+        return nil
     }
 
     private func loadFile(from provider: NSItemProvider, as type: UTType) async -> URL? {

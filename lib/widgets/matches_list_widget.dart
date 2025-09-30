@@ -1074,7 +1074,6 @@ class MatchesListWidgetState extends State<MatchesListWidget> {
           _handleMatchUpdate,
         );
         _subscribedMatchIds.add(match.id);
-        print('🔔 Subscribed to match updates: ${match.id}');
       }
     }
   }

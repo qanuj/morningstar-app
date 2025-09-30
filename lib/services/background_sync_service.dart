@@ -183,16 +183,10 @@ class BackgroundSyncService {
             message.updatedAt != null &&
             message.updatedAt!.isAfter(message.createdAt);
 
-        print(
-          '📝 Message ${message.id}: createdAt=${message.createdAt}, updatedAt=${message.updatedAt}, isUpdate=$isMessageUpdate',
-        );
-
         if (isMessageUpdate) {
-          print('🔄 Handling message update for: ${message.id}');
           // Handle as message update (reactions, pins, edits)
           await _handleMessageUpdate(clubId, message);
         } else {
-          print('📨 Handling new message: ${message.id}');
           // Handle special message types for new messages
           await _handleSpecialMessageTypes(clubId, message);
 
@@ -486,13 +480,7 @@ class BackgroundSyncService {
       }
 
       _messageCallbacks[clubId]!(updateData);
-    } else if (!hasUpdates) {
-      print('ℹ️ No significant updates detected for message: ${message.id}');
-    } else {
-      print('⚠️ No message callback registered for club: $clubId');
     }
-
-    print('✏️ Processed message update: ${message.id} (type: $updateType)');
   }
 
   /// Convert ClubMessage to callback data format for compatibility

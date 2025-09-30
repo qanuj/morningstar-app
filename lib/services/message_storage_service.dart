@@ -16,32 +16,31 @@ class MessageStorageService {
       final prefs = await SharedPreferences.getInstance();
       final messagesKey = _getMessagesKey(clubId);
       final lastSyncKey = _getLastSyncKey(clubId);
-      
+
       await prefs.remove(messagesKey);
       await prefs.remove(lastSyncKey);
-      
-      print('🗑️ Cleared cached messages for club $clubId');
     } catch (e) {
       print('❌ Error clearing cached messages: $e');
     }
   }
 
   /// Save messages to local storage for a specific club
-  static Future<void> saveMessages(String clubId, List<ClubMessage> messages) async {
+  static Future<void> saveMessages(
+    String clubId,
+    List<ClubMessage> messages,
+  ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final messagesKey = _getMessagesKey(clubId);
       final lastSyncKey = _getLastSyncKey(clubId);
-      
+
       // Convert messages to JSON
       final messagesJson = messages.map((message) => message.toJson()).toList();
       final messagesString = jsonEncode(messagesJson);
-      
+
       // Save messages and last sync time
       await prefs.setString(messagesKey, messagesString);
       await prefs.setString(lastSyncKey, DateTime.now().toIso8601String());
-      
-      print('💾 Saved ${messages.length} messages for club $clubId');
     } catch (e) {
       print('❌ Error saving messages to local storage: $e');
     }
@@ -52,20 +51,19 @@ class MessageStorageService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final messagesKey = _getMessagesKey(clubId);
-      
+
       final messagesString = prefs.getString(messagesKey);
       if (messagesString == null) {
         print('📭 No cached messages found for club $clubId');
         return [];
       }
-      
+
       // Parse JSON to messages
       final List<dynamic> messagesJson = jsonDecode(messagesString);
       final messages = messagesJson
           .map((json) => ClubMessage.fromJson(json as Map<String, dynamic>))
           .toList();
-      
-      print('📬 Loaded ${messages.length} cached messages for club $clubId');
+
       return messages;
     } catch (e) {
       print('❌ Error loading messages from local storage: $e');
@@ -78,10 +76,10 @@ class MessageStorageService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final lastSyncKey = _getLastSyncKey(clubId);
-      
+
       final lastSyncString = prefs.getString(lastSyncKey);
       if (lastSyncString == null) return null;
-      
+
       return DateTime.parse(lastSyncString);
     } catch (e) {
       print('❌ Error getting last sync time: $e');
@@ -90,29 +88,33 @@ class MessageStorageService {
   }
 
   /// Check if messages need syncing (older than specified duration)
-  static Future<bool> needsSync(String clubId, {Duration maxAge = const Duration(minutes: 5)}) async {
+  static Future<bool> needsSync(
+    String clubId, {
+    Duration maxAge = const Duration(minutes: 5),
+  }) async {
     final lastSync = await getLastSyncTime(clubId);
     if (lastSync == null) return true;
-    
+
     final now = DateTime.now();
     final needsSync = now.difference(lastSync) > maxAge;
-    
-    print('🔄 Club $clubId needs sync: $needsSync (last sync: ${lastSync.toLocal()})');
+
     return needsSync;
   }
 
   /// Update a specific message in local storage (for pin/unpin operations)
-  static Future<void> updateMessage(String clubId, ClubMessage updatedMessage) async {
+  static Future<void> updateMessage(
+    String clubId,
+    ClubMessage updatedMessage,
+  ) async {
     try {
       final messages = await loadMessages(clubId);
-      final messageIndex = messages.indexWhere((m) => m.id == updatedMessage.id);
-      
+      final messageIndex = messages.indexWhere(
+        (m) => m.id == updatedMessage.id,
+      );
+
       if (messageIndex != -1) {
         messages[messageIndex] = updatedMessage;
         await saveMessages(clubId, messages);
-        print('📝 Updated message ${updatedMessage.id} in local storage');
-      } else {
-        print('⚠️ Message ${updatedMessage.id} not found in local storage');
       }
     } catch (e) {
       print('❌ Error updating message in local storage: $e');
@@ -123,7 +125,7 @@ class MessageStorageService {
   static Future<void> addMessage(String clubId, ClubMessage newMessage) async {
     try {
       final messages = await loadMessages(clubId);
-      
+
       // Check if message already exists (avoid duplicates)
       final existingIndex = messages.indexWhere((m) => m.id == newMessage.id);
       if (existingIndex != -1) {
@@ -133,12 +135,11 @@ class MessageStorageService {
         // Add new message
         messages.add(newMessage);
       }
-      
+
       // Sort by creation time
       messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-      
+
       await saveMessages(clubId, messages);
-      print('➕ Added/updated message ${newMessage.id} in local storage');
     } catch (e) {
       print('❌ Error adding message to local storage: $e');
     }
@@ -150,43 +151,40 @@ class MessageStorageService {
       final prefs = await SharedPreferences.getInstance();
       final messagesKey = _getMessagesKey(clubId);
       final lastSyncKey = _getLastSyncKey(clubId);
-      
+
       await prefs.remove(messagesKey);
       await prefs.remove(lastSyncKey);
-      
-      print('🗑️ Cleared all messages for club $clubId');
     } catch (e) {
       print('❌ Error clearing messages: $e');
     }
   }
 
   /// Save messages with media download
-  static Future<void> saveMessagesWithMedia(String clubId, List<ClubMessage> messages) async {
+  static Future<void> saveMessagesWithMedia(
+    String clubId,
+    List<ClubMessage> messages,
+  ) async {
     try {
-      print('💾 Saving ${messages.length} messages with media for club $clubId');
-      
       // Save messages first
       await saveMessages(clubId, messages);
-      
     } catch (e) {
       print('❌ Error saving messages with media: $e');
     }
   }
 
-
   /// Compare local and server messages to find differences
   static Map<String, dynamic> compareMessages(
-    List<ClubMessage> localMessages, 
-    List<ClubMessage> serverMessages
+    List<ClubMessage> localMessages,
+    List<ClubMessage> serverMessages,
   ) {
     final localMap = {for (var msg in localMessages) msg.id: msg};
     final serverMap = {for (var msg in serverMessages) msg.id: msg};
-    
+
     // Find new messages on server
     final newMessages = serverMessages
         .where((msg) => !localMap.containsKey(msg.id))
         .toList();
-    
+
     // Find updated messages (compare timestamps or content)
     final updatedMessages = <ClubMessage>[];
     for (final serverMsg in serverMessages) {
@@ -195,20 +193,21 @@ class MessageStorageService {
         updatedMessages.add(serverMsg);
       }
     }
-    
+
     // Find deleted messages (in local but not on server)
     final deletedMessageIds = localMessages
         .where((msg) => !serverMap.containsKey(msg.id))
         .map((msg) => msg.id)
         .toList();
-    
+
     return {
       'new': newMessages,
       'updated': updatedMessages,
       'deleted': deletedMessageIds,
-      'needsUpdate': newMessages.isNotEmpty || 
-                     updatedMessages.isNotEmpty || 
-                     deletedMessageIds.isNotEmpty,
+      'needsUpdate':
+          newMessages.isNotEmpty ||
+          updatedMessages.isNotEmpty ||
+          deletedMessageIds.isNotEmpty,
     };
   }
 
@@ -216,14 +215,14 @@ class MessageStorageService {
   static bool _hasMessageChanged(ClubMessage local, ClubMessage server) {
     // Compare key fields that might change, including status
     return local.content != server.content ||
-           local.pin.isPinned != server.pin.isPinned ||
-           local.pin.pinStart != server.pin.pinStart ||
-           local.starred.isStarred != server.starred.isStarred ||
-           local.deleted != server.deleted ||
-           local.reactions.length != server.reactions.length ||
-           local.status != server.status ||
-           local.deliveredAt != server.deliveredAt ||
-           local.readAt != server.readAt;
+        local.pin.isPinned != server.pin.isPinned ||
+        local.pin.pinStart != server.pin.pinStart ||
+        local.starred.isStarred != server.starred.isStarred ||
+        local.deleted != server.deleted ||
+        local.reactions.length != server.reactions.length ||
+        local.status != server.status ||
+        local.deliveredAt != server.deliveredAt ||
+        local.readAt != server.readAt;
   }
 
   /// Merge server messages with local data (preserving read/delivered status)
@@ -234,26 +233,24 @@ class MessageStorageService {
   ) async {
     final localMap = {for (var msg in localMessages) msg.id: msg};
     final mergedMessages = <ClubMessage>[];
-    
+
     // Get persistent status flags from SharedPreferences
     final deliveredIds = await getDeliveredMessageIds(clubId);
     final readIds = await getReadMessageIds(clubId);
-    
+
     for (final serverMsg in serverMessages) {
       final localMsg = localMap[serverMsg.id];
-      
+
       if (localMsg != null) {
         // Merge local and server status information
         // Priority: Server timestamps > Local timestamps > Persistent flags
         final mergedDeliveredAt = serverMsg.deliveredAt ?? localMsg.deliveredAt;
         final mergedReadAt = serverMsg.readAt ?? localMsg.readAt;
-        
+
         // Use server status as authoritative for refresh operations
         // Server status includes read/delivered info from ALL users, not just current user
         MessageStatus finalStatus = serverMsg.status;
-        
-        print('🔀 Merging ${serverMsg.id}: local=${localMsg.status.toString().split('.').last} → server=${serverMsg.status.toString().split('.').last}');
-        
+
         // Server status is authoritative since it reflects the actual read/delivered state
         // from all recipients. Only fall back to persistent flags for messages received by current user.
         if (serverMsg.status == MessageStatus.sent) {
@@ -261,21 +258,16 @@ class MessageStorageService {
           // (This only applies to messages we received, not messages we sent)
           if (readIds.contains(serverMsg.id)) {
             finalStatus = MessageStatus.read;
-            print('   📌 Server status is SENT, but found in persistent readIds, using READ');
           } else if (deliveredIds.contains(serverMsg.id)) {
             finalStatus = MessageStatus.delivered;
-            print('   📌 Server status is SENT, but found in persistent deliveredIds, using DELIVERED');
           }
         } else {
           // Use server status as it's authoritative
           // For sent messages: shows if others have read them
           // For received messages: shows our read/delivered status
           finalStatus = serverMsg.status;
-          print('   🌐 Using server status as authoritative: ${finalStatus.toString().split('.').last}');
         }
-        
-        print('   ✅ Final merged status: ${finalStatus.toString().split('.').last}');
-        
+
         final merged = serverMsg.copyWith(
           status: finalStatus,
           deliveredAt: mergedDeliveredAt,
@@ -290,12 +282,12 @@ class MessageStorageService {
         } else if (deliveredIds.contains(serverMsg.id)) {
           finalStatus = MessageStatus.delivered;
         }
-        
+
         final merged = serverMsg.copyWith(status: finalStatus);
         mergedMessages.add(merged);
       }
     }
-    
+
     return mergedMessages;
   }
 
@@ -304,7 +296,7 @@ class MessageStorageService {
     try {
       final messages = await loadMessages(clubId);
       if (messages.isEmpty) return null;
-      
+
       // Sort messages by creation time and get the latest
       messages.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return messages.first.createdAt;
@@ -346,18 +338,18 @@ class MessageStorageService {
       // Media stats removed - offline functionality disabled
       final deliveredIds = await getDeliveredMessageIds(clubId);
       final readIds = await getReadMessageIds(clubId);
-      
+
       return {
         'messageCount': messages.length,
         'lastSync': lastSync?.toLocal().toString(),
         'needsSync': needsSync,
         'isOfflineMode': isOffline,
         'lastMessageAt': lastMessage?.toLocal().toString(),
-        'oldestMessage': messages.isNotEmpty 
-            ? messages.first.createdAt.toLocal().toString() 
+        'oldestMessage': messages.isNotEmpty
+            ? messages.first.createdAt.toLocal().toString()
             : null,
-        'newestMessage': messages.isNotEmpty 
-            ? messages.last.createdAt.toLocal().toString() 
+        'newestMessage': messages.isNotEmpty
+            ? messages.last.createdAt.toLocal().toString()
             : null,
         'deliveredCount': deliveredIds.length,
         'readCount': readIds.length,
@@ -374,7 +366,6 @@ class MessageStorageService {
       final prefs = await SharedPreferences.getInstance();
       final key = 'delivered_${clubId}_$messageId';
       await prefs.setBool(key, true);
-      print('📧 Marked message $messageId as delivered');
     } catch (e) {
       print('❌ Error marking message as delivered: $e');
     }
@@ -386,14 +377,16 @@ class MessageStorageService {
       final prefs = await SharedPreferences.getInstance();
       final key = 'read_${clubId}_$messageId';
       await prefs.setBool(key, true);
-      print('👁️ Marked message $messageId as read');
     } catch (e) {
       print('❌ Error marking message as read: $e');
     }
   }
 
   /// Check if a message has been marked as delivered
-  static Future<bool> isMarkedAsDelivered(String clubId, String messageId) async {
+  static Future<bool> isMarkedAsDelivered(
+    String clubId,
+    String messageId,
+  ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final key = 'delivered_${clubId}_$messageId';
@@ -422,7 +415,7 @@ class MessageStorageService {
       final prefs = await SharedPreferences.getInstance();
       final keys = prefs.getKeys();
       final prefix = 'delivered_${clubId}_';
-      
+
       return keys
           .where((key) => key.startsWith(prefix) && prefs.getBool(key) == true)
           .map((key) => key.substring(prefix.length))
@@ -439,7 +432,7 @@ class MessageStorageService {
       final prefs = await SharedPreferences.getInstance();
       final keys = prefs.getKeys();
       final prefix = 'read_${clubId}_';
-      
+
       return keys
           .where((key) => key.startsWith(prefix) && prefs.getBool(key) == true)
           .map((key) => key.substring(prefix.length))
@@ -455,19 +448,19 @@ class MessageStorageService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final keys = prefs.getKeys();
-      
+
       // Remove all delivered and read flags for this club
       final keysToRemove = keys
-          .where((key) => 
-              key.startsWith('delivered_${clubId}_') || 
-              key.startsWith('read_${clubId}_'))
+          .where(
+            (key) =>
+                key.startsWith('delivered_${clubId}_') ||
+                key.startsWith('read_${clubId}_'),
+          )
           .toList();
-      
+
       for (final key in keysToRemove) {
         await prefs.remove(key);
       }
-      
-      print('🗑️ Cleared ${keysToRemove.length} status flags for club $clubId');
     } catch (e) {
       print('❌ Error clearing status flags: $e');
     }
@@ -477,19 +470,19 @@ class MessageStorageService {
   static Future<void> clearClubData(String clubId) async {
     try {
       print('🗑️ Clearing all data for club $clubId');
-      
+
       // Clear messages
       await clearMessages(clubId);
-      
+
       // Media clearing removed - offline functionality disabled
-      
+
       // Clear status flags
       await clearStatusFlags(clubId);
-      
+
       // Clear offline mode flag
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('offline_mode_$clubId');
-      
+
       print('✅ All data cleared for club $clubId');
     } catch (e) {
       print('❌ Error clearing club data: $e');
@@ -497,17 +490,18 @@ class MessageStorageService {
   }
 
   /// Handle message deletion by updating local cache
-  static Future<void> handleDeletedMessage(String clubId, String messageId) async {
+  static Future<void> handleDeletedMessage(
+    String clubId,
+    String messageId,
+  ) async {
     try {
       final messages = await loadMessages(clubId);
       final messageIndex = messages.indexWhere((m) => m.id == messageId);
-      
+
       if (messageIndex != -1) {
         // Update the message to mark it as deleted
-        final updatedMessage = messages[messageIndex].copyWith(
-          deleted: true,
-        );
-        
+        final updatedMessage = messages[messageIndex].copyWith(deleted: true);
+
         messages[messageIndex] = updatedMessage;
         await saveMessages(clubId, messages);
         print('🗑️ Marked message $messageId as deleted in local cache');
@@ -524,7 +518,7 @@ class MessageStorageService {
     try {
       final messages = await loadMessages(clubId);
       if (messages.isEmpty) return null;
-      
+
       // Get the latest updatedAt or createdAt timestamp
       DateTime? latestUpdate;
       for (final message in messages) {
@@ -535,7 +529,7 @@ class MessageStorageService {
           latestUpdate = messageTime;
         }
       }
-      
+
       return latestUpdate;
     } catch (e) {
       print('❌ Error getting last updated timestamp: $e');

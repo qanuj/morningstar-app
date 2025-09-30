@@ -181,8 +181,6 @@ class ClubProvider with ChangeNotifier {
 
       _clubs[clubIndex] = updatedMembership;
       notifyListeners();
-
-      print('✅ Updated latest message for club $clubId (isRead: $isRead)');
     } else {
       print('❌ Club $clubId not found in provider');
     }

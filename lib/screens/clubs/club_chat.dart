@@ -471,18 +471,8 @@ class ClubChatScreenState extends State<ClubChatScreen>
             newMessage,
           );
           if (existingIndex != -1) {
-            // Update existing message (reactions, pins, status changes, etc.)
-            final oldMessage = currentMessages[existingIndex];
             currentMessages[existingIndex] = newMessage;
             hasUpdates = true;
-
-            debugPrint('🔄 Updated existing message: ${newMessage.id}');
-            debugPrint(
-              '   Reactions: ${oldMessage.reactions.length} → ${newMessage.reactions.length}',
-            );
-            debugPrint(
-              '   Pin: ${oldMessage.pin.isPinned} → ${newMessage.pin.isPinned}',
-            );
           } else {
             // Add new message - this is a true addition
             currentMessages.add(newMessage);
@@ -1528,7 +1518,9 @@ class ClubChatScreenState extends State<ClubChatScreen>
       tappedMediaItem.url,
     );
 
-    debugPrint('📱 Opening gallery with ${allMediaIndex.length} total media items, starting at global index $globalIndex');
+    debugPrint(
+      '📱 Opening gallery with ${allMediaIndex.length} total media items, starting at global index $globalIndex',
+    );
 
     // Open the media gallery
     Navigator.push(
@@ -2060,9 +2052,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
           );
         } else {
           await prefs.setDouble(scrollKey, position);
-          debugPrint(
-            '💾 Saved scroll position: $position for club ${widget.club.id}',
-          );
         }
       } catch (e) {
         debugPrint('❌ Failed to save scroll position: $e');

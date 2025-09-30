@@ -1,6 +1,7 @@
 // lib/services/share_handler_service.dart
 
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/services.dart';
 import '../models/shared_content.dart';
 
@@ -113,6 +114,13 @@ class ShareHandlerService {
       print('   Message: $message');
       print('   Timestamp: $timestamp');
 
+      // Handle multiple files type specially
+      if (type == 'multiple_files' && data['files'] != null) {
+        // Process files asynchronously without waiting
+        _processMultipleFiles(data['files'] as List<dynamic>);
+        return;
+      }
+
       // Use content or text - prioritize content from share extension
       final sharedText = content ?? text;
 
@@ -182,9 +190,52 @@ class ShareHandlerService {
       print('   Path: $path');
       print('   Params: $params');
 
-      // Handle different URL patterns for future extensibility
-      if (host.toLowerCase() == 'share' && params != null) {
-        // Convert generic URL to share data format
+      // Handle duggy://share?link=<url>&text=<text> format
+      if (scheme.toLowerCase() == 'duggy' && host.toLowerCase() == 'share') {
+        final String? linkUrl = params?['link'] as String?;
+        final String? textParam = params?['text'] as String?;
+
+        if (linkUrl != null && linkUrl.isNotEmpty) {
+          print('📤 Processing duggy://share with link: $linkUrl');
+
+          // Create SharedContent directly for the URL
+          final urlSharedContent = SharedContent(
+            type: SharedContentType.url,
+            text: linkUrl,
+            url: linkUrl,
+            metadata: {
+              'isUrlShare': true,
+              'viaUrlScheme': true,
+              if (textParam != null && textParam.isNotEmpty) 'userText': textParam,
+            },
+          );
+
+          if (!_sharedContentController.isClosed) {
+            _sharedContentController.add(urlSharedContent);
+            print('📤 Added URL from scheme to stream: ${urlSharedContent.displayText}');
+            if (textParam != null && textParam.isNotEmpty) {
+              print('📤 URL scheme includes text parameter: $textParam');
+            }
+          }
+        } else if (textParam != null && textParam.isNotEmpty) {
+          print('📤 Processing duggy://share with text only: $textParam');
+
+          // Create SharedContent for plain text
+          final textSharedContent = SharedContent(
+            type: SharedContentType.text,
+            text: textParam,
+            metadata: {'isTextShare': true, 'viaUrlScheme': true},
+          );
+
+          if (!_sharedContentController.isClosed) {
+            _sharedContentController.add(textSharedContent);
+            print('📤 Added text from scheme to stream: ${textSharedContent.displayText}');
+          }
+        } else {
+          print('⚠️ No link or text parameter found in duggy://share URL');
+        }
+      } else if (host.toLowerCase() == 'share' && params != null) {
+        // Convert generic URL to share data format (legacy support)
         _processSharedData(params);
       } else {
         print('⚠️ Unhandled URL pattern: $scheme://$host$path');
@@ -375,6 +426,17 @@ class ShareHandlerService {
     simulateShare(sharedContent);
   }
 
+  /// Simulate duggy://share?link=<url> URL scheme for testing
+  void simulateUrlSchemeShare(String url) {
+    final urlData = {
+      'scheme': 'duggy',
+      'host': 'share',
+      'path': '',
+      'params': {'link': url},
+    };
+    _processGenericURL(urlData);
+  }
+
   /// Get sharing statistics
   Map<String, dynamic> getStats() {
     return {
@@ -395,6 +457,230 @@ class ShareHandlerService {
       print('❌ Error getting shared images directory: $e');
       return null;
     }
+  }
+
+  /// Process multiple files shared at once
+  Future<void> _processMultipleFiles(List<dynamic> files) async {
+    try {
+      print('📤 === PROCESSING MULTIPLE FILES ===');
+      print('📤 Number of files: ${files.length}');
+
+      // For single file, check if it's a URL first
+      if (files.length == 1) {
+        final fileData = files[0];
+        print('📤 Processing single file: $fileData');
+
+        if (fileData is Map) {
+          final map = Map<String, dynamic>.from(fileData);
+          final filePath = map['path'] as String? ?? map['content'] as String?;
+          final fileType = map['type'] as String?;
+
+          // Check if it's a URL stored as file
+          if (fileType == 'file' && filePath != null && await _isFileContainingUrl(filePath)) {
+            final urlContent = await _readUrlFromFile(filePath);
+            if (urlContent != null) {
+              print('📤 Detected URL in single file: $urlContent');
+              final urlSharedContent = SharedContent(
+                type: SharedContentType.url,
+                text: urlContent,
+                url: urlContent,
+                metadata: {'isUrlShare': true, 'originalFilePath': filePath},
+              );
+              if (!_sharedContentController.isClosed) {
+                _sharedContentController.add(urlSharedContent);
+                print('📤 Added single URL SharedContent to stream: ${urlSharedContent.displayText}');
+              }
+              return; // Exit early for single URL
+            }
+          }
+
+          // Check if it's a direct URL
+          if (fileType == 'url' || (filePath != null && FileUtils.isUrl(filePath))) {
+            print('📤 Detected direct URL: $filePath');
+            final urlSharedContent = SharedContent(
+              type: SharedContentType.url,
+              text: filePath!,
+              url: filePath,
+              metadata: {'isUrlShare': true},
+            );
+            if (!_sharedContentController.isClosed) {
+              _sharedContentController.add(urlSharedContent);
+              print('📤 Added direct URL SharedContent to stream: ${urlSharedContent.displayText}');
+            }
+            return; // Exit early for single URL
+          }
+        }
+      }
+
+      // Process multiple files (images, documents, etc.) - but not URLs
+      final List<String> validImagePaths = [];
+      final List<String> validFilePaths = [];
+      String? firstMessage;
+
+      for (int i = 0; i < files.length; i++) {
+        final fileData = files[i];
+        print('📤 Processing file $i raw data: $fileData');
+
+        if (fileData is Map) {
+          final map = Map<String, dynamic>.from(fileData);
+          final filePath = map['path'] as String? ?? map['content'] as String?;
+          final fileType = map['type'] as String?;
+          final message = map['message'] as String?;
+
+          if (firstMessage == null && message != null) {
+            firstMessage = message;
+          }
+
+          print('📤 File $i details:');
+          print('   Path: $filePath');
+          print('   Type: $fileType');
+          print('   Message: $message');
+
+          if (filePath != null && filePath.isNotEmpty) {
+            // Skip URLs in multiple files processing - URLs should be shared individually
+            if (fileType == 'url' || FileUtils.isUrl(filePath)) {
+              print('⚠️ Skipping URL in multiple files: $filePath (URLs should be shared individually)');
+              continue;
+            }
+
+            // Categorize non-URL files
+            if (fileType == 'image' && FileUtils.isImage(filePath)) {
+              validImagePaths.add(filePath);
+              print('📤 Added image file: $filePath');
+            } else {
+              validFilePaths.add(filePath);
+              print('📤 Added non-image file: $filePath');
+            }
+          }
+        }
+      }
+
+      // Create SharedContent for multiple files (no URLs)
+      SharedContent? sharedContent;
+
+      if (validImagePaths.isNotEmpty && validFilePaths.isEmpty) {
+        // All images
+        if (validImagePaths.length == 1) {
+          sharedContent = SharedContent.fromImages(validImagePaths);
+          print('📤 Created single image SharedContent');
+        } else {
+          sharedContent = SharedContent(
+            type: SharedContentType.multipleImages,
+            text: firstMessage ?? '📸 Shared ${validImagePaths.length} images',
+            imagePaths: validImagePaths,
+          );
+          print('📤 Created multiple images SharedContent with ${validImagePaths.length} images');
+        }
+      } else if (validImagePaths.isEmpty && validFilePaths.isNotEmpty) {
+        // All files
+        sharedContent = SharedContent(
+          type: SharedContentType.file,
+          text: firstMessage ?? '📄 Shared ${validFilePaths.length} files',
+          filePaths: validFilePaths,
+        );
+        print('📤 Created file SharedContent with ${validFilePaths.length} files');
+      } else if (validImagePaths.isNotEmpty && validFilePaths.isNotEmpty) {
+        // Mixed content
+        sharedContent = SharedContent(
+          type: SharedContentType.file,
+          text: firstMessage ?? '📁 Shared ${validImagePaths.length + validFilePaths.length} files',
+          imagePaths: validImagePaths,
+          filePaths: validFilePaths,
+        );
+        print('📤 Created mixed content SharedContent');
+      }
+
+      // Add SharedContent to stream
+      if (sharedContent != null) {
+        if (!_sharedContentController.isClosed) {
+          _sharedContentController.add(sharedContent);
+          print('📤 Added SharedContent to stream: ${sharedContent.displayText}');
+        }
+      } else {
+        print('⚠️ No valid files found to create SharedContent');
+      }
+
+      print('📤 ================================');
+    } catch (e, stackTrace) {
+      print('❌ Error processing multiple files: $e');
+      print('❌ Stack trace: $stackTrace');
+    }
+  }
+
+  /// Check if a file contains a URL (for URLs saved as files)
+  Future<bool> _isFileContainingUrl(String filePath) async {
+    try {
+      final file = File(filePath);
+      if (!await file.exists()) return false;
+
+      // Read small portion to check if it contains a URL
+      final bytes = await file.readAsBytes();
+      if (bytes.length > 1024) return false; // URLs shouldn't be that large
+
+      final content = String.fromCharCodes(bytes).trim();
+      return FileUtils.isUrl(content);
+    } catch (e) {
+      print('❌ Error checking file for URL: $e');
+      return false;
+    }
+  }
+
+  /// Read URL from file content
+  Future<String?> _readUrlFromFile(String filePath) async {
+    try {
+      final file = File(filePath);
+      if (!await file.exists()) return null;
+
+      final bytes = await file.readAsBytes();
+      if (bytes.length > 2048) return null; // Increase size limit for plist files
+
+      final content = String.fromCharCodes(bytes);
+
+      // First check if it's a plain URL
+      if (FileUtils.isUrl(content.trim())) {
+        final cleanUrl = content.trim();
+        print('📤 Successfully read plain URL from file: $cleanUrl');
+        return cleanUrl;
+      }
+
+      // Extract URL from binary plist or other formats using regex
+      final urlPattern = RegExp(r'https?://[^\s\x00-\x1f\x7f-\x9f]+');
+      final urlMatch = urlPattern.firstMatch(content);
+
+      if (urlMatch != null) {
+        final extractedUrl = urlMatch.group(0)!;
+        // Clean up any trailing characters that aren't part of the URL
+        final cleanUrl = _cleanExtractedUrl(extractedUrl);
+        if (FileUtils.isUrl(cleanUrl)) {
+          print('📤 Successfully extracted URL from binary content: $cleanUrl');
+          return cleanUrl;
+        }
+      }
+
+      print('📤 No valid URL found in file content');
+      return null;
+    } catch (e) {
+      print('❌ Error reading URL from file: $e');
+      return null;
+    }
+  }
+
+  /// Clean extracted URL from binary content
+  String _cleanExtractedUrl(String url) {
+    // Remove any trailing non-URL characters
+    final cleanedUrl = url.replaceAll(RegExp(r'[^\w\-._~:/?#[\]@!\$&'"'"'()*+,;=%]+\$'), '');
+
+    // Ensure the URL ends properly (remove any incomplete parameters)
+    if (cleanedUrl.contains('&') && !cleanedUrl.endsWith('&')) {
+      // If there's an incomplete parameter, remove it
+      final lastAmpersand = cleanedUrl.lastIndexOf('&');
+      final afterAmpersand = cleanedUrl.substring(lastAmpersand + 1);
+      if (!afterAmpersand.contains('=') || afterAmpersand.endsWith('=')) {
+        return cleanedUrl.substring(0, lastAmpersand);
+      }
+    }
+
+    return cleanedUrl;
   }
 
   /// Dispose of the service
@@ -469,13 +755,29 @@ class FileUtils {
   }
 
   static bool isUrl(String text) {
-    final urlRegex = RegExp(r'https?://[^\s]+');
-    return urlRegex.hasMatch(text);
+    if (text.isEmpty) return false;
+
+    // Basic URL pattern check
+    final urlRegex = RegExp(r'^https?://[^\s]+$');
+    if (!urlRegex.hasMatch(text)) return false;
+
+    // Additional validation to ensure it's a proper URL
+    try {
+      final uri = Uri.parse(text);
+      return uri.hasScheme && (uri.scheme == 'http' || uri.scheme == 'https') && uri.hasAuthority;
+    } catch (e) {
+      return false;
+    }
   }
 
   static bool isYouTubeUrl(String url) {
-    final youtubeRegex = RegExp(r'(youtube\.com/watch\?v=|youtu\.be/)');
+    final youtubeRegex = RegExp(r'(youtube\.com/watch\?v=|youtu\.be/|youtube\.com/shorts/)');
     return youtubeRegex.hasMatch(url);
+  }
+
+  static bool isSocialMediaUrl(String url) {
+    final socialRegex = RegExp(r'(youtube\.com|youtu\.be|instagram\.com|twitter\.com|x\.com|facebook\.com|tiktok\.com)');
+    return socialRegex.hasMatch(url);
   }
 
   static String getDisplayName(String path) {
