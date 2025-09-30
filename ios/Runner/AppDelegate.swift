@@ -1,5 +1,6 @@
 import Flutter
 import UIKit
+import UserNotifications
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -27,26 +28,55 @@ import UIKit
     }
     
     GeneratedPluginRegistrant.register(with: self)
-    
-    // Get the Flutter view controller
-    guard let controller = window?.rootViewController as? FlutterViewController else {
-      return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+
+    // Set up notification center delegate
+    UNUserNotificationCenter.current().delegate = self
+
+    // Setup method channels using plugin registry
+    setupMethodChannels()
+
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  private func setupMethodChannels() {
+    // Register method channels during app startup
+    // This will be called again when Flutter engine is ready via plugin registry
+    guard let controller = getCurrentFlutterViewController() else {
+      print("📱 Flutter controller not available during startup, will register when ready")
+      return
     }
-    
+
+    registerMethodChannels(with: controller.binaryMessenger)
+  }
+
+  private func getCurrentFlutterViewController() -> FlutterViewController? {
+    // Use a safer approach to get the Flutter controller
+    if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+       let window = windowScene.windows.first,
+       let controller = window.rootViewController as? FlutterViewController {
+      return controller
+    }
+    return nil
+  }
+
+  private func registerMethodChannels(with messenger: FlutterBinaryMessenger) {
     // Register the share method channel
-    shareChannel = FlutterMethodChannel(name: SHARE_CHANNEL, binaryMessenger: controller.binaryMessenger)
-    
+    shareChannel = FlutterMethodChannel(name: SHARE_CHANNEL, binaryMessenger: messenger)
+
     shareChannel?.setMethodCallHandler({
       (call: FlutterMethodCall, result: @escaping FlutterResult) -> Void in
-      
+
       print("📱 Received Flutter method call: \(call.method)")
       print("📱 Arguments: \(call.arguments ?? "nil")")
-      
+
       switch call.method {
       case "getSharedData":
         print("📱 Flutter requested shared data")
         // For now, return null as iOS sharing will be handled differently
         result(nil)
+      case "checkSharedContent":
+        print("📱 Flutter requested to check shared content from App Groups")
+        self.checkSharedContent(result: result)
       case "getSharedImagesDirectory":
         print("📱 Flutter requested shared images directory")
         // Return the path to shared images directory
@@ -63,10 +93,10 @@ import UIKit
         result(FlutterMethodNotImplemented)
       }
     })
-    
+
     // Register the clipboard method channel
-    clipboardChannel = FlutterMethodChannel(name: CLIPBOARD_CHANNEL, binaryMessenger: controller.binaryMessenger)
-    
+    clipboardChannel = FlutterMethodChannel(name: CLIPBOARD_CHANNEL, binaryMessenger: messenger)
+
     clipboardChannel?.setMethodCallHandler({
       (call: FlutterMethodCall, result: @escaping FlutterResult) -> Void in
 
@@ -81,8 +111,6 @@ import UIKit
         result(FlutterMethodNotImplemented)
       }
     })
-    
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
   
   override func application(
@@ -140,67 +168,84 @@ import UIKit
     print("📤 ====== HANDLING SHARE URL ======")
     print("📤 URL Components: \(components)")
     print("📤 Query Items: \(components.queryItems ?? [])")
-    
-    var shareData: [String: Any] = [:]
-    
-    // Parse all query parameters
-    if let queryItems = components.queryItems {
-      print("📤 Processing \(queryItems.count) query items")
-      for item in queryItems {
-        guard let value = item.value else { 
-          print("📤 Skipping query item with nil value: \(item.name)")
-          continue 
+
+    do {
+      var shareData: [String: Any] = [:]
+
+      // Parse all query parameters
+      if let queryItems = components.queryItems {
+        print("📤 Processing \(queryItems.count) query items")
+        for item in queryItems {
+          guard let value = item.value else {
+            print("📤 Skipping query item with nil value: \(item.name)")
+            continue
+          }
+
+          print("📤 Processing query item: \(item.name) = \(value)")
+
+          switch item.name.lowercased() {
+          case "content":
+            shareData["content"] = value.removingPercentEncoding ?? value
+          case "type":
+            shareData["type"] = value
+          case "message":
+            shareData["message"] = value.removingPercentEncoding ?? value
+          case "timestamp":
+            shareData["timestamp"] = value
+          case "text": // Legacy support
+            shareData["text"] = value.removingPercentEncoding ?? value
+          default:
+            // Store any additional parameters
+            shareData[item.name] = value.removingPercentEncoding ?? value
+          }
         }
-        
-        print("📤 Processing query item: \(item.name) = \(value)")
-        
-        switch item.name.lowercased() {
-        case "content":
-          shareData["text"] = value.removingPercentEncoding ?? value
-        case "type":
-          shareData["type"] = value
-        case "message":
-          shareData["message"] = value.removingPercentEncoding ?? value
-        case "timestamp":
-          shareData["timestamp"] = value
-        case "text": // Legacy support
-          shareData["text"] = value.removingPercentEncoding ?? value
-        default:
-          // Store any additional parameters
-          shareData[item.name] = value.removingPercentEncoding ?? value
+      } else {
+        print("📤 No query items found in URL")
+      }
+
+      print("📤 Parsed share data: \(shareData)")
+
+      // Ensure we have at least some content
+      guard shareData["content"] != nil || shareData["text"] != nil else {
+        print("❌ No content found in share URL")
+        return false
+      }
+
+      // Default type if not specified
+      if shareData["type"] == nil {
+        shareData["type"] = "text"
+        print("📤 Defaulting type to 'text'")
+      }
+
+      print("📤 Final share data to send to Flutter: \(shareData)")
+
+      // Check if shareChannel is available
+      guard let channel = shareChannel else {
+        print("❌ Share channel is nil! Cannot send data to Flutter")
+        return false
+      }
+
+      // Send the parsed data to Flutter with error handling
+      print("📤 Invoking Flutter method 'onDataReceived'")
+
+      // Add delay to ensure Flutter is ready
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        channel.invokeMethod("onDataReceived", arguments: shareData) { result in
+          if let error = result as? FlutterError {
+            print("❌ Flutter method call error: \(error)")
+          } else {
+            print("✅ Flutter method call successful: \(result ?? "nil")")
+          }
         }
       }
-    } else {
-      print("📤 No query items found in URL")
-    }
-    
-    print("📤 Parsed share data: \(shareData)")
-    
-    // Ensure we have at least some content
-    guard shareData["text"] != nil || shareData["content"] != nil else {
-      print("❌ No content found in share URL")
+
+      print("📤 ===================================")
+      return true
+
+    } catch {
+      print("❌ Error in handleShareURL: \(error)")
       return false
     }
-    
-    // Default type if not specified
-    if shareData["type"] == nil {
-      shareData["type"] = "text"
-      print("📤 Defaulting type to 'text'")
-    }
-    
-    print("📤 Final share data to send to Flutter: \(shareData)")
-    
-    // Check if shareChannel is available
-    if shareChannel == nil {
-      print("❌ Share channel is nil! Cannot send data to Flutter")
-      return false
-    }
-    
-    // Send the parsed data to Flutter
-    print("📤 Invoking Flutter method 'onDataReceived'")
-    shareChannel?.invokeMethod("onDataReceived", arguments: shareData)
-    print("📤 ===================================")
-    return true
   }
   
   private func handleFileURL(_ url: URL) -> Bool {
@@ -442,5 +487,90 @@ import UIKit
 
     print("📋 No accessible allowed image found in iOS clipboard")
     result(nil)
+  }
+
+  private func checkSharedContent(result: @escaping FlutterResult) {
+    print("📱 ====== CHECKING SHARED CONTENT FROM APP GROUPS ======")
+
+    guard let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.app.duggy") else {
+      print("❌ Could not access shared container")
+      result(nil)
+      return
+    }
+
+    let sharedDataDir = containerURL.appendingPathComponent("SharedData")
+    print("📱 Checking directory: \(sharedDataDir.path)")
+
+    do {
+      let fileURLs = try FileManager.default.contentsOfDirectory(at: sharedDataDir, includingPropertiesForKeys: [.creationDateKey], options: [])
+
+      // Sort by creation date, get the most recent
+      let sortedFiles = try fileURLs.sorted { url1, url2 in
+        let date1 = try url1.resourceValues(forKeys: [.creationDateKey]).creationDate ?? Date.distantPast
+        let date2 = try url2.resourceValues(forKeys: [.creationDateKey]).creationDate ?? Date.distantPast
+        return date1 > date2
+      }
+
+      guard let mostRecentFile = sortedFiles.first else {
+        print("📱 No shared content files found")
+        result(nil)
+        return
+      }
+
+      print("📱 Found shared content file: \(mostRecentFile.lastPathComponent)")
+
+      // Read the JSON file
+      let jsonData = try Data(contentsOf: mostRecentFile)
+      let sharedData = try JSONSerialization.jsonObject(with: jsonData, options: []) as? [String: Any]
+
+      print("📱 Loaded shared content: \(sharedData ?? [:])")
+
+      // Delete the file after reading to prevent duplicate processing
+      try FileManager.default.removeItem(at: mostRecentFile)
+      print("📱 Deleted processed shared content file")
+
+      result(sharedData)
+
+    } catch {
+      print("❌ Error checking shared content: \(error)")
+      result(nil)
+    }
+
+    print("📱 ===============================================")
+  }
+}
+
+// MARK: - UNUserNotificationCenterDelegate
+extension AppDelegate {
+
+  // Handle notification when app is in foreground
+    override func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+    print("📱 ====== NOTIFICATION WILL PRESENT ======")
+    print("📱 Notification identifier: \(notification.request.identifier)")
+    print("📱 Notification user info: \(notification.request.content.userInfo)")
+
+    // Show the notification even when app is in foreground
+    completionHandler([.alert, .sound, .badge])
+  }
+
+  // Handle notification tap/action
+    override func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+    print("📱 ====== NOTIFICATION RECEIVED ======")
+    print("📱 Action identifier: \(response.actionIdentifier)")
+    print("📱 Notification identifier: \(response.notification.request.identifier)")
+    print("📱 User info: \(response.notification.request.content.userInfo)")
+
+    // Handle the notification action
+    if response.actionIdentifier == "OPEN_APP" || response.actionIdentifier == UNNotificationDefaultActionIdentifier {
+      print("📱 User tapped notification to open app")
+
+      // Check for shared content when user opens via notification
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+        print("📱 Checking for shared content after notification tap")
+        self?.shareChannel?.invokeMethod("checkSharedContent", arguments: nil)
+      }
+    }
+
+    completionHandler()
   }
 }

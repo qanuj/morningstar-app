@@ -561,7 +561,9 @@ class MessageInputState extends State<MessageInput> {
       // Generate thumbnail for videos
       if (mediaItem.isVideo) {
         print('🖼️ MessageInput: Generating thumbnail for video: ${file.path}');
-        final thumbnailPath = await VideoCompressionService.generateThumbnail(file.path);
+        final thumbnailPath = await VideoCompressionService.generateThumbnail(
+          file.path,
+        );
         if (thumbnailPath != null) {
           mediaItem = mediaItem.copyWith(thumbnailPath: thumbnailPath);
           print('✅ MessageInput: Thumbnail generated: $thumbnailPath');
@@ -664,8 +666,12 @@ class MessageInputState extends State<MessageInput> {
 
           // Generate thumbnail if not already generated
           if (thumbnailPath == null) {
-            print('🖼️ MessageInput: Generating thumbnail during processing for ${item.url}');
-            thumbnailPath = await VideoCompressionService.generateThumbnail(item.url);
+            print(
+              '🖼️ MessageInput: Generating thumbnail during processing for ${item.url}',
+            );
+            thumbnailPath = await VideoCompressionService.generateThumbnail(
+              item.url,
+            );
           }
 
           if (needsCompression) {
@@ -723,11 +729,7 @@ class MessageInputState extends State<MessageInput> {
 
       try {
         // Update upload progress for this specific item
-        _updateMediaItemProgress(
-          message,
-          i,
-          uploadProgress: 0.0,
-        );
+        _updateMediaItemProgress(message, i, uploadProgress: 0.0);
 
         if (item.isVideo) {
           // Upload video with thumbnail
@@ -745,12 +747,14 @@ class MessageInputState extends State<MessageInput> {
             print('✅ Video uploaded successfully: $videoUrl');
             print('🖼️ Thumbnail uploaded: $thumbnailUrl');
 
-            uploadedMediaItems.add(item.copyWith(
-              url: videoUrl,
-              thumbnailUrl: thumbnailUrl,
-              isLocal: false,
-              uploadProgress: 100.0,
-            ));
+            uploadedMediaItems.add(
+              item.copyWith(
+                url: videoUrl,
+                thumbnailUrl: thumbnailUrl,
+                isLocal: false,
+                uploadProgress: 100.0,
+              ),
+            );
           } else {
             print('❌ Video upload failed, keeping local file');
             uploadedMediaItems.add(item.copyWith(uploadProgress: 0.0));
@@ -764,11 +768,13 @@ class MessageInputState extends State<MessageInput> {
 
           if (imageUrl != null) {
             print('✅ Image uploaded successfully: $imageUrl');
-            uploadedMediaItems.add(item.copyWith(
-              url: imageUrl,
-              isLocal: false,
-              uploadProgress: 100.0,
-            ));
+            uploadedMediaItems.add(
+              item.copyWith(
+                url: imageUrl,
+                isLocal: false,
+                uploadProgress: 100.0,
+              ),
+            );
           } else {
             print('❌ Image upload failed, keeping local file');
             uploadedMediaItems.add(item.copyWith(uploadProgress: 0.0));
@@ -779,12 +785,7 @@ class MessageInputState extends State<MessageInput> {
         }
 
         // Update upload progress for this specific item
-        _updateMediaItemProgress(
-          message,
-          i,
-          uploadProgress: 100.0,
-        );
-
+        _updateMediaItemProgress(message, i, uploadProgress: 100.0);
       } catch (e) {
         print('❌ Upload failed for item $i: $e');
         uploadedMediaItems.add(item.copyWith(uploadProgress: 0.0));

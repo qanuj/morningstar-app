@@ -98,67 +98,92 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 
   void _setupSharedContentListener() {
-    _sharedContentSubscription = ShareHandlerService().sharedContentStream
-        .listen(
-          (sharedContent) {
-            print('📤 === SHARED CONTENT RECEIVED ===');
-            print('📤 Type: ${sharedContent.type.name}');
-            print('📤 Text: ${sharedContent.text}');
-            print('📤 Image Paths: ${sharedContent.imagePaths}');
-            print('📤 Display Text: ${sharedContent.displayText}');
-            print('📤 Is Valid: ${sharedContent.isValid}');
-            print('📤 Has Images: ${sharedContent.hasImages}');
-            print('📤 ==============================');
+    try {
+      print('📤 Setting up shared content listener...');
 
-            // Validate shared content before navigation
-            if (!sharedContent.isValid) {
-              print('❌ Invalid shared content received, skipping navigation');
-              return;
-            }
-
-            // Navigate to ShareTargetScreen when content is shared
-            WidgetsBinding.instance.addPostFrameCallback((_) {
+      _sharedContentSubscription = ShareHandlerService().sharedContentStream
+          .listen(
+            (sharedContent) {
               try {
-                final navigator = _navigatorKey.currentState;
-                if (navigator == null) {
-                  print('❌ Navigator not available for shared content');
+                print('📤 === SHARED CONTENT RECEIVED ===');
+                print('📤 Type: ${sharedContent.type.name}');
+                print('📤 Text: ${sharedContent.text}');
+                print('📤 Image Paths: ${sharedContent.imagePaths}');
+                print('📤 Display Text: ${sharedContent.displayText}');
+                print('📤 Is Valid: ${sharedContent.isValid}');
+                print('📤 Has Images: ${sharedContent.hasImages}');
+                print('📤 ==============================');
+
+                // Validate shared content before navigation
+                if (!sharedContent.isValid) {
+                  print('❌ Invalid shared content received, skipping navigation');
                   return;
                 }
 
-                // Navigate to ShareTargetScreen for shared content
-                print('📤 Navigating to ShareTargetScreen');
-                navigator
-                    .push(
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            ShareTargetScreen(sharedContent: sharedContent),
-                        settings: const RouteSettings(name: '/share_target'),
-                      ),
-                    )
-                    .catchError((e) {
-                      print('❌ Navigation error to ShareTargetScreen: $e');
-                      // Handle navigation errors gracefully
-                    });
-              } catch (e) {
-                print('❌ Error navigating to ShareTargetScreen: $e');
-                // Try alternative navigation method
-                try {
-                  Navigator.of(_navigatorKey.currentContext!).push(
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          ShareTargetScreen(sharedContent: sharedContent),
-                    ),
-                  );
-                } catch (e2) {
-                  print('❌ Fallback navigation also failed: $e2');
-                }
+                // Navigate to ShareTargetScreen when content is shared
+                print('📤 Attempting to schedule navigation to ShareTargetScreen...');
+                print('📤 Navigator key current state: ${_navigatorKey.currentState}');
+                print('📤 Navigator key current context: ${_navigatorKey.currentContext}');
+
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  print('📤 PostFrameCallback executing for navigation...');
+                  try {
+                    final navigator = _navigatorKey.currentState;
+                    if (navigator == null) {
+                      print('❌ Navigator not available for shared content');
+                      print('❌ Navigator key: $_navigatorKey');
+                      return;
+                    }
+
+                    final context = _navigatorKey.currentContext;
+                    if (context == null) {
+                      print('❌ Context not available for shared content');
+                      print('❌ Navigator state: $navigator');
+                      return;
+                    }
+
+                    // Navigate to ShareTargetScreen for shared content
+                    print('📤 ✅ Navigator and context available, navigating to ShareTargetScreen');
+                    print('📤 Shared content: ${sharedContent.displayText}');
+                    navigator
+                        .push(
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                ShareTargetScreen(sharedContent: sharedContent),
+                            settings: const RouteSettings(name: '/share_target'),
+                          ),
+                        )
+                        .then((_) {
+                          print('📤 ✅ Navigation to ShareTargetScreen completed');
+                        })
+                        .catchError((e) {
+                          print('❌ Navigation error to ShareTargetScreen: $e');
+                          // Handle navigation errors gracefully
+                        });
+                  } catch (e) {
+                    print('❌ Error navigating to ShareTargetScreen: $e');
+                    // Don't crash the app on navigation errors
+                  }
+                });
+              } catch (e, stackTrace) {
+                print('❌ Error in shared content listener: $e');
+                print('❌ Stack trace: $stackTrace');
+                // Don't rethrow to prevent app crash
               }
-            });
-          },
-          onError: (error) {
-            print('❌ Error in shared content stream: $error');
-          },
-        );
+            },
+            onError: (error, stackTrace) {
+              print('❌ Error in shared content stream: $error');
+              print('❌ Stack trace: $stackTrace');
+              // Don't crash on stream errors
+            },
+          );
+
+      print('✅ Shared content listener set up successfully');
+    } catch (e, stackTrace) {
+      print('❌ Error setting up shared content listener: $e');
+      print('❌ Stack trace: $stackTrace');
+      // Don't crash during setup
+    }
   }
 
   @override
@@ -180,6 +205,10 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
         BackgroundSyncService.setAppActiveState(true);
         // Trigger immediate sync when app becomes active
         BackgroundSyncService.triggerSync();
+
+        // Check for shared content from ShareExtension
+        print('📤 App resumed - checking for shared content from ShareExtension');
+        ShareHandlerService().checkForSharedContent();
         break;
 
       case AppLifecycleState.paused:

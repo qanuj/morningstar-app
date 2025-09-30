@@ -93,12 +93,17 @@ class ShareHandlerService {
   /// Process shared data from native iOS/Android
   void _processSharedData(Map<String, dynamic> data) {
     try {
+      print('📤 === RAW SHARED DATA RECEIVED ===');
+      print('📤 Data keys: ${data.keys.toList()}');
+      print('📤 Full data: $data');
+      print('📤 ===================================');
+
       final String? text = data['text'] as String?;
       final String? content = data['content'] as String?;
       final String? subject = data['subject'] as String?;
       final String? type = data['type'] as String?;
       final String? message = data['message'] as String?;
-      final String? timestamp = data['timestamp'] as String?;
+      final String? timestamp = data['timestamp']?.toString();
 
       print('📤 Processing enhanced shared data:');
       print('   Type: $type');
@@ -113,21 +118,52 @@ class ShareHandlerService {
 
       if (sharedText != null && sharedText.trim().isNotEmpty) {
         // Create SharedContent with enhanced data
+        print('📤 Creating SharedContent from sharedText: $sharedText');
         final sharedContent = _createSharedContentFromData(
           sharedText,
           type,
           message,
         );
-        _sharedContentController.add(sharedContent);
+        print('📤 Created SharedContent: ${sharedContent.displayText}');
+
+        if (!_sharedContentController.isClosed) {
+          _sharedContentController.add(sharedContent);
+          print('📤 Added SharedContent to stream');
+        } else {
+          print('❌ SharedContent controller is closed');
+        }
       } else if (type == 'image' && message != null) {
         // Handle image sharing even without text content
+        print('📤 Creating SharedContent for image without text content');
         final sharedContent = _createSharedContentFromData('', type, message);
-        _sharedContentController.add(sharedContent);
+
+        if (!_sharedContentController.isClosed) {
+          _sharedContentController.add(sharedContent);
+          print('📤 Added image SharedContent to stream');
+        } else {
+          print('❌ SharedContent controller is closed');
+        }
+      } else if (type == 'video' && message != null) {
+        // Handle video sharing even without text content
+        print('📤 Creating SharedContent for video without text content');
+        final sharedContent = _createSharedContentFromData('', type, message);
+
+        if (!_sharedContentController.isClosed) {
+          _sharedContentController.add(sharedContent);
+          print('📤 Added video SharedContent to stream');
+        } else {
+          print('❌ SharedContent controller is closed');
+        }
       } else {
         print('⚠️ No valid content in shared data');
+        print('   sharedText: $sharedText');
+        print('   type: $type');
+        print('   message: $message');
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       print('❌ Error processing shared data: $e');
+      print('❌ Stack trace: $stackTrace');
+      // Don't rethrow to prevent app crash
     }
   }
 
@@ -284,6 +320,25 @@ class ShareHandlerService {
       print('❌ Error creating SharedContent: $e');
       // Return fallback content instead of crashing
       return SharedContent.fromText('Shared content');
+    }
+  }
+
+  /// Check for shared content from App Groups container (called when app resumes)
+  Future<void> checkForSharedContent() async {
+    try {
+      print('📤 Checking App Groups container for shared content...');
+
+      // Get shared content from iOS App Groups using method channel
+      final result = await _methodChannel.invokeMethod('checkSharedContent');
+      if (result != null) {
+        print('📤 Found shared content in App Groups container');
+        final Map<String, dynamic> data = Map<String, dynamic>.from(result);
+        _processSharedData(data);
+      } else {
+        print('📤 No shared content found in App Groups container');
+      }
+    } catch (e) {
+      print('❌ Error checking for shared content: $e');
     }
   }
 
