@@ -42,6 +42,14 @@ post_install do |installer|
     # Fix deployment target issues
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+
+      # Fix dSYM issues for ffmpeg frameworks
+      if target.name.include?('ffmpeg') || target.name.include?('libav')
+        config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf'
+        config.build_settings['DEPLOYMENT_POSTPROCESSING'] = 'NO'
+        config.build_settings['SEPARATE_STRIP'] = 'NO'
+        config.build_settings['STRIP_STYLE'] = 'non-global'
+      end
     end
   end
 end

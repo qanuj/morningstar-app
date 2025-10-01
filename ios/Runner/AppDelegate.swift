@@ -497,7 +497,7 @@ import UserNotifications
     DispatchQueue.main.asyncAfter(deadline: .now() + currentDelay) {
       // Test if Flutter is ready by calling a simple method first
       channel.invokeMethod("getSharedData", arguments: nil) { testResult in
-        if testResult is FlutterMethodNotImplemented || testResult != nil {
+        if testResult == nil || !(testResult is FlutterError) {
           // Flutter is responding, send the actual data
           print("✅ Flutter is ready, sending share data (attempt \(attempt))")
           channel.invokeMethod("onDataReceived", arguments: shareData) { result in
