@@ -258,6 +258,10 @@ class ClubChatScreenState extends State<ClubChatScreen>
             } else {
               _messageController.text = sharedText;
             }
+
+            print('📤 [ClubChat] SharedContent text set: $sharedText');
+            print('📤 [ClubChat] SharedContent type: ${sharedContent.type}');
+            print('📤 [ClubChat] Final message controller text: ${_messageController.text}');
           }
 
           // For images, we would need to modify the MessageInput widget

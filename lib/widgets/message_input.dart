@@ -14,6 +14,7 @@ import '../widgets/selectors/unified_event_picker.dart';
 import '../widgets/selectors/poll_picker.dart';
 import '../widgets/mentionable_text_field.dart';
 import '../widgets/pasteable_text_field.dart';
+import '../widgets/url_preview_card.dart';
 
 import '../models/club_message.dart';
 import '../models/message_status.dart';
@@ -208,6 +209,7 @@ class MessageInputState extends State<MessageInput> {
   // Link preview state
   List<LinkMetadata> _linkMetadata = [];
   String? _lastProcessedText;
+  bool _isLoadingLinkPreview = false;
 
   @override
   void initState() {
@@ -267,6 +269,10 @@ class MessageInputState extends State<MessageInput> {
       _mentionableController.value = _mentionableController.value.copyWith(
         text: widget.messageController.text,
       );
+
+      // Also trigger link preview processing when text is set programmatically (e.g., from shared content)
+      print('🔄 [MessageInput] Text synced from original controller: ${widget.messageController.text}');
+      _handleTextChanged(widget.messageController.text);
     }
   }
 
@@ -311,11 +317,14 @@ class MessageInputState extends State<MessageInput> {
       return;
     }
 
-    // Look for URLs in the text
+    // Look for URLs in the text with enhanced pattern
     final urlPattern = RegExp(
-      r'http?://[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:/[^\s]*)?',
+      r'https?://[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:/[^\s]*)?',
       caseSensitive: false,
     );
+
+    print('🔗 [LinkPreview] Processing text: $text');
+    print('🔗 [LinkPreview] URL pattern matches: ${urlPattern.allMatches(text).map((m) => m.group(0)).toList()}');
     final matches = urlPattern.allMatches(text);
 
     if (matches.isEmpty) {
@@ -330,29 +339,46 @@ class MessageInputState extends State<MessageInput> {
 
     // Process the first URL found
     final url = matches.first.group(0)!;
+    print('🔗 [LinkPreview] Found URL: $url');
 
     // Don't fetch if we already have metadata for this URL
     if (_linkMetadata.isNotEmpty && _linkMetadata.first.url == url) {
+      print('🔗 [LinkPreview] Already have metadata for this URL, skipping');
       return;
     }
 
-    // Start loading indicator - metadata will be fetched
+    print('🔗 [LinkPreview] Fetching metadata for URL: $url');
+
+    // Show loading state
+    setState(() {
+      _isLoadingLinkPreview = true;
+    });
 
     try {
       final metadata = await _fetchLinkMetadata(url);
+      print('🔗 [LinkPreview] Metadata fetch result: ${metadata != null ? 'SUCCESS' : 'FAILED'}');
+      if (metadata != null) {
+        print('🔗 [LinkPreview] Metadata: title="${metadata.title}", description="${metadata.description}", image="${metadata.image}"');
+      }
+
       if (metadata != null && _lastProcessedText == text) {
         setState(() {
           _linkMetadata = [metadata];
+          _isLoadingLinkPreview = false;
         });
+        print('🔗 [LinkPreview] Metadata stored in state');
       } else {
         setState(() {
           _linkMetadata.clear();
+          _isLoadingLinkPreview = false;
         });
+        print('🔗 [LinkPreview] Metadata cleared (either null or text changed)');
       }
     } catch (e) {
-      print('❌ Error fetching link metadata: $e');
+      print('❌ [LinkPreview] Error fetching link metadata: $e');
       setState(() {
         _linkMetadata.clear();
+        _isLoadingLinkPreview = false;
       });
     }
   }
@@ -413,6 +439,14 @@ class MessageInputState extends State<MessageInput> {
       print('   - @${mention.name} (${mention.id})');
     }
 
+    print('📤 [MessageInput] Creating message...');
+    print('📤 [MessageInput] Content: $finalDisplayText');
+    print('📤 [MessageInput] Link metadata count: ${_linkMetadata.length}');
+    if (_linkMetadata.isNotEmpty) {
+      print('📤 [MessageInput] First link metadata: title="${_linkMetadata.first.title}", url="${_linkMetadata.first.url}"');
+    }
+    print('📤 [MessageInput] Message type: ${_linkMetadata.isNotEmpty ? 'link' : 'text'}');
+
     // Create temp message with link metadata and mentions
     final tempMessage = ClubMessage(
       id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
@@ -432,6 +466,8 @@ class MessageInputState extends State<MessageInput> {
       hasMentions: mentions.isNotEmpty,
     );
 
+    print('📤 [MessageInput] Message created with ${tempMessage.linkMeta.length} link metadata items');
+
     _mentionableController.clear();
     // Also clear the original controller to keep them in sync
     widget.messageController.clear();
@@ -439,6 +475,7 @@ class MessageInputState extends State<MessageInput> {
       _isComposing = false;
       _linkMetadata.clear();
       _lastProcessedText = null;
+      _isLoadingLinkPreview = false;
     });
 
     widget.onSendMessage(tempMessage);
@@ -1766,6 +1803,22 @@ class MessageInputState extends State<MessageInput> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // URL Preview Card (shown above input when URL is detected)
+            if (_linkMetadata.isNotEmpty || _isLoadingLinkPreview)
+              UrlPreviewCard(
+                linkMetadata: _linkMetadata.isNotEmpty
+                    ? _linkMetadata.first
+                    : LinkMetadata(url: '', title: 'Loading...', description: '', image: '', siteName: '', favicon: ''),
+                isLoading: _isLoadingLinkPreview,
+                onClose: () {
+                  setState(() {
+                    _linkMetadata.clear();
+                    _isLoadingLinkPreview = false;
+                    _lastProcessedText = null;
+                  });
+                },
+              ),
+
             // Input field row
             Row(
               children: [

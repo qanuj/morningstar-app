@@ -48,22 +48,62 @@ class OpenGraphService {
         return instagramData;
       }
 
-      // For other URLs, use enhanced headers
-      final headers = _getHeadersForUrl(fullUrl);
+      // For other URLs, use enhanced headers with retry logic
+      OpenGraphData? ogData;
 
-      // Fetch the webpage
-      final response = await http.get(
-        Uri.parse(fullUrl),
-        headers: headers,
-      ).timeout(_timeout);
+      // Try multiple user agents if the first one fails
+      final userAgents = [
+        'WhatsApp/2.21.11.17 A',
+        'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      ];
 
-      if (response.statusCode != 200) {
-        return _createFallbackData(fullUrl);
+      for (int attempt = 0; attempt < userAgents.length; attempt++) {
+        try {
+          final headers = _getHeadersForUrl(fullUrl);
+          headers['User-Agent'] = userAgents[attempt];
+
+          debugPrint('🌐 Attempt ${attempt + 1} for $fullUrl with User-Agent: ${userAgents[attempt]}');
+
+          // Fetch the webpage
+          final response = await http.get(
+            Uri.parse(fullUrl),
+            headers: headers,
+          ).timeout(_timeout);
+
+          debugPrint('📡 Response status: ${response.statusCode}');
+          debugPrint('📄 Response length: ${response.body.length}');
+
+          if (response.statusCode == 200 && response.body.isNotEmpty) {
+            // Parse HTML for Open Graph tags
+            final html = response.body;
+            ogData = _parseOpenGraphTags(html, fullUrl);
+
+            // Check if we got good data
+            if (ogData.title != null || ogData.image != null) {
+              debugPrint('✅ Successfully fetched Open Graph data on attempt ${attempt + 1}');
+              break;
+            } else {
+              debugPrint('⚠️ No Open Graph data found on attempt ${attempt + 1}');
+            }
+          } else {
+            debugPrint('❌ Failed attempt ${attempt + 1}: Status ${response.statusCode}');
+          }
+        } catch (e) {
+          debugPrint('❌ Error on attempt ${attempt + 1}: $e');
+          if (attempt == userAgents.length - 1) {
+            // Last attempt failed
+            rethrow;
+          }
+        }
       }
 
-      // Parse HTML for Open Graph tags
-      final html = response.body;
-      final ogData = _parseOpenGraphTags(html, fullUrl);
+      // If we still don't have good data, return fallback
+      if (ogData == null || (ogData.title == null && ogData.image == null)) {
+        debugPrint('⚠️ All attempts failed, using fallback data');
+        return _createFallbackData(fullUrl);
+      }
 
       // Cache the result
       _cache[url] = ogData;
@@ -83,44 +123,105 @@ class OpenGraphService {
     String? siteName;
     String? favicon;
 
-    // Extract Open Graph tags using regex
+    debugPrint('🔍 Parsing Open Graph for URL: $url');
+    debugPrint('📄 HTML length: ${html.length}');
+
+    // Enhanced regex patterns for Open Graph tags with improved parsing
     final ogTitleRegex = RegExp(r'<meta\s+property="og:title"\s+content="([^"]*)"', caseSensitive: false);
     final ogDescriptionRegex = RegExp(r'<meta\s+property="og:description"\s+content="([^"]*)"', caseSensitive: false);
     final ogImageRegex = RegExp(r'<meta\s+property="og:image"\s+content="([^"]*)"', caseSensitive: false);
     final ogSiteNameRegex = RegExp(r'<meta\s+property="og:site_name"\s+content="([^"]*)"', caseSensitive: false);
-    
+
+    // Alternative patterns for single quotes
+    final ogTitleRegexSingle = RegExp(r"<meta\s+property='og:title'\s+content='([^']*)'", caseSensitive: false);
+    final ogDescriptionRegexSingle = RegExp(r"<meta\s+property='og:description'\s+content='([^']*)'", caseSensitive: false);
+    final ogImageRegexSingle = RegExp(r"<meta\s+property='og:image'\s+content='([^']*)'", caseSensitive: false);
+    final ogSiteNameRegexSingle = RegExp(r"<meta\s+property='og:site_name'\s+content='([^']*)'", caseSensitive: false);
+
     // Fallback to standard HTML tags
-    final htmlTitleRegex = RegExp(r'<title[^>]*>([^<]*)</title>', caseSensitive: false);
+    final htmlTitleRegex = RegExp(r'<title[^>]*>([^<]*?)</title>', caseSensitive: false);
     final metaDescriptionRegex = RegExp(r'<meta\s+name="description"\s+content="([^"]*)"', caseSensitive: false);
     final faviconRegex = RegExp(r'<link[^>]*rel="icon"[^>]*href="([^"]*)"', caseSensitive: false);
     final faviconRegex2 = RegExp(r'<link[^>]*rel="shortcut icon"[^>]*href="([^"]*)"', caseSensitive: false);
 
-    // Extract Open Graph data
-    final ogTitleMatch = ogTitleRegex.firstMatch(html);
-    if (ogTitleMatch != null) {
-      title = _decodeHtmlEntities(ogTitleMatch.group(1)!);
+    // Extract Open Graph title with double quotes
+    var match = ogTitleRegex.firstMatch(html);
+    if (match != null && match.group(1) != null) {
+      title = _decodeHtmlEntities(match.group(1)!.trim());
+      debugPrint('✅ Found OG title (double quotes): $title');
     }
 
-    final ogDescriptionMatch = ogDescriptionRegex.firstMatch(html);
-    if (ogDescriptionMatch != null) {
-      description = _decodeHtmlEntities(ogDescriptionMatch.group(1)!);
+    // Try single quotes if double quotes failed
+    if (title == null || title.isEmpty) {
+      match = ogTitleRegexSingle.firstMatch(html);
+      if (match != null && match.group(1) != null) {
+        title = _decodeHtmlEntities(match.group(1)!.trim());
+        debugPrint('✅ Found OG title (single quotes): $title');
+      }
     }
 
-    final ogImageMatch = ogImageRegex.firstMatch(html);
-    if (ogImageMatch != null) {
-      image = _resolveUrl(ogImageMatch.group(1)!, url);
+    // Extract Open Graph description
+    match = ogDescriptionRegex.firstMatch(html);
+    if (match != null && match.group(1) != null) {
+      description = _decodeHtmlEntities(match.group(1)!.trim());
+      debugPrint('✅ Found OG description (double quotes): ${description!.length > 100 ? description!.substring(0, 100) + "..." : description}');
     }
 
-    final ogSiteNameMatch = ogSiteNameRegex.firstMatch(html);
-    if (ogSiteNameMatch != null) {
-      siteName = _decodeHtmlEntities(ogSiteNameMatch.group(1)!);
+    // Try single quotes if double quotes failed
+    if (description == null || description.isEmpty) {
+      match = ogDescriptionRegexSingle.firstMatch(html);
+      if (match != null && match.group(1) != null) {
+        description = _decodeHtmlEntities(match.group(1)!.trim());
+        debugPrint('✅ Found OG description (single quotes): ${description!.length > 100 ? description!.substring(0, 100) + "..." : description}');
+      }
+    }
+
+    // Extract Open Graph image
+    match = ogImageRegex.firstMatch(html);
+    if (match != null && match.group(1) != null) {
+      final rawImage = match.group(1)!.trim();
+      if (rawImage.isNotEmpty) {
+        image = _resolveUrl(rawImage, url);
+        debugPrint('✅ Found OG image (double quotes): $image');
+      }
+    }
+
+    // Try single quotes if double quotes failed
+    if (image == null || image.isEmpty) {
+      match = ogImageRegexSingle.firstMatch(html);
+      if (match != null && match.group(1) != null) {
+        final rawImage = match.group(1)!.trim();
+        if (rawImage.isNotEmpty) {
+          image = _resolveUrl(rawImage, url);
+          debugPrint('✅ Found OG image (single quotes): $image');
+        }
+      }
+    }
+
+    // Extract Open Graph site name
+    match = ogSiteNameRegex.firstMatch(html);
+    if (match != null && match.group(1) != null) {
+      siteName = _decodeHtmlEntities(match.group(1)!.trim());
+      debugPrint('✅ Found OG site name (double quotes): $siteName');
+    }
+
+    // Try single quotes if double quotes failed
+    if (siteName == null || siteName.isEmpty) {
+      match = ogSiteNameRegexSingle.firstMatch(html);
+      if (match != null && match.group(1) != null) {
+        siteName = _decodeHtmlEntities(match.group(1)!.trim());
+        debugPrint('✅ Found OG site name (single quotes): $siteName');
+      }
     }
 
     // Fallback to HTML title if no OG title
     if (title == null || title.isEmpty) {
       final htmlTitleMatch = htmlTitleRegex.firstMatch(html);
       if (htmlTitleMatch != null) {
-        title = _decodeHtmlEntities(htmlTitleMatch.group(1)!);
+        title = _decodeHtmlEntities(htmlTitleMatch.group(1)!.trim());
+        if (title!.isNotEmpty) {
+          debugPrint('🔄 Using HTML title as fallback: $title');
+        }
       }
     }
 
@@ -128,25 +229,30 @@ class OpenGraphService {
     if (description == null || description.isEmpty) {
       final metaDescriptionMatch = metaDescriptionRegex.firstMatch(html);
       if (metaDescriptionMatch != null) {
-        description = _decodeHtmlEntities(metaDescriptionMatch.group(1)!);
+        description = _decodeHtmlEntities(metaDescriptionMatch.group(1)!.trim());
+        if (description!.isNotEmpty) {
+          debugPrint('🔄 Using meta description as fallback: ${description!.length > 100 ? description!.substring(0, 100) + "..." : description}');
+        }
       }
     }
 
     // Extract favicon
     final faviconMatch = faviconRegex.firstMatch(html) ?? faviconRegex2.firstMatch(html);
     if (faviconMatch != null) {
-      favicon = _resolveUrl(faviconMatch.group(1)!, url);
+      favicon = _resolveUrl(faviconMatch.group(1)!.trim(), url);
+      debugPrint('✅ Found favicon: $favicon');
     } else {
       // Try default favicon location
       try {
         final uri = Uri.parse(url);
         favicon = '${uri.scheme}://${uri.host}/favicon.ico';
+        debugPrint('🔄 Using default favicon: $favicon');
       } catch (e) {
-        // Ignore favicon if URL parsing fails
+        debugPrint('❌ Failed to create default favicon URL: $e');
       }
     }
 
-    return OpenGraphData(
+    final result = OpenGraphData(
       url: url,
       title: title?.isNotEmpty == true ? title : null,
       description: description?.isNotEmpty == true ? description : null,
@@ -154,6 +260,14 @@ class OpenGraphService {
       siteName: siteName?.isNotEmpty == true ? siteName : null,
       favicon: favicon?.isNotEmpty == true ? favicon : null,
     );
+
+    debugPrint('📋 Final OpenGraph result:');
+    debugPrint('   Title: ${result.title}');
+    debugPrint('   Description: ${result.description?.length}');
+    debugPrint('   Image: ${result.image}');
+    debugPrint('   Site: ${result.siteName}');
+
+    return result;
   }
 
   /// Creates fallback data when Open Graph fetch fails
@@ -217,28 +331,49 @@ class OpenGraphService {
 
   /// Gets appropriate headers for different types of URLs
   static Map<String, String> _getHeadersForUrl(String url) {
+    // Enhanced headers to match WhatsApp/social media crawlers
     final Map<String, String> headers = {
-      'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-      'Accept-Language': 'en-US,en;q=0.5',
+      'User-Agent': 'WhatsApp/2.21.11.17 A',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.9',
       'Accept-Encoding': 'gzip, deflate, br',
-      'DNT': '1',
-      'Connection': 'keep-alive',
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'none',
       'Upgrade-Insecure-Requests': '1',
+      'Connection': 'keep-alive',
     };
+
+    // Fallback User-Agents for different scenarios
+    final List<String> fallbackUserAgents = [
+      'WhatsApp/2.21.11.17 A',
+      'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+      'Mozilla/5.0 (compatible; WhatsApp/2.21.11.17; +https://faq.whatsapp.com/general/security-and-privacy/sending-links-on-whatsapp)',
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1',
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    ];
 
     // Add specific headers for different platforms
     if (url.contains('instagram.com')) {
+      headers['User-Agent'] = 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)';
       headers['X-Instagram-AJAX'] = '1';
       headers['X-Requested-With'] = 'XMLHttpRequest';
     } else if (url.contains('youtube.com') || url.contains('youtu.be')) {
+      headers['User-Agent'] = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
       headers['X-YouTube-Client-Name'] = '1';
       headers['X-YouTube-Client-Version'] = '2.0';
     } else if (url.contains('twitter.com') || url.contains('x.com')) {
+      headers['User-Agent'] = 'Twitterbot/1.0';
       headers['X-Twitter-Active-User'] = 'yes';
     } else if (url.contains('facebook.com')) {
+      headers['User-Agent'] = 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)';
       headers['Sec-Fetch-Site'] = 'none';
       headers['Sec-Fetch-Mode'] = 'navigate';
+    } else {
+      // For general websites, use WhatsApp user agent by default
+      headers['User-Agent'] = 'WhatsApp/2.21.11.17 A';
     }
 
     return headers;
@@ -433,5 +568,25 @@ class OpenGraphService {
   /// Clears the cache (useful for testing or memory management)
   static void clearCache() {
     _cache.clear();
+  }
+
+  /// Test method to debug Open Graph parsing for specific URLs
+  static Future<void> testOpenGraphParsing(String url) async {
+    try {
+      debugPrint('🧪 Testing Open Graph parsing for: $url');
+      clearCache(); // Clear cache to force fresh fetch
+
+      final ogData = await fetchMetadata(url);
+
+      debugPrint('🧪 Test Results for $url:');
+      debugPrint('   ✅ Title: ${ogData.title ?? "NOT FOUND"}');
+      debugPrint('   ✅ Description: ${ogData.description ?? "NOT FOUND"}');
+      debugPrint('   ✅ Image: ${ogData.image ?? "NOT FOUND"}');
+      debugPrint('   ✅ Site Name: ${ogData.siteName ?? "NOT FOUND"}');
+      debugPrint('   ✅ Favicon: ${ogData.favicon ?? "NOT FOUND"}');
+
+    } catch (e) {
+      debugPrint('🧪 Test failed for $url: $e');
+    }
   }
 }

@@ -406,6 +406,12 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
       String messageType = currentMessage.messageType ?? 'text';
       List<LinkMetadata> linkMeta = currentMessage.linkMeta ?? [];
 
+      print('🔗 [SelfSending] Message type: $messageType');
+      print('🔗 [SelfSending] LinkMeta count: ${linkMeta.length}');
+      if (linkMeta.isNotEmpty) {
+        print('🔗 [SelfSending] First linkMeta: ${linkMeta.first.title} - ${linkMeta.first.url}');
+      }
+
       // Only override messageType for media uploads (since media changes the type)
       if (_hasUploads()) {
         messageType = _determineMessageType(currentMessage.content, linkMeta);
@@ -590,21 +596,35 @@ class _SelfSendingMessageBubbleState extends State<SelfSendingMessageBubble> {
       var finalMessage = ClubMessage.fromJson(messageData);
 
       // Preserve locally extracted link metadata if we have richer local data
+      print('🔗 [SelfSending] Processing linkMeta after API response');
+      print('🔗 [SelfSending] Local linkMeta count: ${linkMeta.length}');
+      print('🔗 [SelfSending] Server finalMessage linkMeta count: ${finalMessage.linkMeta.length}');
+
       if (linkMeta.isNotEmpty) {
         if (finalMessage.linkMeta.isEmpty) {
           // Server provided no link metadata, use our local data
+          print('🔗 [SelfSending] Server returned no linkMeta, using local data');
           finalMessage = finalMessage.copyWith(linkMeta: linkMeta);
         } else {
           // Check if our local metadata is more complete than server's
           final serverMeta = finalMessage.linkMeta.first;
           final localMeta = linkMeta.first;
 
+          print('🔗 [SelfSending] Server meta title: ${serverMeta.title}');
+          print('🔗 [SelfSending] Local meta title: ${localMeta.title}');
+
           // Prefer local metadata if it has siteName/favicon (richer data)
           if (localMeta.siteName != null || localMeta.favicon != null) {
+            print('🔗 [SelfSending] Using local metadata (richer data)');
             finalMessage = finalMessage.copyWith(linkMeta: linkMeta);
+          } else {
+            print('🔗 [SelfSending] Using server metadata');
           }
         }
       }
+
+      print('🔗 [SelfSending] Final message linkMeta count: ${finalMessage.linkMeta.length}');
+      print('🔗 [SelfSending] Final message type: ${finalMessage.messageType}');
 
       // Save to storage
       await MessageStorageService.addMessage(widget.club.id, finalMessage);
