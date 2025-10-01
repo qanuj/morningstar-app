@@ -279,6 +279,14 @@ class ChatApiService {
       requestData['replyToId'] = replyToId;
     }
 
+    // Add linkMeta if present (for text messages with link previews)
+    if (messageData['linkMeta'] != null &&
+        messageData['linkMeta'] is List &&
+        (messageData['linkMeta'] as List).isNotEmpty) {
+      requestData['linkMeta'] = messageData['linkMeta'];
+      print('🔗 ChatApiService: Added linkMeta to request: ${messageData['linkMeta'].length} items');
+    }
+
     print('🔍 ChatApiService: Formatted content for $messageType: $contentMap');
     return requestData;
   }

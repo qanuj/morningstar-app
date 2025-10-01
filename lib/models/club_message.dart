@@ -620,6 +620,20 @@ class ClubMessage {
       mentionsCurrentUser = json['mentionsCurrentUser'] as bool;
     }
 
+    // Parse linkMeta from JSON if present (for sent messages returned from server)
+    try {
+      if (json['linkMeta'] is List && (json['linkMeta'] as List).isNotEmpty) {
+        linkMeta = (json['linkMeta'] as List)
+            .whereType<Map<String, dynamic>>()
+            .map(LinkMetadata.fromJson)
+            .toList();
+        print('🔗 [ClubMessage.fromJson] Parsed linkMeta from server: ${linkMeta.length} items');
+      }
+    } catch (e) {
+      print('❌ Error parsing linkMeta in ClubMessage.fromJson: $e');
+      linkMeta = [];
+    }
+
     return ClubMessage(
       id: json['messageId'] ?? json['id'] ?? '',
       clubId: json['clubId'] ?? '',
