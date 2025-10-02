@@ -297,6 +297,14 @@ class AddMembersScreenState extends State<AddMembersScreen> {
 
   Future<void> _loadFreshContacts({bool updateUI = true}) async {
     print('📱 Loading fresh contacts...');
+
+    // Check permission first
+    bool permissionGranted = await FlutterContacts.requestPermission();
+    if (!permissionGranted) {
+      print('📱 Contacts permission not granted');
+      return;
+    }
+
     List<Contact> contacts =
         await FlutterContacts.getContacts(withProperties: true).timeout(
           Duration(seconds: 30),

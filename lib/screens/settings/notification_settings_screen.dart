@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/notification_service.dart';
 import '../../utils/theme.dart';
+import '../../widgets/custom_app_bar.dart';
 
 class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({super.key});
@@ -67,11 +68,11 @@ class NotificationSettingsScreenState extends State<NotificationSettingsScreen> 
 
     return Scaffold(
       backgroundColor: colorScheme.background,
-      appBar: AppBar(
-        title: Text('Notification Settings'),
-        backgroundColor: theme.appBarTheme.backgroundColor,
-        foregroundColor: theme.appBarTheme.foregroundColor,
-        elevation: 0,
+      appBar: CustomAppBar(
+        title: 'Duggy',
+        subtitle: 'Notification Settings',
+        showBackButton: true,
+        showNotifications: false,
       ),
       body: _isLoading
           ? Center(

@@ -18,6 +18,7 @@ import 'edit_profile.dart';
 import '../../debug/share_test_screen.dart';
 import '../../config/app_config.dart';
 import '../member_qr_screen.dart';
+import 'settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -360,26 +361,6 @@ class ProfileScreenState extends State<ProfileScreen> {
                                   ).dividerColor.withOpacity(0.3),
                                 ),
 
-                                // Theme Setting
-                                _buildExpandableSection(
-                                  icon: Icons.palette_outlined,
-                                  title: 'Theme',
-                                  isExpanded: false,
-                                  subtitle: _getThemeModeText(
-                                    themeProvider.themeMode,
-                                  ),
-                                  onTap: () {
-                                    _showThemeDialog(context, themeProvider);
-                                  },
-                                ),
-
-                                Divider(
-                                  height: 1,
-                                  color: Theme.of(
-                                    context,
-                                  ).dividerColor.withOpacity(0.3),
-                                ),
-
                                 // Notifications
                                 _buildExpandableSection(
                                   icon: Icons.notifications_outlined,
@@ -390,6 +371,27 @@ class ProfileScreenState extends State<ProfileScreen> {
                                       MaterialPageRoute(
                                         builder: (context) =>
                                             NotificationSettingsScreen(),
+                                      ),
+                                    );
+                                  },
+                                ),
+
+                                Divider(
+                                  height: 1,
+                                  color: Theme.of(
+                                    context,
+                                  ).dividerColor.withOpacity(0.3),
+                                ),
+
+                                // Settings
+                                _buildExpandableSection(
+                                  icon: Icons.settings,
+                                  title: 'Settings',
+                                  isExpanded: false,
+                                  onTap: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (context) => SettingsScreen(),
                                       ),
                                     );
                                   },

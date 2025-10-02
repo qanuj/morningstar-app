@@ -1,0 +1,64 @@
+import 'dart:convert';
+import 'package:duggy/services/ogp/base_ogp_data_parser.dart';
+import 'package:duggy/services/ogp/ogp_data_parser.dart';
+import 'package:duggy/services/ogp/user_agent_client.dart';
+import 'package:html/dom.dart';
+import 'package:http/http.dart' as http;
+import 'package:html/parser.dart' as parser;
+import 'package:string_validator/string_validator.dart';
+
+class OgpDataExtract {
+  /// returns [OgpData] from [url] and [userAgent].
+  static Future<OgpData?> execute(
+    String url, {
+    String userAgent = 'bot',
+  }) async {
+    if (!isURL(url)) {
+      return null;
+    }
+
+    final UserAgentClient client = UserAgentClient(userAgent, http.Client());
+    final http.Response response = await client.get(Uri.parse(url));
+
+    final Document? document = toDocument(response);
+    if (document == null) {
+      return null;
+    }
+
+    return OgpDataParser(document).parse();
+  }
+
+  /// returns [List<String?>] from [url] and [userAgent].
+  static Future<List<String?>> fetchFavicon(
+    String url, {
+    String userAgent = 'bot',
+  }) async {
+    if (!isURL(url)) {
+      return [];
+    }
+
+    final UserAgentClient client = UserAgentClient(userAgent, http.Client());
+    final http.Response response = await client.get(Uri.parse(url));
+
+    final Document? document = toDocument(response);
+    if (document == null) {
+      return [];
+    }
+
+    final FaviconParser faviconParser = FaviconParser(document);
+    return faviconParser.parse();
+  }
+
+  /// returns [html.Document] from [http.Response].
+  static Document? toDocument(http.Response response) {
+    if (response.statusCode != 200) {
+      return null;
+    }
+
+    try {
+      return parser.parse(utf8.decode(response.bodyBytes));
+    } catch (err) {
+      return null;
+    }
+  }
+}

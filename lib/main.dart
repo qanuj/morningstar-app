@@ -233,10 +233,10 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => UserProvider()),
-        ChangeNotifierProvider(create: (_) => ClubProvider()),
-        ChangeNotifierProvider(create: (_) => ConversationProvider()),
-        ChangeNotifierProvider.value(value: _themeProvider),
+        ChangeNotifierProvider<UserProvider>(create: (_) => UserProvider()),
+        ChangeNotifierProvider<ClubProvider>(create: (_) => ClubProvider()),
+        ChangeNotifierProvider<ConversationProvider>(create: (_) => ConversationProvider()),
+        ChangeNotifierProvider<ThemeProvider>.value(value: _themeProvider),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {

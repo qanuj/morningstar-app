@@ -37,6 +37,32 @@ class ContactPickerScreenState extends State<ContactPickerScreen> {
   Future<void> _loadContacts() async {
     try {
       print('📱 Loading contacts for picker screen...');
+
+      // Check and request permission first
+      bool permissionGranted = await FlutterContacts.requestPermission();
+      if (!permissionGranted) {
+        setState(() {
+          _isLoading = false;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Contacts permission is required to add members'),
+              backgroundColor: Colors.red,
+              action: SnackBarAction(
+                label: 'Settings',
+                textColor: Colors.white,
+                onPressed: () async {
+                  // Try to open app settings (this may not work on all devices)
+                  await FlutterContacts.requestPermission();
+                },
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
       List<Contact> contacts = await FlutterContacts.getContacts(withProperties: true);
       
       // Filter contacts with phone numbers and display names

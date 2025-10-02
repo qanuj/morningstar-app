@@ -338,10 +338,6 @@ class MessageInputState extends State<MessageInput> {
       caseSensitive: false,
     );
 
-    print('🔗 [LinkPreview] Processing text: $text');
-    print(
-      '🔗 [LinkPreview] URL pattern matches: ${urlPattern.allMatches(text).map((m) => m.group(0)).toList()}',
-    );
     final matches = urlPattern.allMatches(text);
 
     if (matches.isEmpty) {
@@ -357,7 +353,6 @@ class MessageInputState extends State<MessageInput> {
 
     // Process the first URL found
     final url = matches.first.group(0)!;
-    print('🔗 [LinkPreview] Found URL: $url');
 
     // Store the detected URL for message creation
     _detectedUrl = url;
@@ -460,11 +455,20 @@ class MessageInputState extends State<MessageInput> {
       content: finalDisplayText, // Use display text for UI
       messageType: hasDetectedLinks ? 'link' : 'text',
       meta: _linkMetadata.isNotEmpty ? _linkMetadata.first.toJson() : null,
-      linkMeta: hasDetectedLinks ? [
-        _linkMetadata.isNotEmpty
-          ? _linkMetadata.first
-          : LinkMetadata(url: _detectedUrl ?? '', title: null, description: null, image: null, siteName: null, favicon: null)
-      ] : [],
+      linkMeta: hasDetectedLinks
+          ? [
+              _linkMetadata.isNotEmpty
+                  ? _linkMetadata.first
+                  : LinkMetadata(
+                      url: _detectedUrl ?? '',
+                      title: null,
+                      description: null,
+                      image: null,
+                      siteName: null,
+                      favicon: null,
+                    ),
+            ]
+          : [],
       // No media for link messages - Link Message Bubble handles image display
       media: [],
       createdAt: DateTime.now(),

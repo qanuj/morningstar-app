@@ -62,7 +62,8 @@ class _LinkMessageBubbleState extends State<LinkMessageBubble> {
         return; // Use cached metadata
       }
 
-      // If no cached metadata and URL detected, load it if preview is enabled
+      // If no cached metadata and URL detected, always load it for local storage
+      // (Display will still respect user's link preview setting)
       if (_detectedUrl != null) {
         print('🔗 [LinkBubble] No cached metadata, fetching for URL: $_detectedUrl');
         _loadMetadataIfEnabled();
@@ -80,9 +81,7 @@ class _LinkMessageBubbleState extends State<LinkMessageBubble> {
   }
 
   void _loadMetadataIfEnabled() async {
-    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-
-    if (!themeProvider.linkPreviewEnabled || _detectedUrl == null) {
+    if (_detectedUrl == null) {
       return;
     }
 
@@ -101,7 +100,7 @@ class _LinkMessageBubbleState extends State<LinkMessageBubble> {
         favicon: ogData.favicon,
       );
 
-      // Update local cache with metadata (locally only, not sent to server)
+      // Always update local cache with metadata (locally only, not sent to server)
       await _updateMessageCache(metadata);
 
       if (mounted) {
@@ -152,6 +151,8 @@ class _LinkMessageBubbleState extends State<LinkMessageBubble> {
   }
 
   Widget _buildContent(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+
     // Determine which metadata to use
     List<LinkMetadata> linkMetadata = [];
 
@@ -163,28 +164,30 @@ class _LinkMessageBubbleState extends State<LinkMessageBubble> {
       linkMetadata = [_lazyLoadedMetadata!];
     }
 
+    // Show link preview only if user has enabled link previews
+    final shouldShowPreview = themeProvider.linkPreviewEnabled;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Link previews first (if available)
-        if (linkMetadata.isNotEmpty)
+        // Link previews first (if available and enabled)
+        if (shouldShowPreview && linkMetadata.isNotEmpty)
           ...linkMetadata.map((link) => _buildLinkPreview(context, link)),
 
-        // Loading state for received messages
-        if (!widget.isOwn && _isLoadingMetadata && linkMetadata.isEmpty)
+        // Loading state for received messages (if preview enabled)
+        if (shouldShowPreview && !widget.isOwn && _isLoadingMetadata && linkMetadata.isEmpty)
           _buildLoadingPreview(context),
 
         // Text content with clickable links
         if (widget.message.content.isNotEmpty) ...[
-          if (linkMetadata.isNotEmpty || _isLoadingMetadata) SizedBox(height: 8),
+          if (shouldShowPreview && (linkMetadata.isNotEmpty || _isLoadingMetadata)) SizedBox(height: 8),
           _buildTextWithClickableLinks(context),
         ],
 
-        // Show URL only if no preview is available or loading failed
+        // Show URL only if no preview is available or loading failed, OR if previews are disabled
         if (!widget.isOwn &&
             _detectedUrl != null &&
-            linkMetadata.isEmpty &&
-            !_isLoadingMetadata)
+            ((!shouldShowPreview) || (linkMetadata.isEmpty && !_isLoadingMetadata)))
           _buildSimpleLinkText(context),
       ],
     );

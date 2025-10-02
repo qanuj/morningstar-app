@@ -374,8 +374,8 @@ class MessageBubbleWrapper extends StatelessWidget {
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             color: (Theme.of(context).brightness == Brightness.dark
-                ? Colors.white.withOpacity(0.1)
-                : Colors.black.withOpacity(0.1)),
+                ? Color(0xFF1e2328) // Darker solid background for dark theme
+                : Color(0xFFf0f8ff)), // Light solid background for light theme
             borderRadius: BorderRadius.only(
               topLeft: Radius.circular(6),
               topRight: Radius.circular(6),

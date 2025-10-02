@@ -2711,6 +2711,9 @@ class ClubChatScreenState extends State<ClubChatScreen>
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
       decoration: BoxDecoration(
+        color: isDarkTheme
+            ? Color(0xFF161b22) // Dark theme background
+            : Color(0xFFe3f2fd), // Light theme background
         border: Border(
           bottom: BorderSide(
             color: isDarkTheme

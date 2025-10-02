@@ -171,7 +171,13 @@ class ChatApiService {
   ) {
     // Extract the raw message data
     final content = messageData['content'];
-    final messageType = content?['type'] ?? 'text';
+
+    // Ensure content is a Map
+    if (content is! Map<String, dynamic>) {
+      throw Exception('Content must be a Map<String, dynamic>, got ${content.runtimeType}');
+    }
+
+    final messageType = content['type'] ?? 'text';
     final replyToId = messageData['replyToId'];
 
     Map<String, dynamic> contentMap;
@@ -256,9 +262,11 @@ class ChatApiService {
       case 'emoji':
       default:
         // Text messages (including with media attachments)
+        final bodyText = content['body'] ?? content['content'] ?? ' ';
+
         contentMap = {
           'type': messageType,
-          'body': content['body'] ?? content['content'] ?? ' ',
+          'body': bodyText,
         };
 
         // Add media arrays if present
@@ -272,7 +280,7 @@ class ChatApiService {
         break;
     }
 
-    final requestData = {'content': contentMap};
+    final Map<String, dynamic> requestData = <String, dynamic>{'content': contentMap};
 
     // Add replyToId if present
     if (replyToId != null) {
@@ -287,7 +295,6 @@ class ChatApiService {
       print('🔗 ChatApiService: Added linkMeta to request: ${messageData['linkMeta'].length} items');
     }
 
-    print('🔍 ChatApiService: Formatted content for $messageType: $contentMap');
     return requestData;
   }
 
