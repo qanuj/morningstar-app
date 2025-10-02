@@ -258,6 +258,7 @@ class AppDrawer extends StatelessWidget {
                     // Settings
                     _buildSectionHeader(context, 'Settings'),
                     _buildThemeSwitcher(context, themeProvider),
+                    _buildLinkPreviewToggle(context, themeProvider),
                     _buildDrawerItem(
                       context,
                       icon: Icons.help_outline,
@@ -403,6 +404,65 @@ class AppDrawer extends StatelessWidget {
               dense: true,
               visualDensity: VisualDensity.compact,
               contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLinkPreviewToggle(BuildContext context, ThemeProvider themeProvider) {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 12, vertical: 1),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            themeProvider.setLinkPreviewEnabled(!themeProvider.linkPreviewEnabled);
+          },
+          borderRadius: BorderRadius.circular(4),
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: ListTile(
+              leading: Icon(
+                Icons.link,
+                color: Theme.of(context).iconTheme.color,
+                size: 20,
+              ),
+              title: Text(
+                'Link Previews',
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+              trailing: Container(
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: themeProvider.linkPreviewEnabled
+                      ? Theme.of(context).primaryColor.withOpacity(0.1)
+                      : Colors.grey.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  themeProvider.linkPreviewEnabled ? 'ON' : 'OFF',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: themeProvider.linkPreviewEnabled
+                        ? Theme.of(context).primaryColor
+                        : Colors.grey,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              dense: true,
+              visualDensity: VisualDensity.compact,
             ),
           ),
         ),

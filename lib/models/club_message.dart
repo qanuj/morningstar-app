@@ -627,7 +627,6 @@ class ClubMessage {
             .whereType<Map<String, dynamic>>()
             .map(LinkMetadata.fromJson)
             .toList();
-        print('🔗 [ClubMessage.fromJson] Parsed linkMeta from server: ${linkMeta.length} items');
       }
     } catch (e) {
       print('❌ Error parsing linkMeta in ClubMessage.fromJson: $e');
@@ -709,18 +708,46 @@ class ClubMessage {
   Map<String, dynamic> toJson() {
     // For link messages, format content as linkSchema structure
     dynamic contentJson;
-    if (messageType == 'link' && linkMeta.isNotEmpty) {
-      final linkData = linkMeta.first;
-      contentJson = {
-        'type': 'link',
-        'url': linkData.url,
-        'body': content,
-        if (linkData.title != null) 'title': linkData.title,
-        if (linkData.description != null) 'description': linkData.description,
-        if (linkData.siteName != null) 'siteName': linkData.siteName,
-        if (linkData.favicon != null) 'favicon': linkData.favicon,
-        if (linkData.image != null) 'images': [linkData.image!],
-      };
+    if (messageType == 'link') {
+      // Extract URL from content if linkMeta is empty (for received messages)
+      String? extractedUrl;
+      if (linkMeta.isNotEmpty) {
+        extractedUrl = linkMeta.first.url;
+      } else {
+        // Extract first URL from content text
+        final urlPattern = RegExp(
+          r'https?://[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:/[^\s]*)?',
+          caseSensitive: false,
+        );
+        final match = urlPattern.firstMatch(content);
+        extractedUrl = match?.group(0);
+
+        // Ensure URL has proper protocol
+        if (extractedUrl != null && !extractedUrl.startsWith('http')) {
+          extractedUrl = 'https://$extractedUrl';
+        }
+      }
+
+      if (linkMeta.isNotEmpty) {
+        final linkData = linkMeta.first;
+        contentJson = {
+          'type': 'link',
+          'url': extractedUrl ?? linkData.url,
+          'body': content,
+          if (linkData.title != null) 'title': linkData.title,
+          if (linkData.description != null) 'description': linkData.description,
+          if (linkData.siteName != null) 'siteName': linkData.siteName,
+          if (linkData.favicon != null) 'favicon': linkData.favicon,
+          if (linkData.image != null) 'images': [linkData.image!],
+        };
+      } else {
+        // Basic link structure when no metadata available
+        contentJson = {
+          'type': 'link',
+          'url': extractedUrl ?? '',
+          'body': content,
+        };
+      }
     } else if (messageType == 'emoji') {
       // For emoji messages, format content as emojiSchema structure
       contentJson = {'type': 'emoji', 'body': content};

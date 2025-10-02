@@ -9,9 +9,11 @@ enum AppThemeMode {
 
 class ThemeProvider with ChangeNotifier {
   AppThemeMode _themeMode = AppThemeMode.system;
+  bool _linkPreviewEnabled = true; // Default ON as requested
   late SharedPreferences _prefs;
 
   AppThemeMode get themeMode => _themeMode;
+  bool get linkPreviewEnabled => _linkPreviewEnabled;
 
   ThemeMode get materialThemeMode {
     switch (_themeMode) {
@@ -53,6 +55,10 @@ class ThemeProvider with ChangeNotifier {
       (mode) => mode.name == savedTheme,
       orElse: () => AppThemeMode.system,
     );
+
+    // Load link preview setting (default ON)
+    _linkPreviewEnabled = _prefs.getBool('link_preview_enabled') ?? true;
+
     notifyListeners();
   }
 
@@ -66,5 +72,11 @@ class ThemeProvider with ChangeNotifier {
     final currentIndex = AppThemeMode.values.indexOf(_themeMode);
     final nextIndex = (currentIndex + 1) % AppThemeMode.values.length;
     await setThemeMode(AppThemeMode.values[nextIndex]);
+  }
+
+  Future<void> setLinkPreviewEnabled(bool enabled) async {
+    _linkPreviewEnabled = enabled;
+    await _prefs.setBool('link_preview_enabled', enabled);
+    notifyListeners();
   }
 }

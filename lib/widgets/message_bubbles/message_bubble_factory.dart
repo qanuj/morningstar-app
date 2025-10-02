@@ -101,7 +101,6 @@ class MessageBubbleFactory extends StatelessWidget {
       );
     } else if (message.linkMeta.isNotEmpty) {
       // LINK MESSAGE: Thumbnail, title, full link
-      print('🔗 [MessageBubbleFactory] Creating LinkMessageBubble for message ${message.id} with ${message.linkMeta.length} linkMeta items');
       return LinkMessageBubble(
         message: message,
         isOwn: isOwn,
@@ -187,7 +186,6 @@ class MessageBubbleFactory extends StatelessWidget {
       return SystemMessageBubble(message: message);
     } else {
       // TEXT MESSAGE: Media (images/videos) first, then body below
-      print('📝 [MessageBubbleFactory] Creating TextMessageBubble for message ${message.id}, linkMeta: ${message.linkMeta.length} items, content: "${message.content.substring(0, message.content.length > 50 ? 50 : message.content.length)}..."');
       return TextMessageBubble(
         message: message,
         isOwn: isOwn,

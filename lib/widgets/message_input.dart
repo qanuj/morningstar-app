@@ -210,6 +210,7 @@ class MessageInputState extends State<MessageInput> {
   List<LinkMetadata> _linkMetadata = [];
   String? _lastProcessedText;
   bool _isLoadingLinkPreview = false;
+  String? _detectedUrl; // Store the detected URL for message creation
 
   @override
   void initState() {
@@ -271,7 +272,9 @@ class MessageInputState extends State<MessageInput> {
       );
 
       // Also trigger link preview processing when text is set programmatically (e.g., from shared content)
-      print('🔄 [MessageInput] Text synced from original controller: ${widget.messageController.text}');
+      print(
+        '🔄 [MessageInput] Text synced from original controller: ${widget.messageController.text}',
+      );
       _handleTextChanged(widget.messageController.text);
     }
   }
@@ -302,6 +305,17 @@ class MessageInputState extends State<MessageInput> {
     _handleLinkPreview(value);
   }
 
+  bool _detectLinksInText(String text) {
+    if (text.trim().isEmpty) return false;
+
+    final urlPattern = RegExp(
+      r'https?://[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:/[^\s]*)?',
+      caseSensitive: false,
+    );
+
+    return urlPattern.hasMatch(text);
+  }
+
   void _handleLinkPreview(String text) async {
     // Avoid processing the same text multiple times
     if (_lastProcessedText == text) return;
@@ -309,9 +323,10 @@ class MessageInputState extends State<MessageInput> {
 
     // Clear previous metadata if text is empty
     if (text.trim().isEmpty) {
-      if (_linkMetadata.isNotEmpty) {
+      if (_linkMetadata.isNotEmpty || _detectedUrl != null) {
         setState(() {
           _linkMetadata.clear();
+          _detectedUrl = null;
         });
       }
       return;
@@ -324,14 +339,17 @@ class MessageInputState extends State<MessageInput> {
     );
 
     print('🔗 [LinkPreview] Processing text: $text');
-    print('🔗 [LinkPreview] URL pattern matches: ${urlPattern.allMatches(text).map((m) => m.group(0)).toList()}');
+    print(
+      '🔗 [LinkPreview] URL pattern matches: ${urlPattern.allMatches(text).map((m) => m.group(0)).toList()}',
+    );
     final matches = urlPattern.allMatches(text);
 
     if (matches.isEmpty) {
-      // No URLs found, clear metadata
-      if (_linkMetadata.isNotEmpty) {
+      // No URLs found, clear metadata and detected URL
+      if (_linkMetadata.isNotEmpty || _detectedUrl != null) {
         setState(() {
           _linkMetadata.clear();
+          _detectedUrl = null;
         });
       }
       return;
@@ -341,13 +359,14 @@ class MessageInputState extends State<MessageInput> {
     final url = matches.first.group(0)!;
     print('🔗 [LinkPreview] Found URL: $url');
 
+    // Store the detected URL for message creation
+    _detectedUrl = url;
+
     // Don't fetch if we already have metadata for this URL
     if (_linkMetadata.isNotEmpty && _linkMetadata.first.url == url) {
       print('🔗 [LinkPreview] Already have metadata for this URL, skipping');
       return;
     }
-
-    print('🔗 [LinkPreview] Fetching metadata for URL: $url');
 
     // Show loading state
     setState(() {
@@ -356,23 +375,16 @@ class MessageInputState extends State<MessageInput> {
 
     try {
       final metadata = await _fetchLinkMetadata(url);
-      print('🔗 [LinkPreview] Metadata fetch result: ${metadata != null ? 'SUCCESS' : 'FAILED'}');
-      if (metadata != null) {
-        print('🔗 [LinkPreview] Metadata: title="${metadata.title}", description="${metadata.description}", image="${metadata.image}"');
-      }
-
       if (metadata != null && _lastProcessedText == text) {
         setState(() {
           _linkMetadata = [metadata];
           _isLoadingLinkPreview = false;
         });
-        print('🔗 [LinkPreview] Metadata stored in state');
       } else {
         setState(() {
           _linkMetadata.clear();
           _isLoadingLinkPreview = false;
         });
-        print('🔗 [LinkPreview] Metadata cleared (either null or text changed)');
       }
     } catch (e) {
       print('❌ [LinkPreview] Error fetching link metadata: $e');
@@ -434,18 +446,8 @@ class MessageInputState extends State<MessageInput> {
           '@${match.group(2)}', // Show @Username instead of @[id:username]
     );
 
-    print('📝 Sending message with ${mentions.length} mentions');
-    for (final mention in mentions) {
-      print('   - @${mention.name} (${mention.id})');
-    }
-
-    print('📤 [MessageInput] Creating message...');
-    print('📤 [MessageInput] Content: $finalDisplayText');
-    print('📤 [MessageInput] Link metadata count: ${_linkMetadata.length}');
-    if (_linkMetadata.isNotEmpty) {
-      print('📤 [MessageInput] First link metadata: title="${_linkMetadata.first.title}", url="${_linkMetadata.first.url}"');
-    }
-    print('📤 [MessageInput] Message type: ${_linkMetadata.isNotEmpty ? 'link' : 'text'}');
+    // Detect if message contains links for messageType determination
+    final bool hasDetectedLinks = _detectLinksInText(finalDisplayText);
 
     // Create temp message with link metadata and mentions
     final tempMessage = ClubMessage(
@@ -456,8 +458,15 @@ class MessageInputState extends State<MessageInput> {
       senderProfilePicture: null,
       senderRole: 'MEMBER',
       content: finalDisplayText, // Use display text for UI
-      messageType: _linkMetadata.isNotEmpty ? 'link' : 'text',
-      linkMeta: _linkMetadata, // Include parsed link metadata
+      messageType: hasDetectedLinks ? 'link' : 'text',
+      meta: _linkMetadata.isNotEmpty ? _linkMetadata.first.toJson() : null,
+      linkMeta: hasDetectedLinks ? [
+        _linkMetadata.isNotEmpty
+          ? _linkMetadata.first
+          : LinkMetadata(url: _detectedUrl ?? '', title: null, description: null, image: null, siteName: null, favicon: null)
+      ] : [],
+      // No media for link messages - Link Message Bubble handles image display
+      media: [],
       createdAt: DateTime.now(),
       status: MessageStatus.sending,
       starred: StarredInfo(isStarred: false),
@@ -466,7 +475,9 @@ class MessageInputState extends State<MessageInput> {
       hasMentions: mentions.isNotEmpty,
     );
 
-    print('📤 [MessageInput] Message created with ${tempMessage.linkMeta.length} link metadata items');
+    print(
+      '📤 [MessageInput] Message created with ${tempMessage.linkMeta.length} link metadata items',
+    );
 
     _mentionableController.clear();
     // Also clear the original controller to keep them in sync
@@ -476,6 +487,7 @@ class MessageInputState extends State<MessageInput> {
       _linkMetadata.clear();
       _lastProcessedText = null;
       _isLoadingLinkPreview = false;
+      _detectedUrl = null;
     });
 
     widget.onSendMessage(tempMessage);
@@ -1808,7 +1820,14 @@ class MessageInputState extends State<MessageInput> {
               UrlPreviewCard(
                 linkMetadata: _linkMetadata.isNotEmpty
                     ? _linkMetadata.first
-                    : LinkMetadata(url: '', title: 'Loading...', description: '', image: '', siteName: '', favicon: ''),
+                    : LinkMetadata(
+                        url: '',
+                        title: 'Loading...',
+                        description: '',
+                        image: '',
+                        siteName: '',
+                        favicon: '',
+                      ),
                 isLoading: _isLoadingLinkPreview,
                 onClose: () {
                   setState(() {

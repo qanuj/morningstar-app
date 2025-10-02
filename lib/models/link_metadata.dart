@@ -5,7 +5,7 @@ class LinkMetadata {
   final String? image;
   final String? siteName;
   final String? favicon;
-  
+
   LinkMetadata({
     required this.url,
     this.title,
@@ -14,7 +14,7 @@ class LinkMetadata {
     this.siteName,
     this.favicon,
   });
-  
+
   factory LinkMetadata.fromJson(Map<String, dynamic> json) {
     return LinkMetadata(
       url: json['url'] ?? '',
@@ -25,7 +25,7 @@ class LinkMetadata {
       favicon: json['favicon'],
     );
   }
-  
+
   Map<String, dynamic> toJson() => {
     'url': url,
     if (title != null) 'title': title,

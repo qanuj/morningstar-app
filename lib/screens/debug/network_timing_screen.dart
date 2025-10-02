@@ -53,7 +53,6 @@ class NetworkTimingScreenState extends State<NetworkTimingScreen> {
     final jsonString = timingData.toString();
 
     Clipboard.setData(ClipboardData(text: jsonString));
-    _showSnackBar('Timing data copied to clipboard', isError: false);
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
@@ -130,7 +129,9 @@ class NetworkTimingScreenState extends State<NetworkTimingScreen> {
               children: [
                 Icon(
                   _timingEnabled ? Icons.timer : Icons.timer_off,
-                  color: _timingEnabled ? AppTheme.successGreen : AppTheme.errorRed,
+                  color: _timingEnabled
+                      ? AppTheme.successGreen
+                      : AppTheme.errorRed,
                 ),
                 SizedBox(width: 8),
                 Text(
@@ -234,11 +235,31 @@ class NetworkTimingScreenState extends State<NetworkTimingScreen> {
               ),
             ),
             SizedBox(height: 16),
-            _buildMetricRow('Total Time', _averageMetrics['avgTotalTime'], colorScheme),
-            _buildMetricRow('DNS Resolution', _averageMetrics['avgDnsTime'], colorScheme),
-            _buildMetricRow('Connection', _averageMetrics['avgConnectionTime'], colorScheme),
-            _buildMetricRow('TLS Handshake', _averageMetrics['avgTlsTime'], colorScheme),
-            _buildMetricRow('First Byte (TTFB)', _averageMetrics['avgFirstByteTime'], colorScheme),
+            _buildMetricRow(
+              'Total Time',
+              _averageMetrics['avgTotalTime'],
+              colorScheme,
+            ),
+            _buildMetricRow(
+              'DNS Resolution',
+              _averageMetrics['avgDnsTime'],
+              colorScheme,
+            ),
+            _buildMetricRow(
+              'Connection',
+              _averageMetrics['avgConnectionTime'],
+              colorScheme,
+            ),
+            _buildMetricRow(
+              'TLS Handshake',
+              _averageMetrics['avgTlsTime'],
+              colorScheme,
+            ),
+            _buildMetricRow(
+              'First Byte (TTFB)',
+              _averageMetrics['avgFirstByteTime'],
+              colorScheme,
+            ),
           ],
         ),
       ),
@@ -308,11 +329,23 @@ class NetworkTimingScreenState extends State<NetworkTimingScreen> {
             ),
             SizedBox(height: 16),
             if (slowRequests.isNotEmpty)
-              _buildIssueRow('Slow Requests (>2s)', slowRequests.length, AppTheme.errorRed),
+              _buildIssueRow(
+                'Slow Requests (>2s)',
+                slowRequests.length,
+                AppTheme.errorRed,
+              ),
             if (dnsIssues.isNotEmpty)
-              _buildIssueRow('DNS Issues (>1s)', dnsIssues.length, AppTheme.warningOrange),
+              _buildIssueRow(
+                'DNS Issues (>1s)',
+                dnsIssues.length,
+                AppTheme.warningOrange,
+              ),
             if (tlsIssues.isNotEmpty)
-              _buildIssueRow('TLS Issues (>2s)', tlsIssues.length, AppTheme.warningOrange),
+              _buildIssueRow(
+                'TLS Issues (>2s)',
+                tlsIssues.length,
+                AppTheme.warningOrange,
+              ),
           ],
         ),
       ),
@@ -329,13 +362,7 @@ class NetworkTimingScreenState extends State<NetworkTimingScreen> {
             children: [
               Icon(Icons.warning, color: color, size: 16),
               SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: color,
-                ),
-              ),
+              Text(label, style: TextStyle(fontSize: 14, color: color)),
             ],
           ),
           Text(
@@ -426,7 +453,9 @@ class NetworkTimingScreenState extends State<NetworkTimingScreen> {
     return ListTile(
       leading: Icon(
         isError ? Icons.error : (isSlow ? Icons.warning : Icons.check_circle),
-        color: isError ? AppTheme.errorRed : (isSlow ? AppTheme.warningOrange : AppTheme.successGreen),
+        color: isError
+            ? AppTheme.errorRed
+            : (isSlow ? AppTheme.warningOrange : AppTheme.successGreen),
       ),
       title: Text(
         '${timing.method} ${timing.host}${timing.path}',
@@ -489,7 +518,10 @@ class NetworkTimingScreenState extends State<NetworkTimingScreen> {
             onPressed: () {
               Clipboard.setData(ClipboardData(text: timing.formattedLog));
               Navigator.of(context).pop();
-              _showSnackBar('Timing details copied to clipboard', isError: false);
+              _showSnackBar(
+                'Timing details copied to clipboard',
+                isError: false,
+              );
             },
             child: Text('Copy'),
           ),

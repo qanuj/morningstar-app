@@ -201,12 +201,6 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
 
   void _handleCopyMessage() {
     Clipboard.setData(ClipboardData(text: widget.message.content));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Message copied to clipboard'),
-        duration: Duration(seconds: 2),
-      ),
-    );
   }
 
   void _showRetryDialog(BuildContext context) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../models/club.dart';
 import '../../providers/club_provider.dart';
@@ -798,16 +799,7 @@ class _ClubDetailScreenState extends State<ClubDetailScreen>
             IconButton(
               icon: Icon(Icons.copy, size: 18, color: Colors.grey[600]),
               onPressed: () {
-                // Copy to clipboard functionality
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Copied to clipboard'),
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                );
+                Clipboard.setData(ClipboardData(text: value));
               },
             ),
         ],
