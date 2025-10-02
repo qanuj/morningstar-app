@@ -2,7 +2,7 @@ name: duggy
 description: "Cricket club management app for players"
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
-version: 1.0.18+21
+version: 1.1.0+23
 
 environment:
   sdk: ^3.8.1
@@ -19,6 +19,7 @@ dependencies:
   cached_network_image: ^3.3.0
   image_picker: ^1.0.4
   image: ^4.1.7
+  camera: ^0.10.5+9
   url_launcher: ^6.2.1
   flutter_secure_storage: ^9.0.0
   file_picker: ^10.3.2

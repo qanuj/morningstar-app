@@ -15,6 +15,7 @@ import '../widgets/selectors/poll_picker.dart';
 import '../widgets/mentionable_text_field.dart';
 import '../widgets/pasteable_text_field.dart';
 import '../widgets/url_preview_card.dart';
+import '../screens/camera_screen.dart';
 
 import '../models/club_message.dart';
 import '../models/message_status.dart';
@@ -103,7 +104,7 @@ class MessageInputState extends State<MessageInput> {
     }
   }
 
-  final ImagePicker _imagePicker = ImagePicker();
+  // Note: ImagePicker still used for gallery selection in _pickImagesAndVideos method
   List<Map<String, dynamic>> _availableUpiApps = [];
 
   // Mention handling methods
@@ -498,8 +499,28 @@ class MessageInputState extends State<MessageInput> {
   }
 
   void _handleCameraCapture() {
-    // Directly capture photo (camera button = photo)
-    _capturePhoto();
+    // Open comprehensive camera screen with photo mode by default
+    _openCameraScreen(CaptureMode.photo);
+  }
+
+  void _openCameraScreen(CaptureMode mode) async {
+    try {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CameraScreen(
+            initialMode: mode,
+            onMediaCaptured: (mediaItems) {
+              // Send the captured media
+              _sendMediaMessage(mediaItems);
+            },
+          ),
+          fullscreenDialog: true,
+        ),
+      );
+    } catch (e) {
+      _showError('Failed to open camera: $e');
+    }
   }
 
   void _pickImages() async {
@@ -535,33 +556,13 @@ class MessageInputState extends State<MessageInput> {
   }
 
   void _capturePhoto() async {
-    try {
-      final XFile? photo = await _imagePicker.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 80,
-      );
-
-      if (photo != null) {
-        _showImageCaptionDialog(photo);
-      }
-    } catch (e) {
-      _showError('Failed to capture photo: $e');
-    }
+    // Legacy method - redirects to new camera screen
+    _openCameraScreen(CaptureMode.photo);
   }
 
   void _captureVideo() async {
-    try {
-      final XFile? video = await _imagePicker.pickVideo(
-        source: ImageSource.camera,
-        maxDuration: const Duration(minutes: 2), // Limit video duration
-      );
-
-      if (video != null) {
-        _showVideoCaptionDialog(video);
-      }
-    } catch (e) {
-      _showError('Failed to capture video: $e');
-    }
+    // Open comprehensive camera screen with video mode
+    _openCameraScreen(CaptureMode.video);
   }
 
   void _pickDocuments() async {
@@ -647,15 +648,6 @@ class MessageInputState extends State<MessageInput> {
     }
   }
 
-  // Legacy method for single image - redirects to new media screen
-  void _showImageCaptionDialog(XFile image) async {
-    _showMediaCaptionScreen([image]);
-  }
-
-  // Legacy method for single video - redirects to new media screen
-  void _showVideoCaptionDialog(XFile video) async {
-    _showMediaCaptionScreen([video]);
-  }
 
   void _sendMediaMessage(List<MediaItem> mediaItems) async {
     print(
@@ -895,116 +887,7 @@ class MessageInputState extends State<MessageInput> {
     _sendMediaMessage([mediaItem]);
   }
 
-  void _sendImageMessage(List<XFile> images) {
-    for (final image in images) {
-      final tempMessage = ClubMessage(
-        id: 'temp_${DateTime.now().millisecondsSinceEpoch}_${images.indexOf(image)}',
-        clubId: widget.clubId,
-        senderId: 'current_user',
-        senderName: 'You',
-        senderProfilePicture: null,
-        senderRole: 'MEMBER',
-        content: '',
-        messageType: 'image',
-        createdAt: DateTime.now(),
-        status: MessageStatus.sending,
-        starred: StarredInfo(isStarred: false),
-        pin: PinInfo(isPinned: false),
-        // Store temp file path for upload
-        media: [MediaItem.fromPath(image.path)],
-      );
 
-      widget.onSendMessage(tempMessage);
-    }
-  }
-
-  void _sendVideoMessageWithCaption(String caption, String videoPath) async {
-    print('🔍 MessageInput: Creating message with videoPath: $videoPath');
-    print('🔍 MessageInput: Caption: "$caption"');
-    print('🔍 MessageInput: ClubId: ${widget.clubId}');
-
-    try {
-      // Check if video needs compression BEFORE creating message
-      final needsCompression = await VideoCompressionService.needsCompression(
-        videoPath,
-      );
-      String finalVideoPath = videoPath;
-
-      if (needsCompression) {
-        print('🎬 MessageInput: Video needs compression, starting...');
-
-        // Show compression progress if needed
-        final compressedPath = await VideoCompressionService.compressVideo(
-          inputPath: videoPath,
-          deleteOriginal: false,
-          onProgress: (progress) {
-            print(
-              '📊 Video compression progress: ${progress.toStringAsFixed(1)}%',
-            );
-            // You could update UI here to show compression progress
-          },
-        );
-
-        if (compressedPath != null) {
-          finalVideoPath = compressedPath;
-          print(
-            '✅ MessageInput: Video compressed successfully: $finalVideoPath',
-          );
-        } else {
-          print('❌ MessageInput: Video compression failed, using original');
-          // Continue with original file if compression fails
-        }
-      } else {
-        print('✅ MessageInput: Video doesn\'t need compression');
-      }
-
-      // Create final message with compressed video path (only send once)
-      final finalMessage = ClubMessage(
-        id: 'temp_video_${DateTime.now().millisecondsSinceEpoch}',
-        clubId: widget.clubId,
-        senderId: 'current_user',
-        senderName: 'You',
-        senderProfilePicture: null,
-        senderRole: 'MEMBER',
-        content: caption.trim(),
-        messageType: 'video',
-        createdAt: DateTime.now(),
-        status: MessageStatus.sending,
-        starred: StarredInfo(isStarred: false),
-        pin: PinInfo(isPinned: false),
-        // Store final compressed file path for upload (videos go in images array)
-        media: [MediaItem.fromPath(finalVideoPath, caption: caption)],
-      );
-
-      // Send only the final message with compressed video
-      print(
-        '🔍 MessageInput: Calling widget.onSendMessage for compressed video',
-      );
-      widget.onSendMessage(finalMessage);
-      print('🔍 MessageInput: Sent final message with compressed video');
-    } catch (e) {
-      print('❌ MessageInput: Error during video compression: $e');
-
-      // Create fallback message with original video if compression fails
-      final fallbackMessage = ClubMessage(
-        id: 'temp_video_${DateTime.now().millisecondsSinceEpoch}',
-        clubId: widget.clubId,
-        senderId: 'current_user',
-        senderName: 'You',
-        senderProfilePicture: null,
-        senderRole: 'MEMBER',
-        content: caption.trim(),
-        messageType: 'video',
-        createdAt: DateTime.now(),
-        status: MessageStatus.sending,
-        starred: StarredInfo(isStarred: false),
-        pin: PinInfo(isPinned: false),
-        media: [MediaItem.fromPath(videoPath, caption: caption)],
-      );
-
-      widget.onSendMessage(fallbackMessage);
-    }
-  }
 
   void _handlePastedImages(List<String> imagePaths) {
     print('📋 Handling pasted images: ${imagePaths.length} images');

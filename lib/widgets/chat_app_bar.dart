@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../models/club.dart';
 import 'club_logo_widget.dart';
 import '../services/message_storage_service.dart';
@@ -13,7 +12,6 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   final Set<String> selectedMessageIds;
   final AnimationController refreshAnimationController;
   final VoidCallback onBackPressed;
-  final VoidCallback onShowClubInfo;
   final VoidCallback? onManageClub;
   final VoidCallback onExitSelectionMode;
   final VoidCallback onDeleteSelectedMessages;
@@ -28,7 +26,6 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.selectedMessageIds,
     required this.refreshAnimationController,
     required this.onBackPressed,
-    required this.onShowClubInfo,
     this.onManageClub,
     required this.onExitSelectionMode,
     required this.onDeleteSelectedMessages,
@@ -113,15 +110,8 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
         Expanded(
           child: GestureDetector(
             onTap: () {
-              // Check if user is admin or owner
-              if (userRole?.toLowerCase() == 'admin' ||
-                  userRole?.toLowerCase() == 'owner') {
-                // Show manage club if callback is provided
-                onManageClub?.call();
-              } else {
-                // Show club info for regular members
-                onShowClubInfo();
-              }
+              // Always navigate to manage club for all users
+              onManageClub?.call();
             },
             child: Builder(
               builder: (context) {
@@ -396,12 +386,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   String _getSubtitleText() {
-    if (userRole?.toLowerCase() == 'admin' ||
-        userRole?.toLowerCase() == 'owner') {
-      return 'tap here to manage club';
-    } else {
-      return 'tap here for club info';
-    }
+    return 'tap here to manage club';
   }
 
   @override

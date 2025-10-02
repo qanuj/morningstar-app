@@ -19,7 +19,6 @@ import '../../services/notification_service.dart';
 import '../../services/background_sync_service.dart';
 import '../../services/message_refresh_service.dart';
 import '../../services/media_gallery_service.dart';
-import '../../widgets/club_info_dialog.dart';
 import '../../widgets/audio_recording_widget.dart';
 import '../../widgets/pinned_messages_section.dart';
 import '../../widgets/message_visibility_detector.dart';
@@ -2149,11 +2148,7 @@ class ClubChatScreenState extends State<ClubChatScreen>
         selectedMessageIds: _selectedMessageIds,
         refreshAnimationController: _refreshAnimationController,
         onBackPressed: () => Navigator.of(context).pop(),
-        onShowClubInfo: _showClubInfoDialog,
-        onManageClub:
-            membership != null &&
-                (membership.role.toLowerCase() == 'admin' ||
-                    membership.role.toLowerCase() == 'owner')
+        onManageClub: membership != null
             ? () => _navigateToManageClub(membership)
             : null,
         onExitSelectionMode: _exitSelectionMode,
@@ -2974,15 +2969,6 @@ class ClubChatScreenState extends State<ClubChatScreen>
     );
   }
 
-  void _showClubInfoDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => ClubInfoDialog(
-        club: widget.club,
-        detailedClubInfo: _detailedClubInfo,
-      ),
-    );
-  }
 
   void _navigateToManageClub(ClubMembership membership) {
     Navigator.of(context).push(
