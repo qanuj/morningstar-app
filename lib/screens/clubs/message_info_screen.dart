@@ -59,6 +59,14 @@ class _MessageInfoScreenState extends State<MessageInfoScreen>
             .map((item) => item as Map<String, dynamic>)
             .toList();
         _isLoading = false;
+
+        // Debug logging to understand the data structure
+        if (_deliveredTo.isNotEmpty) {
+          debugPrint('First delivered user data: ${_deliveredTo.first}');
+        }
+        if (_readBy.isNotEmpty) {
+          debugPrint('First read user data: ${_readBy.first}');
+        }
       });
     } catch (e) {
       debugPrint('Error fetching message status: $e');
@@ -269,9 +277,36 @@ class _MessageInfoScreenState extends State<MessageInfoScreen>
   }
 
   Widget _buildUserTile(Map<String, dynamic> user, String type, bool isDark) {
-    final name = user['name'] ?? 'Unknown User';
-    final profilePicture = user['profilePicture'];
-    final timestamp = user['at'];
+    // Try multiple possible keys for user name
+    String name = user['name'] ??
+                  user['userName'] ??
+                  user['displayName'] ??
+                  user['fullName'] ??
+                  user['user']?['name'] ??
+                  user['user']?['userName'] ??
+                  'User';
+
+    // If we still have 'User' and we have an ID, try to find the user in club members
+    if (name == 'User' && user['id'] != null) {
+      try {
+        final matchingMember = widget.clubMembers.firstWhere(
+          (member) => member['id'] == user['id'] || member['_id'] == user['id'],
+        );
+        name = matchingMember['name'] ??
+               matchingMember['userName'] ??
+               matchingMember['displayName'] ??
+               'Club Member';
+      } catch (e) {
+        // Member not found in club members list
+        name = 'Club Member';
+      }
+    }
+
+    final profilePicture = user['profilePicture'] ??
+                          user['avatar'] ??
+                          user['profileImage'] ??
+                          user['user']?['profilePicture'];
+    final timestamp = user['at'] ?? user['timestamp'];
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -307,7 +342,7 @@ class _MessageInfoScreenState extends State<MessageInfoScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  name.isNotEmpty ? name : 'Unknown User',
+                  name.isNotEmpty ? name : 'Club Member',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
