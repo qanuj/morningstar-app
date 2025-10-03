@@ -1,11 +1,11 @@
-import 'package:duggy/widgets/quick_reaction_picker.dart';
-import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../models/club_message.dart';
 import '../../models/message_status.dart';
 import '../../providers/user_provider.dart';
 import '../svg_avatar.dart';
 import '../inline_reaction_picker.dart';
+import '../emoji_picker_sheet.dart';
 
 /// Base message bubble that provides the container and meta overlay for all message types
 class BaseMessageBubble extends StatelessWidget {
@@ -667,68 +667,23 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
   }
 
   void _showEmojiInputDialog(BuildContext context) {
-    _showDirectEmojiKeyboard(context);
-  }
-
-  void _showDirectEmojiKeyboard(BuildContext context) {
-    final TextEditingController emojiController = TextEditingController();
-    final FocusNode focusNode = FocusNode();
-    OverlayEntry? overlayEntry;
-
-    overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        // Position off-screen but still accessible to keyboard
-        top: -100,
-        left: 0,
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            width: 1,
-            height: 1,
-            child: TextField(
-              controller: emojiController,
-              focusNode: focusNode,
-              autofocus: true,
-              keyboardType: TextInputType.text,
-              textInputAction: TextInputAction.done,
-              enableSuggestions: false,
-              autocorrect: false,
-              style: const TextStyle(color: Colors.transparent),
-              decoration: const InputDecoration(
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
-                hintText: '😀', // Hint to suggest emoji input
-              ),
-              onChanged: (text) {
-                if (text.isNotEmpty) {
-                  // Extract first emoji character
-                  final firstEmoji = text.characters.first;
-
-                  // Remove overlay
-                  overlayEntry?.remove();
-
-                  // Add the reaction
-                  if (widget.onReactionAdded != null) {
-                    widget.onReactionAdded!(widget.message, firstEmoji);
-                  }
-                }
-              },
-              onTapOutside: (event) {
-                // Close when user taps outside
-                overlayEntry?.remove();
-              },
-            ),
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return EmojiPickerSheetContainer(
+          child: EmojiPickerSheet(
+            onSelected: (emoji) {
+              Navigator.of(sheetContext).pop();
+              if (widget.onReactionAdded != null) {
+                widget.onReactionAdded!(widget.message, emoji);
+              }
+            },
           ),
-        ),
-      ),
+        );
+      },
     );
-
-    Overlay.of(context).insert(overlayEntry);
-
-    // Auto-focus to open keyboard
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      focusNode.requestFocus();
-    });
   }
 
   void _showReactionDetailsAgain(BuildContext context) {

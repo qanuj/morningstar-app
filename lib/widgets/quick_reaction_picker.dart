@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'emoji_picker_sheet.dart';
+import 'inline_reaction_picker.dart';
+
 /// Reusable quick reaction picker widget
 class QuickReactionPicker extends StatelessWidget {
   final Function(String emoji) onReactionSelected;
@@ -33,17 +36,22 @@ class QuickReactionPicker extends StatelessWidget {
 
     return Container(
       width: containerWidth,
-      padding: padding ?? const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      padding:
+          padding ?? const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
-        color: backgroundColor ?? (isDark ? const Color(0xFF2a2f32) : Colors.white),
+        color:
+            backgroundColor ??
+            (isDark ? const Color(0xFF2a2f32) : Colors.white),
         borderRadius: borderRadius ?? BorderRadius.circular(25),
-        boxShadow: boxShadow ?? [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow:
+            boxShadow ??
+            [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.15),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -66,7 +74,8 @@ class QuickReactionPicker extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (!isLast || showPlusButton) const SizedBox(width: 5), // 5px margin between emojis
+                if (!isLast || showPlusButton)
+                  const SizedBox(width: 5), // 5px margin between emojis
               ],
             );
           }).toList(),
@@ -78,7 +87,7 @@ class QuickReactionPicker extends StatelessWidget {
                 if (onMoreEmojis != null) {
                   onMoreEmojis!();
                 } else {
-                  // Default behavior: show native emoji input dialog
+                  // Default behavior: open the custom emoji picker sheet
                   _showEmojiInputDialog(context);
                 }
               },
@@ -108,65 +117,23 @@ class QuickReactionPicker extends StatelessWidget {
   }
 
   void _showEmojiInputDialog(BuildContext context) {
-    _showDirectEmojiKeyboard(context);
-  }
+    // Dismiss all active inline reaction pickers before opening emoji picker
+    InlineReactionOverlay.dismissAllActivePickers();
 
-  void _showDirectEmojiKeyboard(BuildContext context) {
-    final TextEditingController emojiController = TextEditingController();
-    final FocusNode focusNode = FocusNode();
-    OverlayEntry? overlayEntry;
-
-    overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        // Position off-screen but still accessible to keyboard
-        top: -100,
-        left: 0,
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            width: 1,
-            height: 1,
-            child: TextField(
-              controller: emojiController,
-              focusNode: focusNode,
-              autofocus: true,
-              keyboardType: TextInputType.text,
-              textInputAction: TextInputAction.done,
-              enableSuggestions: false,
-              autocorrect: false,
-              style: const TextStyle(color: Colors.transparent),
-              decoration: const InputDecoration(
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
-                hintText: '😀', // Hint to suggest emoji input
-              ),
-              onChanged: (text) {
-                if (text.isNotEmpty) {
-                  // Extract first emoji character
-                  final firstEmoji = text.characters.first;
-
-                  // Remove overlay
-                  overlayEntry?.remove();
-
-                  // Call the reaction callback
-                  onReactionSelected(firstEmoji);
-                }
-              },
-              onTapOutside: (event) {
-                // Close when user taps outside
-                overlayEntry?.remove();
-              },
-            ),
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return EmojiPickerSheetContainer(
+          child: EmojiPickerSheet(
+            onSelected: (emoji) {
+              Navigator.of(sheetContext).pop();
+              onReactionSelected(emoji);
+            },
           ),
-        ),
-      ),
+        );
+      },
     );
-
-    Overlay.of(context).insert(overlayEntry);
-
-    // Auto-focus to open keyboard
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      focusNode.requestFocus();
-    });
   }
 }

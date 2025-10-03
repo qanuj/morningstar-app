@@ -141,16 +141,33 @@ class InlineReactionOverlay extends StatefulWidget {
 
   @override
   State<InlineReactionOverlay> createState() => _InlineReactionOverlayState();
+
+  /// Public static method to dismiss all active inline reaction pickers
+  static void dismissAllActivePickers() {
+    _InlineReactionOverlayState.dismissAllActivePickers();
+  }
 }
 
 class _InlineReactionOverlayState extends State<InlineReactionOverlay> {
   OverlayEntry? _overlayEntry;
   bool _isPickerVisible = false;
 
+  // Static list to track all active inline reaction pickers
+  static final List<_InlineReactionOverlayState> _activePickers = [];
+
+  // Static method to dismiss all active inline reaction pickers
+  static void dismissAllActivePickers() {
+    final List<_InlineReactionOverlayState> pickersCopy = List.from(_activePickers);
+    for (final picker in pickersCopy) {
+      picker._dismissPicker();
+    }
+  }
+
   void showReactionPicker() {
     if (_isPickerVisible) return;
 
     _isPickerVisible = true;
+    _activePickers.add(this);
     HapticFeedback.mediumImpact();
 
     // Calculate position above the message
@@ -199,6 +216,7 @@ class _InlineReactionOverlayState extends State<InlineReactionOverlay> {
     _overlayEntry?.remove();
     _overlayEntry = null;
     _isPickerVisible = false;
+    _activePickers.remove(this);
   }
 
   @override
