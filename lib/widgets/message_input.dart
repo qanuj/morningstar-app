@@ -5,7 +5,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:io';
 import '../widgets/audio_recording_widget.dart';
-import '../widgets/image_caption_dialog.dart';
 import '../screens/media_caption_screen.dart';
 import '../models/media_item.dart';
 import '../services/video_compression_service.dart';
@@ -947,10 +946,10 @@ class MessageInputState extends State<MessageInput> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ImageCaptionDialog(
+            builder: (context) => MediaCaptionScreen(
               imageFile: platformFile,
               title: 'Send Pasted Image',
-              onSend: (caption, croppedImagePath) {
+              onSendSingle: (caption, croppedImagePath) {
                 // Clear the placeholder text
                 _clearPastedImagePlaceholder();
                 _sendImageMessageWithCaption(

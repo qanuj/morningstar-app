@@ -320,42 +320,76 @@ class _ImageCaptionDialogState extends State<ImageCaptionDialog> {
                 Row(
                   children: [
                     Expanded(
-                      child: TextField(
-                        controller: _captionController,
-                        focusNode: _focusNode,
-                        maxLines: 3,
-                        minLines: 1,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          height: 1.4,
+                      child: Theme(
+                        data: ThemeData(
+                          inputDecorationTheme: InputDecorationTheme(
+                            filled: true,
+                            fillColor: Color(0xFF2a2a2a),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(25),
+                              borderSide: BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(25),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(25),
+                              borderSide: BorderSide.none,
+                            ),
+                            disabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(25),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                          textSelectionTheme: TextSelectionThemeData(
+                            cursorColor: Colors.white,
+                            selectionColor: Colors.white.withOpacity(0.3),
+                            selectionHandleColor: Colors.white,
+                          ),
                         ),
-                        decoration: InputDecoration(
-                          hintText: 'Type a caption...',
-                          hintStyle: TextStyle(
-                            color: Colors.white38,
+                        child: TextField(
+                          controller: _captionController,
+                          focusNode: _focusNode,
+                          maxLines: 3,
+                          minLines: 1,
+                          style: TextStyle(
+                            color: Colors.white,
                             fontSize: 16,
+                            height: 1.4,
                           ),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 12,
+                          decoration: InputDecoration(
+                            hintText: 'Type a caption...',
+                            hintStyle: TextStyle(
+                              color: Colors.white38,
+                              fontSize: 16,
+                            ),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                            filled: true,
+                            fillColor: Color(0xFF2a2a2a),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(25),
+                              borderSide: BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(25),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(25),
+                              borderSide: BorderSide.none,
+                            ),
+                            disabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(25),
+                              borderSide: BorderSide.none,
+                            ),
                           ),
-                          filled: true,
-                          fillColor: Color(0xFF2a2a2a),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(25),
-                            borderSide: BorderSide.none,
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(25),
-                            borderSide: BorderSide.none,
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(25),
-                            borderSide: BorderSide.none,
-                          ),
+                          cursorColor: Colors.white,
+                          onSubmitted: (_) => _sendImage(),
                         ),
-                        onSubmitted: (_) => _sendImage(),
                       ),
                     ),
                     SizedBox(width: 12),

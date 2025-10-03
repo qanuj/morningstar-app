@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../models/media_item.dart';
@@ -40,12 +41,15 @@ class _CameraScreenState extends State<CameraScreen>
   double _maxZoom = 1.0;
   double _minZoom = 1.0;
   double _baseZoom = 1.0;
+  List<double> _zoomLevels = [1.0, 2.0, 5.0];
+  int _currentZoomLevelIndex = 0;
   final ImagePicker _imagePicker = ImagePicker();
   FlashMode _flashMode = FlashMode.off;
   Timer? _zoomOverlayTimer;
   double _horizontalDragDelta = 0.0;
   bool _modeChangedDuringGesture = false;
   late AnimationController _recordingAnimationController;
+  DeviceOrientation _deviceOrientation = DeviceOrientation.portraitUp;
   late Animation<double> _recordingAnimation;
   String? _recordingDuration;
   DateTime? _recordingStartTime;
@@ -69,6 +73,12 @@ class _CameraScreenState extends State<CameraScreen>
     );
 
     _initializeCamera();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _updateOrientation();
   }
 
   @override
@@ -98,6 +108,46 @@ class _CameraScreenState extends State<CameraScreen>
       });
     } else if (state == AppLifecycleState.resumed) {
       _initializeCamera();
+    }
+  }
+
+  @override
+  void didChangeMetrics() {
+    super.didChangeMetrics();
+    _updateOrientation();
+  }
+
+  void _updateOrientation() {
+    final mediaQuery = MediaQuery.maybeOf(context);
+    if (mediaQuery != null && mounted) {
+      DeviceOrientation orientation;
+      final size = mediaQuery.size;
+      if (size.width > size.height) {
+        orientation = DeviceOrientation.landscapeLeft;
+      } else {
+        orientation = DeviceOrientation.portraitUp;
+      }
+
+      if (_deviceOrientation != orientation) {
+        setState(() {
+          _deviceOrientation = orientation;
+        });
+      }
+    }
+  }
+
+  double _getIconRotation() {
+    switch (_deviceOrientation) {
+      case DeviceOrientation.portraitUp:
+        return 0.0;
+      case DeviceOrientation.landscapeLeft:
+        return 1.5708; // 90 degrees in radians
+      case DeviceOrientation.portraitDown:
+        return 3.14159; // 180 degrees in radians
+      case DeviceOrientation.landscapeRight:
+        return -1.5708; // -90 degrees in radians
+      default:
+        return 0.0;
     }
   }
 
@@ -151,6 +201,9 @@ class _CameraScreenState extends State<CameraScreen>
       _minZoom = await _cameraController!.getMinZoomLevel();
       _currentZoom = _minZoom;
       _baseZoom = _currentZoom;
+
+      // Update zoom levels based on device capabilities
+      _updateZoomLevels();
       try {
         await _cameraController!.setZoomLevel(_currentZoom);
       } catch (_) {}
@@ -308,6 +361,8 @@ class _CameraScreenState extends State<CameraScreen>
 
       // Navigate to caption screen
       if (mounted) {
+        print('📷 CameraScreen: Navigating to MediaCaptionScreen');
+        print('📷 CameraScreen: mediaItem = ${mediaItem.url}');
         final result = await Navigator.push<List<MediaItem>>(
           context,
           MaterialPageRoute(
@@ -315,6 +370,12 @@ class _CameraScreenState extends State<CameraScreen>
               mediaItems: [mediaItem],
               title: isVideo ? 'Send Video' : 'Send Photo',
               onSend: (mediaItems) {
+                print('📷 CameraScreen: onSend callback called with ${mediaItems.length} items');
+                for (int i = 0; i < mediaItems.length; i++) {
+                  print('📷 CameraScreen: Item $i: ${mediaItems[i].url}, caption: "${mediaItems[i].caption}"');
+                }
+                // Don't pop here - MediaCaptionScreen will handle navigation
+                // Store the result to return from Navigator.push
                 Navigator.of(context).pop(mediaItems);
               },
             ),
@@ -322,10 +383,14 @@ class _CameraScreenState extends State<CameraScreen>
           ),
         );
 
+        print('📷 CameraScreen: Returned from MediaCaptionScreen with result: $result');
         if (result != null && result.isNotEmpty) {
           // Close camera screen and return captured media
+          print('📷 CameraScreen: Closing camera screen and calling widget.onMediaCaptured');
           Navigator.of(context).pop();
           widget.onMediaCaptured(result);
+        } else {
+          print('📷 CameraScreen: No result or empty result from MediaCaptionScreen');
         }
       }
     } catch (e) {
@@ -372,6 +437,40 @@ class _CameraScreenState extends State<CameraScreen>
         _startVideoRecording();
       }
     }
+  }
+
+  void _updateZoomLevels() {
+    // Create zoom levels based on device capabilities
+    List<double> levels = [_minZoom];
+
+    if (_maxZoom >= 2.0) levels.add(2.0);
+    if (_maxZoom >= 5.0) levels.add(5.0);
+    if (_maxZoom >= 10.0) levels.add(10.0);
+
+    // Add max zoom if it's different from existing levels
+    if (!levels.contains(_maxZoom) && _maxZoom > levels.last) {
+      levels.add(_maxZoom);
+    }
+
+    setState(() {
+      _zoomLevels = levels;
+      _currentZoomLevelIndex = 0;
+    });
+  }
+
+  void _cycleZoom() {
+    if (_zoomLevels.length <= 1) return;
+
+    setState(() {
+      _currentZoomLevelIndex = (_currentZoomLevelIndex + 1) % _zoomLevels.length;
+      _currentZoom = _zoomLevels[_currentZoomLevelIndex];
+    });
+
+    _cameraController?.setZoomLevel(_currentZoom).catchError((error) {
+      debugPrint('Failed to set zoom level: $error');
+    });
+
+    _showZoomOverlay();
   }
 
   void _handleScaleStart(ScaleStartDetails details) {
@@ -521,7 +620,10 @@ class _CameraScreenState extends State<CameraScreen>
                   ),
                   child: IconButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close, color: Colors.white),
+                    icon: Transform.rotate(
+                      angle: _getIconRotation(),
+                      child: const Icon(Icons.close, color: Colors.white),
+                    ),
                   ),
                 ),
                 Expanded(
@@ -539,10 +641,13 @@ class _CameraScreenState extends State<CameraScreen>
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(
-                                  Icons.fiber_manual_record,
-                                  color: Colors.white,
-                                  size: 12,
+                                Transform.rotate(
+                                  angle: _getIconRotation(),
+                                  child: const Icon(
+                                    Icons.fiber_manual_record,
+                                    color: Colors.white,
+                                    size: 12,
+                                  ),
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
@@ -567,9 +672,12 @@ class _CameraScreenState extends State<CameraScreen>
                     ),
                     child: IconButton(
                       onPressed: _cycleFlashMode,
-                      icon: Icon(
-                        _flashIconForMode(_flashMode),
-                        color: Colors.white,
+                      icon: Transform.rotate(
+                        angle: _getIconRotation(),
+                        child: Icon(
+                          _flashIconForMode(_flashMode),
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   )
@@ -674,7 +782,10 @@ class _CameraScreenState extends State<CameraScreen>
                         strokeWidth: 2,
                       )
                     : _isRecording
-                    ? const Icon(Icons.stop, color: Colors.white, size: 20)
+                    ? Transform.rotate(
+                        angle: _getIconRotation(),
+                        child: const Icon(Icons.stop, color: Colors.white, size: 20),
+                      )
                     : null,
               ),
             ),
@@ -704,10 +815,48 @@ class _CameraScreenState extends State<CameraScreen>
             borderRadius: BorderRadius.circular(24),
             border: Border.all(color: Colors.white24, width: 1),
           ),
-          child: Icon(
-            icon,
-            color: enabled ? Colors.white : Colors.white.withOpacity(0.3),
-            size: 20,
+          child: Transform.rotate(
+            angle: _getIconRotation(),
+            child: Icon(
+              icon,
+              color: enabled ? Colors.white : Colors.white.withOpacity(0.3),
+              size: 20,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildZoomCycleButton() {
+    final enabled = _zoomLevels.length > 1 && !_isRecording;
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        onTap: enabled ? _cycleZoom : null,
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
+          width: 48,
+          height: 48,
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.35),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white24, width: 1),
+          ),
+          child: Center(
+            child: Transform.rotate(
+              angle: _getIconRotation(),
+              child: Text(
+                '${_currentZoom.toStringAsFixed(_currentZoom == _currentZoom.roundToDouble() ? 0 : 1)}x',
+                style: TextStyle(
+                  color: enabled ? Colors.white : Colors.white.withOpacity(0.3),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -750,6 +899,8 @@ class _CameraScreenState extends State<CameraScreen>
               onTap: _switchCamera,
               enabled: _cameras != null && _cameras!.length > 1,
             ),
+            // Zoom cycle button with current zoom level
+            _buildZoomCycleButton(),
           ],
         ),
       ),
@@ -757,8 +908,14 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Widget _buildFloatingCaptureButton() {
+    // Adjust capture button position based on orientation
+    final orientation = MediaQuery.of(context).orientation;
+    final captureButtonBottom = orientation == Orientation.landscape
+        ? 80.0  // Closer to footer in landscape
+        : 120.0; // Original position in portrait
+
     return Positioned(
-      bottom: 120, // Reduced position to match smaller footer
+      bottom: captureButtonBottom,
       left: 0,
       right: 0,
       child: Center(child: _buildCaptureControls()),
@@ -791,10 +948,16 @@ class _CameraScreenState extends State<CameraScreen>
     final bottomPadding = mediaQuery.padding.bottom;
     final divisions = ((_maxZoom - _minZoom) * 10).round();
 
+    // Adjust bottom spacing based on orientation
+    final orientation = MediaQuery.of(context).orientation;
+    final bottomSpacing = orientation == Orientation.landscape
+        ? bottomPadding + 100  // Reduced spacing in landscape
+        : bottomPadding + 180; // Original spacing in portrait
+
     return Positioned(
       right: 16,
       top: topPadding + 24,
-      bottom: bottomPadding + 180,
+      bottom: bottomSpacing,
       child: AnimatedOpacity(
         opacity: _isZoomOverlayVisible ? 1.0 : 0.0,
         duration: const Duration(milliseconds: 300),
@@ -841,8 +1004,6 @@ class _CameraScreenState extends State<CameraScreen>
     if (_isGalleryOpening || _isCapturing || _isRecording) {
       return;
     }
-
-    bool shouldRestoreState = true;
 
     if (mounted) {
       setState(() {
@@ -907,29 +1068,19 @@ class _CameraScreenState extends State<CameraScreen>
       );
 
       if (result != null && result.isNotEmpty) {
-        shouldRestoreState = false;
-        if (mounted) {
-          setState(() {
-            _isGalleryOpening = false;
-          });
-        } else {
-          _isGalleryOpening = false;
-        }
-
         Navigator.of(context).pop();
         widget.onMediaCaptured(result);
       }
     } catch (e) {
       _showErrorSnackBar('Failed to pick media: $e');
     } finally {
-      if (shouldRestoreState) {
-        if (mounted) {
-          setState(() {
-            _isGalleryOpening = false;
-          });
-        } else {
+      // Always reset the gallery opening state regardless of outcome
+      if (mounted) {
+        setState(() {
           _isGalleryOpening = false;
-        }
+        });
+      } else {
+        _isGalleryOpening = false;
       }
     }
   }
@@ -966,20 +1117,22 @@ class _CameraScreenState extends State<CameraScreen>
               // Top bar with close and flash
               _buildTopBar(),
               // Camera preview (expanded to full remaining height)
-              Stack(
-                children: [
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      return GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onScaleStart: _handleScaleStart,
-                        onScaleUpdate: _handleScaleUpdate,
-                        onScaleEnd: _handleScaleEnd,
-                        child: _buildCameraPreview(constraints),
-                      );
-                    },
-                  ),
-                ],
+              Expanded(
+                child: Stack(
+                  children: [
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        return GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onScaleStart: _handleScaleStart,
+                          onScaleUpdate: _handleScaleUpdate,
+                          onScaleEnd: _handleScaleEnd,
+                          child: _buildCameraPreview(constraints),
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
