@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
+import 'quick_reaction_picker.dart';
 
 /// Inline reaction picker that appears above messages on long press
 class InlineReactionPicker extends StatefulWidget {
@@ -72,25 +73,12 @@ class InlineMessageOptions extends StatefulWidget {
 class _InlineReactionPickerState extends State<InlineReactionPicker>
     with TickerProviderStateMixin {
   late AnimationController _animationController;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _opacityAnimation;
-
-  final List<String> _quickReactions = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
-
   @override
   void initState() {
     super.initState();
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 200),
       vsync: this,
-    );
-
-    _scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOutBack),
-    );
-
-    _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
 
     _animationController.forward();
@@ -116,59 +104,22 @@ class _InlineReactionPickerState extends State<InlineReactionPicker>
 
   @override
   Widget build(BuildContext context) {
+    //bottom quick reactions bar
+    final mediaQuery = MediaQuery.of(context);
+    final bottomInset = mediaQuery.viewInsets.bottom;
+    final bottomPadding = mediaQuery.padding.bottom;
+
+    // Calculate safe position accounting for keyboard and system navigation
+    final safeBottom =
+        bottomInset +
+        bottomPadding +
+        40; // Extra 40px margin for better clearance
+    final adjustedTop = widget.position.dy - safeBottom;
+
     return Positioned(
       left: widget.position.dx,
-      top: widget.position.dy,
-      child: Material(
-        color: Colors.transparent,
-        child: AnimatedBuilder(
-          animation: _animationController,
-          builder: (context, child) {
-            return Transform.scale(
-              scale: _scaleAnimation.value,
-              child: Opacity(
-                opacity: _opacityAnimation.value,
-                child: Container(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: _quickReactions.map((emoji) {
-                      return GestureDetector(
-                        onTap: () => _selectReaction(emoji),
-                        child: Container(
-                          width: 36, // Fixed width for perfect circle
-                          height: 36, // Fixed height for perfect circle
-                          margin: const EdgeInsets.symmetric(horizontal: 3),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color:
-                                Theme.of(context).brightness == Brightness.dark
-                                ? const Color(0xFF3a3f42)
-                                : const Color(0xFFF5F5F5),
-                            border: Border.all(
-                              color:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? const Color(0xFF4a4f52)
-                                  : const Color(0xFFE0E0E0),
-                              width: 1,
-                            ),
-                          ),
-                          child: Center(
-                            child: Text(
-                              emoji,
-                              style: const TextStyle(fontSize: 20),
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
+      top: adjustedTop,
+      child: QuickReactionPicker(onReactionSelected: _selectReaction),
     );
   }
 }
@@ -273,16 +224,6 @@ class _InlineMessageOptionsState extends State<InlineMessageOptions>
   late Animation<double> _opacityAnimation;
   late Animation<double> _blurAnimation;
 
-  final List<String> _quickReactions = [
-    '👍',
-    '❤️',
-    '😂',
-    '😮',
-    '😢',
-    '🙏',
-    '🔥',
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -380,8 +321,14 @@ class _InlineMessageOptionsState extends State<InlineMessageOptions>
                 // Positioned content with proper bounds checking
                 Positioned.fill(
                   child: SafeArea(
+                    bottom: true, // Ensure SafeArea respects bottom insets
                     child: Padding(
-                      padding: const EdgeInsets.all(16.0),
+                      padding: const EdgeInsets.fromLTRB(
+                        16.0,
+                        16.0,
+                        16.0,
+                        32.0,
+                      ), // Extra bottom padding
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -389,52 +336,11 @@ class _InlineMessageOptionsState extends State<InlineMessageOptions>
                           if (!widget.isDeleted)
                             Transform.scale(
                               scale: _scaleAnimation.value,
-                              child: Opacity(
-                                opacity: _opacityAnimation.value,
-                                child: Container(
-                                  width: maxWidth,
-                                  margin: const EdgeInsets.only(bottom: 16),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        Theme.of(context).brightness ==
-                                            Brightness.dark
-                                        ? const Color(0xFF2a2f32)
-                                        : Colors.white,
-                                    borderRadius: BorderRadius.circular(25),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.15),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceEvenly,
-                                    children: _quickReactions.map((emoji) {
-                                      return Flexible(
-                                        child: GestureDetector(
-                                          onTap: () => _selectReaction(emoji),
-                                          child: Center(
-                                            child: Text(
-                                              emoji,
-                                              style: const TextStyle(
-                                                fontSize: 32,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      );
-                                    }).toList(),
-                                  ),
-                                ),
+                              child: QuickReactionPicker(
+                                onReactionSelected: _selectReaction,
                               ),
                             ),
-
+                          const SizedBox(height: 10),
                           // The actual message in center
                           Transform.scale(
                             scale: _scaleAnimation.value,
@@ -479,8 +385,13 @@ class _InlineMessageOptionsState extends State<InlineMessageOptions>
                               child: Opacity(
                                 opacity: _opacityAnimation.value,
                                 child: Container(
-                                  width: maxWidth - 150,
-                                  margin: const EdgeInsets.only(top: 16),
+                                  width:
+                                      maxWidth -
+                                      100, // Reduced constraint for better mobile fit
+                                  margin: const EdgeInsets.only(
+                                    top: 16,
+                                    bottom: 16,
+                                  ), // Add bottom margin
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 8,
                                   ),
@@ -565,16 +476,11 @@ class _InlineMessageOptionsState extends State<InlineMessageOptions>
         title: 'Pin',
         onTap: () => _handleAction(widget.onPin),
       ),
-      // _buildOptionTile(
-      //   icon: Icons.share,
-      //   title: 'Share',
-      //   onTap: () => _handleAction(_handleShare),
-      // ),
-      // _buildOptionTile(
-      //   icon: Icons.forward,
-      //   title: 'Forward',
-      //   onTap: () => _handleAction(widget.onForward),
-      // ),
+      _buildOptionTile(
+        icon: Icons.share,
+        title: 'Share',
+        onTap: () => _handleAction(_handleShare),
+      ),
       if (widget.canDelete)
         _buildOptionTile(
           icon: Icons.delete_outline,
