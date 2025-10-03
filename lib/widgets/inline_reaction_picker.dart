@@ -30,9 +30,11 @@ class InlineMessageOptions extends StatefulWidget {
   final VoidCallback onForward;
   final VoidCallback onSelectMessage;
   final VoidCallback onCopy;
+  final VoidCallback onPin;
   final VoidCallback onStar;
   final VoidCallback onDelete;
   final VoidCallback onMore;
+  final VoidCallback onInfo;
   final Offset messagePosition;
   final Size messageSize;
   final bool isOwnMessage;
@@ -49,9 +51,11 @@ class InlineMessageOptions extends StatefulWidget {
     required this.onForward,
     required this.onSelectMessage,
     required this.onCopy,
+    required this.onPin,
     required this.onStar,
     required this.onDelete,
     required this.onMore,
+    required this.onInfo,
     required this.messagePosition,
     required this.messageSize,
     this.isOwnMessage = false,
@@ -71,15 +75,7 @@ class _InlineReactionPickerState extends State<InlineReactionPicker>
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
 
-  final List<String> _quickReactions = [
-    '👍',
-    '❤️',
-    '😂',
-    '😮',
-    '😢',
-    '🙏',
-    '🔥',
-  ];
+  final List<String> _quickReactions = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
   @override
   void initState() {
@@ -423,40 +419,11 @@ class _InlineMessageOptionsState extends State<InlineMessageOptions>
                                       return Flexible(
                                         child: GestureDetector(
                                           onTap: () => _selectReaction(emoji),
-                                          child: Container(
-                                            width:
-                                                36, // Fixed width for perfect circle
-                                            height:
-                                                36, // Fixed height for perfect circle
-                                            margin: const EdgeInsets.symmetric(
-                                              horizontal: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              color:
-                                                  Theme.of(
-                                                        context,
-                                                      ).brightness ==
-                                                      Brightness.dark
-                                                  ? const Color(0xFF3a3f42)
-                                                  : const Color(0xFFF5F5F5),
-                                              border: Border.all(
-                                                color:
-                                                    Theme.of(
-                                                          context,
-                                                        ).brightness ==
-                                                        Brightness.dark
-                                                    ? const Color(0xFF4a4f52)
-                                                    : const Color(0xFFE0E0E0),
-                                                width: 1,
-                                              ),
-                                            ),
-                                            child: Center(
-                                              child: Text(
-                                                emoji,
-                                                style: const TextStyle(
-                                                  fontSize: 18,
-                                                ),
+                                          child: Center(
+                                            child: Text(
+                                              emoji,
+                                              style: const TextStyle(
+                                                fontSize: 32,
                                               ),
                                             ),
                                           ),
@@ -512,7 +479,7 @@ class _InlineMessageOptionsState extends State<InlineMessageOptions>
                               child: Opacity(
                                 opacity: _opacityAnimation.value,
                                 child: Container(
-                                  width: maxWidth,
+                                  width: maxWidth - 150,
                                   margin: const EdgeInsets.only(top: 16),
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 8,
@@ -571,6 +538,13 @@ class _InlineMessageOptionsState extends State<InlineMessageOptions>
 
     // For normal messages, show all options
     return [
+      if (widget.isOwnMessage)
+        _buildOptionTile(
+          icon: Icons.info_outline,
+          title: 'Info',
+          onTap: () => _handleAction(widget.onInfo),
+        ),
+
       _buildOptionTile(
         icon: Icons.reply,
         title: 'Reply',
@@ -589,13 +563,18 @@ class _InlineMessageOptionsState extends State<InlineMessageOptions>
       _buildOptionTile(
         icon: Icons.push_pin_outlined,
         title: 'Pin',
-        onTap: () => _handleAction(() => debugPrint('Pin message')),
+        onTap: () => _handleAction(widget.onPin),
       ),
-      _buildOptionTile(
-        icon: Icons.share,
-        title: 'Share',
-        onTap: () => _handleAction(_handleShare),
-      ),
+      // _buildOptionTile(
+      //   icon: Icons.share,
+      //   title: 'Share',
+      //   onTap: () => _handleAction(_handleShare),
+      // ),
+      // _buildOptionTile(
+      //   icon: Icons.forward,
+      //   title: 'Forward',
+      //   onTap: () => _handleAction(widget.onForward),
+      // ),
       if (widget.canDelete)
         _buildOptionTile(
           icon: Icons.delete_outline,
@@ -620,6 +599,18 @@ class _InlineMessageOptionsState extends State<InlineMessageOptions>
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: isDestructive
+                      ? Colors.red
+                      : Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.black87,
+                ),
+              ),
+              const Spacer(), // This creates the white space between text and icon
               Icon(
                 icon,
                 size: 20,
@@ -628,20 +619,6 @@ class _InlineMessageOptionsState extends State<InlineMessageOptions>
                     : Theme.of(context).brightness == Brightness.dark
                     ? Colors.white70
                     : Colors.black87,
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: isDestructive
-                        ? Colors.red
-                        : Theme.of(context).brightness == Brightness.dark
-                        ? Colors.white
-                        : Colors.black87,
-                  ),
-                ),
               ),
             ],
           ),

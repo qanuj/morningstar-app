@@ -8,7 +8,7 @@ import '../../models/message_reaction.dart';
 import '../../models/starred_info.dart';
 import '../../services/chat_api_service.dart';
 import '../../providers/user_provider.dart';
-import '../message_info_sheet.dart';
+import '../../screens/clubs/message_info_screen.dart';
 import '../inline_reaction_picker.dart';
 import 'message_bubble_factory.dart';
 
@@ -110,6 +110,8 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
   Widget build(BuildContext context) {
     return _MessageOptionsOverlay(
       isOwnMessage: widget.isOwn,
+      message: _createMessageWithLocalState(),
+      clubMembers: widget.clubMembers,
       onReactionSelected: (emoji) =>
           _handleReactionAdded(_createMessageWithLocalState(), emoji),
       onReply: () =>
@@ -120,6 +122,8 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
       onStar: () => _handleToggleStarMessage(_createMessageWithLocalState()),
       onDelete: () => _handleDeleteMessage(_createMessageWithLocalState()),
       onMore: () => _showMessageOptions(context),
+      onInfo: () => _handleShowMessageInfoScreen(),
+      onPin: () => _handleTogglePinMessage(_createMessageWithLocalState()),
       canDelete: widget.canDeleteMessages,
       isDeleted: widget.message.deleted,
       messageContent: _createMessageWithLocalState().content,
@@ -140,6 +144,7 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
           onTogglePinMessage: _handleTogglePinMessage,
           onDeleteMessage: _handleDeleteMessage,
           onShowMessageInfo: _handleShowMessageInfo,
+          onPinMessage: widget.onTogglePinMessage,
           canPinMessages: widget.canPinMessages,
           canDeleteMessages: widget.canDeleteMessages,
           isSelectionMode: widget.isSelectionMode,
@@ -547,17 +552,29 @@ class _InteractiveMessageBubbleState extends State<InteractiveMessageBubble> {
     // Unfocus any text fields to prevent keyboard from appearing
     FocusScope.of(context).unfocus();
 
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Theme.of(context).brightness == Brightness.dark
-          ? Color(0xFF2a2f32)
-          : Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => MessageInfoScreen(
+          message: message,
+          clubMembers: widget.clubMembers,
+          club: widget.club,
+        ),
       ),
-      isScrollControlled: true,
-      builder: (context) =>
-          MessageInfoSheet(message: message, clubMembers: widget.clubMembers),
+    );
+  }
+
+  void _handleShowMessageInfoScreen() {
+    // Unfocus any text fields to prevent keyboard from appearing
+    FocusScope.of(context).unfocus();
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => MessageInfoScreen(
+          message: _createMessageWithLocalState(),
+          clubMembers: widget.clubMembers,
+          club: widget.club,
+        ),
+      ),
     );
   }
 
@@ -620,10 +637,14 @@ class _MessageOptionsOverlay extends StatefulWidget {
   final VoidCallback onStar;
   final VoidCallback onDelete;
   final VoidCallback onMore;
+  final VoidCallback onInfo;
+  final VoidCallback onPin;
   final bool isOwnMessage;
   final bool canDelete;
   final bool isDeleted;
   final String? messageContent;
+  final ClubMessage? message;
+  final List<Map<String, dynamic>>? clubMembers;
 
   const _MessageOptionsOverlay({
     required this.child,
@@ -635,10 +656,14 @@ class _MessageOptionsOverlay extends StatefulWidget {
     required this.onStar,
     required this.onDelete,
     required this.onMore,
+    required this.onInfo,
+    required this.onPin,
     this.isOwnMessage = false,
     this.canDelete = false,
     this.isDeleted = false,
     this.messageContent,
+    this.message,
+    this.clubMembers,
   });
 
   @override
@@ -674,6 +699,8 @@ class _MessageOptionsOverlayState extends State<_MessageOptionsOverlay> {
         onStar: widget.onStar,
         onDelete: widget.onDelete,
         onMore: widget.onMore,
+        onInfo: widget.onInfo,
+        onPin: widget.onPin, // Placeholder for pin action
         messagePosition: position,
         messageSize: size,
         isOwnMessage: widget.isOwnMessage,

@@ -37,6 +37,7 @@ class MessageBubbleFactory extends StatelessWidget {
   final Function(ClubMessage message)? onTogglePinMessage;
   final Function(ClubMessage message)? onDeleteMessage;
   final Function(ClubMessage message)? onShowMessageInfo;
+  final Function(ClubMessage message)? onPinMessage;
   final bool canPinMessages;
   final bool canDeleteMessages;
   final bool isSelectionMode;
@@ -64,6 +65,7 @@ class MessageBubbleFactory extends StatelessWidget {
     this.onTogglePinMessage,
     this.onDeleteMessage,
     this.onShowMessageInfo,
+    this.onPinMessage,
     this.canPinMessages = false,
     this.canDeleteMessages = false,
     this.isSelectionMode = false,
