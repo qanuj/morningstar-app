@@ -19,6 +19,7 @@ class TextMessageBubble extends StatelessWidget {
   final bool isLastFromSender;
   final Function(String messageId, String emoji, String userId)?
   onReactionRemoved;
+  final Function(ClubMessage message, String emoji)? onReactionAdded;
   final Club club;
   final Function(String messageId, int mediaIndex)? onMediaTap;
 
@@ -32,6 +33,7 @@ class TextMessageBubble extends StatelessWidget {
     this.showSenderInfo = false,
     this.isLastFromSender = false,
     this.onReactionRemoved,
+    this.onReactionAdded,
     this.onMediaTap,
   });
 
@@ -47,6 +49,7 @@ class TextMessageBubble extends StatelessWidget {
       overlayBottomPosition: -2, // Move timestamp slightly down
       content: _buildContent(context),
       onReactionRemoved: onReactionRemoved,
+      onReactionAdded: onReactionAdded,
     );
   }
 

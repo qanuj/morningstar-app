@@ -17,6 +17,7 @@ class AudioMessageBubble extends StatefulWidget {
   final VoidCallback? onRetryUpload;
   final Function(String messageId, String emoji, String userId)?
   onReactionRemoved;
+  final Function(ClubMessage message, String emoji)? onReactionAdded;
 
   const AudioMessageBubble({
     super.key,
@@ -27,6 +28,7 @@ class AudioMessageBubble extends StatefulWidget {
     this.showSenderInfo = false,
     this.onRetryUpload,
     this.onReactionRemoved,
+    this.onReactionAdded,
   });
 
   @override
@@ -174,6 +176,7 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
       overlayBottomPosition: 18, // Position overlay higher up inside container
       content: _buildContent(context),
       onReactionRemoved: widget.onReactionRemoved,
+      onReactionAdded: widget.onReactionAdded,
     );
   }
 

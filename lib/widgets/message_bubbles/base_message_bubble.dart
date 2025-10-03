@@ -1,3 +1,4 @@
+import 'package:duggy/widgets/quick_reaction_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 import '../../models/club_message.dart';
@@ -654,36 +655,80 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
   }
 
   void _showReactionPicker(BuildContext context) {
-    // Show reaction picker overlay without closing the current sheet
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (pickerContext) => Container(
-        height: 80,
-        margin: EdgeInsets.all(16),
-        child: InlineReactionPicker(
-          onReactionSelected: (emoji) async {
-            // Add the reaction using the same API as long press
-            if (widget.onReactionAdded != null) {
-              widget.onReactionAdded!(widget.message, emoji);
-            }
+    // Close current sheet first
+    Navigator.pop(context);
 
-            //TODO: Add reaction to local state immediately for instant feedback
-            // Wait a moment for the API call to complete, then refresh the dialog
-            await Future.delayed(Duration(milliseconds: 300));
+    // Add a small delay to ensure the previous modal is fully closed
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (context.mounted) {
+        _showEmojiInputDialog(context);
+      }
+    });
+  }
 
-            // Close current dialog and reopen with fresh data
-            if (context.mounted) {
-              Navigator.pop(context);
-              // Slight delay to ensure the dialog close animation completes
-              await Future.delayed(Duration(milliseconds: 100));
-            }
-          },
-          onDismiss: () => Navigator.pop(pickerContext),
-          position: Offset(0, 0), // Default position since we're in a modal
+  void _showEmojiInputDialog(BuildContext context) {
+    _showDirectEmojiKeyboard(context);
+  }
+
+  void _showDirectEmojiKeyboard(BuildContext context) {
+    final TextEditingController emojiController = TextEditingController();
+    final FocusNode focusNode = FocusNode();
+    OverlayEntry? overlayEntry;
+
+    overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        // Position off-screen but still accessible to keyboard
+        top: -100,
+        left: 0,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            width: 1,
+            height: 1,
+            child: TextField(
+              controller: emojiController,
+              focusNode: focusNode,
+              autofocus: true,
+              keyboardType: TextInputType.text,
+              textInputAction: TextInputAction.done,
+              enableSuggestions: false,
+              autocorrect: false,
+              style: const TextStyle(color: Colors.transparent),
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+                hintText: '😀', // Hint to suggest emoji input
+              ),
+              onChanged: (text) {
+                if (text.isNotEmpty) {
+                  // Extract first emoji character
+                  final firstEmoji = text.characters.first;
+
+                  // Remove overlay
+                  overlayEntry?.remove();
+
+                  // Add the reaction
+                  if (widget.onReactionAdded != null) {
+                    widget.onReactionAdded!(widget.message, firstEmoji);
+                  }
+                }
+              },
+              onTapOutside: (event) {
+                // Close when user taps outside
+                overlayEntry?.remove();
+              },
+            ),
+          ),
         ),
       ),
     );
+
+    Overlay.of(context).insert(overlayEntry);
+
+    // Auto-focus to open keyboard
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      focusNode.requestFocus();
+    });
   }
 
   void _showReactionDetailsAgain(BuildContext context) {
@@ -772,14 +817,20 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
         }
       },
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        width: isAddButton ? 44 : null, // Perfect circle for add button
+        height: isAddButton ? 44 : null, // Perfect circle for add button
+        padding: isAddButton
+            ? EdgeInsets.zero
+            : EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected
               ? (isDarkMode
                     ? Colors.lightBlueAccent.withOpacity(0.2)
                     : Color(0xFF003f9b).withOpacity(0.1))
               : (isDarkMode ? Colors.grey[800] : Colors.grey[100]),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(
+            isAddButton ? 22 : 20,
+          ), // Perfect circle for add button
           border: Border.all(
             color: isSelected
                 ? (isDarkMode ? Colors.lightBlueAccent : Color(0xFF003f9b))
@@ -787,33 +838,33 @@ class _ReactionDetailsSheetState extends State<ReactionDetailsSheet> {
             width: isSelected ? 2 : 1,
           ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (isAddButton) ...[
-              Icon(
-                Icons.add,
-                size: 18,
-                color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
-              ),
-            ] else ...[
-              Text(emoji!, style: TextStyle(fontSize: 18)),
-              SizedBox(width: 4),
-              Text(
-                count.toString(),
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: isSelected
-                      ? (isDarkMode
-                            ? Colors.lightBlueAccent
-                            : Color(0xFF003f9b))
-                      : (isDarkMode ? Colors.grey[300] : Colors.grey[700]),
+        child: isAddButton
+            ? Center(
+                child: Icon(
+                  Icons.add,
+                  size: 18,
+                  color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
                 ),
+              )
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(emoji!, style: TextStyle(fontSize: 18)),
+                  SizedBox(width: 4),
+                  Text(
+                    count.toString(),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isSelected
+                          ? (isDarkMode
+                                ? Colors.lightBlueAccent
+                                : Color(0xFF003f9b))
+                          : (isDarkMode ? Colors.grey[300] : Colors.grey[700]),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ],
-        ),
       ),
     );
   }

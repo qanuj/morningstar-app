@@ -89,6 +89,8 @@ class MessageBubbleFactory extends StatelessWidget {
         isPinned: isPinned,
         isSelected: isSelected,
         onRetryUpload: onRetryUpload,
+        onReactionRemoved: onReactionRemoved,
+        onReactionAdded: onReactionAdded,
       );
     } else if (message.messageType == 'document') {
       // DOCUMENT MESSAGE: Document cards with download capability
@@ -196,6 +198,7 @@ class MessageBubbleFactory extends StatelessWidget {
         showSenderInfo: showSenderInfo,
         isLastFromSender: isLastFromSender,
         onReactionRemoved: onReactionRemoved,
+        onReactionAdded: onReactionAdded,
         club: club,
         onMediaTap: onMediaTap,
       );
@@ -215,6 +218,7 @@ class MessageBubbleFactory extends StatelessWidget {
       showShadow: false,
       isLastFromSender: isLastFromSender,
       onReactionRemoved: onReactionRemoved,
+      onReactionAdded: onReactionAdded,
       content: Container(
         padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
         child: Row(
