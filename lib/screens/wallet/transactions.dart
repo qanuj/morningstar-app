@@ -431,9 +431,11 @@ class TransactionsScreenState extends State<TransactionsScreen> {
                             listType: TransactionListType.my,
                             isLoadingMore: _isLoadingMore,
                             hasMoreData: _hasMoreData,
-                            currency: _clubBalances.isNotEmpty
+                            currency: _clubBalances.isNotEmpty && _currentBalanceIndex < _clubBalances.length
                                 ? _clubBalances[_currentBalanceIndex]['currency']
-                                : null,
+                                : _clubBalances.isNotEmpty
+                                    ? _clubBalances.first['currency']
+                                    : null,
                           ).buildTransactionListItems(context),
                         ],
                       ),
@@ -899,6 +901,7 @@ class TransactionsScreenState extends State<TransactionsScreen> {
       onSelected: (selected) {
         setState(() {
           _selectedClubId = selected ? clubId : null;
+          _currentBalanceIndex = 0; // Reset balance index when filter changes
         });
       },
       backgroundColor: Theme.of(context).cardColor,
@@ -1052,6 +1055,7 @@ class TransactionsScreenState extends State<TransactionsScreen> {
                       _selectedClubId = _selectedClubId == club['id']
                           ? null
                           : club['id'];
+                      _currentBalanceIndex = 0; // Reset balance index when filter changes
                     });
                     _applyFilters();
                   },
