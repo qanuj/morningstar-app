@@ -516,6 +516,7 @@ class TransactionsScreenState extends State<TransactionsScreen> {
                           _selectedType = _tempSelectedType;
                           _selectedPeriod = _tempSelectedPeriod;
                           _selectedClubId = _tempSelectedClubId;
+                          _currentBalanceIndex = 0; // Reset balance index when filter changes
                         });
                         Navigator.pop(context);
                         _applyFilters();
