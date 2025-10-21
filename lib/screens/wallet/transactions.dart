@@ -1208,6 +1208,7 @@ class TransactionsScreenState extends State<TransactionsScreen> {
               // Reset to show all clubs
               setState(() {
                 _selectedClubId = null;
+                _currentBalanceIndex = 0; // Reset balance index when filter changes
               });
 
               // Reload transactions to show all clubs

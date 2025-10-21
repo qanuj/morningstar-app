@@ -30,6 +30,10 @@ class MatchListItem {
   final List<MatchRSVP> rsvps;
   final Team? team;
   final Team? opponentTeam;
+  final double? userFeeAmount;
+  final bool? userFeePaid;
+  final bool? userFeeConfirmed;
+  final String? userFeePaymentMethod;
 
   MatchListItem({
     required this.id,
@@ -60,6 +64,10 @@ class MatchListItem {
     this.rsvps = const [],
     this.team,
     this.opponentTeam,
+    this.userFeeAmount,
+    this.userFeePaid,
+    this.userFeeConfirmed,
+    this.userFeePaymentMethod,
   });
 
   /// Extract location name from either string or object format
@@ -126,6 +134,10 @@ class MatchListItem {
       opponentTeam: json['opponentTeam'] != null
           ? Team.fromJson(json['opponentTeam'])
           : null,
+      userFeeAmount: json['userFeeAmount']?.toDouble(),
+      userFeePaid: json['userFeePaid'],
+      userFeeConfirmed: json['userFeeConfirmed'],
+      userFeePaymentMethod: json['userFeePaymentMethod'],
     );
   }
 
@@ -159,6 +171,10 @@ class MatchListItem {
       'rsvps': rsvps.map((rsvp) => rsvp.toJson()).toList(),
       'team': team?.toJson(),
       'opponentTeam': opponentTeam?.toJson(),
+      'userFeeAmount': userFeeAmount,
+      'userFeePaid': userFeePaid,
+      'userFeeConfirmed': userFeeConfirmed,
+      'userFeePaymentMethod': userFeePaymentMethod,
     };
   }
 }

@@ -807,7 +807,7 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
                         // Club Name Field
                         _buildTextField(
                           controller: _nameController,
-                          label: 'Club Name',
+                          placeholder: 'Club Name',
                           icon: Icons.sports_cricket,
                           validator: (value) {
                             if (value?.trim().isEmpty ?? true) {
@@ -822,8 +822,7 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
                         // Description Field
                         _buildTextField(
                           controller: _descriptionController,
-                          label: 'Club Description',
-                          hint: 'Tell us about your club',
+                          placeholder: 'Club Description',
                           icon: Icons.description,
                           maxLines: 3,
                         ),
@@ -833,8 +832,7 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
                         // Location Field
                         _buildTextField(
                           controller: _locationController,
-                          label: 'Location',
-                          hint: 'Enter club location',
+                          placeholder: 'Location',
                           icon: Icons.location_on,
                         ),
 
@@ -843,8 +841,7 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
                         // Phone Number Field
                         _buildTextField(
                           controller: _phoneController,
-                          label: 'Phone Number',
-                          hint: 'Enter club phone number',
+                          placeholder: 'Phone Number',
                           icon: Icons.phone,
                           keyboardType: TextInputType.phone,
                         ),
@@ -854,8 +851,7 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
                         // Email Field
                         _buildTextField(
                           controller: _emailController,
-                          label: 'Email Address',
-                          hint: 'Enter club email address',
+                          placeholder: 'Email Address',
                           icon: Icons.email,
                           keyboardType: TextInputType.emailAddress,
                           validator: (value) {
@@ -875,8 +871,7 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
                         // Website Field
                         _buildTextField(
                           controller: _websiteController,
-                          label: 'Website',
-                          hint: 'Enter club website URL',
+                          placeholder: 'Website',
                           icon: Icons.web,
                           keyboardType: TextInputType.url,
                         ),
@@ -891,8 +886,7 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
                               flex: 2,
                               child: _buildTextField(
                                 controller: _membershipFeeController,
-                                label: 'Membership Fee',
-                                hint: '0.00',
+                                placeholder: 'Membership Fee',
                                 icon: Icons.payments,
                                 keyboardType: TextInputType.numberWithOptions(
                                   decimal: true,
@@ -903,8 +897,7 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
                             Expanded(
                               child: _buildNativeTapField(
                                 value: _selectedCurrency,
-                                label: 'Currency',
-                                hint: 'INR',
+                                placeholder: 'Currency',
                                 onTap: _showNativeCurrencyPicker,
                                 readOnly: true,
                               ),
@@ -927,86 +920,70 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
 
   Widget _buildTextField({
     required TextEditingController controller,
-    required String label,
-    String? hint,
+    required String placeholder,
     TextInputType keyboardType = TextInputType.text,
     int maxLines = 1,
     IconData? icon,
     String? Function(String?)? validator,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Theme.of(context).colorScheme.onSurface,
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+      validator: validator,
+      decoration: InputDecoration(
+        hintText: placeholder,
+        hintStyle: TextStyle(
+          color: Theme.of(context).hintColor,
+          fontSize: 16,
+        ),
+        prefixIcon: icon != null
+            ? Icon(icon, size: 20, color: Theme.of(context).hintColor)
+            : null,
+        filled: true,
+        fillColor: Theme.of(context).brightness == Brightness.dark
+            ? Theme.of(context).cardColor
+            : Theme.of(context).scaffoldBackgroundColor,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Theme.of(context).dividerColor.withOpacity(0.3),
+            width: 1,
           ),
         ),
-        SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          keyboardType: keyboardType,
-          maxLines: maxLines,
-          validator: validator,
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: TextStyle(
-              color: Theme.of(context).hintColor,
-              fontSize: 14,
-            ),
-            prefixIcon: icon != null
-                ? Icon(icon, size: 20, color: Theme.of(context).hintColor)
-                : null,
-            filled: true,
-            fillColor: Theme.of(context).brightness == Brightness.dark
-                ? Theme.of(context).cardColor
-                : Theme.of(context).scaffoldBackgroundColor,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(
-                color: Theme.of(context).dividerColor.withOpacity(0.2),
-                width: 1,
-              ),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(
-                color: Theme.of(context).dividerColor.withOpacity(0.2),
-                width: 1,
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: AppTheme.primaryBlue, width: 2),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(
-                color: Theme.of(context).colorScheme.error,
-                width: 1,
-              ),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(
-                color: Theme.of(context).colorScheme.error,
-                width: 2,
-              ),
-            ),
-            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Theme.of(context).dividerColor.withOpacity(0.3),
+            width: 1,
           ),
         ),
-      ],
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: AppTheme.primaryBlue, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Theme.of(context).colorScheme.error,
+            width: 1,
+          ),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Theme.of(context).colorScheme.error,
+            width: 2,
+          ),
+        ),
+        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      ),
     );
   }
 
   Widget _buildNativeTapField({
     required String? value,
-    required String label,
-    required String hint,
+    required String placeholder,
     required VoidCallback onTap,
     IconData? leadingIcon,
     bool readOnly = false,
@@ -1017,57 +994,43 @@ class ClubSettingsScreenState extends State<ClubSettingsScreen> {
             ? CupertinoIcons.chevron_down
             : Icons.keyboard_arrow_down);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Theme.of(context).colorScheme.onSurface,
+    return GestureDetector(
+      onTap: readOnly ? null : onTap,
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        decoration: BoxDecoration(
+          color: readOnly
+              ? Theme.of(context).disabledColor.withOpacity(0.1)
+              : (Theme.of(context).brightness == Brightness.dark
+                    ? Theme.of(context).cardColor
+                    : Theme.of(context).scaffoldBackgroundColor),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Theme.of(context).dividerColor.withOpacity(0.3),
+            width: 1,
           ),
         ),
-        SizedBox(height: 8),
-        GestureDetector(
-          onTap: readOnly ? null : onTap,
-          child: Container(
-            width: double.infinity,
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: readOnly
-                  ? Theme.of(context).disabledColor.withOpacity(0.1)
-                  : (Theme.of(context).brightness == Brightness.dark
-                        ? Theme.of(context).cardColor
-                        : Theme.of(context).scaffoldBackgroundColor),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: Theme.of(context).dividerColor.withOpacity(0.2),
-                width: 1,
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                value ?? placeholder,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: readOnly
+                      ? Theme.of(context).disabledColor
+                      : (value != null
+                            ? Theme.of(context).colorScheme.onSurface
+                            : Theme.of(context).hintColor),
+                ),
               ),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    value ?? hint,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: readOnly
-                          ? Theme.of(context).disabledColor
-                          : (value != null
-                                ? Theme.of(context).colorScheme.onSurface
-                                : Theme.of(context).hintColor),
-                    ),
-                  ),
-                ),
-                if (!readOnly)
-                  Icon(icon, size: 20, color: Theme.of(context).hintColor),
-              ],
-            ),
-          ),
+            if (!readOnly)
+              Icon(icon, size: 20, color: Theme.of(context).hintColor),
+          ],
         ),
-      ],
+      ),
     );
   }
 

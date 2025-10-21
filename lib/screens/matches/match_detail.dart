@@ -5,10 +5,13 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/match_details.dart';
+import '../../models/match_fee.dart';
 import '../../services/api_service.dart';
+import '../../services/match_fee_service.dart';
 import '../../utils/theme.dart';
 import '../../widgets/svg_avatar.dart';
 import '../../providers/user_provider.dart';
+import 'match_fee_payment_screen.dart';
 
 class MatchDetailScreen extends StatefulWidget {
   final String matchId;
@@ -22,8 +25,11 @@ class MatchDetailScreen extends StatefulWidget {
 
 class _MatchDetailScreenState extends State<MatchDetailScreen> {
   MatchDetailData? _detail;
+  MatchFeesResponse? _feesData;
   bool _isLoading = false;
+  bool _isLoadingFees = false;
   String? _error;
+  String? _feesError;
   int _selectedTabIndex = 0;
   late PageController _pageController;
 
@@ -32,6 +38,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
     super.initState();
     _pageController = PageController(initialPage: 0);
     _loadMatchDetail();
+    _loadMatchFees();
   }
 
   @override
@@ -58,6 +65,28 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _loadMatchFees() async {
+    setState(() {
+      _isLoadingFees = true;
+      _feesError = null;
+    });
+
+    try {
+      final response = await MatchFeeService.getMatchFees(widget.matchId);
+      setState(() {
+        _feesData = response;
+      });
+    } catch (e) {
+      setState(() {
+        _feesError = e.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingFees = false);
       }
     }
   }
@@ -116,6 +145,11 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
             selectedIcon: Icon(Icons.groups),
             label: 'Squad',
           ),
+          NavigationDestination(
+            icon: Icon(Icons.payments_outlined),
+            selectedIcon: Icon(Icons.payments),
+            label: 'Fees',
+          ),
         ],
       ),
     );
@@ -129,7 +163,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
         onPageChanged: (index) {
           setState(() => _selectedTabIndex = index);
         },
-        children: [placeholder, placeholder],
+        children: [placeholder, placeholder, placeholder],
       );
     }
 
@@ -138,7 +172,11 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
       onPageChanged: (index) {
         setState(() => _selectedTabIndex = index);
       },
-      children: [_buildInfoTab(_detail!), _buildSquadTab(_detail!)],
+      children: [
+        _buildInfoTab(_detail!),
+        _buildSquadTab(_detail!),
+        _buildFeesTab(_detail!)
+      ],
     );
   }
 
@@ -224,239 +262,197 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
   Widget _buildMatchHeader(MatchDetailData detail) {
     final theme = Theme.of(context);
     final matchDate = detail.matchDate.toLocal();
-    final onPrimary = theme.colorScheme.onPrimary;
-    final gradientStart = theme.colorScheme.primary;
-    final gradientEnd = theme.colorScheme.primary.withOpacity(
-      theme.brightness == Brightness.dark ? 0.55 : 0.85,
-    );
     final locationText = detail.location == null
         ? 'Venue TBA'
         : [
             detail.location!.name,
             if (detail.location!.city != null) detail.location!.city,
-            if (detail.location!.address != null) detail.location!.address,
-          ].whereType<String>().join(', ');
+          ].whereType<String>().take(2).join(', ');
 
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [gradientStart, gradientEnd],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: theme.colorScheme.outline.withOpacity(0.1),
+          width: 1,
+        ),
       ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              _buildHeaderChip(
-                text: _getReadableMatchType(detail.type),
-                background: onPrimary.withOpacity(0.2),
-                textColor: onPrimary,
-              ),
-              const SizedBox(width: 8),
-              _buildHeaderChip(
-                text: DateFormat('EEE, MMM d').format(matchDate),
-                background: onPrimary.withOpacity(0.1),
-                textColor: onPrimary,
-              ),
-              const Spacer(),
-              if (detail.isCancelled)
-                _buildHeaderChip(
-                  text: 'Cancelled',
-                  background: Colors.redAccent.withOpacity(0.3),
-                  textColor: Colors.white,
-                )
-              else if (detail.type.toUpperCase() == 'TOURNAMENT')
-                _buildHeaderChip(
-                  text: 'Tournament',
-                  background: onPrimary.withOpacity(0.15),
-                  textColor: onPrimary,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            // Date and Time - Most Important
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.calendar_today,
+                  size: 18,
+                  color: theme.colorScheme.primary,
                 ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _buildTeamIdentity(
-                  detail.team,
-                  fallback: 'Home Team',
-                  textColor: onPrimary,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Column(
-                children: [
-                  Text(
-                    'vs',
-                    style: TextStyle(
-                      color: onPrimary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
+                const SizedBox(width: 8),
+                Text(
+                  DateFormat('EEEE, MMM d, yyyy').format(matchDate),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.primary,
                   ),
-                  if (detail.type.toUpperCase() == 'TOURNAMENT')
-                    Icon(
-                      Icons.emoji_events,
-                      color: onPrimary.withOpacity(0.85),
-                      size: 22,
-                    ),
-                ],
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _buildTeamIdentity(
-                  detail.opponentTeam,
-                  fallback: detail.opponent ?? 'Opponent',
-                  textColor: onPrimary,
-                  alignRight: true,
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          _buildHeaderInfoRow(
-            icon: Icons.access_time,
-            label: 'Start time',
-            value: DateFormat('hh:mm a').format(matchDate),
-            color: onPrimary,
-          ),
-          const SizedBox(height: 6),
-          _buildHeaderInfoRow(
-            icon: Icons.location_on_outlined,
-            label: 'Venue',
-            value: locationText,
-            color: onPrimary,
-          ),
-          if (detail.isCancelled && detail.cancellationReason != null) ...[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.25),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Text(
-                detail.cancellationReason!,
-                style: TextStyle(color: onPrimary, height: 1.3),
-              ),
+              ],
             ),
-          ],
-        ],
-      ),
-    );
-  }
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.access_time,
+                  size: 16,
+                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  DateFormat('h:mm a').format(matchDate),
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: theme.colorScheme.onSurface.withOpacity(0.8),
+                  ),
+                ),
+              ],
+            ),
 
-  Widget _buildHeaderChip({
-    required String text,
-    required Color background,
-    required Color textColor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: textColor,
-          fontWeight: FontWeight.w600,
-          fontSize: 12,
-        ),
-      ),
-    );
-  }
+            const SizedBox(height: 24),
 
-  Widget _buildTeamIdentity(
-    MatchDetailTeam? team, {
-    required String fallback,
-    required Color textColor,
-    bool alignRight = false,
-  }) {
-    final name = team?.name ?? fallback;
-    final club = team?.club?.name;
-    final alignment = alignRight
-        ? CrossAxisAlignment.end
-        : CrossAxisAlignment.start;
+            // Teams Row
+            Row(
+              children: [
+                // Home Team
+                Expanded(
+                  child: _buildSimpleTeamInfo(
+                    team: detail.team,
+                    fallback: 'Home Team',
+                    alignRight: false,
+                  ),
+                ),
 
-    return Column(
-      crossAxisAlignment: alignment,
-      children: [
-        SVGAvatar(
-          imageUrl: team?.logo,
-          size: 30,
-          backgroundColor: Colors.white.withOpacity(0.15),
-          iconColor: textColor,
-          fallbackIcon: Icons.shield_outlined,
-          fallbackText: name,
-          fallbackTextStyle: TextStyle(
-            color: textColor,
-            fontWeight: FontWeight.bold,
-            fontSize: 24,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          textAlign: alignRight ? TextAlign.right : TextAlign.left,
-          style: TextStyle(
-            color: textColor,
-            fontWeight: FontWeight.w700,
-            fontSize: 18,
-          ),
-        ),
-        if (club != null) ...[
-          const SizedBox(height: 2),
-          Text(
-            club,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: alignRight ? TextAlign.right : TextAlign.left,
-            style: TextStyle(color: textColor.withOpacity(0.8)),
-          ),
-        ],
-      ],
-    );
-  }
+                // VS and Match Type
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          'VS',
+                          style: TextStyle(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _getReadableMatchType(detail.type),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface.withOpacity(0.6),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
-  Widget _buildHeaderInfoRow({
-    required IconData icon,
-    required String label,
-    required String value,
-    required Color color,
-  }) {
-    return Row(
-      children: [
-        Icon(icon, color: color, size: 18),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  color: color.withOpacity(0.8),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w500,
+                // Away Team
+                Expanded(
+                  child: _buildSimpleTeamInfo(
+                    team: detail.opponentTeam,
+                    fallback: detail.opponent ?? 'Opponent',
+                    alignRight: true,
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            // Venue
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.location_on_outlined,
+                  size: 16,
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    locationText,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+
+            // Status badges
+            if (detail.isCancelled) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.red.withOpacity(0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.cancel, color: Colors.red, size: 16),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Match Cancelled',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              Text(value, style: TextStyle(color: color, fontSize: 12)),
+              if (detail.cancellationReason != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.errorContainer.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    detail.cancellationReason!,
+                    style: TextStyle(
+                      color: theme.colorScheme.onErrorContainer,
+                      fontSize: 13,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
             ],
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
-
 
   Widget _buildUserRsvp(MatchRSVP rsvp) {
     final color = _getRSVPColor(rsvp.status);
@@ -965,6 +961,430 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
     }
 
     return name.substring(0, 3).toUpperCase();
+  }
+
+  Widget _buildSimpleTeamInfo({
+    required MatchDetailTeam? team,
+    required String fallback,
+    required bool alignRight,
+  }) {
+    final theme = Theme.of(context);
+    final teamName = team?.name ?? fallback;
+    final clubName = team?.club?.name;
+
+    return Column(
+      crossAxisAlignment: alignRight ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        // Team Logo
+        SVGAvatar(
+          imageUrl: team?.logo,
+          size: 48,
+          backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+          iconColor: theme.colorScheme.primary,
+          fallbackIcon: Icons.shield_outlined,
+          fallbackText: teamName,
+          fallbackTextStyle: TextStyle(
+            color: theme.colorScheme.primary,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Team Name
+        Text(
+          teamName,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: theme.colorScheme.onSurface,
+          ),
+          textAlign: alignRight ? TextAlign.right : TextAlign.left,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+
+        // Club Name (if different from team name)
+        if (clubName != null && clubName != teamName) ...[
+          const SizedBox(height: 2),
+          Text(
+            clubName,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface.withOpacity(0.6),
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: alignRight ? TextAlign.right : TextAlign.left,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildFeesTab(MatchDetailData detail) {
+    return RefreshIndicator(
+      onRefresh: () async {
+        await _loadMatchFees();
+      },
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          if (_isLoadingFees)
+            const Center(child: CircularProgressIndicator())
+          else if (_feesError != null)
+            _buildFeesError()
+          else if (_feesData != null)
+            _buildFeesContent(detail, _feesData!)
+          else
+            _buildNoFeesData(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeesError() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.red, size: 48),
+            const SizedBox(height: 8),
+            const Text('Failed to load fees information'),
+            const SizedBox(height: 8),
+            Text(
+              _feesError!,
+              style: Theme.of(context).textTheme.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _loadMatchFees,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNoFeesData() {
+    return const Card(
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Icon(Icons.payments_outlined, color: Colors.grey, size: 48),
+            SizedBox(height: 8),
+            Text('No fees information available'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFeesContent(MatchDetailData detail, MatchFeesResponse feesData) {
+    final isAdmin = feesData.canManageFees;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // User's Fee Status (if applicable)
+        if (feesData.userFeeStatus != null)
+          _buildUserFeeStatus(feesData.userFeeStatus!),
+
+        const SizedBox(height: 16),
+
+        // Admin Controls (if user is admin)
+        if (isAdmin) ...[
+          _buildAdminControls(detail, feesData),
+          const SizedBox(height: 16),
+        ],
+
+        // All Players Fee Status
+        _buildAllPlayersFeesSection(feesData),
+      ],
+    );
+  }
+
+  Widget _buildUserFeeStatus(UserFeeStatus userFeeStatus) {
+    Color statusColor;
+    IconData statusIcon;
+    String statusText;
+
+    if (!userFeeStatus.isPaid) {
+      statusColor = Colors.red;
+      statusIcon = Icons.payment;
+      statusText = 'Payment Required';
+    } else if (!userFeeStatus.isConfirmed) {
+      statusColor = Colors.orange;
+      statusIcon = Icons.hourglass_empty;
+      statusText = 'Pending Confirmation';
+    } else {
+      statusColor = Colors.green;
+      statusIcon = Icons.check_circle;
+      statusText = 'Payment Confirmed';
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(statusIcon, color: statusColor),
+                const SizedBox(width: 8),
+                Text(
+                  'Your Fee Status',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Amount: ${MatchFeeService.formatCurrency(userFeeStatus.amount)}',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      statusText,
+                      style: TextStyle(
+                        color: statusColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (userFeeStatus.paymentMethod != null) ...[
+                      const SizedBox(height: 4),
+                      Text('Method: ${userFeeStatus.paymentMethod}'),
+                    ],
+                  ],
+                ),
+                if (!userFeeStatus.isPaid)
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => MatchFeePaymentScreen(
+                            matchId: widget.matchId,
+                            amount: userFeeStatus.amount,
+                            clubName: _feesData!.match.club.name,
+                            clubUpiId: _feesData!.match.club.upiId,
+                          ),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.cricketGreen,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Pay Now'),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAdminControls(MatchDetailData detail, MatchFeesResponse feesData) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.admin_panel_settings, color: AppTheme.cricketGreen),
+                const SizedBox(width: 8),
+                Text(
+                  'Admin Controls',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      // TODO: Navigate to fee management screen
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Fee management screen coming soon!'),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.edit),
+                    label: const Text('Manage Fees'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.cricketGreen,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      // TODO: Navigate to pending confirmations
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Pending confirmations screen coming soon!'),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.pending_actions),
+                    label: const Text('Confirmations'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAllPlayersFeesSection(MatchFeesResponse feesData) {
+    if (feesData.transactions.isEmpty) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              const Icon(Icons.group_outlined, color: Colors.grey, size: 48),
+              const SizedBox(height: 8),
+              Text(
+                'No fees assigned yet',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Club admin will assign match fees to players',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.grey[600],
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'All Players (${feesData.transactions.length})',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...feesData.transactions.map((transaction) =>
+              _buildPlayerFeeCard(transaction)
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlayerFeeCard(MatchFeeTransaction transaction) {
+    Color statusColor;
+    IconData statusIcon;
+
+    if (!transaction.isPaid) {
+      statusColor = Colors.red;
+      statusIcon = Icons.payment;
+    } else if (!transaction.isConfirmed) {
+      statusColor = Colors.orange;
+      statusIcon = Icons.hourglass_empty;
+    } else {
+      statusColor = Colors.green;
+      statusIcon = Icons.check_circle;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey[300]!),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 20,
+            backgroundImage: transaction.user?.profilePicture != null
+                ? NetworkImage(transaction.user!.profilePicture!)
+                : null,
+            child: transaction.user?.profilePicture == null
+                ? Text(
+                    transaction.user?.name.substring(0, 1).toUpperCase() ?? '?',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  )
+                : null,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  transaction.user?.name ?? 'Unknown Player',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${MatchFeeService.formatCurrency(transaction.amount)} • ${transaction.paymentStatusText}',
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 12,
+                  ),
+                ),
+                if (transaction.paymentMethod != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'via ${transaction.paymentMethodText}',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Icon(statusIcon, color: statusColor, size: 20),
+        ],
+      ),
+    );
   }
 }
 

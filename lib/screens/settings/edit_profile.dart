@@ -940,7 +940,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       // Name Field
                       _buildTextField(
                         controller: _nameController,
-                        label: 'Name',
+                        placeholder: 'Name',
                         validator: (value) {
                           if (value?.trim().isEmpty ?? true) {
                             return 'Name is required';
@@ -954,8 +954,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       // Email Field
                       _buildTextField(
                         controller: _emailController,
-                        label: 'Email',
-                        hint: 'Enter your email',
+                        placeholder: 'Email',
                         keyboardType: TextInputType.emailAddress,
                         validator: (value) {
                           if (value?.trim().isNotEmpty == true) {
@@ -972,14 +971,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       // Emergency Contact Field
                       _buildTextField(
                         controller: _emergencyContactController,
-                        label: 'Emergency Contact',
-                        hint: 'Enter emergency contact number',
+                        placeholder: 'Emergency Contact',
                         keyboardType: TextInputType.phone,
                         icon: Icons.phone,
                       ),
 
                       SizedBox(height: 16),
-                      
+
                       Text(
                         'This contact will be notified in case of emergencies during matches or events',
                         style: TextStyle(
@@ -993,8 +991,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       // Bio Field
                       _buildTextField(
                         controller: _bioController,
-                        label: 'Bio',
-                        hint: 'Tell us about yourself',
+                        placeholder: 'Bio',
                         maxLines: 3,
                       ),
 
@@ -1003,8 +1000,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       // City Field
                       _buildTextField(
                         controller: _cityController,
-                        label: 'City',
-                        hint: 'Enter your city',
+                        placeholder: 'City',
                       ),
 
                       SizedBox(height: 16),
@@ -1012,8 +1008,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       // State Field
                       _buildNativeTapField(
                         value: _selectedState,
-                        label: 'State',
-                        hint: 'Select state',
+                        placeholder: 'State',
                         onTap: _showNativeStatePicker,
                       ),
 
@@ -1021,11 +1016,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
                       // Date of Birth Field
                       _buildNativeTapField(
-                        value: _selectedDateOfBirth != null 
+                        value: _selectedDateOfBirth != null
                             ? '${_selectedDateOfBirth!.day}/${_selectedDateOfBirth!.month}/${_selectedDateOfBirth!.year}'
                             : null,
-                        label: 'Date of Birth',
-                        hint: 'Select your date of birth',
+                        placeholder: 'Date of Birth',
                         onTap: _selectDate,
                       ),
 
@@ -1034,8 +1028,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       // Gender Field
                       _buildNativeTapField(
                         value: _selectedGender,
-                        label: 'Gender',
-                        hint: 'Select gender',
+                        placeholder: 'Gender',
                         onTap: _showNativeGenderPicker,
                       ),
                     ],
@@ -1053,163 +1046,133 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Widget _buildTextField({
     required TextEditingController controller,
-    required String label,
-    String? hint,
+    required String placeholder,
     TextInputType keyboardType = TextInputType.text,
     int maxLines = 1,
     IconData? icon,
     String? Function(String?)? validator,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Theme.of(context).colorScheme.onSurface,
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+      validator: validator,
+      decoration: InputDecoration(
+        hintText: placeholder,
+        hintStyle: TextStyle(
+          color: Theme.of(context).hintColor,
+          fontSize: 16,
+        ),
+        prefixIcon: icon != null ? Icon(
+          icon,
+          size: 20,
+          color: Theme.of(context).hintColor,
+        ) : null,
+        filled: true,
+        fillColor: Theme.of(context).brightness == Brightness.dark
+            ? Theme.of(context).cardColor
+            : Theme.of(context).scaffoldBackgroundColor,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Theme.of(context).dividerColor.withOpacity(0.3),
+            width: 1,
           ),
         ),
-        SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          keyboardType: keyboardType,
-          maxLines: maxLines,
-          validator: validator,
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: TextStyle(
-              color: Theme.of(context).hintColor,
-              fontSize: 14,
-            ),
-            prefixIcon: icon != null ? Icon(
-              icon, 
-              size: 20,
-              color: Theme.of(context).hintColor,
-            ) : null,
-            filled: true,
-            fillColor: Theme.of(context).brightness == Brightness.dark
-                ? Theme.of(context).cardColor
-                : Theme.of(context).scaffoldBackgroundColor,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(
-                color: Theme.of(context).dividerColor.withOpacity(0.2),
-                width: 1,
-              ),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(
-                color: Theme.of(context).dividerColor.withOpacity(0.2),
-                width: 1,
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(
-                color: AppTheme.primaryBlue,
-                width: 2,
-              ),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(
-                color: Theme.of(context).colorScheme.error,
-                width: 1,
-              ),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(
-                color: Theme.of(context).colorScheme.error,
-                width: 2,
-              ),
-            ),
-            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Theme.of(context).dividerColor.withOpacity(0.3),
+            width: 1,
           ),
         ),
-      ],
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: AppTheme.primaryBlue,
+            width: 2,
+          ),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Theme.of(context).colorScheme.error,
+            width: 1,
+          ),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Theme.of(context).colorScheme.error,
+            width: 2,
+          ),
+        ),
+        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      ),
     );
   }
 
   Widget _buildNativeTapField({
     required String? value,
-    required String label,
-    required String hint,
+    required String placeholder,
     required VoidCallback onTap,
     IconData? leadingIcon,
   }) {
-    // Determine icon based on label if not provided
+    // Determine icon based on placeholder if not provided
     IconData icon;
     if (leadingIcon != null) {
       icon = leadingIcon;
-    } else if (label.toLowerCase().contains('date') || label.toLowerCase().contains('birth')) {
+    } else if (placeholder.toLowerCase().contains('date') || placeholder.toLowerCase().contains('birth')) {
       icon = Platform.isIOS ? CupertinoIcons.calendar : Icons.calendar_month;
     } else {
       icon = Platform.isIOS ? CupertinoIcons.chevron_down : Icons.keyboard_arrow_down;
     }
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Theme.of(context).colorScheme.onSurface,
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Theme.of(context).cardColor
+              : Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Theme.of(context).dividerColor.withOpacity(0.3),
+            width: 1,
           ),
         ),
-        SizedBox(height: 8),
-        GestureDetector(
-          onTap: onTap,
-          child: Container(
-            width: double.infinity,
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Theme.of(context).cardColor
-                  : Theme.of(context).scaffoldBackgroundColor,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: Theme.of(context).dividerColor.withOpacity(0.2),
-                width: 1,
+        child: Row(
+          children: [
+            if (placeholder.toLowerCase().contains('date') || placeholder.toLowerCase().contains('birth')) ...[
+              Icon(
+                icon,
+                size: 20,
+                color: Theme.of(context).hintColor,
+              ),
+              SizedBox(width: 12),
+            ],
+            Expanded(
+              child: Text(
+                value ?? placeholder,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: value != null
+                      ? Theme.of(context).colorScheme.onSurface
+                      : Theme.of(context).hintColor,
+                ),
               ),
             ),
-            child: Row(
-              children: [
-                if (label.toLowerCase().contains('date') || label.toLowerCase().contains('birth')) ...[
-                  Icon(
-                    icon,
-                    size: 20,
-                    color: Theme.of(context).hintColor,
-                  ),
-                  SizedBox(width: 12),
-                ],
-                Expanded(
-                  child: Text(
-                    value ?? hint,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: value != null 
-                          ? Theme.of(context).colorScheme.onSurface
-                          : Theme.of(context).hintColor,
-                    ),
-                  ),
-                ),
-                if (!label.toLowerCase().contains('date') && !label.toLowerCase().contains('birth'))
-                  Icon(
-                    icon,
-                    size: 20,
-                    color: Theme.of(context).hintColor,
-                  ),
-              ],
-            ),
-          ),
+            if (!placeholder.toLowerCase().contains('date') && !placeholder.toLowerCase().contains('birth'))
+              Icon(
+                icon,
+                size: 20,
+                color: Theme.of(context).hintColor,
+              ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
